@@ -1,0 +1,544 @@
+"""GitHub API client implementation."""
+
+import asyncio
+import contextlib
+import logging
+import time
+from typing import Any
+
+import httpx
+
+from forklift.config import GitHubConfig
+from forklift.models.github import Commit, Fork, Repository, User
+from .rate_limiter import RateLimitHandler, CircuitBreaker
+
+logger = logging.getLogger(__name__)
+
+
+class GitHubAPIError(Exception):
+    """Base exception for GitHub API errors."""
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        response_data: dict[str, Any] | None = None,
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response_data = response_data or {}
+
+
+class GitHubAuthenticationError(GitHubAPIError):
+    """Raised when GitHub API authentication fails."""
+
+    pass
+
+
+class GitHubRateLimitError(GitHubAPIError):
+    """Raised when GitHub API rate limit is exceeded."""
+
+    def __init__(
+        self,
+        message: str,
+        reset_time: int | None = None,
+        remaining: int | None = None,
+        limit: int | None = None,
+        status_code: int | None = None,
+    ):
+        super().__init__(message, status_code=status_code)
+        self.reset_time = reset_time
+        self.remaining = remaining
+        self.limit = limit
+
+
+class GitHubNotFoundError(GitHubAPIError):
+    """Raised when a GitHub resource is not found."""
+
+    pass
+
+
+class GitHubClient:
+    """Async GitHub API client with authentication and error handling."""
+
+    def __init__(
+        self, 
+        config: GitHubConfig,
+        rate_limit_handler: RateLimitHandler | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
+    ):
+        """Initialize GitHub client with configuration."""
+        self.config = config
+        self._client: httpx.AsyncClient | None = None
+        self._headers = self._build_headers()
+        
+        # Initialize rate limiting and circuit breaker
+        self.rate_limit_handler = rate_limit_handler or RateLimitHandler()
+        self.circuit_breaker = circuit_breaker or CircuitBreaker(
+            failure_threshold=5,
+            timeout=60.0,
+            expected_exception=GitHubAPIError,
+        )
+
+    def _build_headers(self) -> dict[str, str]:
+        """Build HTTP headers for GitHub API requests."""
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Forklift/1.0.0 (GitHub Fork Analysis Tool)",
+        }
+
+        if self.config.token:
+            headers["Authorization"] = f"Bearer {self.config.token}"
+
+        return headers
+
+    async def __aenter__(self) -> "GitHubClient":
+        """Async context manager entry."""
+        await self._ensure_client()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit."""
+        await self.close()
+
+    async def _ensure_client(self) -> None:
+        """Ensure HTTP client is initialized."""
+        if self._client is None:
+            timeout = httpx.Timeout(self.config.timeout_seconds)
+            self._client = httpx.AsyncClient(
+                base_url=self.config.base_url,
+                headers=self._headers,
+                timeout=timeout,
+                follow_redirects=True,
+            )
+
+    async def close(self) -> None:
+        """Close the HTTP client."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Make an authenticated request to the GitHub API with retry logic."""
+        operation_name = f"{method} {endpoint}"
+        
+        async def make_request() -> dict[str, Any]:
+            """Inner function to make the actual request."""
+            await self._ensure_client()
+
+            url = endpoint if endpoint.startswith("http") else f"/{endpoint.lstrip('/')}"
+
+            try:
+                logger.debug(f"Making {method} request to {url}")
+                response = await self._client.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    json=json_data,
+                )
+
+                # Handle rate limiting
+                if response.status_code == 403:
+                    rate_limit_remaining = response.headers.get("x-ratelimit-remaining")
+                    if rate_limit_remaining == "0":
+                        reset_time = int(response.headers.get("x-ratelimit-reset", 0))
+                        limit = int(response.headers.get("x-ratelimit-limit", 0))
+                        remaining = int(response.headers.get("x-ratelimit-remaining", 0))
+                        raise GitHubRateLimitError(
+                            "GitHub API rate limit exceeded",
+                            reset_time=reset_time,
+                            remaining=remaining,
+                            limit=limit,
+                            status_code=response.status_code,
+                        )
+
+                # Handle authentication errors (non-retryable)
+                if response.status_code == 401:
+                    raise GitHubAuthenticationError(
+                        "GitHub API authentication failed. Check your token.",
+                        status_code=response.status_code,
+                    )
+
+                # Handle not found errors (non-retryable)
+                if response.status_code == 404:
+                    raise GitHubNotFoundError(
+                        "GitHub resource not found",
+                        status_code=response.status_code,
+                    )
+
+                # Handle other client errors (mostly non-retryable)
+                if 400 <= response.status_code < 500:
+                    error_data = {}
+                    with contextlib.suppress(Exception):
+                        error_data = response.json()
+
+                    # Some 4xx errors might be retryable (e.g., 429 Too Many Requests)
+                    if response.status_code == 429:
+                        # This is a rate limit error that might not have the standard headers
+                        retry_after = response.headers.get("retry-after")
+                        reset_time = None
+                        if retry_after:
+                            try:
+                                reset_time = int(time.time()) + int(retry_after)
+                            except ValueError:
+                                pass
+                        
+                        raise GitHubRateLimitError(
+                            "GitHub API rate limit exceeded (429)",
+                            reset_time=reset_time,
+                            remaining=0,
+                            limit=None,
+                            status_code=response.status_code,
+                        )
+
+                    raise GitHubAPIError(
+                        f"GitHub API client error: {response.status_code}",
+                        status_code=response.status_code,
+                        response_data=error_data,
+                    )
+
+                # Handle server errors (retryable)
+                if response.status_code >= 500:
+                    raise GitHubAPIError(
+                        f"GitHub API server error: {response.status_code}",
+                        status_code=response.status_code,
+                    )
+
+                # Ensure we got a successful response
+                response.raise_for_status()
+
+                # Parse JSON response
+                try:
+                    return response.json()
+                except Exception as e:
+                    raise GitHubAPIError(f"Failed to parse JSON response: {e}") from e
+
+            except httpx.TimeoutException as e:
+                raise GitHubAPIError(f"Request timeout: {e}") from e
+            except httpx.NetworkError as e:
+                raise GitHubAPIError(f"Network error: {e}") from e
+            except httpx.HTTPStatusError as e:
+                raise GitHubAPIError(f"HTTP error: {e}") from e
+
+        # Execute request with circuit breaker and retry logic
+        return await self.circuit_breaker.call(
+            lambda: self.rate_limit_handler.execute_with_retry(
+                make_request,
+                operation_name=operation_name,
+                retryable_exceptions=(
+                    GitHubRateLimitError,
+                    httpx.TimeoutException,
+                    httpx.NetworkError,
+                    GitHubAPIError,  # Include GitHubAPIError for server errors
+                ),
+            ),
+            operation_name=operation_name,
+        )
+
+    async def get(
+        self, endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Make a GET request to the GitHub API."""
+        return await self._request("GET", endpoint, params=params)
+
+    async def post(
+        self,
+        endpoint: str,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Make a POST request to the GitHub API."""
+        return await self._request("POST", endpoint, params=params, json_data=json_data)
+
+    async def patch(
+        self,
+        endpoint: str,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Make a PATCH request to the GitHub API."""
+        return await self._request("PATCH", endpoint, params=params, json_data=json_data)
+
+    async def delete(
+        self, endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Make a DELETE request to the GitHub API."""
+        return await self._request("DELETE", endpoint, params=params)
+
+    # Repository operations
+
+    async def get_repository(self, owner: str, repo: str) -> Repository:
+        """Get repository information."""
+        logger.info(f"Fetching repository {owner}/{repo}")
+        data = await self.get(f"repos/{owner}/{repo}")
+        return Repository.from_github_api(data)
+
+    async def get_repository_forks(
+        self,
+        owner: str,
+        repo: str,
+        sort: str = "newest",
+        per_page: int = 100,
+        page: int = 1,
+    ) -> list[Repository]:
+        """Get repository forks."""
+        logger.info(f"Fetching forks for {owner}/{repo} (page {page})")
+        params = {
+            "sort": sort,
+            "per_page": min(per_page, 100),  # GitHub max is 100
+            "page": page,
+        }
+        data = await self.get(f"repos/{owner}/{repo}/forks", params=params)
+        return [Repository.from_github_api(fork_data) for fork_data in data]
+
+    async def get_all_repository_forks(
+        self, owner: str, repo: str, max_forks: int | None = None
+    ) -> list[Repository]:
+        """Get all repository forks with pagination."""
+        logger.info(f"Fetching all forks for {owner}/{repo}")
+        all_forks = []
+        page = 1
+        per_page = 100
+
+        while True:
+            forks = await self.get_repository_forks(
+                owner, repo, per_page=per_page, page=page
+            )
+
+            if not forks:
+                break
+
+            all_forks.extend(forks)
+
+            # Check if we've reached the maximum
+            if max_forks and len(all_forks) >= max_forks:
+                all_forks = all_forks[:max_forks]
+                break
+
+            # If we got fewer than per_page, we're done
+            if len(forks) < per_page:
+                break
+
+            page += 1
+
+        logger.info(f"Found {len(all_forks)} forks for {owner}/{repo}")
+        return all_forks
+
+    async def get_repository_commits(
+        self,
+        owner: str,
+        repo: str,
+        sha: str | None = None,
+        path: str | None = None,
+        author: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        per_page: int = 100,
+        page: int = 1,
+    ) -> list[Commit]:
+        """Get repository commits."""
+        logger.info(f"Fetching commits for {owner}/{repo}")
+        params = {
+            "per_page": min(per_page, 100),
+            "page": page,
+        }
+
+        if sha:
+            params["sha"] = sha
+        if path:
+            params["path"] = path
+        if author:
+            params["author"] = author
+        if since:
+            params["since"] = since
+        if until:
+            params["until"] = until
+
+        data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
+        return [Commit.from_github_api(commit_data) for commit_data in data]
+
+    async def get_commit(self, owner: str, repo: str, sha: str) -> Commit:
+        """Get detailed commit information."""
+        logger.info(f"Fetching commit {sha} from {owner}/{repo}")
+        data = await self.get(f"repos/{owner}/{repo}/commits/{sha}")
+        return Commit.from_github_api(data)
+
+    async def compare_commits(
+        self, owner: str, repo: str, base: str, head: str
+    ) -> dict[str, Any]:
+        """Compare two commits or branches."""
+        logger.info(f"Comparing {base}...{head} in {owner}/{repo}")
+        return await self.get(f"repos/{owner}/{repo}/compare/{base}...{head}")
+
+    # User operations
+
+    async def get_user(self, username: str) -> User:
+        """Get user information."""
+        logger.info(f"Fetching user {username}")
+        data = await self.get(f"users/{username}")
+        return User.from_github_api(data)
+
+    async def get_authenticated_user(self) -> User:
+        """Get authenticated user information."""
+        logger.info("Fetching authenticated user")
+        data = await self.get("user")
+        return User.from_github_api(data)
+
+    # Rate limit operations
+
+    async def get_rate_limit(self) -> dict[str, Any]:
+        """Get current rate limit status."""
+        logger.debug("Fetching rate limit status")
+        return await self.get("rate_limit")
+
+    async def check_rate_limit(self) -> dict[str, int]:
+        """Check rate limit and return simplified status."""
+        rate_limit_data = await self.get_rate_limit()
+        core_limit = rate_limit_data["rate"]
+
+        return {
+            "limit": core_limit["limit"],
+            "remaining": core_limit["remaining"],
+            "reset": core_limit["reset"],
+            "used": core_limit["used"],
+        }
+
+    async def wait_for_rate_limit_reset(self) -> None:
+        """Wait for rate limit to reset if necessary."""
+        try:
+            rate_limit_status = await self.check_rate_limit()
+            remaining = rate_limit_status["remaining"]
+            reset_time = rate_limit_status["reset"]
+            
+            if remaining <= 10:  # Conservative threshold
+                current_time = time.time()
+                wait_time = max(0, reset_time - current_time + 1)  # +1 second buffer
+                
+                if wait_time > 0:
+                    logger.info(f"Rate limit low ({remaining} remaining), waiting {wait_time:.1f}s for reset")
+                    await asyncio.sleep(wait_time)
+                    
+        except Exception as e:
+            logger.warning(f"Could not check rate limit status: {e}")
+
+    def get_circuit_breaker_status(self) -> dict[str, Any]:
+        """Get current circuit breaker status."""
+        return {
+            "state": self.circuit_breaker.state,
+            "failure_count": self.circuit_breaker.failure_count,
+            "last_failure_time": self.circuit_breaker.last_failure_time,
+            "failure_threshold": self.circuit_breaker.failure_threshold,
+            "timeout": self.circuit_breaker.timeout,
+        }
+
+    def reset_circuit_breaker(self) -> None:
+        """Manually reset the circuit breaker."""
+        self.circuit_breaker.failure_count = 0
+        self.circuit_breaker.last_failure_time = None
+        self.circuit_breaker.state = "closed"
+        logger.info("Circuit breaker manually reset")
+
+    # Utility methods
+
+    async def test_authentication(self) -> bool:
+        """Test if authentication is working."""
+        try:
+            await self.get_authenticated_user()
+            return True
+        except GitHubAuthenticationError:
+            return False
+        except Exception:
+            return False
+
+    def is_authenticated(self) -> bool:
+        """Check if client has authentication token."""
+        return bool(self.config.token)
+
+    async def get_repository_languages(self, owner: str, repo: str) -> dict[str, int]:
+        """Get repository programming languages."""
+        logger.debug(f"Fetching languages for {owner}/{repo}")
+        return await self.get(f"repos/{owner}/{repo}/languages")
+
+    async def get_repository_topics(self, owner: str, repo: str) -> list[str]:
+        """Get repository topics."""
+        logger.debug(f"Fetching topics for {owner}/{repo}")
+        data = await self.get(f"repos/{owner}/{repo}/topics")
+        return data.get("names", [])
+
+    async def get_repository_contributors(
+        self, owner: str, repo: str, per_page: int = 100
+    ) -> list[User]:
+        """Get repository contributors."""
+        logger.info(f"Fetching contributors for {owner}/{repo}")
+        params = {"per_page": min(per_page, 100)}
+        data = await self.get(f"repos/{owner}/{repo}/contributors", params=params)
+        return [User.from_github_api(contributor_data) for contributor_data in data]
+
+    # Fork-specific operations
+
+    async def get_fork_comparison(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
+    ) -> dict[str, Any]:
+        """Compare a fork with its parent repository."""
+        logger.info(f"Comparing fork {fork_owner}/{fork_repo} with parent {parent_owner}/{parent_repo}")
+
+        # Compare fork's default branch with parent's default branch
+        fork_info = await self.get_repository(fork_owner, fork_repo)
+        parent_info = await self.get_repository(parent_owner, parent_repo)
+
+        # Compare the branches
+        comparison = await self.compare_commits(
+            parent_owner,
+            parent_repo,
+            parent_info.default_branch,
+            f"{fork_owner}:{fork_info.default_branch}",
+        )
+
+        return comparison
+
+    async def get_commits_ahead_behind(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
+    ) -> dict[str, int]:
+        """Get the number of commits a fork is ahead/behind its parent."""
+        try:
+            comparison = await self.get_fork_comparison(
+                fork_owner, fork_repo, parent_owner, parent_repo
+            )
+
+            return {
+                "ahead_by": comparison.get("ahead_by", 0),
+                "behind_by": comparison.get("behind_by", 0),
+                "total_commits": comparison.get("total_commits", 0),
+            }
+        except GitHubAPIError as e:
+            logger.warning(f"Could not compare {fork_owner}/{fork_repo} with parent: {e}")
+            return {"ahead_by": 0, "behind_by": 0, "total_commits": 0}
+
+    async def create_fork_object(
+        self, fork_data: dict[str, Any], parent_data: dict[str, Any]
+    ) -> Fork:
+        """Create a Fork object with comparison data."""
+        fork_repo = Repository.from_github_api(fork_data)
+        parent_repo = Repository.from_github_api(parent_data)
+        owner = User.from_github_api(fork_data["owner"])
+
+        # Get comparison data
+        comparison = await self.get_commits_ahead_behind(
+            fork_repo.owner, fork_repo.name, parent_repo.owner, parent_repo.name
+        )
+
+        return Fork(
+            repository=fork_repo,
+            parent=parent_repo,
+            owner=owner,
+            commits_ahead=comparison["ahead_by"],
+            commits_behind=comparison["behind_by"],
+            last_activity=fork_repo.pushed_at,
+        )

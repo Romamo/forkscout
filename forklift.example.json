@@ -1,0 +1,56 @@
+{
+  "github": {
+    "base_url": "https://api.github.com",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "retry_delay_seconds": 1.0
+  },
+  "analysis": {
+    "min_score_threshold": 70.0,
+    "max_forks_to_analyze": 100,
+    "auto_pr_enabled": false,
+    "excluded_file_patterns": [
+      "*.md",
+      "*.txt",
+      ".github/*",
+      "docs/*",
+      "*.lock"
+    ],
+    "min_commit_changes": 5,
+    "max_commit_age_days": 365,
+    "include_merge_commits": false
+  },
+  "cache": {
+    "enabled": true,
+    "duration_hours": 24,
+    "max_size_mb": 100,
+    "cache_dir": ".forklift/cache",
+    "cleanup_on_startup": true
+  },
+  "rate_limit": {
+    "requests_per_minute": 60,
+    "max_concurrent_requests": 10,
+    "burst_limit": 100,
+    "backoff_factor": 2.0,
+    "max_backoff_seconds": 300.0
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_enabled": true,
+    "file_path": "forklift.log",
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "console_enabled": true
+  },
+  "scoring": {
+    "code_quality_weight": 0.30,
+    "community_engagement_weight": 0.20,
+    "test_coverage_weight": 0.20,
+    "documentation_weight": 0.15,
+    "recency_weight": 0.15
+  },
+  "debug": false,
+  "dry_run": false,
+  "output_format": "markdown"
+}
