@@ -1,9 +1,11 @@
-"""Repository analysis and feature extraction services."""
+"""Analysis module for fork discovery and feature extraction."""
 
-from .analyzer import RepositoryAnalyzer
-from .ranking import FeatureRankingEngine
+from .fork_discovery import ForkDiscoveryService, ForkDiscoveryError
+from .repository_analyzer import RepositoryAnalyzer, RepositoryAnalysisError
 
 __all__ = [
-    "FeatureRankingEngine",
+    "ForkDiscoveryService",
+    "ForkDiscoveryError",
     "RepositoryAnalyzer",
+    "RepositoryAnalysisError",
 ]
