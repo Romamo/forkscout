@@ -473,13 +473,121 @@ class GitHubClient:
         return data.get("names", [])
 
     async def get_repository_contributors(
-        self, owner: str, repo: str, per_page: int = 100
-    ) -> list[User]:
+        self, owner: str, repo: str, per_page: int = 100, max_count: int | None = None
+    ) -> list[dict[str, Any]]:
         """Get repository contributors."""
         logger.info(f"Fetching contributors for {owner}/{repo}")
-        params = {"per_page": min(per_page, 100)}
-        data = await self.get(f"repos/{owner}/{repo}/contributors", params=params)
-        return [User.from_github_api(contributor_data) for contributor_data in data]
+        
+        if max_count and max_count <= per_page:
+            # Single request is sufficient
+            params = {"per_page": min(max_count, 100)}
+            data = await self.get(f"repos/{owner}/{repo}/contributors", params=params)
+            return data[:max_count] if max_count else data
+        
+        # Paginated request
+        all_contributors = []
+        page = 1
+        
+        while True:
+            params = {"per_page": min(per_page, 100), "page": page}
+            data = await self.get(f"repos/{owner}/{repo}/contributors", params=params)
+            
+            if not data:
+                break
+            
+            all_contributors.extend(data)
+            
+            if max_count and len(all_contributors) >= max_count:
+                all_contributors = all_contributors[:max_count]
+                break
+            
+            if len(data) < per_page:
+                break
+            
+            page += 1
+        
+        return all_contributors
+
+    async def get_repository_branches(
+        self, owner: str, repo: str, per_page: int = 100, max_count: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Get repository branches."""
+        logger.debug(f"Fetching branches for {owner}/{repo}")
+        
+        if max_count and max_count <= per_page:
+            # Single request is sufficient
+            params = {"per_page": min(max_count, 100)}
+            data = await self.get(f"repos/{owner}/{repo}/branches", params=params)
+            return data[:max_count] if max_count else data
+        
+        # Paginated request
+        all_branches = []
+        page = 1
+        
+        while True:
+            params = {"per_page": min(per_page, 100), "page": page}
+            data = await self.get(f"repos/{owner}/{repo}/branches", params=params)
+            
+            if not data:
+                break
+            
+            all_branches.extend(data)
+            
+            if max_count and len(all_branches) >= max_count:
+                all_branches = all_branches[:max_count]
+                break
+            
+            if len(data) < per_page:
+                break
+            
+            page += 1
+        
+        return all_branches
+
+    async def get_branch_commits(
+        self, owner: str, repo: str, branch: str, per_page: int = 100, max_count: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Get commits for a specific branch."""
+        logger.debug(f"Fetching commits for branch {branch} in {owner}/{repo}")
+        
+        params = {"sha": branch, "per_page": min(per_page, 100)}
+        
+        if max_count and max_count <= per_page:
+            # Single request is sufficient
+            params["per_page"] = min(max_count, 100)
+            data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
+            return data[:max_count] if max_count else data
+        
+        # Paginated request
+        all_commits = []
+        page = 1
+        
+        while True:
+            params = {"sha": branch, "per_page": min(per_page, 100), "page": page}
+            data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
+            
+            if not data:
+                break
+            
+            all_commits.extend(data)
+            
+            if max_count and len(all_commits) >= max_count:
+                all_commits = all_commits[:max_count]
+                break
+            
+            if len(data) < per_page:
+                break
+            
+            page += 1
+        
+        return all_commits
+
+    async def get_branch_comparison(
+        self, owner: str, repo: str, base: str, head: str
+    ) -> dict[str, Any]:
+        """Compare two branches."""
+        logger.debug(f"Comparing {base}...{head} in {owner}/{repo}")
+        return await self.get(f"repos/{owner}/{repo}/compare/{base}...{head}")
 
     # Fork-specific operations
 

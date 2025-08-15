@@ -642,5 +642,5 @@ class TestGitHubClientUtilityOperations:
             result = await client.get_repository_contributors("testowner", "test-repo")
 
             assert len(result) == 1
-            assert isinstance(result[0], User)
-            assert result[0].login == "contributor1"
+            assert isinstance(result[0], dict)
+            assert result[0]["login"] == "contributor1"

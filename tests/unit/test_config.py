@@ -414,6 +414,7 @@ class TestForkliftConfig:
         """Test ForkliftConfig GitHub token validation."""
         # No token
         config = ForkliftConfig()
+        config.github.token = None  # Explicitly set to None to override .env
         assert config.validate_github_token() is False
 
         # Valid token

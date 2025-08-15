@@ -11,8 +11,12 @@ The system uses a layered architecture with clear separation of concerns:
 ```mermaid
 graph TD
     A[CLI Interface] --> B[Configuration Manager]
+    A --> K[Repository Display Service]
+    A --> L[Interactive Analyzer]
     B --> C[GitHub Client]
     C --> D[Fork Discovery Service]
+    C --> K
+    C --> L
     D --> E[Repository Analyzer]
     E --> F[Feature Ranking Engine]
     F --> G[Report Generator]
@@ -23,10 +27,14 @@ graph TD
     I --> F
     I --> G
     I --> H
+    I --> K
+    I --> L
     
     J[Storage Layer] --> E
     J --> F
     J --> G
+    J --> K
+    J --> L
 ```
 
 ### Core Components
@@ -39,8 +47,10 @@ graph TD
 6. **Feature Ranking Engine**: Scores and ranks discovered features
 7. **Report Generator**: Creates human-readable analysis reports
 8. **PR Creator Service**: Automates pull request creation for valuable features
-9. **Data Models**: Pydantic models for type safety and validation
-10. **Storage Layer**: Local caching and persistence using SQLite
+9. **Repository Display Service**: Handles step-by-step repository information display
+10. **Interactive Analyzer**: Provides focused analysis for specific forks and branches
+11. **Data Models**: Pydantic models for type safety and validation
+12. **Storage Layer**: Local caching and persistence using SQLite
 
 ## Components and Interfaces
 
@@ -79,6 +89,25 @@ class FeatureRankingEngine:
     def calculate_feature_score(self, feature: Feature, fork_metrics: ForkMetrics) -> float
     def rank_features(self, features: List[Feature]) -> List[RankedFeature]
     def group_similar_features(self, features: List[Feature]) -> List[FeatureGroup]
+```
+
+### CLI Command Handlers
+```python
+class RepositoryDisplayService:
+    def __init__(self, github_client: GitHubClient)
+    async def show_repository_details(self, repo_url: str) -> RepositoryDetails
+    async def list_forks_preview(self, repo_url: str) -> ForksPreview
+    async def show_forks_summary(self, repo_url: str) -> ForksSummary
+    async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter) -> List[Fork]
+    async def show_fork_details(self, fork_url: str) -> ForkDetails
+    async def show_commits(self, fork_url: str, branch: str, limit: int) -> List[CommitDetails]
+
+class InteractiveAnalyzer:
+    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer)
+    async def analyze_specific_fork(self, fork_url: str, branch: str) -> ForkAnalysisResult
+    def format_repository_display(self, repo: Repository) -> str
+    def format_forks_table(self, forks: List[Fork]) -> str
+    def format_commits_display(self, commits: List[Commit]) -> str
 ```
 
 ## Data Models
@@ -135,6 +164,70 @@ class ForkAnalysis:
     features: List[Feature]
     metrics: ForkMetrics
     analysis_date: datetime
+
+@dataclass
+class RepositoryDetails:
+    repository: Repository
+    languages: Dict[str, int]
+    license: Optional[str]
+    topics: List[str]
+    last_commit_date: datetime
+
+@dataclass
+class ForksPreview:
+    total_forks: int
+    forks: List[ForkPreviewItem]
+
+@dataclass
+class ForkPreviewItem:
+    name: str
+    owner: str
+    stars: int
+    last_push_date: datetime
+    fork_url: str
+
+@dataclass
+class ForksSummary:
+    total_forks: int
+    active_forks: int
+    forks: List[ForkSummaryItem]
+
+@dataclass
+class ForkSummaryItem:
+    fork: Fork
+    commits_ahead: int
+    commits_behind: int
+    last_activity: datetime
+    activity_status: str  # "active", "stale", "inactive"
+
+@dataclass
+class PromisingForksFilter:
+    min_stars: int = 0
+    min_commits_ahead: int = 1
+    max_days_since_activity: int = 365
+    min_activity_score: float = 0.0
+
+@dataclass
+class ForkDetails:
+    fork: Fork
+    branches: List[BranchInfo]
+    total_commits: int
+    contributors: List[str]
+
+@dataclass
+class BranchInfo:
+    name: str
+    commit_count: int
+    last_commit_date: datetime
+    commits_ahead_of_main: int
+
+@dataclass
+class CommitDetails:
+    commit: Commit
+    files_changed_count: int
+    lines_added: int
+    lines_removed: int
+    commit_url: str
 ```
 
 ### Configuration Models
@@ -275,7 +368,16 @@ forklift/
 
 ### CLI Design
 ```bash
-# Basic usage
+# Step-by-step analysis commands
+forklift show-repo https://github.com/owner/repo
+forklift list-forks https://github.com/owner/repo
+forklift show-forks https://github.com/owner/repo
+forklift show-promising https://github.com/owner/repo --min-stars 5 --min-commits-ahead 10
+forklift show-fork-details https://github.com/fork-owner/repo
+forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch
+forklift show-commits https://github.com/fork-owner/repo --branch main --limit 20
+
+# Comprehensive batch analysis (existing)
 forklift analyze https://github.com/owner/repo
 
 # With configuration

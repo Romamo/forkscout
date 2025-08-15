@@ -28,7 +28,7 @@
   - Add authentication handling for GitHub tokens
   - Implement basic repository and fork retrieval methods
   - Write unit tests with mocked API responses
-  - _Requirements: 1.1, 1.5, 6.1, 6.2_
+  - _Requirements: 1.1, 1.5, 7.1, 7.2_
 
 - [x] 3.2 Add rate limiting and error handling
   - Implement exponential backoff with jitter for rate limits
@@ -44,6 +44,14 @@
   - Implement commit comparison to find commits ahead of upstream
   - Write tests for fork discovery and filtering logic
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+- [ ] 4.3 Enhance fork filtering with activity-based pre-screening
+  - Add pre-filtering logic to skip forks with no new commits (created_at == pushed_at)
+  - Implement smart fork prioritization based on activity indicators
+  - Add bypass logic for archived, disabled, or obviously stale forks
+  - Update fork discovery to use two-stage filtering (quick metadata filter, then commit analysis)
+  - Write tests for activity-based filtering and performance improvements
+  - _Requirements: 1.4, 1.5_
 
 - [x] 4.2 Build repository analyzer for feature extraction
   - Implement RepositoryAnalyzer to analyze individual forks
@@ -97,20 +105,65 @@
   - Write tests for conflict handling and guideline compliance
   - _Requirements: 4.4, 4.5_
 
-- [ ] 8. Build CLI interface and main application
-- [ ] 8.1 Implement Click-based CLI interface
+- [x] 8. Build CLI interface and main application
+- [x] 8.1 Implement Click-based CLI interface
   - Create main CLI application with Click framework
   - Add commands for analyze, configure, and schedule operations
   - Implement progress indicators and user feedback
   - Write tests for CLI command parsing and execution
-  - _Requirements: 5.1, 5.5, 6.4_
+  - _Requirements: 5.1, 5.5, 7.4_
 
-- [ ] 8.2 Add advanced CLI features
+- [x] 8.2 Add advanced CLI features
   - Implement configuration file support and command-line overrides
   - Add scheduling support for recurring analysis
   - Create verbose logging and debug output options
   - Write integration tests for complete CLI workflows
   - _Requirements: 5.2, 5.3, 5.5_
+
+- [x] 8.3 Implement step-by-step analysis CLI commands
+  - Create Repository Display Service for incremental repository exploration
+  - Implement show-repo command to display detailed repository information
+  - Add show-forks command to display fork summary table with key metrics
+  - Write unit tests for repository display formatting and data presentation
+  - _Requirements: 6.1, 6.3, 6.8_
+
+- [x] 8.4 Add promising forks and detailed fork analysis commands
+  - Implement show-promising command with configurable filtering criteria
+  - Create show-fork-details command to display branch information and statistics
+  - Add Interactive Analyzer service for focused fork/branch analysis
+  - Write tests for fork filtering logic and detailed analysis workflows
+  - _Requirements: 6.4, 6.5, 6.8_
+
+- [x] 8.5 Implement commit analysis and display commands
+  - Create analyze-fork command for specific fork/branch combination analysis
+  - Implement show-commits command with detailed commit information display
+  - Add formatted output with tables, colors, and progress indicators
+  - Write tests for commit analysis and display formatting
+  - _Requirements: 6.6, 6.7, 6.8, 6.9_
+
+- [x] 8.6 Add lightweight fork preview command
+  - Implement list-forks command for fast fork preview using minimal API calls
+  - Create ForksPreview and ForkPreviewItem data models
+  - Add efficient fork listing that shows name, owner, stars, and last push date
+  - Write unit tests for lightweight fork preview functionality
+  - _Requirements: 6.2_
+
+- [x] 8.7 Fix missing list-forks CLI command implementation
+  - Implement missing list_forks_preview method in RepositoryDisplayService
+  - Create ForksPreview and ForkPreviewItem data models in models/analysis.py
+  - Add @cli.command("list-forks") decorator and function to CLI
+  - Implement lightweight fork preview using minimal API calls (no commit analysis)
+  - Add proper error handling and Rich formatting for fast fork display
+  - Write unit and integration tests for the complete list-forks functionality
+  - _Requirements: 6.2_
+
+- [-] 8.8 Add fork activity detection to list-forks command
+  - Enhance ForkPreviewItem model to include activity status field
+  - Implement activity detection logic using created_at vs pushed_at comparison
+  - Add "Activity" column to list-forks table showing "Active", "Stale", or "No commits"
+  - Update list_forks_preview method to calculate and display activity status
+  - Write unit tests for activity detection logic and display formatting
+  - _Requirements: 6.2_
 
 - [ ] 9. Implement caching and storage layer
 - [ ] 9.1 Create SQLite-based caching system
@@ -133,14 +186,14 @@
   - Add circuit breaker pattern for external API calls
   - Implement graceful degradation when fork analysis fails
   - Write tests for error handling and recovery scenarios
-  - _Requirements: 6.1, 6.2, 6.3_
+  - _Requirements: 7.1, 7.2, 7.3_
 
 - [ ] 10.2 Add logging and monitoring capabilities
   - Implement comprehensive logging with structured output
   - Add progress tracking and status reporting
   - Create error summary reporting in final analysis
   - Write tests for logging and monitoring functionality
-  - _Requirements: 6.4, 6.5_
+  - _Requirements: 7.4, 7.5_
 
 - [ ] 11. Create comprehensive test suite
 - [ ] 11.1 Implement unit tests for all components
@@ -150,11 +203,18 @@
   - Achieve >90% code coverage across all modules
   - _Requirements: All requirements_
 
-- [ ] 11.2 Add integration and end-to-end tests
-  - Write integration tests with real GitHub repositories
-  - Add end-to-end workflow tests for complete analysis pipeline
+- [ ] 11.2 Add integration tests with specific test repositories
+  - Write integration tests using https://github.com/maliayas/github-network-ninja
+  - Add tests using https://github.com/sanila2007/youtube-bot-telegram
+  - Create step-by-step command integration tests with real fork data
+  - Validate all CLI commands work correctly with test repositories
+  - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
+
+- [ ] 11.3 Add end-to-end and performance tests
+  - Write end-to-end workflow tests for complete analysis pipeline
   - Create performance tests for large repository analysis
   - Write tests for concurrent processing and rate limiting
+  - Add comprehensive error handling and recovery tests
   - _Requirements: All requirements_
 
 - [ ] 12. Finalize packaging and documentation

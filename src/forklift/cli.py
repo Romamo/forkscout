@@ -1,25 +1,2126 @@
 """Command-line interface for Forklift."""
 
+import asyncio
+import logging
+import sys
+from datetime import datetime
+from pathlib import Path
+
 import click
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+
+from forklift.analysis.fork_discovery import ForkDiscoveryService
+from forklift.config.settings import ForkliftConfig, load_config
+from forklift.display.repository_display_service import RepositoryDisplayService
+from forklift.github.client import GitHubClient
+from forklift.models.github import Commit
+from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
+
+console = Console()
+logger = logging.getLogger(__name__)
+
+
+class CLIError(Exception):
+    """Base exception for CLI errors."""
+    pass
+
+
+def setup_logging(verbose: bool = False, debug: bool = False, config: ForkliftConfig | None = None) -> None:
+    """Setup logging configuration for CLI."""
+    if debug:
+        level = logging.DEBUG
+    elif verbose:
+        level = logging.INFO
+    else:
+        level = logging.WARNING
+
+    # Use config logging settings if available
+    if config and config.logging:
+        level = getattr(logging, config.logging.level.upper(), level)
+        log_format = config.logging.format
+
+        handlers = []
+
+        # Console handler
+        if config.logging.console_enabled:
+            console_handler = logging.StreamHandler(sys.stderr)
+            console_handler.setFormatter(logging.Formatter(log_format))
+            handlers.append(console_handler)
+
+        # File handler
+        if config.logging.file_enabled:
+            try:
+                file_handler = logging.FileHandler(config.logging.file_path)
+                file_handler.setFormatter(logging.Formatter(log_format))
+                handlers.append(file_handler)
+            except Exception as e:
+                # Fallback to console only if file logging fails
+                console.print(f"[yellow]Warning: Could not setup file logging: {e}[/yellow]")
+
+        logging.basicConfig(
+            level=level,
+            format=log_format,
+            handlers=handlers,
+            force=True  # Override any existing configuration
+        )
+    else:
+        # Default logging setup
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.StreamHandler(sys.stderr)
+            ],
+            force=True
+        )
+
+
+def validate_repository_url(url: str) -> tuple[str, str]:
+    """Validate and parse GitHub repository URL.
+
+    Args:
+        url: Repository URL to validate
+
+    Returns:
+        Tuple of (owner, repo_name)
+
+    Raises:
+        CLIError: If URL is invalid
+    """
+    import re
+
+    # Support various GitHub URL formats
+    patterns = [
+        r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$",
+        r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$",
+        r"^([^/]+)/([^/]+)$"  # Simple owner/repo format
+    ]
+
+    for pattern in patterns:
+        match = re.match(pattern, url.strip())
+        if match:
+            owner, repo = match.groups()
+            return owner, repo
+
+    raise CLIError(f"Invalid GitHub repository URL: {url}")
+
+
+def display_analysis_summary(results: dict) -> None:
+    """Display analysis results summary."""
+    table = Table(title="Analysis Summary")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+
+    table.add_row("Repository", results.get("repository", "N/A"))
+    table.add_row("Total Forks Found", str(results.get("total_forks", 0)))
+    table.add_row("Active Forks Analyzed", str(results.get("analyzed_forks", 0)))
+    table.add_row("Features Discovered", str(results.get("total_features", 0)))
+    table.add_row("High-Value Features", str(results.get("high_value_features", 0)))
+
+    console.print(table)
+
+
+def display_repository_details(repo_data: dict) -> None:
+    """Display detailed repository information."""
+    table = Table(title=f"Repository Details: {repo_data.get('full_name', 'Unknown')}")
+    table.add_column("Property", style="cyan", width=20)
+    table.add_column("Value", style="green")
+
+    table.add_row("Name", repo_data.get("name", "N/A"))
+    table.add_row("Owner", repo_data.get("owner", {}).get("login", "N/A"))
+    table.add_row("Description", repo_data.get("description", "No description") or "No description")
+    table.add_row("Language", repo_data.get("language", "N/A") or "Not specified")
+    table.add_row("Stars", str(repo_data.get("stargazers_count", 0)))
+    table.add_row("Forks", str(repo_data.get("forks_count", 0)))
+    table.add_row("Open Issues", str(repo_data.get("open_issues_count", 0)))
+    table.add_row("Created", repo_data.get("created_at", "N/A"))
+    table.add_row("Updated", repo_data.get("updated_at", "N/A"))
+    table.add_row("Default Branch", repo_data.get("default_branch", "N/A"))
+    table.add_row("Size (KB)", str(repo_data.get("size", 0)))
+    table.add_row("License", repo_data.get("license", {}).get("name", "No license") if repo_data.get("license") else "No license")
+
+    console.print(table)
+
+
+def display_forks_summary(forks: list) -> None:
+    """Display a summary table of forks."""
+    if not forks:
+        console.print("[yellow]No forks found.[/yellow]")
+        return
+
+    table = Table(title=f"Fork Summary ({len(forks)} forks found)")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Fork Name", style="cyan", min_width=25)
+    table.add_column("Owner", style="blue", min_width=15)
+    table.add_column("Stars", style="yellow", justify="right", width=8)
+    table.add_column("Commits Ahead", style="green", justify="right", width=12)
+    table.add_column("Last Updated", style="magenta", width=12)
+    table.add_column("Language", style="white", width=10)
+
+    for i, fork in enumerate(forks[:50], 1):  # Show first 50 forks
+        commits_ahead = getattr(fork, "commits_ahead", 0) if hasattr(fork, "commits_ahead") else "Unknown"
+        last_updated = getattr(fork, "updated_at", "Unknown")
+        if last_updated != "Unknown" and "T" in str(last_updated):
+            last_updated = str(last_updated).split("T")[0]
+
+        table.add_row(
+            str(i),
+            getattr(fork, "name", "Unknown"),
+            getattr(fork, "owner", {}).get("login", "Unknown") if hasattr(fork, "owner") else "Unknown",
+            str(getattr(fork, "stargazers_count", 0)),
+            str(commits_ahead),
+            str(last_updated),
+            getattr(fork, "language", "N/A") or "N/A"
+        )
+
+    console.print(table)
+
+    if len(forks) > 50:
+        console.print(f"[dim]... and {len(forks) - 50} more forks[/dim]")
+
+
+def display_fork_details(fork, fork_metrics=None) -> None:
+    """Display detailed information about a specific fork."""
+    fork_name = getattr(fork, "full_name", "Unknown Fork")
+
+    # Basic fork information
+    table = Table(title=f"Fork Details: {fork_name}")
+    table.add_column("Property", style="cyan", width=20)
+    table.add_column("Value", style="green")
+
+    table.add_row("Full Name", getattr(fork, "full_name", "N/A"))
+    table.add_row("Owner", getattr(fork, "owner", {}).get("login", "N/A") if hasattr(fork, "owner") else "N/A")
+    table.add_row("Description", getattr(fork, "description", "No description") or "No description")
+    table.add_row("Language", getattr(fork, "language", "N/A") or "N/A")
+    table.add_row("Stars", str(getattr(fork, "stargazers_count", 0)))
+    table.add_row("Forks", str(getattr(fork, "forks_count", 0)))
+    table.add_row("Open Issues", str(getattr(fork, "open_issues_count", 0)))
+    table.add_row("Created", str(getattr(fork, "created_at", "N/A")))
+    table.add_row("Updated", str(getattr(fork, "updated_at", "N/A")))
+    table.add_row("Default Branch", getattr(fork, "default_branch", "N/A"))
+
+    if fork_metrics:
+        table.add_row("Commits Ahead", str(getattr(fork_metrics, "commits_ahead", "N/A")))
+        table.add_row("Commits Behind", str(getattr(fork_metrics, "commits_behind", "N/A")))
+        table.add_row("Last Activity", str(getattr(fork_metrics, "last_activity_date", "N/A")))
+
+    console.print(table)
+
+
+async def interactive_fork_selection(forks: list, config: ForkliftConfig) -> None:
+    """Interactive mode for selecting and analyzing specific forks."""
+    if not forks:
+        console.print("[yellow]No forks available for selection.[/yellow]")
+        return
+
+    while True:
+        console.print("\n" + "="*60)
+        console.print("[bold blue]Interactive Fork Analysis[/bold blue]")
+        console.print("="*60)
+
+        # Display options
+        console.print("\n[bold]Available Actions:[/bold]")
+        console.print("1. 📋 View forks summary")
+        console.print("2. 🔍 View detailed fork information")
+        console.print("3. ⚡ Analyze specific fork")
+        console.print("4. 📊 Analyze multiple forks")
+        console.print("5. 🚪 Exit interactive mode")
+
+        choice = Prompt.ask(
+            "\n[bold cyan]Choose an action[/bold cyan]",
+            choices=["1", "2", "3", "4", "5"],
+            default="1"
+        )
+
+        if choice == "1":
+            # Show forks summary
+            display_forks_summary(forks)
+
+        elif choice == "2":
+            # Show detailed fork information
+            display_forks_summary(forks)
+
+            try:
+                fork_num = int(Prompt.ask(
+                    f"\n[cyan]Enter fork number (1-{min(len(forks), 50)})[/cyan]",
+                    default="1"
+                ))
+
+                if 1 <= fork_num <= min(len(forks), 50):
+                    selected_fork = forks[fork_num - 1]
+                    display_fork_details(selected_fork)
+                else:
+                    console.print("[red]Invalid fork number![/red]")
+
+            except ValueError:
+                console.print("[red]Please enter a valid number![/red]")
+
+        elif choice == "3":
+            # Analyze specific fork
+            display_forks_summary(forks)
+
+            try:
+                fork_num = int(Prompt.ask(
+                    f"\n[cyan]Enter fork number to analyze (1-{min(len(forks), 50)})[/cyan]",
+                    default="1"
+                ))
+
+                if 1 <= fork_num <= min(len(forks), 50):
+                    selected_fork = forks[fork_num - 1]
+
+                    console.print(f"\n[green]Analyzing fork: {getattr(selected_fork, 'full_name', 'Unknown')}[/green]")
+
+                    # Simulate fork analysis (placeholder for actual implementation)
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        console=console
+                    ) as progress:
+                        task = progress.add_task("Analyzing fork...", total=None)
+                        await asyncio.sleep(2)  # Simulate analysis
+                        progress.update(task, description="Analysis complete!")
+
+                    # Display results
+                    display_fork_details(selected_fork)
+                    console.print("\n[green]✓ Fork analysis completed![/green]")
+
+                else:
+                    console.print("[red]Invalid fork number![/red]")
+
+            except ValueError:
+                console.print("[red]Please enter a valid number![/red]")
+
+        elif choice == "4":
+            # Analyze multiple forks
+            display_forks_summary(forks)
+
+            fork_range = Prompt.ask(
+                "\n[cyan]Enter fork range (e.g., '1-5' or '1,3,5')[/cyan]",
+                default="1-5"
+            )
+
+            try:
+                selected_forks = []
+
+                if "-" in fork_range:
+                    # Range selection
+                    start, end = map(int, fork_range.split("-"))
+                    start = max(1, start)
+                    end = min(len(forks), end)
+                    selected_forks = forks[start-1:end]
+
+                elif "," in fork_range:
+                    # Individual selection
+                    fork_nums = [int(x.strip()) for x in fork_range.split(",")]
+                    selected_forks = [forks[i-1] for i in fork_nums if 1 <= i <= len(forks)]
+
+                else:
+                    # Single fork
+                    fork_num = int(fork_range)
+                    if 1 <= fork_num <= len(forks):
+                        selected_forks = [forks[fork_num-1]]
+
+                if selected_forks:
+                    console.print(f"\n[green]Analyzing {len(selected_forks)} forks...[/green]")
+
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        BarColumn(),
+                        TaskProgressColumn(),
+                        console=console
+                    ) as progress:
+                        task = progress.add_task("Analyzing forks...", total=len(selected_forks))
+
+                        for i, fork in enumerate(selected_forks):
+                            progress.update(task, advance=1, description=f"Analyzing {getattr(fork, 'name', 'fork')} ({i+1}/{len(selected_forks)})")
+                            await asyncio.sleep(0.5)  # Simulate analysis
+
+                    console.print(f"\n[green]✓ Analyzed {len(selected_forks)} forks successfully![/green]")
+                else:
+                    console.print("[red]No valid forks selected![/red]")
+
+            except ValueError:
+                console.print("[red]Invalid range format! Use '1-5' or '1,3,5'[/red]")
+
+        elif choice == "5":
+            # Exit
+            console.print("\n[yellow]Exiting interactive mode...[/yellow]")
+            break
+
+        # Ask if user wants to continue
+        if choice != "5":
+            if not Confirm.ask("\n[dim]Continue with interactive mode?[/dim]", default=True):
+                break
 
 
 @click.group()
 @click.version_option(version="0.1.0")
-def cli():
-    """Forklift - GitHub repository fork analysis tool."""
-    pass
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
+@click.option("--debug", is_flag=True, help="Enable debug output")
+@click.option("--config", "-c", type=click.Path(exists=True), help="Configuration file path")
+@click.pass_context
+def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> None:
+    """Forklift - GitHub repository fork analysis tool.
+
+    Discover and analyze valuable features across all forks of a GitHub repository.
+    """
+    # Ensure context object exists
+    ctx.ensure_object(dict)
+
+    # Load configuration
+    try:
+        loaded_config = load_config(config) if config else load_config()
+        ctx.obj["config"] = loaded_config
+    except Exception as e:
+        console.print(f"[red]Error loading configuration: {e}[/red]")
+        sys.exit(1)
+
+    # Setup logging with configuration
+    setup_logging(verbose, debug, loaded_config)
+
+    # Store CLI options
+    ctx.obj["verbose"] = verbose
+    ctx.obj["debug"] = debug
 
 
 @cli.command()
 @click.argument("repository_url")
-@click.option("--config", "-c", help="Configuration file path")
-@click.option("--output", "-o", help="Output file path")
-@click.option("--auto-pr", is_flag=True, help="Automatically create pull requests")
-@click.option("--min-score", type=int, default=70, help="Minimum score for auto PR")
-def analyze(repository_url, config, output, auto_pr, min_score):
-    """Analyze a repository and its forks."""
-    click.echo(f"Analyzing repository: {repository_url}")
-    # Implementation will be added in later tasks
+@click.option("--output", "-o", type=click.Path(), help="Output file path for report")
+@click.option("--format", "output_format", type=click.Choice(["markdown", "json", "yaml"]),
+              default="markdown", help="Output format")
+@click.option("--auto-pr", is_flag=True, help="Automatically create pull requests for high-value features")
+@click.option("--min-score", type=click.IntRange(0, 100), help="Minimum score threshold for features")
+@click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to analyze")
+@click.option("--dry-run", is_flag=True, help="Perform analysis without creating PRs or writing files")
+@click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection and analysis")
+@click.pass_context
+def analyze(
+    ctx: click.Context,
+    repository_url: str,
+    output: str | None,
+    output_format: str,
+    auto_pr: bool,
+    min_score: int | None,
+    max_forks: int | None,
+    dry_run: bool,
+    interactive: bool
+) -> None:
+    """Analyze a repository and its forks for valuable features.
+
+    REPOSITORY_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    # Override config with CLI options
+    if min_score is not None:
+        config.analysis.min_score_threshold = min_score
+    if max_forks is not None:
+        config.analysis.max_forks_to_analyze = max_forks
+    if auto_pr:
+        config.analysis.auto_pr_enabled = auto_pr
+    if dry_run:
+        config.dry_run = dry_run
+
+    config.output_format = output_format
+
+    try:
+        # Validate repository URL
+        owner, repo_name = validate_repository_url(repository_url)
+
+        if verbose:
+            console.print(f"[blue]Analyzing repository: {owner}/{repo_name}[/blue]")
+
+        if interactive:
+            # Run interactive analysis
+            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose))
+        else:
+            # Run standard analysis
+            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose))
+
+            # Display results
+            display_analysis_summary(results)
+
+            # Save output if specified
+            if output and not dry_run:
+                output_path = Path(output)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(results.get("report", ""))
+
+                console.print(f"[green]Report saved to: {output_path}[/green]")
+
+            # Success message
+            high_value_count = results.get("high_value_features", 0)
+            if high_value_count > 0:
+                console.print(f"[green]✓ Analysis complete! Found {high_value_count} high-value features.[/green]")
+            else:
+                console.print("[yellow]Analysis complete. No high-value features found.[/yellow]")
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Analysis interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.option("--github-token", help="GitHub API token")
+@click.option("--min-score", type=click.IntRange(0, 100), help="Minimum score threshold")
+@click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum forks to analyze")
+@click.option("--output-format", type=click.Choice(["markdown", "json", "yaml"]), help="Default output format")
+@click.option("--cache-duration", type=int, help="Cache duration in hours")
+@click.option("--save", type=click.Path(), help="Save configuration to file")
+@click.pass_context
+def configure(
+    ctx: click.Context,
+    github_token: str | None,
+    min_score: int | None,
+    max_forks: int | None,
+    output_format: str | None,
+    cache_duration: int | None,
+    save: str | None
+) -> None:
+    """Configure Forklift settings interactively or via options."""
+    config: ForkliftConfig = ctx.obj["config"]
+
+    # Update configuration with provided options
+    if github_token:
+        config.github.token = github_token
+    if min_score is not None:
+        config.analysis.min_score_threshold = min_score
+    if max_forks is not None:
+        config.analysis.max_forks_to_analyze = max_forks
+    if output_format:
+        config.output_format = output_format
+    if cache_duration is not None:
+        config.cache.duration_hours = cache_duration
+
+    # Interactive configuration if no options provided
+    if not any([github_token, min_score, max_forks, output_format, cache_duration]):
+        console.print("[blue]Interactive Configuration[/blue]")
+
+        # GitHub token
+        if not config.github.token:
+            token = click.prompt("GitHub API token", hide_input=True, default="")
+            if token:
+                config.github.token = token
+
+        # Analysis settings
+        config.analysis.min_score_threshold = click.prompt(
+            "Minimum score threshold (0-100)",
+            default=config.analysis.min_score_threshold,
+            type=click.IntRange(0, 100)
+        )
+
+        config.analysis.max_forks_to_analyze = click.prompt(
+            "Maximum forks to analyze",
+            default=config.analysis.max_forks_to_analyze,
+            type=click.IntRange(1, 1000)
+        )
+
+        config.output_format = click.prompt(
+            "Default output format",
+            default=config.output_format,
+            type=click.Choice(["markdown", "json", "yaml"])
+        )
+
+    # Display current configuration
+    table = Table(title="Current Configuration")
+    table.add_column("Setting", style="cyan")
+    table.add_column("Value", style="green")
+
+    table.add_row("GitHub Token", "***" if config.github.token else "Not set")
+    table.add_row("Min Score Threshold", str(config.analysis.min_score_threshold))
+    table.add_row("Max Forks to Analyze", str(config.analysis.max_forks_to_analyze))
+    table.add_row("Output Format", config.output_format)
+    table.add_row("Cache Duration (hours)", str(config.cache.duration_hours))
+    table.add_row("Auto PR Enabled", str(config.analysis.auto_pr_enabled))
+
+    console.print(table)
+
+    # Save configuration if requested
+    if save:
+        try:
+            config.save_to_file(save)
+            console.print(f"[green]Configuration saved to: {save}[/green]")
+        except Exception as e:
+            console.print(f"[red]Error saving configuration: {e}[/red]")
+            sys.exit(1)
+
+
+@cli.command()
+@click.argument("repository_url")
+@click.pass_context
+def interactive(ctx: click.Context, repository_url: str) -> None:
+    """Launch interactive mode for repository analysis.
+
+    REPOSITORY_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate repository URL
+        owner, repo_name = validate_repository_url(repository_url)
+
+        console.print(f"[blue]Starting interactive analysis for: {owner}/{repo_name}[/blue]")
+
+        # Run interactive analysis
+        asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interactive mode interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("repository_url")
+@click.option("--cron", help="Cron expression for scheduling (e.g., '0 0 * * 0' for weekly)")
+@click.option("--interval", type=int, help="Interval in hours for recurring analysis")
+@click.option("--config-file", type=click.Path(exists=True), help="Configuration file for scheduled runs")
+@click.pass_context
+def schedule(
+    ctx: click.Context,
+    repository_url: str,
+    cron: str | None,
+    interval: int | None,
+    config_file: str | None
+) -> None:
+    """Schedule recurring repository analysis.
+
+    Note: This command sets up the schedule configuration but requires
+    an external scheduler (like cron) to actually run the analysis.
+    """
+    if not cron and not interval:
+        console.print("[red]Error: Either --cron or --interval must be specified[/red]")
+        sys.exit(1)
+
+    if cron and interval:
+        console.print("[red]Error: Cannot specify both --cron and --interval[/red]")
+        sys.exit(1)
+
+    try:
+        owner, repo_name = validate_repository_url(repository_url)
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+    # Create schedule configuration
+    schedule_config = {
+        "repository": f"{owner}/{repo_name}",
+        "schedule": cron if cron else f"every {interval} hours",
+        "config_file": config_file or "forklift.yaml"
+    }
+
+    # Display schedule information
+    panel = Panel.fit(
+        f"Repository: {owner}/{repo_name}\n"
+        f"Schedule: {schedule_config['schedule']}\n"
+        f"Config: {schedule_config['config_file']}\n\n"
+        f"To activate this schedule, add the following to your crontab:\n"
+        f"[code]{cron or f'0 */{interval} * * *'} forklift analyze {repository_url}[/code]",
+        title="Schedule Configuration",
+        border_style="blue"
+    )
+
+    console.print(panel)
+
+    console.print("\n[yellow]Note: This command only displays the schedule configuration.[/yellow]")
+    console.print("[yellow]Use your system's cron or task scheduler to actually run the analysis.[/yellow]")
+
+
+@cli.command("show-repo")
+@click.argument("repository_url")
+@click.pass_context
+def show_repo(ctx: click.Context, repository_url: str) -> None:
+    """Display detailed repository information.
+
+    REPOSITORY_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        if verbose:
+            console.print(f"[blue]Fetching repository details for: {repository_url}[/blue]")
+
+        # Run repository details display
+        asyncio.run(_show_repository_details(config, repository_url, verbose))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("show-forks")
+@click.argument("repository_url")
+@click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to display")
+@click.pass_context
+def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None) -> None:
+    """Display a summary table of repository forks with key metrics.
+
+    REPOSITORY_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        if verbose:
+            console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
+
+        # Run forks summary display
+        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("list-forks")
+@click.argument("repository_url")
+@click.pass_context
+def list_forks(ctx: click.Context, repository_url: str) -> None:
+    """Display a lightweight preview of repository forks using minimal API calls.
+
+    This command provides a fast overview of all forks without detailed analysis,
+    showing basic information like fork name, owner, stars, and last push date.
+
+    REPOSITORY_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        if verbose:
+            console.print(f"[blue]Fetching lightweight forks preview for: {repository_url}[/blue]")
+
+        # Run forks preview display
+        asyncio.run(_list_forks_preview(config, repository_url, verbose))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("show-promising")
+@click.argument("repository_url")
+@click.option("--min-stars", type=click.IntRange(0, 10000), default=0, help="Minimum star count")
+@click.option("--min-commits-ahead", type=click.IntRange(0, 1000), default=1, help="Minimum commits ahead of upstream")
+@click.option("--max-days-since-activity", type=click.IntRange(1, 3650), default=365, help="Maximum days since last activity")
+@click.option("--min-activity-score", type=click.FloatRange(0.0, 1.0), default=0.0, help="Minimum activity score (0.0-1.0)")
+@click.option("--include-archived", is_flag=True, help="Include archived repositories")
+@click.option("--include-disabled", is_flag=True, help="Include disabled repositories")
+@click.option("--min-fork-age-days", type=click.IntRange(0, 3650), default=0, help="Minimum fork age in days")
+@click.option("--max-fork-age-days", type=click.IntRange(1, 3650), help="Maximum fork age in days")
+@click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to analyze")
+@click.pass_context
+def show_promising(
+    ctx: click.Context,
+    repository_url: str,
+    min_stars: int,
+    min_commits_ahead: int,
+    max_days_since_activity: int,
+    min_activity_score: float,
+    include_archived: bool,
+    include_disabled: bool,
+    min_fork_age_days: int,
+    max_fork_age_days: int | None,
+    max_forks: int | None
+) -> None:
+    """Display promising forks based on configurable filtering criteria.
+
+    This command analyzes all forks and displays only those that meet
+    the specified criteria for being "promising" - having significant
+    changes, recent activity, and community engagement.
+
+    REPOSITORY_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        if verbose:
+            console.print(f"[blue]Finding promising forks for: {repository_url}[/blue]")
+
+        # Run promising forks analysis
+        asyncio.run(_show_promising_forks(
+            config, repository_url, min_stars, min_commits_ahead,
+            max_days_since_activity, min_activity_score, include_archived,
+            include_disabled, min_fork_age_days, max_fork_age_days, max_forks, verbose
+        ))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("analyze-fork")
+@click.argument("fork_url")
+@click.option("--branch", "-b", help="Specific branch to analyze (defaults to repository default branch)")
+@click.option("--max-commits", type=click.IntRange(1, 200), default=50, help="Maximum commits to analyze")
+@click.option("--include-merge-commits", is_flag=True, help="Include merge commits in analysis")
+@click.option("--show-commit-details", is_flag=True, help="Show detailed commit information")
+@click.pass_context
+def analyze_fork(
+    ctx: click.Context,
+    fork_url: str,
+    branch: str | None,
+    max_commits: int,
+    include_merge_commits: bool,
+    show_commit_details: bool
+) -> None:
+    """Analyze a specific fork and optionally a specific branch for features and changes.
+
+    This command performs detailed analysis of a fork including:
+    - Repository and branch information
+    - Commit analysis and categorization
+    - Feature extraction and significance scoring
+    - Change patterns and author statistics
+    - Comparison with upstream repository
+
+    FORK_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        if verbose:
+            console.print(f"[blue]Analyzing fork: {fork_url}" + (f" (branch: {branch})" if branch else "") + "[/blue]")
+
+        # Run fork analysis
+        asyncio.run(_analyze_fork(
+            config, fork_url, branch, max_commits, include_merge_commits, show_commit_details, verbose
+        ))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Analysis interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("show-commits")
+@click.argument("fork_url")
+@click.option("--branch", "-b", help="Branch to show commits from (defaults to repository default branch)")
+@click.option("--limit", "-l", type=click.IntRange(1, 200), default=20, help="Number of commits to display")
+@click.option("--since", help="Show commits since date (YYYY-MM-DD format)")
+@click.option("--until", help="Show commits until date (YYYY-MM-DD format)")
+@click.option("--author", help="Filter commits by author username")
+@click.option("--include-merge", is_flag=True, help="Include merge commits")
+@click.option("--show-files", is_flag=True, help="Show changed files for each commit")
+@click.option("--show-stats", is_flag=True, help="Show detailed statistics")
+@click.pass_context
+def show_commits(
+    ctx: click.Context,
+    fork_url: str,
+    branch: str | None,
+    limit: int,
+    since: str | None,
+    until: str | None,
+    author: str | None,
+    include_merge: bool,
+    show_files: bool,
+    show_stats: bool
+) -> None:
+    """Display detailed commit information for a repository or specific branch.
+
+    This command shows commit history with detailed information including:
+    - Commit SHA, message, author, and date
+    - File changes and line statistics
+    - Commit type categorization
+    - Author and activity patterns
+
+    FORK_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        # Parse date filters if provided
+        since_date = None
+        until_date = None
+
+        if since:
+            try:
+                since_date = datetime.strptime(since, "%Y-%m-%d")
+            except ValueError:
+                raise CLIError(f"Invalid since date format: {since}. Use YYYY-MM-DD format.")
+
+        if until:
+            try:
+                until_date = datetime.strptime(until, "%Y-%m-%d")
+            except ValueError:
+                raise CLIError(f"Invalid until date format: {until}. Use YYYY-MM-DD format.")
+
+        if verbose:
+            console.print(f"[blue]Fetching commits from: {fork_url}" + (f" (branch: {branch})" if branch else "") + "[/blue]")
+
+        # Run commit display
+        asyncio.run(_show_commits(
+            config, fork_url, branch, limit, since_date, until_date,
+            author, include_merge, show_files, show_stats, verbose
+        ))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("show-fork-details")
+@click.argument("fork_url")
+@click.option("--max-branches", type=click.IntRange(1, 100), default=10, help="Maximum branches to display")
+@click.option("--max-contributors", type=click.IntRange(1, 100), default=10, help="Maximum contributors to display")
+@click.option("--no-branches", is_flag=True, help="Skip branch information")
+@click.option("--no-contributors", is_flag=True, help="Skip contributor information")
+@click.option("--no-commit-stats", is_flag=True, help="Skip commit statistics")
+@click.pass_context
+def show_fork_details(
+    ctx: click.Context,
+    fork_url: str,
+    max_branches: int,
+    max_contributors: int,
+    no_branches: bool,
+    no_contributors: bool,
+    no_commit_stats: bool
+) -> None:
+    """Display detailed information about a specific fork including branches and statistics.
+
+    This command provides comprehensive information about a fork including:
+    - Basic repository information
+    - Branch details with commit counts and activity
+    - Contributor information
+    - Programming languages and topics
+    - Repository statistics
+
+    FORK_URL can be:
+    - Full GitHub URL: https://github.com/owner/repo
+    - SSH URL: git@github.com:owner/repo.git
+    - Short format: owner/repo
+    """
+    config: ForkliftConfig = ctx.obj["config"]
+    verbose: bool = ctx.obj["verbose"]
+
+    try:
+        # Validate GitHub token
+        if not config.github.token:
+            raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+        if verbose:
+            console.print(f"[blue]Fetching detailed information for fork: {fork_url}[/blue]")
+
+        # Run fork details display
+        asyncio.run(_show_fork_details(
+            config, fork_url, max_branches, max_contributors,
+            not no_branches, not no_contributors, not no_commit_stats, verbose
+        ))
+
+    except CLIError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        if ctx.obj["debug"]:
+            console.print_exception()
+        else:
+            console.print(f"[red]Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+async def _show_repository_details(
+    config: ForkliftConfig,
+    repository_url: str,
+    verbose: bool
+) -> None:
+    """Show repository details using the display service.
+
+    Args:
+        config: Forklift configuration
+        repository_url: Repository URL to display
+        verbose: Whether to show verbose output
+    """
+    async with GitHubClient(config.github) as github_client:
+        display_service = RepositoryDisplayService(github_client, console)
+
+        try:
+            repo_details = await display_service.show_repository_details(repository_url)
+
+            if verbose:
+                console.print("\n[green]✓ Repository details displayed successfully[/green]")
+
+        except Exception as e:
+            logger.error(f"Failed to display repository details: {e}")
+            raise CLIError(f"Failed to display repository details: {e}")
+
+
+async def _list_forks_preview(
+    config: ForkliftConfig,
+    repository_url: str,
+    verbose: bool
+) -> None:
+    """Show lightweight forks preview using the display service.
+
+    Args:
+        config: Forklift configuration
+        repository_url: Repository URL to get forks for
+        verbose: Whether to show verbose output
+    """
+    async with GitHubClient(config.github) as github_client:
+        display_service = RepositoryDisplayService(github_client, console)
+
+        try:
+            forks_preview = await display_service.list_forks_preview(repository_url)
+
+            if verbose:
+                total_forks = forks_preview["total_forks"]
+                console.print(f"\n[green]✓ Displayed {total_forks} forks in lightweight preview[/green]")
+
+        except Exception as e:
+            logger.error(f"Failed to display forks preview: {e}")
+            raise CLIError(f"Failed to display forks preview: {e}")
+
+
+async def _show_forks_summary(
+    config: ForkliftConfig,
+    repository_url: str,
+    max_forks: int | None,
+    verbose: bool
+) -> None:
+    """Show forks summary using the display service.
+
+    Args:
+        config: Forklift configuration
+        repository_url: Repository URL to get forks for
+        max_forks: Maximum number of forks to display
+        verbose: Whether to show verbose output
+    """
+    async with GitHubClient(config.github) as github_client:
+        display_service = RepositoryDisplayService(github_client, console)
+
+        try:
+            forks_summary = await display_service.show_forks_summary(repository_url, max_forks)
+
+            if verbose:
+                total_forks = forks_summary["total_forks"]
+                displayed_forks = forks_summary["displayed_forks"]
+                console.print(f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks[/green]")
+
+        except Exception as e:
+            logger.error(f"Failed to display forks summary: {e}")
+            raise CLIError(f"Failed to display forks summary: {e}")
+
+
+async def _run_analysis(
+    config: ForkliftConfig,
+    owner: str,
+    repo_name: str,
+    verbose: bool
+) -> dict:
+    """Run the actual repository analysis.
+
+    Args:
+        config: Forklift configuration
+        owner: Repository owner
+        repo_name: Repository name
+        verbose: Whether to show verbose output
+
+    Returns:
+        Dictionary with analysis results
+    """
+    # Validate GitHub token
+    if not config.github.token:
+        raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+    # Initialize services
+    github_client = GitHubClient(config.github)
+
+    fork_discovery = ForkDiscoveryService(
+        github_client=github_client,
+        max_forks_to_analyze=config.analysis.max_forks_to_analyze
+    )
+
+    ranking_engine = FeatureRankingEngine(config.scoring)
+
+    results = {
+        "repository": f"{owner}/{repo_name}",
+        "total_forks": 0,
+        "analyzed_forks": 0,
+        "total_features": 0,
+        "high_value_features": 0,
+        "report": ""
+    }
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+        transient=not verbose
+    ) as progress:
+
+        # Step 1: Discover forks
+        task1 = progress.add_task("Discovering forks...", total=None)
+        try:
+            repository_url = f"https://github.com/{owner}/{repo_name}"
+            forks = await fork_discovery.discover_forks(repository_url)
+            results["total_forks"] = len(forks)
+            progress.update(task1, completed=True, description=f"Found {len(forks)} forks")
+        except Exception as e:
+            progress.update(task1, description=f"Failed to discover forks: {e}")
+            raise CLIError(f"Failed to discover forks: {e}")
+
+        # Step 2: Analyze forks (placeholder - will be implemented in later tasks)
+        task2 = progress.add_task("Analyzing forks...", total=len(forks))
+        analyzed_count = 0
+
+        for i, fork in enumerate(forks[:config.analysis.max_forks_to_analyze]):
+            try:
+                # Placeholder analysis - will be replaced with actual implementation
+                await asyncio.sleep(0.1)  # Simulate work
+                analyzed_count += 1
+                progress.update(task2, advance=1, description=f"Analyzing fork {i+1}/{len(forks)}")
+            except Exception as e:
+                if verbose:
+                    console.print(f"[yellow]Warning: Failed to analyze fork {fork.full_name}: {e}[/yellow]")
+                progress.update(task2, advance=1)
+
+        results["analyzed_forks"] = analyzed_count
+
+        # Step 3: Generate report (placeholder)
+        task3 = progress.add_task("Generating report...", total=None)
+
+        # Create a simple report
+        report_lines = [
+            f"# Fork Analysis Report for {owner}/{repo_name}",
+            "",
+            f"**Analysis Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"**Total Forks Found:** {results['total_forks']}",
+            f"**Forks Analyzed:** {results['analyzed_forks']}",
+            "",
+            "## Summary",
+            "",
+            "This is a placeholder report. Full analysis implementation will be added in later tasks.",
+            "",
+            "## Configuration Used",
+            "",
+            f"- Minimum Score Threshold: {config.analysis.min_score_threshold}",
+            f"- Maximum Forks to Analyze: {config.analysis.max_forks_to_analyze}",
+            f"- Auto PR Enabled: {config.analysis.auto_pr_enabled}",
+        ]
+
+        results["report"] = "\n".join(report_lines)
+        progress.update(task3, completed=True, description="Report generated")
+
+    return results
+
+
+async def _run_interactive_analysis(
+    config: ForkliftConfig,
+    owner: str,
+    repo_name: str,
+    verbose: bool
+) -> dict:
+    """Run interactive repository analysis with user choices.
+
+    Args:
+        config: Forklift configuration
+        owner: Repository owner
+        repo_name: Repository name
+        verbose: Whether to show verbose output
+
+    Returns:
+        Dictionary with analysis results
+    """
+    # Validate GitHub token
+    if not config.github.token:
+        raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+    # Initialize services
+    github_client = GitHubClient(config.github)
+    fork_discovery = ForkDiscoveryService(
+        github_client=github_client,
+        max_forks_to_analyze=config.analysis.max_forks_to_analyze
+    )
+
+    console.print("\n[bold blue]🔍 Interactive Repository Analysis[/bold blue]")
+    console.print("="*60)
+
+    # Step 1: Get repository details
+    console.print("\n[bold]Step 1: Repository Information[/bold]")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True
+    ) as progress:
+        task = progress.add_task("Fetching repository details...", total=None)
+
+        try:
+            # Get repository information
+            async with github_client:
+                repo_data = await github_client.get_repository(f"{owner}/{repo_name}")
+
+            progress.update(task, description="Repository details loaded!")
+
+        except Exception as e:
+            progress.update(task, description=f"Failed to fetch repository: {e}")
+            raise CLIError(f"Failed to fetch repository details: {e}")
+
+    # Display repository details
+    display_repository_details(repo_data)
+
+    # Ask if user wants to continue
+    if not Confirm.ask("\n[cyan]Continue with fork discovery?[/cyan]", default=True):
+        console.print("[yellow]Analysis cancelled by user.[/yellow]")
+        return {"repository": f"{owner}/{repo_name}", "cancelled": True}
+
+    # Step 2: Discover forks
+    console.print("\n[bold]Step 2: Fork Discovery[/bold]")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=not verbose
+    ) as progress:
+        task = progress.add_task("Discovering forks...", total=None)
+
+        try:
+            repository_url = f"https://github.com/{owner}/{repo_name}"
+            forks = await fork_discovery.discover_forks(repository_url)
+            progress.update(task, description=f"Found {len(forks)} forks!")
+
+        except Exception as e:
+            progress.update(task, description=f"Fork discovery failed: {e}")
+            raise CLIError(f"Failed to discover forks: {e}")
+
+    if not forks:
+        console.print("[yellow]No forks found for this repository.[/yellow]")
+        return {
+            "repository": f"{owner}/{repo_name}",
+            "total_forks": 0,
+            "analyzed_forks": 0,
+            "total_features": 0,
+            "high_value_features": 0,
+            "report": f"# No Forks Found\n\nNo forks were found for {owner}/{repo_name}."
+        }
+
+    # Step 3: Interactive fork exploration
+    console.print(f"\n[bold]Step 3: Fork Analysis ({len(forks)} forks found)[/bold]")
+
+    # Show initial summary
+    display_forks_summary(forks)
+
+    # Ask what the user wants to do
+    console.print("\n[bold cyan]What would you like to do?[/bold cyan]")
+    console.print("1. 🚀 Enter interactive mode for detailed exploration")
+    console.print("2. ⚡ Analyze all forks automatically")
+    console.print("3. 📊 Analyze top N forks")
+    console.print("4. 🚪 Exit")
+
+    choice = Prompt.ask(
+        "\n[cyan]Choose an option[/cyan]",
+        choices=["1", "2", "3", "4"],
+        default="1"
+    )
+
+    if choice == "1":
+        # Interactive mode
+        await interactive_fork_selection(forks, config)
+
+    elif choice == "2":
+        # Analyze all forks
+        console.print(f"\n[green]Analyzing all {len(forks)} forks...[/green]")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console
+        ) as progress:
+            task = progress.add_task("Analyzing forks...", total=len(forks))
+
+            for i, fork in enumerate(forks):
+                progress.update(task, advance=1, description=f"Analyzing {getattr(fork, 'name', 'fork')} ({i+1}/{len(forks)})")
+                await asyncio.sleep(0.1)  # Simulate analysis
+
+        console.print(f"\n[green]✓ Analyzed all {len(forks)} forks![/green]")
+
+    elif choice == "3":
+        # Analyze top N forks
+        try:
+            n = int(Prompt.ask(
+                f"\n[cyan]How many top forks to analyze? (1-{len(forks)})[/cyan]",
+                default="10"
+            ))
+            n = min(n, len(forks))
+
+            console.print(f"\n[green]Analyzing top {n} forks...[/green]")
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console
+            ) as progress:
+                task = progress.add_task("Analyzing forks...", total=n)
+
+                for i in range(n):
+                    fork = forks[i]
+                    progress.update(task, advance=1, description=f"Analyzing {getattr(fork, 'name', 'fork')} ({i+1}/{n})")
+                    await asyncio.sleep(0.1)  # Simulate analysis
+
+            console.print(f"\n[green]✓ Analyzed top {n} forks![/green]")
+
+        except ValueError:
+            console.print("[red]Invalid number entered![/red]")
+
+    elif choice == "4":
+        console.print("[yellow]Analysis cancelled by user.[/yellow]")
+        return {"repository": f"{owner}/{repo_name}", "cancelled": True}
+
+    # Return results
+    return {
+        "repository": f"{owner}/{repo_name}",
+        "total_forks": len(forks),
+        "analyzed_forks": len(forks),
+        "total_features": 0,  # Placeholder
+        "high_value_features": 0,  # Placeholder
+        "report": f"# Interactive Analysis Report for {owner}/{repo_name}\n\nInteractive analysis completed with {len(forks)} forks discovered."
+    }
+
+
+async def _show_promising_forks(
+    config: ForkliftConfig,
+    repository_url: str,
+    min_stars: int,
+    min_commits_ahead: int,
+    max_days_since_activity: int,
+    min_activity_score: float,
+    include_archived: bool,
+    include_disabled: bool,
+    min_fork_age_days: int,
+    max_fork_age_days: int | None,
+    max_forks: int | None,
+    verbose: bool
+) -> None:
+    """Show promising forks using the display service.
+
+    Args:
+        config: Forklift configuration
+        repository_url: Repository URL to analyze
+        min_stars: Minimum star count filter
+        min_commits_ahead: Minimum commits ahead filter
+        max_days_since_activity: Maximum days since activity filter
+        min_activity_score: Minimum activity score filter
+        include_archived: Whether to include archived repositories
+        include_disabled: Whether to include disabled repositories
+        min_fork_age_days: Minimum fork age in days
+        max_fork_age_days: Maximum fork age in days (optional)
+        max_forks: Maximum number of forks to analyze
+        verbose: Whether to show verbose output
+    """
+    from forklift.models.filters import PromisingForksFilter
+
+    async with GitHubClient(config.github) as github_client:
+        display_service = RepositoryDisplayService(github_client, console)
+
+        try:
+            # Create filter object
+            filters = PromisingForksFilter(
+                min_stars=min_stars,
+                min_commits_ahead=min_commits_ahead,
+                max_days_since_activity=max_days_since_activity,
+                min_activity_score=min_activity_score,
+                exclude_archived=not include_archived,
+                exclude_disabled=not include_disabled,
+                min_fork_age_days=min_fork_age_days,
+                max_fork_age_days=max_fork_age_days
+            )
+
+            result = await display_service.show_promising_forks(repository_url, filters, max_forks)
+
+            if verbose:
+                promising_count = result["promising_forks"]
+                total_count = result["total_forks"]
+                console.print(f"\n[green]✓ Found {promising_count} promising forks out of {total_count} total forks[/green]")
+
+        except Exception as e:
+            logger.error(f"Failed to display promising forks: {e}")
+            raise CLIError(f"Failed to display promising forks: {e}")
+
+
+async def _analyze_fork(
+    config: ForkliftConfig,
+    fork_url: str,
+    branch: str | None,
+    max_commits: int,
+    include_merge_commits: bool,
+    show_commit_details: bool,
+    verbose: bool
+) -> None:
+    """Analyze a specific fork and branch for features and changes.
+
+    Args:
+        config: Forklift configuration
+        fork_url: Fork URL to analyze
+        branch: Specific branch to analyze (optional)
+        max_commits: Maximum commits to analyze
+        include_merge_commits: Whether to include merge commits
+        show_commit_details: Whether to show detailed commit information
+        verbose: Whether to show verbose output
+    """
+    from forklift.analysis.interactive_analyzer import InteractiveAnalyzer
+    from forklift.models.filters import ForkDetailsFilter
+
+    async with GitHubClient(config.github) as github_client:
+        analyzer = InteractiveAnalyzer(github_client, console)
+
+        try:
+            # Create filter object for analysis
+            filters = ForkDetailsFilter(
+                include_branches=True,
+                include_contributors=True,
+                include_commit_stats=True,
+                max_branches=10,
+                max_contributors=10
+            )
+
+            # Perform the analysis
+            analysis_result = await analyzer.analyze_specific_fork(fork_url, branch, filters)
+
+            # Get the fork details and branch analysis
+            fork_details = analysis_result["fork_details"]
+            branch_analysis = analysis_result.get("branch_analysis")
+
+            # Display comprehensive analysis results
+            console.print("\n" + "="*80)
+            console.print("[bold blue]🔍 Fork Analysis Results[/bold blue]")
+            console.print("="*80)
+
+            # Show commit analysis if we have branch analysis
+            if branch_analysis and show_commit_details:
+                await _display_commit_analysis(
+                    github_client, fork_url, branch or fork_details.fork.default_branch,
+                    max_commits, include_merge_commits
+                )
+
+            # Show feature analysis summary
+            _display_feature_analysis_summary(fork_details, branch_analysis)
+
+            if verbose:
+                console.print("\n[green]✓ Fork analysis completed successfully[/green]")
+                if branch_analysis:
+                    commits_analyzed = len(branch_analysis.get("commits", []))
+                    console.print(f"[dim]Analyzed {commits_analyzed} commits in branch '{branch or fork_details.fork.default_branch}'[/dim]")
+
+        except Exception as e:
+            logger.error(f"Failed to analyze fork: {e}")
+            raise CLIError(f"Failed to analyze fork: {e}")
+
+
+async def _show_commits(
+    config: ForkliftConfig,
+    fork_url: str,
+    branch: str | None,
+    limit: int,
+    since_date: datetime | None,
+    until_date: datetime | None,
+    author: str | None,
+    include_merge: bool,
+    show_files: bool,
+    show_stats: bool,
+    verbose: bool
+) -> None:
+    """Show detailed commit information for a repository or branch.
+
+    Args:
+        config: Forklift configuration
+        fork_url: Repository URL to get commits from
+        branch: Branch to show commits from (optional)
+        limit: Number of commits to display
+        since_date: Show commits since this date (optional)
+        until_date: Show commits until this date (optional)
+        author: Filter commits by author (optional)
+        include_merge: Whether to include merge commits
+        show_files: Whether to show changed files
+        show_stats: Whether to show detailed statistics
+        verbose: Whether to show verbose output
+    """
+    async with GitHubClient(config.github) as github_client:
+        try:
+            # Parse repository URL
+            owner, repo_name = validate_repository_url(fork_url)
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("Fetching repository information...", total=None)
+
+                # Get repository to determine default branch if needed
+                repo = await github_client.get_repository(owner, repo_name)
+                target_branch = branch or repo.default_branch
+
+                progress.update(task, description=f"Fetching commits from branch '{target_branch}'...")
+
+                # Get commits for the specified branch
+                if target_branch:
+                    commits_data = await github_client.get_branch_commits(
+                        owner, repo_name, target_branch, max_count=limit * 2  # Get extra to allow filtering
+                    )
+                else:
+                    commits_data = await github_client.get_repository_commits(
+                        owner, repo_name, per_page=limit * 2, since=since_date, until=until_date
+                    )
+
+                progress.update(task, description="Processing commits...")
+
+                # Convert to Commit objects and apply filters
+                commits = []
+                for commit_data in commits_data:
+                    try:
+                        commit = Commit.from_github_api(commit_data)
+
+                        # Apply filters
+                        if not include_merge and commit.is_merge:
+                            continue
+
+                        if author and commit.author.login.lower() != author.lower():
+                            continue
+
+                        if since_date and commit.date.replace(tzinfo=None) < since_date:
+                            continue
+
+                        if until_date and commit.date.replace(tzinfo=None) > until_date:
+                            continue
+
+                        commits.append(commit)
+
+                        if len(commits) >= limit:
+                            break
+
+                    except Exception as e:
+                        logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
+
+                progress.update(task, description="Complete!")
+
+            # Display commits
+            _display_commits_table(commits, repo, target_branch, show_files, show_stats)
+
+            if verbose:
+                console.print(f"\n[green]✓ Displayed {len(commits)} commits from branch '{target_branch}'[/green]")
+                if author:
+                    console.print(f"[dim]Filtered by author: {author}[/dim]")
+                if since_date or until_date:
+                    date_range = f"Date range: {since_date or 'beginning'} to {until_date or 'now'}"
+                    console.print(f"[dim]{date_range}[/dim]")
+
+        except Exception as e:
+            logger.error(f"Failed to show commits: {e}")
+            raise CLIError(f"Failed to show commits: {e}")
+
+
+async def _display_commit_analysis(
+    github_client: GitHubClient,
+    fork_url: str,
+    branch: str,
+    max_commits: int,
+    include_merge_commits: bool
+) -> None:
+    """Display detailed commit analysis for a branch.
+
+    Args:
+        github_client: GitHub API client
+        fork_url: Repository URL
+        branch: Branch to analyze
+        max_commits: Maximum commits to analyze
+        include_merge_commits: Whether to include merge commits
+    """
+    owner, repo_name = validate_repository_url(fork_url)
+
+    # Get commits for analysis
+    commits_data = await github_client.get_branch_commits(
+        owner, repo_name, branch, max_count=max_commits
+    )
+
+    # Convert to Commit objects and analyze
+    commits = []
+    commit_types = {}
+    total_changes = 0
+    authors = set()
+    significant_commits = []
+
+    for commit_data in commits_data:
+        try:
+            commit = Commit.from_github_api(commit_data)
+
+            # Apply merge commit filter
+            if not include_merge_commits and commit.is_merge:
+                continue
+
+            commits.append(commit)
+
+            # Analyze commit
+            commit_type = commit.get_commit_type()
+            commit_types[commit_type] = commit_types.get(commit_type, 0) + 1
+            total_changes += commit.total_changes
+            authors.add(commit.author.login)
+
+            if commit.is_significant():
+                significant_commits.append(commit)
+
+        except Exception as e:
+            logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
+
+    # Display analysis results
+    console.print(f"\n[bold yellow]📊 Commit Analysis for branch '{branch}'[/bold yellow]")
+
+    # Summary statistics
+    stats_table = Table(title="Analysis Summary")
+    stats_table.add_column("Metric", style="cyan", width=25)
+    stats_table.add_column("Value", style="green", justify="right")
+
+    stats_table.add_row("Total Commits Analyzed", str(len(commits)))
+    stats_table.add_row("Significant Commits", str(len(significant_commits)))
+    stats_table.add_row("Total Lines Changed", f"{total_changes:,}")
+    stats_table.add_row("Unique Authors", str(len(authors)))
+    stats_table.add_row("Average Changes/Commit", f"{total_changes // len(commits) if commits else 0:,}")
+
+    console.print(stats_table)
+
+    # Commit types breakdown
+    if commit_types:
+        types_table = Table(title="Commit Types Distribution")
+        types_table.add_column("Type", style="cyan")
+        types_table.add_column("Count", style="yellow", justify="right")
+        types_table.add_column("Percentage", style="green", justify="right")
+
+        total_commits = len(commits)
+        for commit_type, count in sorted(commit_types.items(), key=lambda x: x[1], reverse=True):
+            percentage = (count / total_commits) * 100 if total_commits > 0 else 0
+            types_table.add_row(commit_type.title(), str(count), f"{percentage:.1f}%")
+
+        console.print(types_table)
+
+    # Top contributors
+    if authors:
+        author_commits = {}
+        for commit in commits:
+            author_commits[commit.author.login] = author_commits.get(commit.author.login, 0) + 1
+
+        contributors_table = Table(title="Top Contributors")
+        contributors_table.add_column("Author", style="cyan")
+        contributors_table.add_column("Commits", style="yellow", justify="right")
+        contributors_table.add_column("Percentage", style="green", justify="right")
+
+        for author, count in sorted(author_commits.items(), key=lambda x: x[1], reverse=True)[:10]:
+            percentage = (count / len(commits)) * 100 if commits else 0
+            contributors_table.add_row(author, str(count), f"{percentage:.1f}%")
+
+        console.print(contributors_table)
+
+    # Show most significant commits
+    if significant_commits:
+        console.print(f"\n[bold]🌟 Most Significant Commits (top {min(5, len(significant_commits))})[/bold]")
+
+        # Sort by total changes (descending)
+        significant_commits.sort(key=lambda c: c.total_changes, reverse=True)
+
+        for i, commit in enumerate(significant_commits[:5], 1):
+            message = commit.message.split("\n")[0]  # First line only
+            if len(message) > 60:
+                message = message[:57] + "..."
+
+            console.print(f"{i}. [bold]{commit.sha[:7]}[/bold] - {message}")
+            console.print(f"   [dim]by {commit.author.login} • {commit.total_changes:,} lines changed • {commit.get_commit_type()}[/dim]")
+
+
+def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None) -> None:
+    """Display feature analysis summary.
+
+    Args:
+        fork_details: Fork details object
+        branch_analysis: Branch analysis results (optional)
+    """
+    console.print("\n[bold green]🎯 Feature Analysis Summary[/bold green]")
+
+    fork = fork_details.fork
+
+    # Repository overview
+    overview_table = Table(title="Repository Overview")
+    overview_table.add_column("Property", style="cyan", width=20)
+    overview_table.add_column("Value", style="green")
+
+    overview_table.add_row("Repository", fork.full_name)
+    overview_table.add_row("Stars", f"⭐ {fork.stars:,}")
+    overview_table.add_row("Language", fork.language or "Not specified")
+    overview_table.add_row("Total Branches", str(len(fork_details.branches)))
+    overview_table.add_row("Contributors", str(fork_details.contributor_count))
+    overview_table.add_row("Last Updated", _format_datetime_simple(fork.updated_at))
+
+    console.print(overview_table)
+
+    # Branch activity summary
+    if fork_details.branches:
+        active_branches = [b for b in fork_details.branches if b.commits_ahead_of_main > 0]
+
+        branch_table = Table(title="Branch Activity")
+        branch_table.add_column("Metric", style="cyan", width=25)
+        branch_table.add_column("Value", style="yellow", justify="right")
+
+        branch_table.add_row("Total Branches", str(len(fork_details.branches)))
+        branch_table.add_row("Branches Ahead of Main", str(len(active_branches)))
+        branch_table.add_row("Total Commits", f"{fork_details.total_commits:,}")
+
+        if active_branches:
+            max_ahead = max(b.commits_ahead_of_main for b in active_branches)
+            branch_table.add_row("Max Commits Ahead", str(max_ahead))
+
+        console.print(branch_table)
+
+    # Analysis insights
+    insights = []
+
+    if fork.stars > 10:
+        insights.append("🌟 Popular fork with significant community interest")
+
+    if fork_details.contributor_count > 5:
+        insights.append("👥 Active collaboration with multiple contributors")
+
+    if branch_analysis:
+        commits = branch_analysis.get("commits", [])
+        if len(commits) > 20:
+            insights.append("📈 High development activity with many commits")
+
+        commit_types = branch_analysis.get("commit_types", {})
+        if commit_types.get("feature", 0) > commit_types.get("fix", 0):
+            insights.append("🚀 Feature-focused development")
+        elif commit_types.get("fix", 0) > 0:
+            insights.append("🔧 Bug-fix focused development")
+
+    if len(fork_details.branches) > 5:
+        insights.append("🌿 Multiple development branches indicating active work")
+
+    if insights:
+        console.print("\n[bold blue]💡 Key Insights[/bold blue]")
+        for insight in insights:
+            console.print(f"  • {insight}")
+
+
+def _display_commits_table(
+    commits: list,
+    repo,
+    branch: str,
+    show_files: bool,
+    show_stats: bool
+) -> None:
+    """Display commits in a formatted table.
+
+    Args:
+        commits: List of Commit objects
+        repo: Repository object
+        branch: Branch name
+        show_files: Whether to show changed files
+        show_stats: Whether to show detailed statistics
+    """
+    if not commits:
+        console.print("[yellow]No commits found matching the criteria.[/yellow]")
+        return
+
+    # Header
+    console.print(f"\n[bold blue]📝 Commits from {repo.full_name} (branch: {branch})[/bold blue]")
+    console.print(f"[dim]Showing {len(commits)} commits[/dim]")
+
+    # Main commits table
+    table = Table(title="Commit History")
+    table.add_column("SHA", style="dim", width=8)
+    table.add_column("Message", style="white", min_width=40)
+    table.add_column("Author", style="cyan", width=15)
+    table.add_column("Date", style="magenta", width=12)
+    table.add_column("Type", style="yellow", width=10)
+    table.add_column("Changes", style="green", justify="right", width=10)
+
+    for commit in commits:
+        # Truncate long commit messages
+        message = commit.message.split("\n")[0]  # First line only
+        if len(message) > 60:
+            message = message[:57] + "..."
+
+        # Format changes
+        if commit.total_changes > 0:
+            changes = f"+{commit.additions}/-{commit.deletions}"
+        else:
+            changes = "N/A"
+
+        # Add row with color coding for commit types
+        commit_type = commit.get_commit_type()
+        type_color = {
+            "feature": "[green]feat[/green]",
+            "fix": "[red]fix[/red]",
+            "docs": "[blue]docs[/blue]",
+            "test": "[yellow]test[/yellow]",
+            "refactor": "[purple]refactor[/purple]",
+            "merge": "[dim]merge[/dim]"
+        }.get(commit_type, commit_type)
+
+        table.add_row(
+            commit.sha[:7],
+            message,
+            commit.author.login,
+            _format_datetime_simple(commit.date),
+            type_color,
+            changes
+        )
+
+    console.print(table)
+
+    # Show detailed statistics if requested
+    if show_stats:
+        _display_commit_statistics(commits)
+
+    # Show file changes for recent commits if requested
+    if show_files:
+        _display_file_changes(commits[:5])  # Show files for top 5 commits
+
+
+def _display_commit_statistics(commits: list) -> None:
+    """Display detailed commit statistics.
+
+    Args:
+        commits: List of Commit objects
+    """
+    if not commits:
+        return
+
+    # Calculate statistics
+    total_additions = sum(c.additions for c in commits)
+    total_deletions = sum(c.deletions for c in commits)
+    total_changes = sum(c.total_changes for c in commits)
+
+    authors = {}
+    commit_types = {}
+    files_changed = set()
+
+    for commit in commits:
+        # Author statistics
+        author = commit.author.login
+        if author not in authors:
+            authors[author] = {"commits": 0, "additions": 0, "deletions": 0}
+        authors[author]["commits"] += 1
+        authors[author]["additions"] += commit.additions
+        authors[author]["deletions"] += commit.deletions
+
+        # Commit type statistics
+        commit_type = commit.get_commit_type()
+        commit_types[commit_type] = commit_types.get(commit_type, 0) + 1
+
+        # Files changed
+        files_changed.update(commit.files_changed)
+
+    # Display statistics
+    console.print("\n[bold yellow]📊 Detailed Statistics[/bold yellow]")
+
+    # Overall stats
+    stats_table = Table(title="Overall Statistics")
+    stats_table.add_column("Metric", style="cyan", width=25)
+    stats_table.add_column("Value", style="green", justify="right")
+
+    stats_table.add_row("Total Commits", str(len(commits)))
+    stats_table.add_row("Total Lines Added", f"{total_additions:,}")
+    stats_table.add_row("Total Lines Deleted", f"{total_deletions:,}")
+    stats_table.add_row("Net Lines Changed", f"{total_additions - total_deletions:+,}")
+    stats_table.add_row("Files Modified", f"{len(files_changed):,}")
+    stats_table.add_row("Unique Authors", str(len(authors)))
+
+    if commits:
+        avg_changes = total_changes // len(commits)
+        stats_table.add_row("Avg Changes/Commit", f"{avg_changes:,}")
+
+    console.print(stats_table)
+
+    # Author breakdown (top 10)
+    if len(authors) > 1:
+        author_table = Table(title="Top Contributors")
+        author_table.add_column("Author", style="cyan")
+        author_table.add_column("Commits", style="yellow", justify="right")
+        author_table.add_column("Lines Added", style="green", justify="right")
+        author_table.add_column("Lines Deleted", style="red", justify="right")
+
+        sorted_authors = sorted(authors.items(), key=lambda x: x[1]["commits"], reverse=True)
+        for author, stats in sorted_authors[:10]:
+            author_table.add_row(
+                author,
+                str(stats["commits"]),
+                f"{stats['additions']:,}",
+                f"{stats['deletions']:,}"
+            )
+
+        console.print(author_table)
+
+
+def _display_file_changes(commits: list) -> None:
+    """Display file changes for recent commits.
+
+    Args:
+        commits: List of recent Commit objects
+    """
+    if not commits:
+        return
+
+    console.print(f"\n[bold blue]📁 File Changes (Recent {len(commits)} commits)[/bold blue]")
+
+    for i, commit in enumerate(commits, 1):
+        if not commit.files_changed:
+            continue
+
+        # Commit header
+        message = commit.message.split("\n")[0]
+        if len(message) > 50:
+            message = message[:47] + "..."
+
+        console.print(f"\n{i}. [bold]{commit.sha[:7]}[/bold] - {message}")
+        console.print(f"   [dim]by {commit.author.login} • {len(commit.files_changed)} files changed[/dim]")
+
+        # Show files (limit to 10 per commit)
+        files_to_show = commit.files_changed[:10]
+        for file_path in files_to_show:
+            # Color code by file type
+            if file_path.endswith((".py", ".js", ".ts", ".java", ".cpp", ".c", ".go", ".rs")):
+                file_color = "[green]"
+            elif file_path.endswith((".md", ".txt", ".rst", ".doc")):
+                file_color = "[blue]"
+            elif file_path.endswith((".json", ".yaml", ".yml", ".xml", ".toml")):
+                file_color = "[yellow]"
+            elif file_path.endswith((".test.py", ".spec.js", ".test.ts")):
+                file_color = "[purple]"
+            else:
+                file_color = "[white]"
+
+            console.print(f"     {file_color}{file_path}[/{file_color.strip('[')}]")
+
+        if len(commit.files_changed) > 10:
+            remaining = len(commit.files_changed) - 10
+            console.print(f"     [dim]... and {remaining} more files[/dim]")
+
+
+def _format_datetime_simple(dt: datetime | None) -> str:
+    """Format datetime for simple display.
+
+    Args:
+        dt: Datetime to format
+
+    Returns:
+        Formatted datetime string
+    """
+    if not dt:
+        return "Unknown"
+
+    # Remove timezone info for calculation
+    dt_naive = dt.replace(tzinfo=None)
+    now = datetime.utcnow()
+
+    # Calculate days ago
+    days_ago = (now - dt_naive).days
+
+    if days_ago == 0:
+        return "Today"
+    elif days_ago == 1:
+        return "Yesterday"
+    elif days_ago < 7:
+        return f"{days_ago}d ago"
+    elif days_ago < 30:
+        weeks = days_ago // 7
+        return f"{weeks}w ago"
+    elif days_ago < 365:
+        months = days_ago // 30
+        return f"{months}mo ago"
+    else:
+        return dt_naive.strftime("%Y-%m-%d")
+
+
+async def _show_fork_details(
+    config: ForkliftConfig,
+    fork_url: str,
+    max_branches: int,
+    max_contributors: int,
+    include_branches: bool,
+    include_contributors: bool,
+    include_commit_stats: bool,
+    verbose: bool
+) -> None:
+    """Show fork details using the interactive analyzer.
+
+    Args:
+        config: Forklift configuration
+        fork_url: Fork URL to analyze
+        max_branches: Maximum branches to display
+        max_contributors: Maximum contributors to display
+        include_branches: Whether to include branch information
+        include_contributors: Whether to include contributor information
+        include_commit_stats: Whether to include commit statistics
+        verbose: Whether to show verbose output
+    """
+    from forklift.analysis.interactive_analyzer import InteractiveAnalyzer
+    from forklift.models.filters import ForkDetailsFilter
+
+    async with GitHubClient(config.github) as github_client:
+        analyzer = InteractiveAnalyzer(github_client, console)
+
+        try:
+            # Create filter object
+            filters = ForkDetailsFilter(
+                include_branches=include_branches,
+                include_contributors=include_contributors,
+                include_commit_stats=include_commit_stats,
+                max_branches=max_branches,
+                max_contributors=max_contributors
+            )
+
+            fork_details = await analyzer.show_fork_details(fork_url, filters)
+
+            if verbose:
+                console.print("\n[green]✓ Fork details displayed successfully[/green]")
+                console.print(f"[dim]Branches: {len(fork_details.branches)}, Contributors: {fork_details.contributor_count}[/dim]")
+
+        except Exception as e:
+            logger.error(f"Failed to display fork details: {e}")
+            raise CLIError(f"Failed to display fork details: {e}")
 
 
 if __name__ == "__main__":

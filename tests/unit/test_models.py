@@ -155,3 +155,114 @@ def test_feature_score_validation():
 
     with pytest.raises(ValueError):
         RankedFeature(feature=feature, score=101.0)
+
+
+def test_fork_preview_item_model():
+    """Test ForkPreviewItem model creation and validation."""
+    from datetime import datetime, timezone
+    from forklift.models.analysis import ForkPreviewItem
+    
+    fork_item = ForkPreviewItem(
+        name="test-repo",
+        owner="test-owner",
+        stars=42,
+        last_push_date=datetime(2023, 12, 1, tzinfo=timezone.utc),
+        fork_url="https://github.com/test-owner/test-repo",
+        activity_status="Active"
+    )
+    
+    assert fork_item.name == "test-repo"
+    assert fork_item.owner == "test-owner"
+    assert fork_item.stars == 42
+    assert fork_item.last_push_date == datetime(2023, 12, 1, tzinfo=timezone.utc)
+    assert fork_item.fork_url == "https://github.com/test-owner/test-repo"
+    assert fork_item.activity_status == "Active"
+
+
+def test_fork_preview_item_model_defaults():
+    """Test ForkPreviewItem model with default values."""
+    from forklift.models.analysis import ForkPreviewItem
+    
+    fork_item = ForkPreviewItem(
+        name="test-repo",
+        owner="test-owner",
+        fork_url="https://github.com/test-owner/test-repo",
+        activity_status="No commits"
+    )
+    
+    assert fork_item.name == "test-repo"
+    assert fork_item.owner == "test-owner"
+    assert fork_item.stars == 0  # Default value
+    assert fork_item.last_push_date is None  # Default value
+    assert fork_item.fork_url == "https://github.com/test-owner/test-repo"
+    assert fork_item.activity_status == "No commits"
+
+
+def test_forks_preview_model():
+    """Test ForksPreview model creation and validation."""
+    from datetime import datetime, timezone
+    from forklift.models.analysis import ForksPreview, ForkPreviewItem
+    
+    fork_item1 = ForkPreviewItem(
+        name="test-repo",
+        owner="user1",
+        stars=10,
+        last_push_date=datetime(2023, 12, 1, tzinfo=timezone.utc),
+        fork_url="https://github.com/user1/test-repo",
+        activity_status="Active"
+    )
+    
+    fork_item2 = ForkPreviewItem(
+        name="test-repo",
+        owner="user2",
+        stars=5,
+        last_push_date=datetime(2023, 11, 1, tzinfo=timezone.utc),
+        fork_url="https://github.com/user2/test-repo",
+        activity_status="Stale"
+    )
+    
+    forks_preview = ForksPreview(
+        total_forks=2,
+        forks=[fork_item1, fork_item2]
+    )
+    
+    assert forks_preview.total_forks == 2
+    assert len(forks_preview.forks) == 2
+    assert forks_preview.forks[0] == fork_item1
+    assert forks_preview.forks[1] == fork_item2
+
+
+def test_fork_preview_item_activity_status_validation():
+    """Test ForkPreviewItem model activity status field validation."""
+    from forklift.models.analysis import ForkPreviewItem
+    import pytest
+    
+    # Test valid activity statuses
+    valid_statuses = ["Active", "Stale", "No commits"]
+    for status in valid_statuses:
+        fork_item = ForkPreviewItem(
+            name="test-repo",
+            owner="test-owner",
+            fork_url="https://github.com/test-owner/test-repo",
+            activity_status=status
+        )
+        assert fork_item.activity_status == status
+    
+    # Test that activity_status is required
+    with pytest.raises(Exception):  # ValidationError
+        ForkPreviewItem(
+            name="test-repo",
+            owner="test-owner",
+            fork_url="https://github.com/test-owner/test-repo"
+            # Missing activity_status
+        )
+
+
+def test_forks_preview_model_empty():
+    """Test ForksPreview model with empty forks list."""
+    from forklift.models.analysis import ForksPreview
+    
+    forks_preview = ForksPreview(total_forks=0)
+    
+    assert forks_preview.total_forks == 0
+    assert forks_preview.forks == []  # Default empty list

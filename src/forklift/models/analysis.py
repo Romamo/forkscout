@@ -68,3 +68,23 @@ class ForkAnalysis(BaseModel):
     analysis_date: datetime = Field(
         default_factory=datetime.utcnow, description="Analysis timestamp"
     )
+
+
+class ForkPreviewItem(BaseModel):
+    """Lightweight fork preview item for fast display."""
+
+    name: str = Field(..., description="Fork repository name")
+    owner: str = Field(..., description="Fork owner username")
+    stars: int = Field(default=0, description="Number of stars")
+    last_push_date: datetime | None = Field(None, description="Last push date")
+    fork_url: str = Field(..., description="Fork HTML URL")
+    activity_status: str = Field(..., description="Activity status: Active, Stale, or No commits")
+
+
+class ForksPreview(BaseModel):
+    """Lightweight preview of repository forks."""
+
+    total_forks: int = Field(..., description="Total number of forks")
+    forks: list[ForkPreviewItem] = Field(
+        default_factory=list, description="Fork preview items"
+    )

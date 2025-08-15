@@ -4,6 +4,8 @@
 
 The Forklift tool is a GitHub repository analysis system built with Python 3.12 and managed using uv package manager that automatically discovers and evaluates valuable features across all forks of a repository. It scans forks to identify meaningful changes, ranks them by value and impact, generates comprehensive reports for maintainers, and can automatically create pull requests to propose the most valuable features back to the upstream repository. This tool aims to help open source maintainers discover and integrate valuable contributions that might otherwise be lost in the ecosystem of forks.
 
+The tool provides both comprehensive batch analysis and step-by-step interactive analysis commands to help users understand repository ecosystems incrementally. For testing and development, the system uses small repositories like https://github.com/maliayas/github-network-ninja and https://github.com/sanila2007/youtube-bot-telegram to ensure reliable and fast testing scenarios.
+
 ## Requirements
 
 ### Requirement 1
@@ -16,7 +18,8 @@ The Forklift tool is a GitHub repository analysis system built with Python 3.12 
 2. WHEN scanning forks THEN the system SHALL identify commits that are ahead of the upstream repository
 3. WHEN analyzing fork commits THEN the system SHALL exclude merge commits and focus on original contributions
 4. IF a fork has no unique commits THEN the system SHALL skip it from further analysis
-5. WHEN accessing GitHub data THEN the system SHALL handle API rate limits gracefully with appropriate backoff strategies
+5. WHEN pre-filtering forks THEN the system SHALL use activity indicators (created_at vs pushed_at timestamps) to quickly identify forks with no new commits and bypass expensive commit analysis
+6. WHEN accessing GitHub data THEN the system SHALL handle API rate limits gracefully with appropriate backoff strategies
 
 ### Requirement 2
 
@@ -67,6 +70,22 @@ The Forklift tool is a GitHub repository analysis system built with Python 3.12 
 5. WHEN running analysis THEN the system SHALL support both one-time scans and scheduled recurring analysis
 
 ### Requirement 6
+
+**User Story:** As a repository maintainer, I want to analyze repositories using smaller, focused steps, so that I can understand the fork ecosystem incrementally and make informed decisions at each stage.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-repo <url>` THEN the system SHALL display detailed repository information including name, description, stars, forks count, last activity, primary language, and license
+2. WHEN I run `forklift list-forks <url>` THEN the system SHALL display a lightweight preview of all forks using minimal API calls showing fork name, owner, stars, last push date, and activity status (Active/Stale/No commits) without detailed commit analysis
+3. WHEN I run `forklift show-forks <url>` THEN the system SHALL display a detailed summary table of all forks showing fork name, owner, stars, last activity, commits ahead/behind, and activity status
+4. WHEN I run `forklift show-promising <url>` THEN the system SHALL display a filtered list of significant forks based on configurable criteria like minimum stars, recent activity, and commits ahead
+5. WHEN I run `forklift show-fork-details <fork-url>` THEN the system SHALL show detailed fork information including all branches, commit counts per branch, and branch activity timestamps
+6. WHEN I run `forklift analyze-fork <fork-url> --branch <branch-name>` THEN the system SHALL analyze the specific fork/branch combination and show feature analysis
+7. WHEN I run `forklift show-commits <fork-url> --branch <branch-name>` THEN the system SHALL display all commits in that branch with SHA, message, author, date, and file change summary
+8. WHEN using any step-by-step command THEN the system SHALL provide clear output formatting with tables, colors, and progress indicators for better readability
+9. WHEN commands encounter errors THEN the system SHALL provide helpful error messages and suggest next steps or alternative commands
+
+### Requirement 7
 
 **User Story:** As a repository maintainer, I want the tool to handle errors gracefully and provide clear feedback, so that I can troubleshoot issues and understand the analysis process.
 
