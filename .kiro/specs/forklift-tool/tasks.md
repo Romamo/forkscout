@@ -45,12 +45,12 @@
   - Write tests for fork discovery and filtering logic
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 4.3 Enhance fork filtering with activity-based pre-screening
-  - Add pre-filtering logic to skip forks with no new commits (created_at == pushed_at)
-  - Implement smart fork prioritization based on activity indicators
-  - Add bypass logic for archived, disabled, or obviously stale forks
-  - Update fork discovery to use two-stage filtering (quick metadata filter, then commit analysis)
-  - Write tests for activity-based filtering and performance improvements
+- [-] 4.3 Enhance fork filtering to skip only forks with no commits ahead
+  - Add pre-filtering logic to skip only forks with no new commits (created_at >= pushed_at)
+  - All other forks must proceed to full commit analysis regardless of age or stars
+  - Remove complex prioritization - only bypass forks with definitively no commits ahead
+  - Update fork discovery to use simple two-stage filtering (no commits check, then full analysis)
+  - Write tests for simplified filtering logic covering both created_at == pushed_at and created_at > pushed_at scenarios
   - _Requirements: 1.4, 1.5_
 
 - [x] 4.2 Build repository analyzer for feature extraction
@@ -157,12 +157,14 @@
   - Write unit and integration tests for the complete list-forks functionality
   - _Requirements: 6.2_
 
-- [-] 8.8 Add fork activity detection to list-forks command
-  - Enhance ForkPreviewItem model to include activity status field
-  - Implement activity detection logic using created_at vs pushed_at comparison
-  - Add "Activity" column to list-forks table showing "Active", "Stale", or "No commits"
-  - Update list_forks_preview method to calculate and display activity status
-  - Write unit tests for activity detection logic and display formatting
+- [x] 8.8 Add commits ahead column to list-forks command
+  - Enhance ForkPreviewItem model to include commits_ahead field
+  - Implement corrected logic to detect forks with no commits ahead using created_at >= pushed_at comparison
+  - Add "Commits Ahead" column showing "None" for forks with no new commits, "Unknown" for others
+  - Update harvesting logic to skip only forks with "None" commits ahead from detailed analysis
+  - All other forks (with "Unknown" status) must be scanned with full commit analysis
+  - Update list_forks_preview method to display commits ahead status
+  - Write unit tests for commits ahead detection covering both created_at == pushed_at and created_at > pushed_at scenarios
   - _Requirements: 6.2_
 
 - [ ] 9. Implement caching and storage layer

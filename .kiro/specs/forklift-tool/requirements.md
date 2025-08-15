@@ -18,7 +18,7 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 2. WHEN scanning forks THEN the system SHALL identify commits that are ahead of the upstream repository
 3. WHEN analyzing fork commits THEN the system SHALL exclude merge commits and focus on original contributions
 4. IF a fork has no unique commits THEN the system SHALL skip it from further analysis
-5. WHEN pre-filtering forks THEN the system SHALL use activity indicators (created_at vs pushed_at timestamps) to quickly identify forks with no new commits and bypass expensive commit analysis
+5. WHEN pre-filtering forks THEN the system SHALL use created_at >= pushed_at comparison to identify forks with no new commits and skip only those from expensive commit analysis, while all other forks must be fully scanned
 6. WHEN accessing GitHub data THEN the system SHALL handle API rate limits gracefully with appropriate backoff strategies
 
 ### Requirement 2
@@ -76,7 +76,7 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 #### Acceptance Criteria
 
 1. WHEN I run `forklift show-repo <url>` THEN the system SHALL display detailed repository information including name, description, stars, forks count, last activity, primary language, and license
-2. WHEN I run `forklift list-forks <url>` THEN the system SHALL display a lightweight preview of all forks using minimal API calls showing fork name, owner, stars, last push date, and activity status (Active/Stale/No commits) without detailed commit analysis
+2. WHEN I run `forklift list-forks <url>` THEN the system SHALL display a lightweight preview of all forks using minimal API calls showing fork name, owner, stars, last push date, and commits ahead status (None/Unknown) without detailed commit analysis
 3. WHEN I run `forklift show-forks <url>` THEN the system SHALL display a detailed summary table of all forks showing fork name, owner, stars, last activity, commits ahead/behind, and activity status
 4. WHEN I run `forklift show-promising <url>` THEN the system SHALL display a filtered list of significant forks based on configurable criteria like minimum stars, recent activity, and commits ahead
 5. WHEN I run `forklift show-fork-details <fork-url>` THEN the system SHALL show detailed fork information including all branches, commit counts per branch, and branch activity timestamps

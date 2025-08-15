@@ -1,20 +1,21 @@
 """Tests for fork discovery service."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
-from forklift.analysis.fork_discovery import ForkDiscoveryService, ForkDiscoveryError
-from forklift.github.client import GitHubClient, GitHubAPIError, GitHubNotFoundError
-from forklift.models.github import Repository, Fork, User, Commit
+import pytest
+
+from forklift.analysis.fork_discovery import ForkDiscoveryError, ForkDiscoveryService
+from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
 from forklift.models.analysis import ForkMetrics
+from forklift.models.github import Commit, Fork, Repository, User
 
 
 @pytest.fixture
 def mock_github_client():
     """Create a mock GitHub client."""
     client = Mock(spec=GitHubClient)
-    
+
     # Make all methods async
     client.get_repository = AsyncMock()
     client.get_all_repository_forks = AsyncMock()
@@ -22,7 +23,7 @@ def mock_github_client():
     client.get_fork_comparison = AsyncMock()
     client.get_user = AsyncMock()
     client.get_repository_contributors = AsyncMock()
-    
+
     return client
 
 
@@ -127,7 +128,7 @@ class TestForkDiscoveryService:
             min_commits_ahead=2,
             max_forks_to_analyze=50,
         )
-        
+
         assert service.github_client == mock_github_client
         assert service.min_activity_days == 180
         assert service.min_commits_ahead == 2
@@ -145,19 +146,21 @@ class TestForkDiscoveryService:
         """Test successful fork discovery."""
         # Setup mocks
         mock_github_client.get_repository.return_value = sample_repository
-        mock_github_client.get_all_repository_forks.return_value = [sample_fork_repository]
+        mock_github_client.get_all_repository_forks.return_value = [
+            sample_fork_repository
+        ]
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
             "behind_by": 2,
             "total_commits": 7,
         }
         mock_github_client.get_user.return_value = sample_user
-        
+
         # Test
         result = await fork_discovery_service.discover_forks(
             "https://github.com/test-owner/test-repo"
         )
-        
+
         # Assertions
         assert len(result) == 1
         fork = result[0]
@@ -166,9 +169,11 @@ class TestForkDiscoveryService:
         assert fork.parent.full_name == "test-owner/test-repo"
         assert fork.commits_ahead == 5
         assert fork.commits_behind == 2
-        
+
         # Verify API calls
-        mock_github_client.get_repository.assert_called_once_with("test-owner", "test-repo")
+        mock_github_client.get_repository.assert_called_once_with(
+            "test-owner", "test-repo"
+        )
         mock_github_client.get_all_repository_forks.assert_called_once_with(
             "test-owner", "test-repo", max_forks=100
         )
@@ -179,7 +184,7 @@ class TestForkDiscoveryService:
     ):
         """Test fork discovery when repository is not found."""
         mock_github_client.get_repository.side_effect = GitHubNotFoundError("Not found")
-        
+
         with pytest.raises(ForkDiscoveryError, match="Repository not found"):
             await fork_discovery_service.discover_forks(
                 "https://github.com/nonexistent/repo"
@@ -191,7 +196,7 @@ class TestForkDiscoveryService:
     ):
         """Test fork discovery with GitHub API error."""
         mock_github_client.get_repository.side_effect = GitHubAPIError("API Error")
-        
+
         with pytest.raises(ForkDiscoveryError, match="GitHub API error"):
             await fork_discovery_service.discover_forks(
                 "https://github.com/test-owner/test-repo"
@@ -234,21 +239,23 @@ class TestForkDiscoveryService:
 
     @pytest.mark.asyncio
     async def test_filter_active_forks(self, fork_discovery_service, sample_fork):
-        """Test filtering active forks."""
-        # Create forks with different activity levels
+        """Test filtering active forks with new two-stage approach."""
+        # Create forks with different characteristics
         active_fork = sample_fork
         active_fork.commits_ahead = 5
         active_fork.last_activity = datetime.utcnow() - timedelta(days=30)
-        
-        inactive_fork = Fork(
+
+        # Fork with old activity but has commits ahead - should still be included
+        old_but_active_fork = Fork(
             repository=sample_fork.repository,
             parent=sample_fork.parent,
             owner=sample_fork.owner,
             commits_ahead=3,
             commits_behind=1,
-            last_activity=datetime.utcnow() - timedelta(days=400),  # Too old
+            last_activity=datetime.utcnow() - timedelta(days=400),  # Old activity
         )
-        
+
+        # Fork with no commits ahead - should be filtered out
         no_commits_fork = Fork(
             repository=sample_fork.repository,
             parent=sample_fork.parent,
@@ -257,24 +264,25 @@ class TestForkDiscoveryService:
             commits_behind=5,
             last_activity=datetime.utcnow() - timedelta(days=10),
         )
-        
-        forks = [active_fork, inactive_fork, no_commits_fork]
-        
+
+        forks = [active_fork, old_but_active_fork, no_commits_fork]
+
         # Test
         result = await fork_discovery_service.filter_active_forks(forks)
-        
-        # Assertions
-        assert len(result) == 1
-        assert result[0] == active_fork
-        assert result[0].is_active is True
-        assert result[0].divergence_score > 0
+
+        # Assertions - both forks with commits ahead should be included regardless of age
+        assert len(result) == 2
+        assert active_fork in result
+        assert old_but_active_fork in result
+        assert all(fork.is_active is True for fork in result)
+        assert all(fork.divergence_score > 0 for fork in result)
 
     def test_is_fork_active_recent_activity(self, fork_discovery_service):
         """Test fork activity check with recent activity."""
         fork = Mock()
         fork.last_activity = datetime.utcnow() - timedelta(days=30)
         cutoff_date = datetime.utcnow() - timedelta(days=365)
-        
+
         result = fork_discovery_service._is_fork_active(fork, cutoff_date)
         assert result is True
 
@@ -283,7 +291,7 @@ class TestForkDiscoveryService:
         fork = Mock()
         fork.last_activity = datetime.utcnow() - timedelta(days=400)
         cutoff_date = datetime.utcnow() - timedelta(days=365)
-        
+
         result = fork_discovery_service._is_fork_active(fork, cutoff_date)
         assert result is False
 
@@ -292,7 +300,7 @@ class TestForkDiscoveryService:
         fork = Mock()
         fork.last_activity = None
         cutoff_date = datetime.utcnow() - timedelta(days=365)
-        
+
         result = fork_discovery_service._is_fork_active(fork, cutoff_date)
         assert result is False
 
@@ -302,9 +310,9 @@ class TestForkDiscoveryService:
         fork.commits_ahead = 10
         fork.commits_behind = 5
         fork.calculate_activity_score.return_value = 0.8
-        
+
         score = fork_discovery_service._calculate_divergence_score(fork)
-        
+
         # Expected: (10 / 15) * 0.8 = 0.533...
         assert 0.5 < score < 0.6
 
@@ -313,7 +321,7 @@ class TestForkDiscoveryService:
         fork = Mock()
         fork.commits_ahead = 0
         fork.commits_behind = 0
-        
+
         score = fork_discovery_service._calculate_divergence_score(fork)
         assert score == 0.0
 
@@ -337,20 +345,28 @@ class TestForkDiscoveryService:
                         "author": {"date": sample_commit.date.isoformat() + "Z"},
                         "committer": {"date": sample_commit.date.isoformat() + "Z"},
                     },
-                    "author": {"login": "author", "html_url": "https://github.com/author"},
-                    "committer": {"login": "author", "html_url": "https://github.com/author"},
+                    "author": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
+                    "committer": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
                     "stats": {"additions": 50, "deletions": 10},
                     "files": [{"filename": "src/main.py"}],
                     "parents": [{"sha": "b" * 40}],
                 }
             ]
         }
-        
+
         mock_github_client.get_fork_comparison.return_value = comparison_data
-        
+
         # Test
-        result = await fork_discovery_service.get_unique_commits(sample_fork, sample_repository)
-        
+        result = await fork_discovery_service.get_unique_commits(
+            sample_fork, sample_repository
+        )
+
         # Assertions
         assert len(result) == 1
         commit = result[0]
@@ -377,20 +393,31 @@ class TestForkDiscoveryService:
                         "author": {"date": datetime.utcnow().isoformat() + "Z"},
                         "committer": {"date": datetime.utcnow().isoformat() + "Z"},
                     },
-                    "author": {"login": "author", "html_url": "https://github.com/author"},
-                    "committer": {"login": "author", "html_url": "https://github.com/author"},
+                    "author": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
+                    "committer": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
                     "stats": {"additions": 0, "deletions": 0},
                     "files": [],
-                    "parents": [{"sha": "b" * 40}, {"sha": "c" * 40}],  # Multiple parents = merge
+                    "parents": [
+                        {"sha": "b" * 40},
+                        {"sha": "c" * 40},
+                    ],  # Multiple parents = merge
                 }
             ]
         }
-        
+
         mock_github_client.get_fork_comparison.return_value = comparison_data
-        
+
         # Test
-        result = await fork_discovery_service.get_unique_commits(sample_fork, sample_repository)
-        
+        result = await fork_discovery_service.get_unique_commits(
+            sample_fork, sample_repository
+        )
+
         # Assertions - merge commit should be filtered out
         assert len(result) == 0
 
@@ -413,20 +440,28 @@ class TestForkDiscoveryService:
                         "author": {"date": datetime.utcnow().isoformat() + "Z"},
                         "committer": {"date": datetime.utcnow().isoformat() + "Z"},
                     },
-                    "author": {"login": "author", "html_url": "https://github.com/author"},
-                    "committer": {"login": "author", "html_url": "https://github.com/author"},
+                    "author": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
+                    "committer": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
                     "stats": {"additions": 1, "deletions": 1},  # Very small change
                     "files": [{"filename": "README.md"}],
                     "parents": [{"sha": "b" * 40}],
                 }
             ]
         }
-        
+
         mock_github_client.get_fork_comparison.return_value = comparison_data
-        
+
         # Test
-        result = await fork_discovery_service.get_unique_commits(sample_fork, sample_repository)
-        
+        result = await fork_discovery_service.get_unique_commits(
+            sample_fork, sample_repository
+        )
+
         # Assertions - insignificant commit should be filtered out
         assert len(result) == 0
 
@@ -442,10 +477,10 @@ class TestForkDiscoveryService:
         # Setup mock contributors
         contributors = [sample_user, sample_user]  # 2 contributors
         mock_github_client.get_repository_contributors.return_value = contributors
-        
+
         # Test
         result = await fork_discovery_service.get_fork_metrics(sample_fork)
-        
+
         # Assertions
         assert isinstance(result, ForkMetrics)
         assert result.stars == sample_fork.repository.stars
@@ -463,11 +498,13 @@ class TestForkDiscoveryService:
     ):
         """Test getting fork metrics with API error."""
         # Setup mock to raise error
-        mock_github_client.get_repository_contributors.side_effect = GitHubAPIError("API Error")
-        
+        mock_github_client.get_repository_contributors.side_effect = GitHubAPIError(
+            "API Error"
+        )
+
         # Test
         result = await fork_discovery_service.get_fork_metrics(sample_fork)
-        
+
         # Assertions - should return basic metrics even with error
         assert isinstance(result, ForkMetrics)
         assert result.stars == sample_fork.repository.stars
@@ -487,19 +524,21 @@ class TestForkDiscoveryService:
         """Test the integrated discover and filter operation."""
         # Setup mocks
         mock_github_client.get_repository.return_value = sample_repository
-        mock_github_client.get_all_repository_forks.return_value = [sample_fork_repository]
+        mock_github_client.get_all_repository_forks.return_value = [
+            sample_fork_repository
+        ]
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
             "behind_by": 2,
             "total_commits": 7,
         }
         mock_github_client.get_user.return_value = sample_user
-        
+
         # Test
         result = await fork_discovery_service.discover_and_filter_forks(
             "https://github.com/test-owner/test-repo"
         )
-        
+
         # Assertions
         assert len(result) == 1
         fork = result[0]
@@ -508,12 +547,262 @@ class TestForkDiscoveryService:
         assert fork.divergence_score > 0
 
 
+class TestForkFilteringLogic:
+    """Test the enhanced two-stage fork filtering logic."""
+
+    @pytest.fixture
+    def fork_with_no_commits_ahead_equal_timestamps(
+        self, sample_fork_repository, sample_repository, sample_user
+    ):
+        """Create a fork where created_at == pushed_at (no commits ahead)."""
+        timestamp = datetime.utcnow() - timedelta(days=30)
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = timestamp
+        fork_repo.pushed_at = timestamp  # Same as created_at = no commits made
+
+        return Fork(
+            repository=fork_repo,
+            parent=sample_repository,
+            owner=sample_user,
+            commits_ahead=0,
+            commits_behind=5,
+            last_activity=timestamp,
+        )
+
+    @pytest.fixture
+    def fork_with_no_commits_ahead_created_after_push(
+        self, sample_fork_repository, sample_repository, sample_user
+    ):
+        """Create a fork where created_at > pushed_at (no commits ahead)."""
+        created_time = datetime.utcnow() - timedelta(days=30)
+        pushed_time = datetime.utcnow() - timedelta(
+            days=31
+        )  # Pushed before creation (edge case)
+
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = created_time
+        fork_repo.pushed_at = pushed_time
+
+        return Fork(
+            repository=fork_repo,
+            parent=sample_repository,
+            owner=sample_user,
+            commits_ahead=0,
+            commits_behind=5,
+            last_activity=pushed_time,
+        )
+
+    @pytest.fixture
+    def fork_with_commits_ahead(
+        self, sample_fork_repository, sample_repository, sample_user
+    ):
+        """Create a fork where created_at < pushed_at (has commits ahead)."""
+        created_time = datetime.utcnow() - timedelta(days=30)
+        pushed_time = datetime.utcnow() - timedelta(days=5)  # Pushed after creation
+
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = created_time
+        fork_repo.pushed_at = pushed_time
+
+        return Fork(
+            repository=fork_repo,
+            parent=sample_repository,
+            owner=sample_user,
+            commits_ahead=3,
+            commits_behind=1,
+            last_activity=pushed_time,
+        )
+
+    def test_has_no_commits_ahead_equal_timestamps(
+        self, fork_discovery_service, fork_with_no_commits_ahead_equal_timestamps
+    ):
+        """Test detection of forks with no commits ahead when created_at == pushed_at."""
+        result = fork_discovery_service._has_no_commits_ahead(
+            fork_with_no_commits_ahead_equal_timestamps
+        )
+        assert result is True
+
+    def test_has_no_commits_ahead_created_after_push(
+        self, fork_discovery_service, fork_with_no_commits_ahead_created_after_push
+    ):
+        """Test detection of forks with no commits ahead when created_at > pushed_at."""
+        result = fork_discovery_service._has_no_commits_ahead(
+            fork_with_no_commits_ahead_created_after_push
+        )
+        assert result is True
+
+    def test_has_commits_ahead(self, fork_discovery_service, fork_with_commits_ahead):
+        """Test detection of forks with commits ahead when created_at < pushed_at."""
+        result = fork_discovery_service._has_no_commits_ahead(fork_with_commits_ahead)
+        assert result is False
+
+    def test_has_no_commits_ahead_missing_timestamps(
+        self, fork_discovery_service, sample_fork
+    ):
+        """Test behavior when timestamp data is missing."""
+        # Remove timestamp data
+        fork = sample_fork.model_copy()
+        fork.repository.created_at = None
+        fork.repository.pushed_at = None
+
+        result = fork_discovery_service._has_no_commits_ahead(fork)
+        # Should return False (proceed with analysis) when data is missing
+        assert result is False
+
+    def test_has_no_commits_ahead_missing_created_at(
+        self, fork_discovery_service, sample_fork
+    ):
+        """Test behavior when created_at is missing."""
+        fork = sample_fork.model_copy()
+        fork.repository.created_at = None
+
+        result = fork_discovery_service._has_no_commits_ahead(fork)
+        assert result is False
+
+    def test_has_no_commits_ahead_missing_pushed_at(
+        self, fork_discovery_service, sample_fork
+    ):
+        """Test behavior when pushed_at is missing."""
+        fork = sample_fork.model_copy()
+        fork.repository.pushed_at = None
+
+        result = fork_discovery_service._has_no_commits_ahead(fork)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_filter_active_forks_two_stage_approach(
+        self,
+        fork_discovery_service,
+        fork_with_no_commits_ahead_equal_timestamps,
+        fork_with_no_commits_ahead_created_after_push,
+        fork_with_commits_ahead,
+    ):
+        """Test the two-stage filtering approach."""
+        # Create a mix of forks
+        forks = [
+            fork_with_no_commits_ahead_equal_timestamps,  # Should be pre-filtered out
+            fork_with_no_commits_ahead_created_after_push,  # Should be pre-filtered out
+            fork_with_commits_ahead,  # Should proceed to full analysis
+        ]
+
+        # Test
+        result = await fork_discovery_service.filter_active_forks(forks)
+
+        # Assertions
+        assert len(result) == 1  # Only the fork with commits ahead should remain
+        assert result[0] == fork_with_commits_ahead
+        assert result[0].is_active is True
+        assert result[0].divergence_score > 0
+
+    @pytest.mark.asyncio
+    async def test_filter_active_forks_pre_filtering_logs(
+        self,
+        fork_discovery_service,
+        fork_with_no_commits_ahead_equal_timestamps,
+        fork_with_commits_ahead,
+        caplog,
+    ):
+        """Test that pre-filtering logs are generated correctly."""
+        import logging
+
+        caplog.set_level(logging.INFO)
+
+        forks = [
+            fork_with_no_commits_ahead_equal_timestamps,
+            fork_with_commits_ahead,
+        ]
+
+        # Test
+        await fork_discovery_service.filter_active_forks(forks)
+
+        # Check logs
+        log_messages = [record.message for record in caplog.records]
+        assert any(
+            "Pre-filtering: 1 forks skipped, 1 forks proceeding to full analysis" in msg
+            for msg in log_messages
+        )
+        assert any(
+            "Full analysis: Found 1 active forks from 1 analyzed" in msg
+            for msg in log_messages
+        )
+
+    @pytest.mark.asyncio
+    async def test_filter_active_forks_all_pre_filtered(
+        self,
+        fork_discovery_service,
+        fork_with_no_commits_ahead_equal_timestamps,
+        fork_with_no_commits_ahead_created_after_push,
+    ):
+        """Test when all forks are pre-filtered out."""
+        forks = [
+            fork_with_no_commits_ahead_equal_timestamps,
+            fork_with_no_commits_ahead_created_after_push,
+        ]
+
+        # Test
+        result = await fork_discovery_service.filter_active_forks(forks)
+
+        # Assertions
+        assert len(result) == 0  # All forks should be pre-filtered out
+
+    @pytest.mark.asyncio
+    async def test_filter_active_forks_none_pre_filtered(
+        self,
+        fork_discovery_service,
+        fork_with_commits_ahead,
+    ):
+        """Test when no forks are pre-filtered."""
+        # Create another fork with commits ahead
+        fork2 = fork_with_commits_ahead.model_copy()
+        fork2.repository.full_name = "another-owner/test-repo"
+        fork2.repository.owner = "another-owner"
+
+        forks = [fork_with_commits_ahead, fork2]
+
+        # Test
+        result = await fork_discovery_service.filter_active_forks(forks)
+
+        # Assertions
+        assert len(result) == 2  # Both forks should pass filtering
+
+    @pytest.mark.asyncio
+    async def test_filter_active_forks_removes_complex_prioritization(
+        self,
+        fork_discovery_service,
+        fork_with_commits_ahead,
+    ):
+        """Test that complex prioritization is removed - all forks with commits proceed regardless of age/stars."""
+        # Create an old fork with few stars but has commits ahead
+        old_fork = fork_with_commits_ahead.model_copy()
+        old_fork.repository.created_at = datetime.utcnow() - timedelta(
+            days=500
+        )  # Very old
+        old_fork.repository.pushed_at = datetime.utcnow() - timedelta(
+            days=400
+        )  # Still has commits
+        old_fork.repository.stars = 0  # No stars
+        old_fork.last_activity = datetime.utcnow() - timedelta(days=400)
+
+        forks = [old_fork]
+
+        # Test
+        result = await fork_discovery_service.filter_active_forks(forks)
+
+        # Assertions - old fork with no stars should still be included if it has commits ahead
+        assert len(result) == 1
+        assert result[0] == old_fork
+
+
 class TestForkDiscoveryServiceEdgeCases:
     """Test edge cases and error conditions."""
 
     @pytest.mark.asyncio
     async def test_create_fork_with_user_fetch_error(
-        self, fork_discovery_service, mock_github_client, sample_repository, sample_fork_repository
+        self,
+        fork_discovery_service,
+        mock_github_client,
+        sample_repository,
+        sample_fork_repository,
     ):
         """Test fork creation when user fetch fails."""
         # Setup mocks
@@ -523,12 +812,12 @@ class TestForkDiscoveryServiceEdgeCases:
             "total_commits": 4,
         }
         mock_github_client.get_user.side_effect = GitHubAPIError("User not found")
-        
+
         # Test
         result = await fork_discovery_service._create_fork_with_comparison(
             sample_fork_repository, sample_repository
         )
-        
+
         # Assertions - should create fork with minimal user info
         assert isinstance(result, Fork)
         assert result.owner.login == sample_fork_repository.owner
@@ -544,11 +833,15 @@ class TestForkDiscoveryServiceEdgeCases:
         sample_repository,
     ):
         """Test getting unique commits with API error."""
-        mock_github_client.get_fork_comparison.side_effect = GitHubAPIError("Comparison failed")
-        
+        mock_github_client.get_fork_comparison.side_effect = GitHubAPIError(
+            "Comparison failed"
+        )
+
         # Test
-        result = await fork_discovery_service.get_unique_commits(sample_fork, sample_repository)
-        
+        result = await fork_discovery_service.get_unique_commits(
+            sample_fork, sample_repository
+        )
+
         # Assertions - should return empty list on error
         assert result == []
 
@@ -560,7 +853,7 @@ class TestForkDiscoveryServiceEdgeCases:
         )
         assert owner == "owner"
         assert repo == "repo"
-        
+
         # Test with extra path components (should ignore them)
         owner, repo = fork_discovery_service._parse_repository_url(
             "https://github.com/owner/repo/issues"

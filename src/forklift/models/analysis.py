@@ -79,6 +79,7 @@ class ForkPreviewItem(BaseModel):
     last_push_date: datetime | None = Field(None, description="Last push date")
     fork_url: str = Field(..., description="Fork HTML URL")
     activity_status: str = Field(..., description="Activity status: Active, Stale, or No commits")
+    commits_ahead: str = Field(..., description="Commits ahead status: None or Unknown")
 
 
 class ForksPreview(BaseModel):

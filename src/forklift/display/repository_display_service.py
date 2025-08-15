@@ -62,13 +62,15 @@ class RepositoryDisplayService:
             fork_items = []
             for fork in forks:
                 activity_status = self._calculate_fork_activity_status(fork)
+                commits_ahead = self._calculate_commits_ahead_status(fork)
                 fork_item = ForkPreviewItem(
                     name=fork.name,
                     owner=fork.owner,
                     stars=fork.stars,
                     last_push_date=fork.pushed_at,
                     fork_url=fork.html_url,
-                    activity_status=activity_status
+                    activity_status=activity_status,
+                    commits_ahead=commits_ahead
                 )
                 fork_items.append(fork_item)
 
@@ -86,7 +88,8 @@ class RepositoryDisplayService:
                     "stars": item.stars,
                     "last_push_date": item.last_push_date,
                     "fork_url": item.fork_url,
-                    "activity_status": item.activity_status
+                    "activity_status": item.activity_status,
+                    "commits_ahead": item.commits_ahead
                 }
                 for item in fork_items
             ]
@@ -356,6 +359,33 @@ class RepositoryDisplayService:
         else:  # Stale if no activity for more than 3 months
             return "Stale"
 
+    def _calculate_commits_ahead_status(self, fork: Repository) -> str:
+        """Calculate commits ahead status using corrected logic.
+
+        Uses created_at >= pushed_at comparison to identify forks with no new commits.
+        This covers both scenarios:
+        - created_at == pushed_at: Fork created but never had commits pushed
+        - created_at > pushed_at: Fork created after last push (inherited old commits only)
+
+        Args:
+            fork: Fork repository
+
+        Returns:
+            Commits ahead status: "None" or "Unknown"
+        """
+        if not fork.created_at or not fork.pushed_at:
+            return "None"
+
+        # Remove timezone info for comparison
+        created_at = fork.created_at.replace(tzinfo=None)
+        pushed_at = fork.pushed_at.replace(tzinfo=None)
+
+        # If created_at >= pushed_at, fork has no new commits
+        if created_at >= pushed_at:
+            return "None"
+        else:
+            return "Unknown"
+
     def _display_repository_table(self, repo_details: dict[str, Any]) -> None:
         """Display repository information in a formatted table.
 
@@ -531,6 +561,22 @@ class RepositoryDisplayService:
             "Active": "[green]Active[/green]",
             "Stale": "[orange3]Stale[/orange3]",
             "No commits": "[red]No commits[/red]"
+        }
+
+        return status_colors.get(status, status)
+
+    def _style_commits_ahead_status(self, status: str) -> str:
+        """Apply color styling to commits ahead status.
+
+        Args:
+            status: Commits ahead status string
+
+        Returns:
+            Styled status string
+        """
+        status_colors = {
+            "None": "[red]None[/red]",
+            "Unknown": "[green]Unknown[/green]"
         }
 
         return status_colors.get(status, status)
@@ -719,15 +765,15 @@ class RepositoryDisplayService:
         table.add_column("Owner", style="blue", min_width=15)
         table.add_column("Stars", style="yellow", justify="right", width=8)
         table.add_column("Last Push", style="magenta", width=15)
-        table.add_column("Activity", style="white", width=12)
+        table.add_column("Commits Ahead", style="green", width=13)
 
         for i, fork_item in enumerate(fork_items, 1):
             # Format last push date
             last_push = self._format_datetime(fork_item["last_push_date"])
             
-            # Style activity status with colors
-            activity_status = fork_item["activity_status"]
-            activity_styled = self._style_fork_activity_status(activity_status)
+            # Style commits ahead status with colors
+            commits_ahead = fork_item["commits_ahead"]
+            commits_ahead_styled = self._style_commits_ahead_status(commits_ahead)
 
             table.add_row(
                 str(i),
@@ -735,7 +781,7 @@ class RepositoryDisplayService:
                 fork_item["owner"],
                 f"⭐{fork_item['stars']}",
                 last_push,
-                activity_styled
+                commits_ahead_styled
             )
 
         self.console.print(table)

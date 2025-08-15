@@ -420,9 +420,9 @@ class TestAnalyzeForkIntegration:
         }
         mock_analyzer.analyze_specific_fork.return_value = analysis_result
         
-        # Run command with verbose flag
+        # Run command
         runner = CliRunner()
-        result = runner.invoke(cli, ['analyze-fork', 'test-owner/test-repo', '--verbose'])
+        result = runner.invoke(cli, ['analyze-fork', 'test-owner/test-repo'])
         
         # Assertions
         assert result.exit_code == 0

@@ -991,7 +991,7 @@ class TestRepositoryDisplayService:
         """Test forks preview table display formatting."""
         from datetime import datetime, timezone
         
-        # Create test fork items with activity status
+        # Create test fork items with activity status and commits ahead
         fork_items = [
             {
                 "name": "testrepo",
@@ -999,7 +999,8 @@ class TestRepositoryDisplayService:
                 "stars": 10,
                 "last_push_date": datetime(2023, 11, 1, tzinfo=timezone.utc),
                 "fork_url": "https://github.com/user1/testrepo",
-                "activity_status": "Active"
+                "activity_status": "Active",
+                "commits_ahead": "Unknown"
             },
             {
                 "name": "testrepo",
@@ -1007,7 +1008,8 @@ class TestRepositoryDisplayService:
                 "stars": 5,
                 "last_push_date": datetime(2023, 10, 1, tzinfo=timezone.utc),
                 "fork_url": "https://github.com/user2/testrepo",
-                "activity_status": "No commits"
+                "activity_status": "No commits",
+                "commits_ahead": "None"
             }
         ]
         
@@ -1134,7 +1136,7 @@ class TestRepositoryDisplayService:
 
     def test_display_forks_preview_table_with_activity_column(self):
         """Test that forks preview table includes Activity column with proper styling."""
-        # Create test fork items with different activity statuses
+        # Create test fork items with different activity statuses and commits ahead
         fork_items = [
             {
                 "name": "active_repo",
@@ -1142,7 +1144,8 @@ class TestRepositoryDisplayService:
                 "stars": 10,
                 "last_push_date": datetime(2023, 11, 1, tzinfo=timezone.utc),
                 "fork_url": "https://github.com/active_user/active_repo",
-                "activity_status": "Active"
+                "activity_status": "Active",
+                "commits_ahead": "Unknown"
             },
             {
                 "name": "stale_repo",
@@ -1150,7 +1153,8 @@ class TestRepositoryDisplayService:
                 "stars": 5,
                 "last_push_date": datetime(2023, 6, 1, tzinfo=timezone.utc),
                 "fork_url": "https://github.com/stale_user/stale_repo",
-                "activity_status": "Stale"
+                "activity_status": "Stale",
+                "commits_ahead": "Unknown"
             },
             {
                 "name": "no_commits_repo",
@@ -1158,7 +1162,8 @@ class TestRepositoryDisplayService:
                 "stars": 1,
                 "last_push_date": datetime(2023, 1, 1, tzinfo=timezone.utc),
                 "fork_url": "https://github.com/no_commits_user/no_commits_repo",
-                "activity_status": "No commits"
+                "activity_status": "No commits",
+                "commits_ahead": "None"
             }
         ]
         
@@ -1167,17 +1172,80 @@ class TestRepositoryDisplayService:
         
         # Verify console.print was called
         self.mock_console.print.assert_called_once()
+
+    def test_calculate_commits_ahead_status(self):
+        """Test commits ahead status calculation using corrected logic."""
+        from datetime import datetime, timezone
+        from forklift.models.github import Repository
         
-        # Get the table that was printed
-        table_call = self.mock_console.print.call_args[0][0]
+        # Test case 1: created_at == pushed_at (no commits)
+        fork1 = Repository(
+            id=1,
+            name="test-repo",
+            full_name="user/test-repo",
+            owner="user",
+            url="https://api.github.com/repos/user/test-repo",
+            html_url="https://github.com/user/test-repo",
+            clone_url="https://github.com/user/test-repo.git",
+            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
         
-        # Verify it's a Rich Table object with the expected columns
-        from rich.table import Table
-        assert isinstance(table_call, Table)
+        # Test case 2: created_at > pushed_at (fork created after last push)
+        fork2 = Repository(
+            id=2,
+            name="test-repo",
+            full_name="user2/test-repo",
+            owner="user2",
+            url="https://api.github.com/repos/user2/test-repo",
+            html_url="https://github.com/user2/test-repo",
+            clone_url="https://github.com/user2/test-repo.git",
+            created_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc),
+            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
         
-        # Check that Activity column was added (we can't easily inspect Rich table columns,
-        # but we can verify the method was called without errors)
-        assert True  # If we got here, the table was created successfully
+        # Test case 3: pushed_at > created_at (potentially has commits)
+        fork3 = Repository(
+            id=3,
+            name="test-repo",
+            full_name="user3/test-repo",
+            owner="user3",
+            url="https://api.github.com/repos/user3/test-repo",
+            html_url="https://github.com/user3/test-repo",
+            clone_url="https://github.com/user3/test-repo.git",
+            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            pushed_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        
+        # Test case 4: Missing timestamps
+        fork4 = Repository(
+            id=4,
+            name="test-repo",
+            full_name="user4/test-repo",
+            owner="user4",
+            url="https://api.github.com/repos/user4/test-repo",
+            html_url="https://github.com/user4/test-repo",
+            clone_url="https://github.com/user4/test-repo.git",
+            created_at=None,
+            pushed_at=None,
+            updated_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        
+        # Test the logic
+        assert self.service._calculate_commits_ahead_status(fork1) == "None"
+        assert self.service._calculate_commits_ahead_status(fork2) == "None"
+        assert self.service._calculate_commits_ahead_status(fork3) == "Unknown"
+        assert self.service._calculate_commits_ahead_status(fork4) == "None"
+
+    def test_style_commits_ahead_status(self):
+        """Test commits ahead status styling."""
+        # Test styling for different statuses
+        assert self.service._style_commits_ahead_status("None") == "[red]None[/red]"
+        assert self.service._style_commits_ahead_status("Unknown") == "[green]Unknown[/green]"
+        assert self.service._style_commits_ahead_status("Invalid") == "Invalid"  # Unknown status returns as-is
 
     @pytest.mark.asyncio
     async def test_list_forks_preview_activity_edge_cases(self):

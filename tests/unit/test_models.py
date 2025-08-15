@@ -168,7 +168,8 @@ def test_fork_preview_item_model():
         stars=42,
         last_push_date=datetime(2023, 12, 1, tzinfo=timezone.utc),
         fork_url="https://github.com/test-owner/test-repo",
-        activity_status="Active"
+        activity_status="Active",
+        commits_ahead="Unknown"
     )
     
     assert fork_item.name == "test-repo"
@@ -177,6 +178,7 @@ def test_fork_preview_item_model():
     assert fork_item.last_push_date == datetime(2023, 12, 1, tzinfo=timezone.utc)
     assert fork_item.fork_url == "https://github.com/test-owner/test-repo"
     assert fork_item.activity_status == "Active"
+    assert fork_item.commits_ahead == "Unknown"
 
 
 def test_fork_preview_item_model_defaults():
@@ -187,7 +189,8 @@ def test_fork_preview_item_model_defaults():
         name="test-repo",
         owner="test-owner",
         fork_url="https://github.com/test-owner/test-repo",
-        activity_status="No commits"
+        activity_status="No commits",
+        commits_ahead="None"
     )
     
     assert fork_item.name == "test-repo"
@@ -196,6 +199,7 @@ def test_fork_preview_item_model_defaults():
     assert fork_item.last_push_date is None  # Default value
     assert fork_item.fork_url == "https://github.com/test-owner/test-repo"
     assert fork_item.activity_status == "No commits"
+    assert fork_item.commits_ahead == "None"
 
 
 def test_forks_preview_model():
@@ -209,7 +213,8 @@ def test_forks_preview_model():
         stars=10,
         last_push_date=datetime(2023, 12, 1, tzinfo=timezone.utc),
         fork_url="https://github.com/user1/test-repo",
-        activity_status="Active"
+        activity_status="Active",
+        commits_ahead="Unknown"
     )
     
     fork_item2 = ForkPreviewItem(
@@ -218,7 +223,8 @@ def test_forks_preview_model():
         stars=5,
         last_push_date=datetime(2023, 11, 1, tzinfo=timezone.utc),
         fork_url="https://github.com/user2/test-repo",
-        activity_status="Stale"
+        activity_status="Stale",
+        commits_ahead="Unknown"
     )
     
     forks_preview = ForksPreview(
@@ -239,14 +245,17 @@ def test_fork_preview_item_activity_status_validation():
     
     # Test valid activity statuses
     valid_statuses = ["Active", "Stale", "No commits"]
-    for status in valid_statuses:
+    commits_ahead_statuses = ["Unknown", "Unknown", "None"]
+    for status, commits_ahead in zip(valid_statuses, commits_ahead_statuses):
         fork_item = ForkPreviewItem(
             name="test-repo",
             owner="test-owner",
             fork_url="https://github.com/test-owner/test-repo",
-            activity_status=status
+            activity_status=status,
+            commits_ahead=commits_ahead
         )
         assert fork_item.activity_status == status
+        assert fork_item.commits_ahead == commits_ahead
     
     # Test that activity_status is required
     with pytest.raises(Exception):  # ValidationError
