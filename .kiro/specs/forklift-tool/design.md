@@ -18,6 +18,10 @@ graph TD
     C --> K
     C --> L
     D --> E[Repository Analyzer]
+    E --> M[Commit Explanation Engine]
+    M --> N[Commit Categorizer]
+    M --> O[Impact Assessor]
+    M --> P[Explanation Generator]
     E --> F[Feature Ranking Engine]
     F --> G[Report Generator]
     G --> H[PR Creator Service]
@@ -29,12 +33,17 @@ graph TD
     I --> H
     I --> K
     I --> L
+    I --> M
+    I --> N
+    I --> O
+    I --> P
     
     J[Storage Layer] --> E
     J --> F
     J --> G
     J --> K
     J --> L
+    J --> M
 ```
 
 ### Core Components
@@ -44,13 +53,17 @@ graph TD
 3. **GitHub Client**: Wrapper around GitHub API with rate limiting and authentication
 4. **Fork Discovery Service**: Discovers and catalogs all repository forks
 5. **Repository Analyzer**: Analyzes individual forks for unique contributions
-6. **Feature Ranking Engine**: Scores and ranks discovered features
-7. **Report Generator**: Creates human-readable analysis reports
-8. **PR Creator Service**: Automates pull request creation for valuable features
-9. **Repository Display Service**: Handles step-by-step repository information display
-10. **Interactive Analyzer**: Provides focused analysis for specific forks and branches
-11. **Data Models**: Pydantic models for type safety and validation
-12. **Storage Layer**: Local caching and persistence using SQLite
+6. **Commit Explanation Engine**: Orchestrates commit analysis and explanation generation
+7. **Commit Categorizer**: Analyzes commits to determine their type (feature, bugfix, refactor, etc.)
+8. **Impact Assessor**: Evaluates the potential impact and value of commits
+9. **Explanation Generator**: Creates human-readable explanations based on analysis results
+10. **Feature Ranking Engine**: Scores and ranks discovered features
+11. **Report Generator**: Creates human-readable analysis reports
+12. **PR Creator Service**: Automates pull request creation for valuable features
+13. **Repository Display Service**: Handles step-by-step repository information display
+14. **Interactive Analyzer**: Provides focused analysis for specific forks and branches
+15. **Data Models**: Pydantic models for type safety and validation
+16. **Storage Layer**: Local caching and persistence using SQLite
 
 ## Components and Interfaces
 
@@ -76,10 +89,49 @@ class ForkDiscoveryService:
 ### Repository Analyzer
 ```python
 class RepositoryAnalyzer:
-    def __init__(self, github_client: GitHubClient)
-    async def analyze_fork(self, fork: Fork, base_repo: Repository) -> ForkAnalysis
+    def __init__(self, github_client: GitHubClient, explanation_engine: Optional[CommitExplanationEngine] = None)
+    async def analyze_fork(self, fork: Fork, base_repo: Repository, explain: bool = False) -> ForkAnalysis
     async def extract_features(self, commits: List[Commit]) -> List[Feature]
     async def categorize_changes(self, commits: List[Commit]) -> Dict[str, List[Commit]]
+    async def _analyze_commits_with_explanations(self, commits: List[Commit], context: AnalysisContext) -> List[CommitWithExplanation]
+```
+
+### Commit Explanation Engine
+```python
+class CommitExplanationEngine:
+    def __init__(self, categorizer: CommitCategorizer, impact_assessor: ImpactAssessor, generator: ExplanationGenerator)
+    async def explain_commit(self, commit: Commit, context: AnalysisContext) -> CommitExplanation
+    async def explain_commits_batch(self, commits: List[Commit], context: AnalysisContext) -> List[CommitExplanation]
+    def is_explanation_enabled(self) -> bool
+```
+
+### Commit Categorizer
+```python
+class CommitCategorizer:
+    def __init__(self, patterns: CategoryPatterns)
+    def categorize_commit(self, commit: Commit, file_changes: List[FileChange]) -> CommitCategory
+    def _analyze_commit_message(self, message: str) -> CategoryHints
+    def _analyze_file_changes(self, changes: List[FileChange]) -> CategoryHints
+    def _determine_primary_category(self, hints: List[CategoryHints]) -> CommitCategory
+```
+
+### Impact Assessor
+```python
+class ImpactAssessor:
+    def __init__(self, config: ImpactConfig)
+    def assess_impact(self, commit: Commit, file_changes: List[FileChange], context: AnalysisContext) -> ImpactAssessment
+    def _calculate_change_magnitude(self, changes: List[FileChange]) -> float
+    def _assess_file_criticality(self, files: List[str], context: AnalysisContext) -> float
+    def _evaluate_test_coverage_impact(self, changes: List[FileChange]) -> float
+```
+
+### Explanation Generator
+```python
+class ExplanationGenerator:
+    def __init__(self, templates: ExplanationTemplates)
+    def generate_explanation(self, commit: Commit, category: CommitCategory, impact: ImpactAssessment) -> str
+    def _format_explanation(self, template: str, context: ExplanationContext) -> str
+    def _ensure_conciseness(self, explanation: str, max_length: int = 200) -> str
 ```
 
 ### Feature Ranking Engine
@@ -164,6 +216,8 @@ class ForkAnalysis:
     features: List[Feature]
     metrics: ForkMetrics
     analysis_date: datetime
+    commit_explanations: Optional[List[CommitExplanation]] = None
+    explanation_summary: Optional[str] = None
 
 @dataclass
 class RepositoryDetails:
@@ -228,6 +282,66 @@ class CommitDetails:
     lines_added: int
     lines_removed: int
     commit_url: str
+
+@dataclass
+class CommitExplanation:
+    commit_sha: str
+    category: CommitCategory
+    impact_level: ImpactLevel
+    explanation: str
+    confidence_score: float
+    generated_at: datetime
+
+@dataclass
+class CommitWithExplanation:
+    commit: Commit
+    explanation: Optional[CommitExplanation] = None
+    explanation_error: Optional[str] = None
+
+@dataclass
+class CommitCategory:
+    primary: CategoryType
+    secondary: List[CategoryType]
+    confidence: float
+
+@dataclass
+class ImpactAssessment:
+    level: ImpactLevel  # LOW, MEDIUM, HIGH
+    score: float  # 0.0 to 1.0
+    factors: Dict[str, float]
+    reasoning: str
+
+@dataclass
+class AnalysisContext:
+    repository: Repository
+    fork: Fork
+    project_type: Optional[str]  # web, library, cli, etc.
+    main_language: Optional[str]
+    critical_files: List[str]
+
+@dataclass
+class FileChange:
+    filename: str
+    status: str  # added, modified, deleted, renamed
+    additions: int
+    deletions: int
+    patch: Optional[str]
+
+class CategoryType(Enum):
+    FEATURE = "feature"
+    BUGFIX = "bugfix"
+    REFACTOR = "refactor"
+    DOCS = "docs"
+    TEST = "test"
+    CHORE = "chore"
+    PERFORMANCE = "performance"
+    SECURITY = "security"
+    OTHER = "other"
+
+class ImpactLevel(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 ```
 
 ### Configuration Models
@@ -241,6 +355,14 @@ class ScoringConfig:
     recency_weight: float = 0.15
 
 @dataclass
+class ExplanationConfig:
+    enabled: bool = False
+    max_explanation_length: int = 200
+    confidence_threshold: float = 0.7
+    include_low_confidence: bool = False
+    template_style: str = "concise"  # concise, detailed, technical
+
+@dataclass
 class ForkliftConfig:
     github_token: str
     min_score_threshold: float = 70.0
@@ -248,6 +370,7 @@ class ForkliftConfig:
     excluded_file_patterns: List[str]
     max_forks_to_analyze: int = 100
     cache_duration_hours: int = 24
+    explanation: ExplanationConfig = field(default_factory=ExplanationConfig)
 ```
 
 ## Error Handling
@@ -379,6 +502,13 @@ forklift show-commits https://github.com/fork-owner/repo --branch main --limit 2
 
 # Comprehensive batch analysis (existing)
 forklift analyze https://github.com/owner/repo
+
+# With commit explanations
+forklift analyze https://github.com/owner/repo --explain
+
+# Step-by-step commands with explanations
+forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --explain
+forklift show-commits https://github.com/fork-owner/repo --branch main --limit 20 --explain
 
 # With configuration
 forklift analyze --config config.yaml --output report.md

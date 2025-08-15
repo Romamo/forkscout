@@ -45,12 +45,24 @@
   - Write tests for fork discovery and filtering logic
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [-] 4.3 Enhance fork filtering to skip only forks with no commits ahead
+- [x] 4.3 Enhance fork filtering to skip only forks with no commits ahead
   - Add pre-filtering logic to skip only forks with no new commits (created_at >= pushed_at)
   - All other forks must proceed to full commit analysis regardless of age or stars
   - Remove complex prioritization - only bypass forks with definitively no commits ahead
   - Update fork discovery to use simple two-stage filtering (no commits check, then full analysis)
+  - Add --scan-all CLI option to bypass filtering and analyze all forks when needed
   - Write tests for simplified filtering logic covering both created_at == pushed_at and created_at > pushed_at scenarios
+  - _Requirements: 1.4, 1.5, 1.7_
+
+- [x] 4.4 Optimize fork discovery with early pre-filtering to reduce API calls
+  - Move lightweight timestamp filtering before expensive API calls in discover_forks method
+  - Restructure _create_fork_with_comparison to be conditional based on pre-filtering
+  - Add early filtering step after getting basic fork list but before comparison API calls
+  - Implement lightweight fork metadata analysis using only basic repository data
+  - Skip expensive /compare/, /repos/, and /users/ API calls for forks with no commits ahead
+  - Update logging to show API call savings and performance metrics
+  - Write tests to verify API call reduction and maintain filtering accuracy
+  - Measure and document performance improvement (target: 60-80% reduction in API calls for typical repositories)
   - _Requirements: 1.4, 1.5_
 
 - [x] 4.2 Build repository analyzer for feature extraction
@@ -59,6 +71,49 @@
   - Implement change categorization (bug fixes, features, improvements)
   - Write tests for feature extraction and categorization
   - _Requirements: 2.1, 2.3, 2.4, 3.3_
+
+- [ ] 4.5 Implement commit explanation system
+- [ ] 4.5.1 Create core data models for commit explanations
+  - Implement CommitExplanation, CommitWithExplanation, CommitCategory, and ImpactAssessment Pydantic models
+  - Add CategoryType and ImpactLevel enums with appropriate values
+  - Create AnalysisContext and FileChange models for explanation context
+  - Write unit tests for all new data models including validation and serialization
+  - _Requirements: 8.2, 8.6, 8.8_
+
+- [ ] 4.5.2 Create CommitCategorizer class with pattern matching
+  - Implement commit message pattern analysis using regex patterns for each category type
+  - Add file-based category detection using filename patterns and extensions
+  - Create confidence scoring system for categorization decisions
+  - Write unit tests for message patterns, file patterns, and confidence scoring
+  - _Requirements: 8.6, 8.7_
+
+- [ ] 4.5.3 Implement ImpactAssessor class
+  - Create impact scoring algorithm using change magnitude, file criticality, and quality factors
+  - Implement file criticality assessment based on project structure and file types
+  - Add test coverage and documentation impact evaluation
+  - Write unit tests for impact calculation with various commit scenarios
+  - _Requirements: 8.8_
+
+- [ ] 4.5.4 Create ExplanationGenerator class
+  - Create template system for different category and impact combinations
+  - Implement context extraction from commits and file changes
+  - Add explanation formatting and conciseness enforcement
+  - Write unit tests for template rendering and context extraction
+  - _Requirements: 8.9_
+
+- [ ] 4.5.5 Build CommitExplanationEngine orchestrator
+  - Implement CommitExplanationEngine that coordinates categorizer, assessor, and generator
+  - Add single commit explanation method with error handling
+  - Create batch processing method for multiple commits
+  - Write unit tests for engine coordination and error handling
+  - _Requirements: 8.1, 8.5_
+
+- [ ] 4.5.6 Enhance RepositoryAnalyzer with explanation support
+  - Modify RepositoryAnalyzer constructor to accept optional CommitExplanationEngine
+  - Update analyze_fork method to support explain parameter
+  - Add commit explanation generation to analysis workflow
+  - Write unit tests for analyzer integration with explanations enabled/disabled
+  - _Requirements: 8.1, 8.4_
 
 - [ ] 5. Create feature ranking and scoring system
 - [x] 5.1 Implement feature scoring algorithm
@@ -89,6 +144,13 @@
   - Create summary sections with analysis overview and statistics
   - Write tests for complete report generation workflow
   - _Requirements: 3.4, 3.5_
+
+- [ ] 6.3 Add explanation integration to report generation
+  - Update markdown report generator to include commit explanations
+  - Add explanation sections to generated reports with proper formatting
+  - Create summary statistics for explanation categories and impact levels
+  - Write tests for report generation with explanations included
+  - _Requirements: 8.3, 8.9_
 
 - [ ] 7. Implement pull request automation
 - [ ] 7.1 Create PR creation service
@@ -166,6 +228,35 @@
   - Update list_forks_preview method to display commits ahead status
   - Write unit tests for commits ahead detection covering both created_at == pushed_at and created_at > pushed_at scenarios
   - _Requirements: 6.2_
+
+- [ ] 8.9 Add CLI support for --explain flag
+- [ ] 8.9.1 Update analyze command with explanation support
+  - Add --explain flag to main analyze command
+  - Modify command handler to pass explain parameter to analyzer
+  - Update progress indicators to show explanation generation status
+  - Write integration tests for analyze command with --explain flag
+  - _Requirements: 8.1, 8.3_
+
+- [ ] 8.9.2 Enhance step-by-step commands with explanations
+  - Add --explain flag to analyze-fork and show-commits commands
+  - Update command handlers to generate and display explanations
+  - Modify output formatting to include explanation information
+  - Write integration tests for all enhanced commands with explanation support
+  - _Requirements: 8.10_
+
+- [ ] 8.9.3 Implement Rich-based explanation display
+  - Implement formatted output for commits with explanations using Rich library
+  - Add color coding for different category types and impact levels
+  - Create visual hierarchy with proper spacing and typography
+  - Write unit tests for output formatting and visual consistency
+  - _Requirements: 8.3, 8.9_
+
+- [ ] 8.9.4 Add explanation configuration support
+  - Create ExplanationConfig model with settings for explanation behavior
+  - Add configuration options for explanation length, confidence thresholds, and template styles
+  - Integrate explanation config into main ForkliftConfig
+  - Write unit tests for configuration loading and validation
+  - _Requirements: 8.1, 8.9_
 
 - [ ] 9. Implement caching and storage layer
 - [ ] 9.1 Create SQLite-based caching system

@@ -284,6 +284,41 @@ class TestAnalyzeCommand:
         assert result.exit_code == 1
         assert "Unexpected error" in result.output
 
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._run_analysis')
+    def test_analyze_with_scan_all_flag(self, mock_run_analysis, mock_load_config):
+        """Test analyze command with --scan-all flag."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        
+        mock_run_analysis.return_value = {
+            "repository": "owner/repo",
+            "total_forks": 5,
+            "analyzed_forks": 5,  # All forks analyzed with --scan-all
+            "total_features": 0,
+            "high_value_features": 0,
+            "report": "Test report"
+        }
+        
+        # Run command with --scan-all flag
+        result = self.runner.invoke(cli, ["analyze", "owner/repo", "--scan-all"])
+        
+        # Verify success
+        assert result.exit_code == 0
+        
+        # Verify _run_analysis was called with scan_all=True
+        mock_run_analysis.assert_called_once()
+        call_args = mock_run_analysis.call_args[0]
+        call_kwargs = mock_run_analysis.call_args[1] if mock_run_analysis.call_args[1] else {}
+        
+        # Check that scan_all parameter was passed as True
+        assert len(call_args) >= 4  # config, owner, repo_name, verbose
+        if len(call_args) > 4:
+            assert call_args[4] == True  # scan_all as positional arg
+        else:
+            assert call_kwargs.get('scan_all', False) == True  # scan_all as keyword arg
+
 
 class TestConfigureCommand:
     """Test configure command functionality."""
@@ -469,6 +504,10 @@ class TestRunAnalysis:
         
         mock_discovery_instance = Mock()
         mock_discovery_instance.discover_forks = AsyncMock(return_value=[
+            Mock(full_name="user1/repo"),
+            Mock(full_name="user2/repo")
+        ])
+        mock_discovery_instance.filter_active_forks = AsyncMock(return_value=[
             Mock(full_name="user1/repo"),
             Mock(full_name="user2/repo")
         ])

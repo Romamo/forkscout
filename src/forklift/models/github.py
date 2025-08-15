@@ -209,7 +209,13 @@ class Fork(BaseModel):
         if not self.last_activity:
             return 0.0
 
-        days_since_activity = (datetime.utcnow() - self.last_activity).days
+        # Normalize last_activity to UTC naive datetime for comparison
+        last_activity = self.last_activity
+        if last_activity.tzinfo is not None:
+            last_activity = last_activity.utctimetuple()
+            last_activity = datetime(*last_activity[:6])
+
+        days_since_activity = (datetime.utcnow() - last_activity).days
 
         # Score decreases exponentially with time
         if days_since_activity <= 7:

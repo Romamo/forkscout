@@ -404,6 +404,7 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
 @click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to analyze")
 @click.option("--dry-run", is_flag=True, help="Perform analysis without creating PRs or writing files")
 @click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection and analysis")
+@click.option("--scan-all", is_flag=True, help="Scan all forks including those with no commits ahead (bypasses default filtering)")
 @click.pass_context
 def analyze(
     ctx: click.Context,
@@ -414,7 +415,8 @@ def analyze(
     min_score: int | None,
     max_forks: int | None,
     dry_run: bool,
-    interactive: bool
+    interactive: bool,
+    scan_all: bool
 ) -> None:
     """Analyze a repository and its forks for valuable features.
 
@@ -447,10 +449,10 @@ def analyze(
 
         if interactive:
             # Run interactive analysis
-            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose))
+            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose, scan_all))
         else:
             # Run standard analysis
-            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose))
+            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose, scan_all))
 
             # Display results
             display_analysis_summary(results)
@@ -1144,7 +1146,8 @@ async def _run_analysis(
     config: ForkliftConfig,
     owner: str,
     repo_name: str,
-    verbose: bool
+    verbose: bool,
+    scan_all: bool = False
 ) -> dict:
     """Run the actual repository analysis.
 
@@ -1153,6 +1156,7 @@ async def _run_analysis(
         owner: Repository owner
         repo_name: Repository name
         verbose: Whether to show verbose output
+        scan_all: Whether to scan all forks (bypass filtering)
 
     Returns:
         Dictionary with analysis results
@@ -1189,13 +1193,23 @@ async def _run_analysis(
         transient=not verbose
     ) as progress:
 
-        # Step 1: Discover forks
+        # Step 1: Discover and filter forks
         task1 = progress.add_task("Discovering forks...", total=None)
         try:
             repository_url = f"https://github.com/{owner}/{repo_name}"
-            forks = await fork_discovery.discover_forks(repository_url)
-            results["total_forks"] = len(forks)
-            progress.update(task1, completed=True, description=f"Found {len(forks)} forks")
+            all_forks = await fork_discovery.discover_forks(repository_url)
+            results["total_forks"] = len(all_forks)
+            
+            if scan_all:
+                # Skip filtering - analyze all forks
+                forks = all_forks
+                progress.update(task1, completed=True, description=f"Found {len(all_forks)} forks, scanning all (--scan-all enabled)")
+            else:
+                # Apply default filtering - skip forks with no commits ahead
+                progress.update(task1, description=f"Found {len(all_forks)} forks, filtering...")
+                forks = await fork_discovery.filter_active_forks(all_forks)
+                skipped_count = len(all_forks) - len(forks)
+                progress.update(task1, completed=True, description=f"Found {len(all_forks)} forks, {skipped_count} skipped (no commits ahead), {len(forks)} to analyze")
         except Exception as e:
             progress.update(task1, description=f"Failed to discover forks: {e}")
             raise CLIError(f"Failed to discover forks: {e}")
@@ -1249,7 +1263,8 @@ async def _run_interactive_analysis(
     config: ForkliftConfig,
     owner: str,
     repo_name: str,
-    verbose: bool
+    verbose: bool,
+    scan_all: bool = False
 ) -> dict:
     """Run interactive repository analysis with user choices.
 
@@ -1258,6 +1273,7 @@ async def _run_interactive_analysis(
         owner: Repository owner
         repo_name: Repository name
         verbose: Whether to show verbose output
+        scan_all: Whether to scan all forks (bypass filtering)
 
     Returns:
         Dictionary with analysis results

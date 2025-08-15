@@ -40,7 +40,7 @@ class ForkDiscoveryService:
         self.max_forks_to_analyze = max_forks_to_analyze
 
     async def discover_forks(self, repository_url: str) -> list[Fork]:
-        """Discover all forks of a repository.
+        """Discover all forks of a repository with optimized pre-filtering.
 
         Args:
             repository_url: GitHub repository URL (e.g., https://github.com/owner/repo)
@@ -55,31 +55,56 @@ class ForkDiscoveryService:
             # Parse repository URL to get owner and name
             owner, repo_name = self._parse_repository_url(repository_url)
 
-            logger.info(f"Starting fork discovery for {owner}/{repo_name}")
+            logger.info(f"Starting optimized fork discovery for {owner}/{repo_name}")
 
             # Get the parent repository information
             parent_repo = await self.github_client.get_repository(owner, repo_name)
 
-            # Get all forks
+            # Get all forks (lightweight operation - only basic repository data)
             fork_repos = await self.github_client.get_all_repository_forks(
                 owner, repo_name, max_forks=self.max_forks_to_analyze
             )
 
             logger.info(f"Found {len(fork_repos)} forks for {owner}/{repo_name}")
 
-            # Convert repository objects to Fork objects with comparison data
+            # Stage 1: Early pre-filtering using lightweight metadata analysis
+            pre_filtered_forks, skipped_count, api_calls_saved = (
+                await self._pre_filter_forks_by_metadata(fork_repos, parent_repo)
+            )
+
+            logger.info(
+                f"Pre-filtering: {skipped_count} forks skipped, {len(pre_filtered_forks)} forks proceeding to full analysis"
+            )
+            logger.info(f"API calls saved by pre-filtering: {api_calls_saved}")
+
+            # Stage 2: Full analysis with expensive API calls for remaining forks
             forks = []
-            for fork_repo in fork_repos:
+            api_calls_made = 0
+
+            for fork_repo in pre_filtered_forks:
                 try:
                     fork = await self._create_fork_with_comparison(
                         fork_repo, parent_repo
                     )
                     forks.append(fork)
+                    api_calls_made += 3  # Estimate: compare, user, commits_ahead_behind
                 except Exception as e:
                     logger.warning(f"Failed to analyze fork {fork_repo.full_name}: {e}")
                     continue
 
+            total_potential_calls = len(fork_repos) * 3
+            actual_calls = api_calls_made
+            reduction_percentage = (
+                ((total_potential_calls - actual_calls) / total_potential_calls * 100)
+                if total_potential_calls > 0
+                else 0
+            )
+
             logger.info(f"Successfully analyzed {len(forks)} forks")
+            logger.info(
+                f"Performance metrics: {actual_calls}/{total_potential_calls} API calls made ({reduction_percentage:.1f}% reduction)"
+            )
+
             return forks
 
         except GitHubNotFoundError as e:
@@ -255,6 +280,9 @@ class ForkDiscoveryService:
     ) -> Fork:
         """Create a Fork object with comparison data.
 
+        This method performs expensive API calls to get detailed fork information.
+        It should only be called for forks that have passed pre-filtering.
+
         Args:
             fork_repo: Fork repository
             parent_repo: Parent repository
@@ -262,12 +290,14 @@ class ForkDiscoveryService:
         Returns:
             Fork object with comparison data
         """
-        # Get comparison data
+        logger.debug(f"Creating fork with comparison data for {fork_repo.full_name}")
+
+        # Get comparison data (expensive API call)
         comparison_data = await self.github_client.get_commits_ahead_behind(
             fork_repo.owner, fork_repo.name, parent_repo.owner, parent_repo.name
         )
 
-        # Get the fork owner user information
+        # Get the fork owner user information (expensive API call)
         try:
             owner_user = await self.github_client.get_user(fork_repo.owner)
         except Exception as e:
@@ -276,7 +306,11 @@ class ForkDiscoveryService:
             )
             # Create a minimal User object if we can't fetch full details
             owner_user = User(
+                id=0,  # Unknown ID
                 login=fork_repo.owner,
+                name=None,
+                email=None,
+                avatar_url=None,
                 html_url=f"https://github.com/{fork_repo.owner}",
             )
 
@@ -288,6 +322,10 @@ class ForkDiscoveryService:
             commits_ahead=comparison_data["ahead_by"],
             commits_behind=comparison_data["behind_by"],
             last_activity=fork_repo.pushed_at,
+        )
+
+        logger.debug(
+            f"Fork {fork_repo.full_name}: {fork.commits_ahead} ahead, {fork.commits_behind} behind"
         )
 
         return fork
@@ -309,14 +347,18 @@ class ForkDiscoveryService:
             # so we proceed with full analysis to be safe
             return False
 
-        # Convert to UTC if timezone-aware for comparison
+        # Normalize both timestamps to UTC for comparison
         created_at = fork.repository.created_at
         pushed_at = fork.repository.pushed_at
 
+        # Convert timezone-aware datetimes to UTC, then remove timezone info
         if created_at.tzinfo is not None:
-            created_at = created_at.replace(tzinfo=None)
+            created_at_tuple = created_at.utctimetuple()
+            created_at = datetime(*created_at_tuple[:6])
+
         if pushed_at.tzinfo is not None:
-            pushed_at = pushed_at.replace(tzinfo=None)
+            pushed_at_tuple = pushed_at.utctimetuple()
+            pushed_at = datetime(*pushed_at_tuple[:6])
 
         # If created_at >= pushed_at, the fork has never been pushed to after creation
         # This indicates no new commits have been made
@@ -363,6 +405,78 @@ class ForkDiscoveryService:
         activity_score = fork.calculate_activity_score()
 
         return min(1.0, divergence * activity_score)
+
+    async def _pre_filter_forks_by_metadata(
+        self, fork_repos: list[Repository], parent_repo: Repository
+    ) -> tuple[list[Repository], int, int]:
+        """Pre-filter forks using lightweight metadata analysis to reduce API calls.
+
+        This method performs early filtering using only basic repository data
+        to identify forks that definitely have no commits ahead, avoiding
+        expensive /compare/, /repos/, and /users/ API calls for those forks.
+
+        Args:
+            fork_repos: List of fork repositories to pre-filter
+            parent_repo: Parent repository for comparison
+
+        Returns:
+            Tuple of (filtered_forks, skipped_count, api_calls_saved)
+        """
+        filtered_forks = []
+        skipped_count = 0
+
+        for fork_repo in fork_repos:
+            # Use lightweight timestamp analysis to detect forks with no commits ahead
+            if self._has_no_commits_ahead_from_repo(fork_repo):
+                logger.debug(
+                    f"Pre-filtering: Fork {fork_repo.full_name} has no commits ahead "
+                    f"(created_at >= pushed_at), skipping expensive API calls"
+                )
+                skipped_count += 1
+                continue
+
+            # Fork potentially has commits ahead, proceed to full analysis
+            filtered_forks.append(fork_repo)
+
+        # Calculate API calls saved (each skipped fork saves ~3 API calls)
+        api_calls_saved = skipped_count * 3  # compare, user, commits_ahead_behind
+
+        return filtered_forks, skipped_count, api_calls_saved
+
+    def _has_no_commits_ahead_from_repo(self, fork_repo: Repository) -> bool:
+        """Check if a fork repository has no commits ahead using lightweight metadata.
+
+        This method uses only the basic repository data (created_at, pushed_at)
+        to determine if a fork has never been modified since creation, indicating
+        no new commits have been made.
+
+        Args:
+            fork_repo: Fork repository to check
+
+        Returns:
+            True if fork has no commits ahead (should be skipped), False otherwise
+        """
+        if not fork_repo.created_at or not fork_repo.pushed_at:
+            # If we don't have timestamp data, we can't make this determination
+            # so we proceed with full analysis to be safe
+            return False
+
+        # Normalize both timestamps to UTC for comparison
+        created_at = fork_repo.created_at
+        pushed_at = fork_repo.pushed_at
+
+        # Convert timezone-aware datetimes to UTC, then remove timezone info
+        if created_at.tzinfo is not None:
+            created_at_tuple = created_at.utctimetuple()
+            created_at = datetime(*created_at_tuple[:6])
+
+        if pushed_at.tzinfo is not None:
+            pushed_at_tuple = pushed_at.utctimetuple()
+            pushed_at = datetime(*pushed_at_tuple[:6])
+
+        # If created_at >= pushed_at, the fork has never been pushed to after creation
+        # This indicates no new commits have been made
+        return created_at >= pushed_at
 
     async def get_fork_metrics(self, fork: Fork) -> ForkMetrics:
         """Get detailed metrics for a fork.

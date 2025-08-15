@@ -19,7 +19,9 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 3. WHEN analyzing fork commits THEN the system SHALL exclude merge commits and focus on original contributions
 4. IF a fork has no unique commits THEN the system SHALL skip it from further analysis
 5. WHEN pre-filtering forks THEN the system SHALL use created_at >= pushed_at comparison to identify forks with no new commits and skip only those from expensive commit analysis, while all other forks must be fully scanned
-6. WHEN accessing GitHub data THEN the system SHALL handle API rate limits gracefully with appropriate backoff strategies
+6. WHEN optimizing fork discovery THEN the system SHALL apply lightweight filtering before expensive API calls to minimize unnecessary GitHub API requests and improve performance by 60-80% for typical repositories
+7. WHEN the --scan-all option is provided THEN the system SHALL bypass all filtering and analyze every fork regardless of commits ahead status
+8. WHEN accessing GitHub data THEN the system SHALL handle API rate limits gracefully with appropriate backoff strategies
 
 ### Requirement 2
 
@@ -96,3 +98,20 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 3. WHEN analysis fails for a specific fork THEN the system SHALL record the failure reason and continue with remaining forks
 4. WHEN running THEN the system SHALL provide progress indicators showing current analysis status
 5. WHEN complete THEN the system SHALL generate a summary report including any errors or warnings encountered during analysis
+
+### Requirement 8
+
+**User Story:** As a repository maintainer, I want to see detailed explanations for each commit during analysis, so that I can understand the purpose and value of individual changes without manually reviewing code.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift analyze <repo-url> --explain` THEN the system SHALL provide detailed explanations for each commit being analyzed
+2. WHEN analyzing commits with --explain THEN the system SHALL generate explanations that include the commit's purpose, type of change, and potential impact
+3. WHEN displaying commit explanations THEN the system SHALL show the commit SHA, message, author, and generated explanation in a readable format
+4. WHEN the --explain flag is not provided THEN the system SHALL run the standard analysis without detailed commit explanations
+5. WHEN generating explanations THEN the system SHALL analyze commit diffs, file changes, and commit messages to create meaningful descriptions
+6. WHEN analyzing commits with explanations THEN the system SHALL categorize each commit as one of: feature, bugfix, refactor, docs, test, chore, or other
+7. WHEN categorizing commits THEN the system SHALL use commit message patterns, file changes, and code analysis to determine the category
+8. WHEN generating commit explanations THEN the system SHALL assess and describe the potential impact of each commit (low, medium, high)
+9. WHEN generating explanations THEN the system SHALL keep each explanation to 2-3 sentences maximum using clear, non-technical language
+10. WHEN using --explain with step-by-step commands THEN the system SHALL support the flag on analyze-fork and show-commits commands

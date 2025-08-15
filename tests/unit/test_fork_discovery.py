@@ -793,6 +793,323 @@ class TestForkFilteringLogic:
         assert result[0] == old_fork
 
 
+class TestForkDiscoveryOptimization:
+    """Test the new optimization features for fork discovery."""
+
+    @pytest.fixture
+    def fork_repo_no_commits_ahead(self, sample_fork_repository):
+        """Create a fork repository with no commits ahead (created_at >= pushed_at)."""
+        timestamp = datetime.utcnow() - timedelta(days=30)
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = timestamp
+        fork_repo.pushed_at = timestamp  # Same as created_at = no commits made
+        fork_repo.full_name = "no-commits/test-repo"
+        fork_repo.owner = "no-commits"
+        return fork_repo
+
+    @pytest.fixture
+    def fork_repo_with_commits_ahead(self, sample_fork_repository):
+        """Create a fork repository with commits ahead (created_at < pushed_at)."""
+        created_time = datetime.utcnow() - timedelta(days=30)
+        pushed_time = datetime.utcnow() - timedelta(days=5)  # Pushed after creation
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = created_time
+        fork_repo.pushed_at = pushed_time
+        fork_repo.full_name = "with-commits/test-repo"
+        fork_repo.owner = "with-commits"
+        return fork_repo
+
+    def test_has_no_commits_ahead_from_repo_equal_timestamps(
+        self, fork_discovery_service, fork_repo_no_commits_ahead
+    ):
+        """Test detection of forks with no commits ahead when created_at == pushed_at."""
+        result = fork_discovery_service._has_no_commits_ahead_from_repo(
+            fork_repo_no_commits_ahead
+        )
+        assert result is True
+
+    def test_has_no_commits_ahead_from_repo_created_after_push(
+        self, fork_discovery_service, sample_fork_repository
+    ):
+        """Test detection of forks with no commits ahead when created_at > pushed_at."""
+        created_time = datetime.utcnow() - timedelta(days=30)
+        pushed_time = datetime.utcnow() - timedelta(days=31)  # Pushed before creation
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = created_time
+        fork_repo.pushed_at = pushed_time
+
+        result = fork_discovery_service._has_no_commits_ahead_from_repo(fork_repo)
+        assert result is True
+
+    def test_has_no_commits_ahead_from_repo_with_commits(
+        self, fork_discovery_service, fork_repo_with_commits_ahead
+    ):
+        """Test detection of forks with commits ahead when created_at < pushed_at."""
+        result = fork_discovery_service._has_no_commits_ahead_from_repo(
+            fork_repo_with_commits_ahead
+        )
+        assert result is False
+
+    def test_has_no_commits_ahead_from_repo_missing_timestamps(
+        self, fork_discovery_service, sample_fork_repository
+    ):
+        """Test behavior when timestamp data is missing."""
+        fork_repo = sample_fork_repository.model_copy()
+        fork_repo.created_at = None
+        fork_repo.pushed_at = None
+
+        result = fork_discovery_service._has_no_commits_ahead_from_repo(fork_repo)
+        # Should return False (proceed with analysis) when data is missing
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_pre_filter_forks_by_metadata(
+        self,
+        fork_discovery_service,
+        sample_repository,
+        fork_repo_no_commits_ahead,
+        fork_repo_with_commits_ahead,
+    ):
+        """Test pre-filtering of forks using metadata analysis."""
+        fork_repos = [fork_repo_no_commits_ahead, fork_repo_with_commits_ahead]
+
+        # Test
+        filtered_forks, skipped_count, api_calls_saved = await fork_discovery_service._pre_filter_forks_by_metadata(
+            fork_repos, sample_repository
+        )
+
+        # Assertions
+        assert len(filtered_forks) == 1  # Only fork with commits ahead should remain
+        assert filtered_forks[0] == fork_repo_with_commits_ahead
+        assert skipped_count == 1  # One fork should be skipped
+        assert api_calls_saved == 3  # 3 API calls saved per skipped fork
+
+    @pytest.mark.asyncio
+    async def test_pre_filter_forks_by_metadata_all_skipped(
+        self,
+        fork_discovery_service,
+        sample_repository,
+        fork_repo_no_commits_ahead,
+    ):
+        """Test pre-filtering when all forks are skipped."""
+        # Create another fork with no commits ahead
+        fork_repo_2 = fork_repo_no_commits_ahead.model_copy()
+        fork_repo_2.full_name = "another-no-commits/test-repo"
+        fork_repo_2.owner = "another-no-commits"
+
+        fork_repos = [fork_repo_no_commits_ahead, fork_repo_2]
+
+        # Test
+        filtered_forks, skipped_count, api_calls_saved = await fork_discovery_service._pre_filter_forks_by_metadata(
+            fork_repos, sample_repository
+        )
+
+        # Assertions
+        assert len(filtered_forks) == 0  # All forks should be skipped
+        assert skipped_count == 2  # Both forks should be skipped
+        assert api_calls_saved == 6  # 6 API calls saved (2 forks * 3 calls each)
+
+    @pytest.mark.asyncio
+    async def test_pre_filter_forks_by_metadata_none_skipped(
+        self,
+        fork_discovery_service,
+        sample_repository,
+        fork_repo_with_commits_ahead,
+    ):
+        """Test pre-filtering when no forks are skipped."""
+        # Create another fork with commits ahead
+        fork_repo_2 = fork_repo_with_commits_ahead.model_copy()
+        fork_repo_2.full_name = "another-with-commits/test-repo"
+        fork_repo_2.owner = "another-with-commits"
+
+        fork_repos = [fork_repo_with_commits_ahead, fork_repo_2]
+
+        # Test
+        filtered_forks, skipped_count, api_calls_saved = await fork_discovery_service._pre_filter_forks_by_metadata(
+            fork_repos, sample_repository
+        )
+
+        # Assertions
+        assert len(filtered_forks) == 2  # No forks should be skipped
+        assert skipped_count == 0  # No forks should be skipped
+        assert api_calls_saved == 0  # No API calls saved
+
+    @pytest.mark.asyncio
+    async def test_discover_forks_with_optimization_api_call_reduction(
+        self,
+        fork_discovery_service,
+        mock_github_client,
+        sample_repository,
+        fork_repo_no_commits_ahead,
+        fork_repo_with_commits_ahead,
+        sample_user,
+        caplog,
+    ):
+        """Test that discover_forks optimization reduces API calls and logs performance metrics."""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        # Setup mocks
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_all_repository_forks.return_value = [
+            fork_repo_no_commits_ahead,  # Should be pre-filtered out
+            fork_repo_with_commits_ahead,  # Should proceed to full analysis
+        ]
+        mock_github_client.get_commits_ahead_behind.return_value = {
+            "ahead_by": 5,
+            "behind_by": 2,
+            "total_commits": 7,
+        }
+        mock_github_client.get_user.return_value = sample_user
+
+        # Test
+        result = await fork_discovery_service.discover_forks(
+            "https://github.com/test-owner/test-repo"
+        )
+
+        # Assertions
+        assert len(result) == 1  # Only one fork should be analyzed
+        assert result[0].repository.full_name == "with-commits/test-repo"
+
+        # Verify API calls were reduced
+        # get_commits_ahead_behind should only be called once (for the non-pre-filtered fork)
+        assert mock_github_client.get_commits_ahead_behind.call_count == 1
+        # get_user should only be called once
+        assert mock_github_client.get_user.call_count == 1
+
+        # Check performance logging
+        log_messages = [record.message for record in caplog.records]
+        assert any("Pre-filtering: 1 forks skipped, 1 forks proceeding to full analysis" in msg for msg in log_messages)
+        assert any("API calls saved by pre-filtering: 3" in msg for msg in log_messages)
+        assert any("Performance metrics: 3/6 API calls made (50.0% reduction)" in msg for msg in log_messages)
+
+    @pytest.mark.asyncio
+    async def test_discover_forks_optimization_maintains_accuracy(
+        self,
+        fork_discovery_service,
+        mock_github_client,
+        sample_repository,
+        fork_repo_with_commits_ahead,
+        sample_user,
+    ):
+        """Test that optimization maintains filtering accuracy."""
+        # Setup mocks
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_all_repository_forks.return_value = [
+            fork_repo_with_commits_ahead
+        ]
+        mock_github_client.get_commits_ahead_behind.return_value = {
+            "ahead_by": 5,
+            "behind_by": 2,
+            "total_commits": 7,
+        }
+        mock_github_client.get_user.return_value = sample_user
+
+        # Test
+        result = await fork_discovery_service.discover_forks(
+            "https://github.com/test-owner/test-repo"
+        )
+
+        # Assertions - should maintain same accuracy as before optimization
+        assert len(result) == 1
+        fork = result[0]
+        assert isinstance(fork, Fork)
+        assert fork.repository.full_name == "with-commits/test-repo"
+        assert fork.commits_ahead == 5
+        assert fork.commits_behind == 2
+        assert fork.owner.login == sample_user.login
+
+    @pytest.mark.asyncio
+    async def test_discover_forks_optimization_performance_target(
+        self,
+        fork_discovery_service,
+        mock_github_client,
+        sample_repository,
+        sample_user,
+    ):
+        """Test that optimization achieves target 60-80% reduction in API calls for typical repositories."""
+        # Create a typical repository scenario with 10 forks, 7 of which have no commits ahead
+        fork_repos = []
+        
+        # 7 forks with no commits ahead (should be pre-filtered)
+        for i in range(7):
+            timestamp = datetime.utcnow() - timedelta(days=30 + i)
+            fork_repo = Repository(
+                id=1000 + i,
+                owner=f"no-commits-{i}",
+                name="test-repo",
+                full_name=f"no-commits-{i}/test-repo",
+                url=f"https://api.github.com/repos/no-commits-{i}/test-repo",
+                html_url=f"https://github.com/no-commits-{i}/test-repo",
+                clone_url=f"https://github.com/no-commits-{i}/test-repo.git",
+                default_branch="main",
+                stars=0,
+                forks_count=0,
+                is_fork=True,
+                created_at=timestamp,
+                updated_at=timestamp,
+                pushed_at=timestamp,  # Same as created_at = no commits
+            )
+            fork_repos.append(fork_repo)
+        
+        # 3 forks with commits ahead (should proceed to full analysis)
+        for i in range(3):
+            created_time = datetime.utcnow() - timedelta(days=30 + i)
+            pushed_time = datetime.utcnow() - timedelta(days=5 + i)
+            fork_repo = Repository(
+                id=2000 + i,
+                owner=f"with-commits-{i}",
+                name="test-repo",
+                full_name=f"with-commits-{i}/test-repo",
+                url=f"https://api.github.com/repos/with-commits-{i}/test-repo",
+                html_url=f"https://github.com/with-commits-{i}/test-repo",
+                clone_url=f"https://github.com/with-commits-{i}/test-repo.git",
+                default_branch="main",
+                stars=5,
+                forks_count=1,
+                is_fork=True,
+                created_at=created_time,
+                updated_at=pushed_time,
+                pushed_at=pushed_time,  # After created_at = has commits
+            )
+            fork_repos.append(fork_repo)
+
+        # Setup mocks
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_all_repository_forks.return_value = fork_repos
+        mock_github_client.get_commits_ahead_behind.return_value = {
+            "ahead_by": 3,
+            "behind_by": 1,
+            "total_commits": 4,
+        }
+        mock_github_client.get_user.return_value = sample_user
+
+        # Test
+        result = await fork_discovery_service.discover_forks(
+            "https://github.com/test-owner/test-repo"
+        )
+
+        # Assertions
+        assert len(result) == 3  # Only 3 forks with commits ahead should be analyzed
+        
+        # Verify API call reduction
+        # Total potential calls: 10 forks * 3 calls = 30 calls
+        # Actual calls: 3 forks * 3 calls = 9 calls
+        # Reduction: (30 - 9) / 30 = 70% reduction
+        expected_calls = 3 * 3  # 3 forks * 3 calls each
+        assert mock_github_client.get_commits_ahead_behind.call_count == 3
+        assert mock_github_client.get_user.call_count == 3
+        
+        # Calculate actual reduction percentage
+        total_potential_calls = len(fork_repos) * 3
+        actual_calls = expected_calls
+        reduction_percentage = ((total_potential_calls - actual_calls) / total_potential_calls * 100)
+        
+        # Should achieve target 60-80% reduction
+        assert 60 <= reduction_percentage <= 80
+        assert reduction_percentage == 70.0  # Exact expected reduction for this scenario
+
+
 class TestForkDiscoveryServiceEdgeCases:
     """Test edge cases and error conditions."""
 
@@ -860,3 +1177,70 @@ class TestForkDiscoveryServiceEdgeCases:
         )
         assert owner == "owner"
         assert repo == "repo"
+    @pytest.mark.asyncio
+    async def test_has_no_commits_ahead_logic(self, fork_discovery_service):
+        """Test the _has_no_commits_ahead method with different timestamp scenarios."""
+        from datetime import datetime, timezone
+        from forklift.models.github import Repository, Fork, User
+        
+        # Helper to create test fork
+        def create_test_fork(full_name, created_at, pushed_at):
+            repo = Repository(
+                id=1,
+                owner=full_name.split('/')[0],
+                name=full_name.split('/')[1],
+                full_name=full_name,
+                url=f"https://api.github.com/repos/{full_name}",
+                html_url=f"https://github.com/{full_name}",
+                clone_url=f"https://github.com/{full_name}.git",
+                created_at=created_at,
+                pushed_at=pushed_at,
+                is_fork=True
+            )
+            user = User(login=repo.owner, html_url=f"https://github.com/{repo.owner}")
+            parent = Repository(
+                id=2,
+                owner="parent",
+                name="repo",
+                full_name="parent/repo",
+                url="https://api.github.com/repos/parent/repo",
+                html_url="https://github.com/parent/repo",
+                clone_url="https://github.com/parent/repo.git"
+            )
+            return Fork(
+                repository=repo,
+                parent=parent,
+                owner=user,
+                commits_ahead=0,
+                commits_behind=0
+            )
+        
+        # Test case 1: created_at == pushed_at (no commits)
+        fork1 = create_test_fork(
+            "user1/test-repo",
+            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        
+        # Test case 2: created_at > pushed_at (fork created after last push)
+        fork2 = create_test_fork(
+            "user2/test-repo",
+            created_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc),
+            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        
+        # Test case 3: pushed_at > created_at (potentially has commits)
+        fork3 = create_test_fork(
+            "user3/test-repo",
+            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            pushed_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        
+        # Test case 4: Missing timestamps
+        fork4 = create_test_fork("user4/test-repo", created_at=None, pushed_at=None)
+        
+        # Test the logic
+        assert fork_discovery_service._has_no_commits_ahead(fork1) == True  # created_at == pushed_at
+        assert fork_discovery_service._has_no_commits_ahead(fork2) == True  # created_at > pushed_at
+        assert fork_discovery_service._has_no_commits_ahead(fork3) == False # pushed_at > created_at
+        assert fork_discovery_service._has_no_commits_ahead(fork4) == False # Missing timestamps
