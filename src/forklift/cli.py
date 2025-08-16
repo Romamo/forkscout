@@ -20,6 +20,11 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from forklift.analysis.fork_discovery import ForkDiscoveryService
+from forklift.analysis.repository_analyzer import RepositoryAnalyzer
+from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
+from forklift.analysis.commit_categorizer import CommitCategorizer
+from forklift.analysis.impact_assessor import ImpactAssessor
+from forklift.analysis.explanation_generator import ExplanationGenerator
 from forklift.config.settings import ForkliftConfig, load_config
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
@@ -187,6 +192,63 @@ def display_forks_summary(forks: list) -> None:
 
     if len(forks) > 50:
         console.print(f"[dim]... and {len(forks) - 50} more forks[/dim]")
+
+
+def display_commit_explanations(fork_analyses: list, explain: bool) -> None:
+    """Display commit explanations for analyzed forks."""
+    if not explain or not fork_analyses:
+        return
+    
+    from forklift.analysis.explanation_formatter import ExplanationFormatter
+    from forklift.models.analysis import CommitWithExplanation
+    
+    console.print("\n[bold blue]📝 Commit Explanations[/bold blue]")
+    console.print("=" * 60)
+    
+    formatter = ExplanationFormatter(use_colors=True, use_icons=True)
+    total_explanations = 0
+    
+    for fork_analysis in fork_analyses:
+        if not fork_analysis.commit_explanations:
+            continue
+            
+        fork_name = fork_analysis.fork.repository.full_name
+        explanations = fork_analysis.commit_explanations
+        
+        console.print(f"\n[bold cyan]🔍 Fork: {fork_name}[/bold cyan]")
+        console.print(f"Found {len(explanations)} explained commits:")
+        
+        # Create CommitWithExplanation objects for the formatter
+        commits_with_explanations = []
+        for explanation in explanations:
+            # Find the corresponding commit from the fork analysis
+            commit = None
+            for feature in fork_analysis.features:
+                for feature_commit in feature.commits:
+                    if feature_commit.sha == explanation.commit_sha:
+                        commit = feature_commit
+                        break
+                if commit:
+                    break
+            
+            if commit:
+                commits_with_explanations.append(CommitWithExplanation(
+                    commit=commit,
+                    explanation=explanation
+                ))
+        
+        if commits_with_explanations:
+            # Use the formatter to display explanations as a table
+            table = formatter.format_explanation_table(commits_with_explanations)
+            console.print(table)
+            total_explanations += len(commits_with_explanations)
+        
+        console.print()  # Empty line between forks
+    
+    if total_explanations > 0:
+        console.print(f"[green]✓ Generated {total_explanations} commit explanations[/green]")
+    else:
+        console.print("[yellow]No commit explanations were generated[/yellow]")
 
 
 def display_fork_details(fork, fork_metrics=None) -> None:
@@ -405,6 +467,7 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
 @click.option("--dry-run", is_flag=True, help="Perform analysis without creating PRs or writing files")
 @click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection and analysis")
 @click.option("--scan-all", is_flag=True, help="Scan all forks including those with no commits ahead (bypasses default filtering)")
+@click.option("--explain", is_flag=True, help="Generate explanations for each commit during analysis")
 @click.pass_context
 def analyze(
     ctx: click.Context,
@@ -416,7 +479,8 @@ def analyze(
     max_forks: int | None,
     dry_run: bool,
     interactive: bool,
-    scan_all: bool
+    scan_all: bool,
+    explain: bool
 ) -> None:
     """Analyze a repository and its forks for valuable features.
 
@@ -449,13 +513,17 @@ def analyze(
 
         if interactive:
             # Run interactive analysis
-            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose, scan_all))
+            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose, scan_all, explain))
         else:
             # Run standard analysis
-            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose, scan_all))
+            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose, scan_all, explain))
 
             # Display results
             display_analysis_summary(results)
+            
+            # Display commit explanations if generated
+            if explain and results.get("fork_analyses"):
+                display_commit_explanations(results["fork_analyses"], explain)
 
             # Save output if specified
             if output and not dry_run:
@@ -861,6 +929,7 @@ def show_promising(
 @click.option("--max-commits", type=click.IntRange(1, 200), default=50, help="Maximum commits to analyze")
 @click.option("--include-merge-commits", is_flag=True, help="Include merge commits in analysis")
 @click.option("--show-commit-details", is_flag=True, help="Show detailed commit information")
+@click.option("--explain", is_flag=True, help="Generate explanations for each commit during analysis")
 @click.pass_context
 def analyze_fork(
     ctx: click.Context,
@@ -868,7 +937,8 @@ def analyze_fork(
     branch: str | None,
     max_commits: int,
     include_merge_commits: bool,
-    show_commit_details: bool
+    show_commit_details: bool,
+    explain: bool
 ) -> None:
     """Analyze a specific fork and optionally a specific branch for features and changes.
 
@@ -897,7 +967,7 @@ def analyze_fork(
 
         # Run fork analysis
         asyncio.run(_analyze_fork(
-            config, fork_url, branch, max_commits, include_merge_commits, show_commit_details, verbose
+            config, fork_url, branch, max_commits, include_merge_commits, show_commit_details, verbose, explain
         ))
 
     except CLIError as e:
@@ -924,6 +994,7 @@ def analyze_fork(
 @click.option("--include-merge", is_flag=True, help="Include merge commits")
 @click.option("--show-files", is_flag=True, help="Show changed files for each commit")
 @click.option("--show-stats", is_flag=True, help="Show detailed statistics")
+@click.option("--explain", is_flag=True, help="Generate explanations for each commit")
 @click.pass_context
 def show_commits(
     ctx: click.Context,
@@ -935,7 +1006,8 @@ def show_commits(
     author: str | None,
     include_merge: bool,
     show_files: bool,
-    show_stats: bool
+    show_stats: bool,
+    explain: bool
 ) -> None:
     """Display detailed commit information for a repository or specific branch.
 
@@ -980,7 +1052,7 @@ def show_commits(
         # Run commit display
         asyncio.run(_show_commits(
             config, fork_url, branch, limit, since_date, until_date,
-            author, include_merge, show_files, show_stats, verbose
+            author, include_merge, show_files, show_stats, verbose, explain
         ))
 
     except CLIError as e:
@@ -1147,7 +1219,8 @@ async def _run_analysis(
     owner: str,
     repo_name: str,
     verbose: bool,
-    scan_all: bool = False
+    scan_all: bool = False,
+    explain: bool = False
 ) -> dict:
     """Run the actual repository analysis.
 
@@ -1157,6 +1230,7 @@ async def _run_analysis(
         repo_name: Repository name
         verbose: Whether to show verbose output
         scan_all: Whether to scan all forks (bypass filtering)
+        explain: Whether to generate commit explanations
 
     Returns:
         Dictionary with analysis results
@@ -1171,6 +1245,20 @@ async def _run_analysis(
     fork_discovery = ForkDiscoveryService(
         github_client=github_client,
         max_forks_to_analyze=config.analysis.max_forks_to_analyze
+    )
+
+    # Initialize explanation engine if explanations are requested
+    explanation_engine = None
+    if explain:
+        categorizer = CommitCategorizer()
+        assessor = ImpactAssessor()
+        generator = ExplanationGenerator()
+        explanation_engine = CommitExplanationEngine(categorizer, assessor, generator)
+
+    # Initialize repository analyzer
+    repository_analyzer = RepositoryAnalyzer(
+        github_client=github_client,
+        explanation_engine=explanation_engine
     )
 
     ranking_engine = FeatureRankingEngine(config.scoring)
@@ -1214,44 +1302,102 @@ async def _run_analysis(
             progress.update(task1, description=f"Failed to discover forks: {e}")
             raise CLIError(f"Failed to discover forks: {e}")
 
-        # Step 2: Analyze forks (placeholder - will be implemented in later tasks)
-        task2 = progress.add_task("Analyzing forks...", total=len(forks))
-        analyzed_count = 0
+        # Step 2: Get base repository for comparison
+        base_repo_task = progress.add_task("Getting base repository...", total=None)
+        try:
+            base_repo = await github_client.get_repository(owner, repo_name)
+            progress.update(base_repo_task, completed=True, description="Base repository retrieved")
+        except Exception as e:
+            progress.update(base_repo_task, description=f"Failed to get base repository: {e}")
+            raise CLIError(f"Failed to get base repository: {e}")
 
-        for i, fork in enumerate(forks[:config.analysis.max_forks_to_analyze]):
+        # Step 3: Analyze forks
+        forks_to_analyze = forks[:config.analysis.max_forks_to_analyze]
+        task2 = progress.add_task("Analyzing forks...", total=len(forks_to_analyze))
+        analyzed_count = 0
+        total_features = 0
+        high_value_features = 0
+        fork_analyses = []
+
+        for i, fork in enumerate(forks_to_analyze):
             try:
-                # Placeholder analysis - will be replaced with actual implementation
-                await asyncio.sleep(0.1)  # Simulate work
+                # Update progress with current fork and explanation status
+                fork_name = fork.repository.full_name
+                if explain:
+                    description = f"Analyzing fork {i+1}/{len(forks_to_analyze)}: {fork_name} (with explanations)"
+                else:
+                    description = f"Analyzing fork {i+1}/{len(forks_to_analyze)}: {fork_name}"
+                
+                progress.update(task2, description=description)
+                
+                # Perform actual fork analysis
+                fork_analysis = await repository_analyzer.analyze_fork(
+                    fork=fork,
+                    base_repo=base_repo,
+                    explain=explain
+                )
+                
+                fork_analyses.append(fork_analysis)
                 analyzed_count += 1
-                progress.update(task2, advance=1, description=f"Analyzing fork {i+1}/{len(forks)}")
+                total_features += len(fork_analysis.features)
+                
+                # Count high-value features (placeholder scoring)
+                for feature in fork_analysis.features:
+                    if len(feature.commits) >= 2:  # Simple heuristic for now
+                        high_value_features += 1
+                
+                progress.update(task2, advance=1)
+                
             except Exception as e:
                 if verbose:
-                    console.print(f"[yellow]Warning: Failed to analyze fork {fork.full_name}: {e}[/yellow]")
+                    console.print(f"[yellow]Warning: Failed to analyze fork {fork.repository.full_name}: {e}[/yellow]")
                 progress.update(task2, advance=1)
 
         results["analyzed_forks"] = analyzed_count
+        results["total_features"] = total_features
+        results["high_value_features"] = high_value_features
+        results["fork_analyses"] = fork_analyses
 
-        # Step 3: Generate report (placeholder)
+        # Step 4: Generate report
         task3 = progress.add_task("Generating report...", total=None)
 
-        # Create a simple report
+        # Create analysis report
         report_lines = [
             f"# Fork Analysis Report for {owner}/{repo_name}",
             "",
             f"**Analysis Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             f"**Total Forks Found:** {results['total_forks']}",
             f"**Forks Analyzed:** {results['analyzed_forks']}",
+            f"**Total Features Discovered:** {results['total_features']}",
+            f"**High-Value Features:** {results['high_value_features']}",
+            f"**Explanations Generated:** {'Yes' if explain else 'No'}",
             "",
             "## Summary",
             "",
-            "This is a placeholder report. Full analysis implementation will be added in later tasks.",
+            f"Analysis completed for {results['analyzed_forks']} forks out of {results['total_forks']} total forks found.",
+            f"Discovered {results['total_features']} features across all analyzed forks.",
+            f"Found {results['high_value_features']} features that appear to be high-value contributions.",
             "",
+        ]
+
+        if explain and fork_analyses:
+            report_lines.extend([
+                "## Commit Explanations Summary",
+                "",
+                "Explanations were generated for commits in the analyzed forks.",
+                "This helps understand what each commit does and its potential value.",
+                "",
+            ])
+
+        report_lines.extend([
             "## Configuration Used",
             "",
             f"- Minimum Score Threshold: {config.analysis.min_score_threshold}",
             f"- Maximum Forks to Analyze: {config.analysis.max_forks_to_analyze}",
             f"- Auto PR Enabled: {config.analysis.auto_pr_enabled}",
-        ]
+            f"- Explanations Enabled: {explain}",
+            f"- Scan All Forks: {scan_all}",
+        ])
 
         results["report"] = "\n".join(report_lines)
         progress.update(task3, completed=True, description="Report generated")
@@ -1264,7 +1410,8 @@ async def _run_interactive_analysis(
     owner: str,
     repo_name: str,
     verbose: bool,
-    scan_all: bool = False
+    scan_all: bool = False,
+    explain: bool = False
 ) -> dict:
     """Run interactive repository analysis with user choices.
 
@@ -1274,6 +1421,7 @@ async def _run_interactive_analysis(
         repo_name: Repository name
         verbose: Whether to show verbose output
         scan_all: Whether to scan all forks (bypass filtering)
+        explain: Whether to generate commit explanations
 
     Returns:
         Dictionary with analysis results
@@ -1507,7 +1655,8 @@ async def _analyze_fork(
     max_commits: int,
     include_merge_commits: bool,
     show_commit_details: bool,
-    verbose: bool
+    verbose: bool,
+    explain: bool = False
 ) -> None:
     """Analyze a specific fork and branch for features and changes.
 
@@ -1519,6 +1668,7 @@ async def _analyze_fork(
         include_merge_commits: Whether to include merge commits
         show_commit_details: Whether to show detailed commit information
         verbose: Whether to show verbose output
+        explain: Whether to generate commit explanations
     """
     from forklift.analysis.interactive_analyzer import InteractiveAnalyzer
     from forklift.models.filters import ForkDetailsFilter
@@ -1552,7 +1702,7 @@ async def _analyze_fork(
             if branch_analysis and show_commit_details:
                 await _display_commit_analysis(
                     github_client, fork_url, branch or fork_details.fork.default_branch,
-                    max_commits, include_merge_commits
+                    max_commits, include_merge_commits, explain
                 )
 
             # Show feature analysis summary
@@ -1580,7 +1730,8 @@ async def _show_commits(
     include_merge: bool,
     show_files: bool,
     show_stats: bool,
-    verbose: bool
+    verbose: bool,
+    explain: bool = False
 ) -> None:
     """Show detailed commit information for a repository or branch.
 
@@ -1596,6 +1747,7 @@ async def _show_commits(
         show_files: Whether to show changed files
         show_stats: Whether to show detailed statistics
         verbose: Whether to show verbose output
+        explain: Whether to generate commit explanations
     """
     async with GitHubClient(config.github) as github_client:
         try:
@@ -1656,6 +1808,10 @@ async def _show_commits(
 
                 progress.update(task, description="Complete!")
 
+            # Generate explanations if requested
+            if explain and commits:
+                await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits)
+
             # Display commits
             _display_commits_table(commits, repo, target_branch, show_files, show_stats)
 
@@ -1677,7 +1833,8 @@ async def _display_commit_analysis(
     fork_url: str,
     branch: str,
     max_commits: int,
-    include_merge_commits: bool
+    include_merge_commits: bool,
+    explain: bool = False
 ) -> None:
     """Display detailed commit analysis for a branch.
 
@@ -1687,6 +1844,7 @@ async def _display_commit_analysis(
         branch: Branch to analyze
         max_commits: Maximum commits to analyze
         include_merge_commits: Whether to include merge commits
+        explain: Whether to generate commit explanations
     """
     owner, repo_name = validate_repository_url(fork_url)
 
@@ -1723,6 +1881,10 @@ async def _display_commit_analysis(
 
         except Exception as e:
             logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
+
+    # Generate explanations if requested
+    if explain and commits:
+        await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits[:10])  # Limit to 10 for readability
 
     # Display analysis results
     console.print(f"\n[bold yellow]📊 Commit Analysis for branch '{branch}'[/bold yellow]")
@@ -1785,6 +1947,92 @@ async def _display_commit_analysis(
 
             console.print(f"{i}. [bold]{commit.sha[:7]}[/bold] - {message}")
             console.print(f"   [dim]by {commit.author.login} • {commit.total_changes:,} lines changed • {commit.get_commit_type()}[/dim]")
+
+
+async def _display_commit_explanations_for_commits(
+    github_client: GitHubClient,
+    owner: str,
+    repo_name: str,
+    commits: list
+) -> None:
+    """Display commit explanations for a list of commits.
+    
+    Args:
+        github_client: GitHub API client
+        owner: Repository owner
+        repo_name: Repository name
+        commits: List of Commit objects to explain
+    """
+    from forklift.analysis.explanation_formatter import ExplanationFormatter
+    from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
+    from forklift.models.analysis import CommitWithExplanation, AnalysisContext
+    from forklift.models.github import Repository, Fork, User
+    
+    console.print(f"\n[bold blue]📝 Commit Explanations[/bold blue]")
+    console.print("=" * 60)
+    
+    try:
+        # Create repository and context objects
+        repository = Repository(
+            owner=owner,
+            name=repo_name,
+            full_name=f"{owner}/{repo_name}",
+            url=f"https://api.github.com/repos/{owner}/{repo_name}",
+            html_url=f"https://github.com/{owner}/{repo_name}",
+            clone_url=f"https://github.com/{owner}/{repo_name}.git"
+        )
+        
+        # Create a minimal fork object (same as repository for this case)
+        fork_owner = User(login=owner, html_url=f"https://github.com/{owner}")
+        fork = Fork(
+            repository=repository,
+            parent=repository,  # For simplicity, use same repo
+            owner=fork_owner
+        )
+        
+        context = AnalysisContext(
+            repository=repository,
+            fork=fork,
+            project_type="unknown",
+            main_language="unknown",
+            critical_files=[]
+        )
+        
+        # Create explanation engine and formatter
+        explanation_engine = CommitExplanationEngine()
+        formatter = ExplanationFormatter(use_colors=True, use_icons=True)
+        
+        # Generate explanations for commits
+        commits_with_explanations = []
+        
+        with console.status("[bold green]Generating commit explanations..."):
+            for commit in commits:
+                try:
+                    explanation = explanation_engine.explain_commit(commit, context)
+                    commits_with_explanations.append(CommitWithExplanation(
+                        commit=commit,
+                        explanation=explanation
+                    ))
+                except Exception as e:
+                    logger.warning(f"Failed to explain commit {commit.sha[:8]}: {e}")
+                    commits_with_explanations.append(CommitWithExplanation(
+                        commit=commit,
+                        explanation_error=str(e)
+                    ))
+        
+        if commits_with_explanations:
+            # Display explanations using the formatter
+            table = formatter.format_explanation_table(commits_with_explanations)
+            console.print(table)
+            
+            successful_explanations = sum(1 for c in commits_with_explanations if c.explanation is not None)
+            console.print(f"\n[green]✓ Generated {successful_explanations}/{len(commits)} commit explanations[/green]")
+        else:
+            console.print("[yellow]No commit explanations were generated[/yellow]")
+            
+    except Exception as e:
+        logger.error(f"Failed to generate commit explanations: {e}")
+        console.print(f"[red]Error generating explanations: {e}[/red]")
 
 
 def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None) -> None:

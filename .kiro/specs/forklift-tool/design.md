@@ -20,8 +20,7 @@ graph TD
     D --> E[Repository Analyzer]
     E --> M[Commit Explanation Engine]
     M --> N[Commit Categorizer]
-    M --> O[Impact Assessor]
-    M --> P[Explanation Generator]
+    M --> O[Explanation Generator]
     E --> F[Feature Ranking Engine]
     F --> G[Report Generator]
     G --> H[PR Creator Service]
@@ -36,7 +35,6 @@ graph TD
     I --> M
     I --> N
     I --> O
-    I --> P
     
     J[Storage Layer] --> E
     J --> F
@@ -55,15 +53,38 @@ graph TD
 5. **Repository Analyzer**: Analyzes individual forks for unique contributions
 6. **Commit Explanation Engine**: Orchestrates commit analysis and explanation generation
 7. **Commit Categorizer**: Analyzes commits to determine their type (feature, bugfix, refactor, etc.)
-8. **Impact Assessor**: Evaluates the potential impact and value of commits
-9. **Explanation Generator**: Creates human-readable explanations based on analysis results
-10. **Feature Ranking Engine**: Scores and ranks discovered features
-11. **Report Generator**: Creates human-readable analysis reports
-12. **PR Creator Service**: Automates pull request creation for valuable features
-13. **Repository Display Service**: Handles step-by-step repository information display
-14. **Interactive Analyzer**: Provides focused analysis for specific forks and branches
-15. **Data Models**: Pydantic models for type safety and validation
-16. **Storage Layer**: Local caching and persistence using SQLite
+8. **Explanation Generator**: Creates simple, human-readable explanations of what commits do
+9. **Feature Ranking Engine**: Scores and ranks discovered features
+10. **Report Generator**: Creates human-readable analysis reports
+11. **PR Creator Service**: Automates pull request creation for valuable features
+12. **Repository Display Service**: Handles step-by-step repository information display
+13. **Interactive Analyzer**: Provides focused analysis for specific forks and branches
+14. **Data Models**: Pydantic models for type safety and validation
+15. **Storage Layer**: Local caching and persistence using SQLite
+
+## Commit Explanation Design Philosophy
+
+The commit explanation system is designed with simplicity and clarity as primary goals. Rather than complex scoring algorithms, the system focuses on answering two key questions for each commit:
+
+1. **What does this commit do?** - A simple 1-2 sentence description in plain language
+2. **Could this help the main repository?** - A straightforward yes/no/unclear assessment
+
+### Design Principles
+
+- **Simplicity First**: Avoid complex technical analysis in favor of clear, understandable explanations
+- **Focus on Value**: Prioritize determining if a commit could benefit the main repository
+- **Single Purpose Preference**: Flag commits that do multiple things as more complex to integrate
+- **Plain Language**: Use simple, non-technical language that any maintainer can understand
+- **Quick Assessment**: Enable rapid decision-making about which commits deserve deeper review
+
+### Explanation Workflow
+
+1. **Categorize**: Determine if the commit is a feature, bugfix, refactor, docs, test, chore, or other
+2. **Describe**: Generate a brief description of what changed
+3. **Assess Value**: Determine if the change could be useful for the main repository
+4. **Flag Complexity**: Identify commits that do multiple things at once
+5. **Generate Links**: Create direct GitHub commit URLs for easy navigation
+6. **Format Output**: Present information in a clear, scannable format with visual separation between descriptions and evaluations
 
 ## Components and Interfaces
 
@@ -75,6 +96,32 @@ class GitHubClient:
     async def get_forks(self, owner: str, repo: str) -> List[Fork]
     async def get_commits_ahead(self, fork: Fork, base_repo: Repository) -> List[Commit]
     async def create_pull_request(self, pr_data: PullRequestData) -> PullRequest
+    
+    # Enhanced pagination methods
+    async def get_all_repository_forks(self, owner: str, repo: str, max_forks: int = None, progress_callback: Callable = None) -> List[Fork]
+    async def get_paginated_commits(self, owner: str, repo: str, branch: str = None, max_commits: int = None, progress_callback: Callable = None) -> AsyncIterator[List[Commit]]
+    async def get_repository_branches_paginated(self, owner: str, repo: str, max_branches: int = None) -> List[Branch]
+```
+
+### Pagination Manager
+```python
+class PaginationManager:
+    def __init__(self, github_client: GitHubClient, max_concurrent_requests: int = 5)
+    async def paginate_with_progress(self, endpoint: str, params: dict, max_items: int = None, progress_callback: Callable = None) -> AsyncIterator[List[dict]]
+    async def paginate_concurrent(self, requests: List[PaginationRequest]) -> Dict[str, List[dict]]
+    def calculate_pagination_stats(self, total_items: int, per_page: int) -> PaginationStats
+    async def resume_pagination(self, checkpoint: PaginationCheckpoint) -> AsyncIterator[List[dict]]
+    def create_checkpoint(self, current_page: int, total_pages: int, context: dict) -> PaginationCheckpoint
+```
+
+### Progress Tracking
+```python
+class PaginationProgressTracker:
+    def __init__(self, total_estimated_pages: int = None)
+    def update_progress(self, current_page: int, items_fetched: int, total_items: int = None) -> None
+    def estimate_completion_time(self, pages_per_second: float) -> timedelta
+    def get_progress_stats(self) -> ProgressStats
+    def format_progress_display(self) -> str
 ```
 
 ### Fork Discovery Service
@@ -99,7 +146,7 @@ class RepositoryAnalyzer:
 ### Commit Explanation Engine
 ```python
 class CommitExplanationEngine:
-    def __init__(self, categorizer: CommitCategorizer, impact_assessor: ImpactAssessor, generator: ExplanationGenerator)
+    def __init__(self, categorizer: CommitCategorizer, generator: ExplanationGenerator)
     async def explain_commit(self, commit: Commit, context: AnalysisContext) -> CommitExplanation
     async def explain_commits_batch(self, commits: List[Commit], context: AnalysisContext) -> List[CommitExplanation]
     def is_explanation_enabled(self) -> bool
@@ -110,28 +157,42 @@ class CommitExplanationEngine:
 class CommitCategorizer:
     def __init__(self, patterns: CategoryPatterns)
     def categorize_commit(self, commit: Commit, file_changes: List[FileChange]) -> CommitCategory
-    def _analyze_commit_message(self, message: str) -> CategoryHints
-    def _analyze_file_changes(self, changes: List[FileChange]) -> CategoryHints
-    def _determine_primary_category(self, hints: List[CategoryHints]) -> CommitCategory
-```
-
-### Impact Assessor
-```python
-class ImpactAssessor:
-    def __init__(self, config: ImpactConfig)
-    def assess_impact(self, commit: Commit, file_changes: List[FileChange], context: AnalysisContext) -> ImpactAssessment
-    def _calculate_change_magnitude(self, changes: List[FileChange]) -> float
-    def _assess_file_criticality(self, files: List[str], context: AnalysisContext) -> float
-    def _evaluate_test_coverage_impact(self, changes: List[FileChange]) -> float
+    def _analyze_commit_message(self, message: str) -> CategoryType
+    def _analyze_file_changes(self, changes: List[FileChange]) -> CategoryType
+    def _determine_category(self, message_category: CategoryType, files_category: CategoryType) -> CategoryType
 ```
 
 ### Explanation Generator
 ```python
 class ExplanationGenerator:
     def __init__(self, templates: ExplanationTemplates)
-    def generate_explanation(self, commit: Commit, category: CommitCategory, impact: ImpactAssessment) -> str
-    def _format_explanation(self, template: str, context: ExplanationContext) -> str
-    def _ensure_conciseness(self, explanation: str, max_length: int = 200) -> str
+    def generate_explanation(self, commit: Commit, category: CategoryType, file_changes: List[FileChange]) -> str
+    def _describe_what_changed(self, commit: Commit, file_changes: List[FileChange]) -> str
+    def _assess_main_repo_value(self, commit: Commit, category: CategoryType, file_changes: List[FileChange]) -> str
+    def _ensure_brevity(self, explanation: str, max_sentences: int = 2) -> str
+    def _generate_github_commit_url(self, commit: Commit, repository: Repository) -> str
+```
+
+### GitHub Link Generator
+```python
+class GitHubLinkGenerator:
+    @staticmethod
+    def generate_commit_url(owner: str, repo: str, commit_sha: str) -> str
+    @staticmethod
+    def validate_github_url(url: str) -> bool
+    @staticmethod
+    def format_clickable_link(url: str, text: str = None) -> str
+```
+
+### Explanation Formatter
+```python
+class ExplanationFormatter:
+    def __init__(self, use_colors: bool = True, use_icons: bool = True)
+    def format_commit_explanation(self, commit: Commit, explanation: CommitExplanation, github_url: str) -> str
+    def format_explanation_table(self, explanations: List[CommitWithExplanation]) -> str
+    def format_category_with_icon(self, category: CategoryType) -> str
+    def format_impact_indicator(self, impact: str) -> str
+    def separate_description_from_evaluation(self, explanation: CommitExplanation) -> Tuple[str, str]
 ```
 
 ### Feature Ranking Engine
@@ -160,6 +221,22 @@ class InteractiveAnalyzer:
     def format_repository_display(self, repo: Repository) -> str
     def format_forks_table(self, forks: List[Fork]) -> str
     def format_commits_display(self, commits: List[Commit]) -> str
+
+class InteractiveAnalysisOrchestrator:
+    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, config: InteractiveConfig)
+    async def run_interactive_analysis(self, repo_url: str) -> InteractiveAnalysisResult
+    async def execute_step(self, step: InteractiveStep) -> StepResult
+    async def get_user_confirmation(self, step_name: str, results: Any) -> UserChoice
+    def display_step_results(self, step_name: str, results: Any) -> None
+    def handle_step_error(self, step_name: str, error: Exception) -> UserChoice
+
+class InteractiveStep:
+    def __init__(self, name: str, description: str)
+    async def execute(self, context: AnalysisContext) -> StepResult
+    def display_results(self, results: StepResult) -> str
+    def get_confirmation_prompt(self, results: StepResult) -> str
+    def format_completion_summary(self, results: StepResult) -> str
+    def get_metrics_display(self, results: StepResult) -> Dict[str, Any]
 ```
 
 ## Data Models
@@ -286,30 +363,30 @@ class CommitDetails:
 @dataclass
 class CommitExplanation:
     commit_sha: str
-    category: CommitCategory
-    impact_level: ImpactLevel
-    explanation: str
-    confidence_score: float
+    category: CategoryType
+    what_changed: str  # Simple description of what the commit does
+    main_repo_value: str  # "yes", "no", or "unclear" - could this help the main repo?
+    explanation: str  # 1-2 sentence explanation
+    is_complex: bool  # True if commit does multiple things
+    github_url: str  # Direct link to GitHub commit page
     generated_at: datetime
+
+@dataclass
+class FormattedExplanation:
+    """Formatted explanation with separated description and evaluation"""
+    commit_sha: str
+    github_url: str
+    category_display: str  # Category with icon/color formatting
+    description: str  # Factual "what changed" description
+    evaluation: str  # System assessment/verdict
+    impact_indicator: str  # Visual impact level indicator
+    is_complex: bool
 
 @dataclass
 class CommitWithExplanation:
     commit: Commit
     explanation: Optional[CommitExplanation] = None
     explanation_error: Optional[str] = None
-
-@dataclass
-class CommitCategory:
-    primary: CategoryType
-    secondary: List[CategoryType]
-    confidence: float
-
-@dataclass
-class ImpactAssessment:
-    level: ImpactLevel  # LOW, MEDIUM, HIGH
-    score: float  # 0.0 to 1.0
-    factors: Dict[str, float]
-    reasoning: str
 
 @dataclass
 class AnalysisContext:
@@ -338,10 +415,10 @@ class CategoryType(Enum):
     SECURITY = "security"
     OTHER = "other"
 
-class ImpactLevel(Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+class MainRepoValue(Enum):
+    YES = "yes"      # This change could be useful for the main repository
+    NO = "no"        # This change is not relevant for the main repository  
+    UNCLEAR = "unclear"  # Cannot determine if this would be useful
 ```
 
 ### Configuration Models
@@ -357,10 +434,93 @@ class ScoringConfig:
 @dataclass
 class ExplanationConfig:
     enabled: bool = False
-    max_explanation_length: int = 200
-    confidence_threshold: float = 0.7
-    include_low_confidence: bool = False
-    template_style: str = "concise"  # concise, detailed, technical
+    max_sentences: int = 2  # Keep explanations to 1-2 sentences
+    show_complex_commits: bool = True  # Whether to flag commits that do multiple things
+    simple_language: bool = True  # Use simple, non-technical language
+    include_github_links: bool = True  # Include direct GitHub commit links
+    use_colors: bool = True  # Use color coding for categories and impact
+    use_icons: bool = True  # Use icons for visual category identification
+    separate_description_evaluation: bool = True  # Visually separate facts from assessments
+
+@dataclass
+class PaginationConfig:
+    max_per_page: int = 100  # GitHub API maximum
+    max_concurrent_requests: int = 5
+    enable_progress_tracking: bool = True
+    enable_resumable_pagination: bool = True
+    checkpoint_interval: int = 10  # Save checkpoint every N pages
+    streaming_threshold: int = 1000  # Use streaming for datasets larger than this
+    batch_size: int = 100  # Items to process in each batch
+    memory_limit_mb: int = 500  # Memory limit for cached pagination data
+
+@dataclass
+class PaginationStats:
+    total_pages: int
+    current_page: int
+    items_per_page: int
+    total_items: int
+    items_fetched: int
+    pages_remaining: int
+    estimated_completion_time: Optional[timedelta]
+    api_calls_made: int
+    api_calls_remaining: int
+
+@dataclass
+class PaginationCheckpoint:
+    endpoint: str
+    current_page: int
+    total_pages: int
+    items_fetched: int
+    context: dict
+    timestamp: datetime
+    
+@dataclass
+class PaginationRequest:
+    endpoint: str
+    params: dict
+    max_items: Optional[int]
+    priority: int = 0  # Higher priority requests processed first
+
+@dataclass
+class ProgressStats:
+    current_page: int
+    total_pages: Optional[int]
+    items_fetched: int
+    total_items: Optional[int]
+    pages_per_second: float
+    estimated_completion: Optional[datetime]
+    memory_usage_mb: float
+
+@dataclass
+class InteractiveConfig:
+    enabled: bool = False
+    confirmation_timeout_seconds: int = 30  # Auto-continue after timeout
+    default_choice: str = "continue"  # "continue", "abort"
+    show_detailed_results: bool = True
+    enable_step_rollback: bool = True
+    save_session_state: bool = True
+    session_state_file: str = ".forklift_session.json"
+
+@dataclass
+class StepResult:
+    step_name: str
+    success: bool
+    data: Any
+    summary: str
+    error: Optional[Exception] = None
+    metrics: Optional[Dict[str, Any]] = None
+
+@dataclass
+class InteractiveAnalysisResult:
+    completed_steps: List[StepResult]
+    final_result: Optional[Any]
+    user_aborted: bool
+    session_duration: timedelta
+    total_confirmations: int
+
+class UserChoice(Enum):
+    CONTINUE = "continue"
+    ABORT = "abort"
 
 @dataclass
 class ForkliftConfig:
@@ -371,6 +531,8 @@ class ForkliftConfig:
     max_forks_to_analyze: int = 100
     cache_duration_hours: int = 24
     explanation: ExplanationConfig = field(default_factory=ExplanationConfig)
+    pagination: PaginationConfig = field(default_factory=PaginationConfig)
+    interactive: InteractiveConfig = field(default_factory=InteractiveConfig)
 ```
 
 ## Error Handling
@@ -441,12 +603,78 @@ def mock_github_client():
 - SQLite database for caching fork analysis results
 - JSON files for configuration and reports
 - Temporary storage for cloned repositories during analysis
+- Pagination checkpoint storage for resumable operations
 
 ### Cache Strategy
 - Cache fork metadata and commit information
 - Invalidate cache based on repository activity
 - Implement cache warming for frequently analyzed repositories
 - Support cache cleanup and maintenance operations
+- Cache pagination results to avoid re-fetching during interruptions
+
+### Pagination Optimization Storage
+```python
+class PaginationCache:
+    def __init__(self, cache_dir: str, max_cache_size_mb: int = 100)
+    async def cache_page_results(self, endpoint: str, page: int, data: List[dict]) -> None
+    async def get_cached_page(self, endpoint: str, page: int) -> Optional[List[dict]]
+    async def cache_checkpoint(self, checkpoint: PaginationCheckpoint) -> None
+    async def load_checkpoint(self, endpoint: str) -> Optional[PaginationCheckpoint]
+    async def cleanup_expired_cache(self, max_age_hours: int = 24) -> None
+    def get_cache_stats(self) -> CacheStats
+```
+
+## Documentation and Evaluation Criteria Design
+
+### Evaluation Criteria Documentation Structure
+
+The system will include comprehensive documentation of evaluation criteria to ensure transparency and user understanding:
+
+```markdown
+# Evaluation Criteria
+
+## Commit Categorization
+- **Feature**: New functionality, enhancements, API additions
+- **Bugfix**: Error corrections, issue resolutions, stability improvements  
+- **Refactor**: Code restructuring, performance improvements, cleanup
+- **Docs**: Documentation updates, README changes, comment additions
+- **Test**: Test additions, test improvements, coverage enhancements
+- **Chore**: Build changes, dependency updates, maintenance tasks
+- **Other**: Changes that don't fit standard categories
+
+## Impact Assessment Factors
+- **File Criticality**: Core files (main modules) vs. peripheral files (docs, tests)
+- **Change Magnitude**: Lines changed, files affected, complexity of modifications
+- **Test Coverage Impact**: Whether changes include or affect tests
+- **Documentation Impact**: Whether changes include documentation updates
+
+## Value Assessment Criteria
+- **Yes**: Changes that clearly benefit all users of the main repository
+- **No**: Changes specific to the fork's use case or environment
+- **Unclear**: Changes that require deeper analysis to determine value
+```
+
+### Documentation Components
+
+1. **README Evaluation Section**: Comprehensive guide to understanding system decisions
+2. **Decision Trees**: Visual flowcharts for categorization logic
+3. **Example Gallery**: Real commit examples with explanations of categorization
+4. **Troubleshooting Guide**: Common questions about evaluation results
+5. **Configuration Guide**: How to customize evaluation behavior
+
+### Visual Design for Explanations
+
+```
+┌─ Commit: abc1234 ──────────────────────────────────────────┐
+│ 🔗 https://github.com/owner/repo/commit/abc1234567890      │
+│                                                            │
+│ 📝 Description: Added user authentication middleware       │
+│                                                            │
+│ ⚖️  Assessment: Value for main repo: YES                   │
+│    Category: 🚀 Feature                                    │
+│    Impact: 🔴 High                                         │
+└────────────────────────────────────────────────────────────┘
+```
 
 ## Security Considerations
 
@@ -505,6 +733,12 @@ forklift analyze https://github.com/owner/repo
 
 # With commit explanations
 forklift analyze https://github.com/owner/repo --explain
+
+# Interactive mode with user confirmation stops
+forklift analyze https://github.com/owner/repo --interactive
+
+# Interactive mode with explanations
+forklift analyze https://github.com/owner/repo --interactive --explain
 
 # Step-by-step commands with explanations
 forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --explain

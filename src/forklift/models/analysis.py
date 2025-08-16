@@ -2,10 +2,11 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from .github import Commit, Fork
+from .github import Commit, Fork, Repository
 
 
 class FeatureCategory(str, Enum):
@@ -68,6 +69,12 @@ class ForkAnalysis(BaseModel):
     analysis_date: datetime = Field(
         default_factory=datetime.utcnow, description="Analysis timestamp"
     )
+    commit_explanations: Optional[list["CommitExplanation"]] = Field(
+        None, description="Commit explanations if generated"
+    )
+    explanation_summary: Optional[str] = Field(
+        None, description="Summary of explanation analysis"
+    )
 
 
 class ForkPreviewItem(BaseModel):
@@ -89,3 +96,115 @@ class ForksPreview(BaseModel):
     forks: list[ForkPreviewItem] = Field(
         default_factory=list, description="Fork preview items"
     )
+
+
+# Commit Explanation Models
+
+
+class CategoryType(str, Enum):
+    """Types of commit categories for explanation system."""
+
+    FEATURE = "feature"
+    BUGFIX = "bugfix"
+    REFACTOR = "refactor"
+    DOCS = "docs"
+    TEST = "test"
+    CHORE = "chore"
+    PERFORMANCE = "performance"
+    SECURITY = "security"
+    OTHER = "other"
+
+
+class ImpactLevel(str, Enum):
+    """Impact levels for commit assessment."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class MainRepoValue(str, Enum):
+    """Assessment of whether a commit could be valuable for the main repository."""
+
+    YES = "yes"      # This change could be useful for the main repository
+    NO = "no"        # This change is not relevant for the main repository  
+    UNCLEAR = "unclear"  # Cannot determine if this would be useful
+
+
+class FileChange(BaseModel):
+    """Represents a file change in a commit."""
+
+    filename: str = Field(..., description="Name of the changed file")
+    status: str = Field(..., description="Change status: added, modified, deleted, renamed")
+    additions: int = Field(default=0, ge=0, description="Number of lines added")
+    deletions: int = Field(default=0, ge=0, description="Number of lines deleted")
+    patch: Optional[str] = Field(None, description="Patch content if available")
+
+
+class CommitCategory(BaseModel):
+    """Category information for a commit."""
+
+    category_type: CategoryType = Field(..., description="Primary category of the commit")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score for categorization")
+    reasoning: str = Field(..., description="Explanation of why this category was chosen")
+
+
+class ImpactAssessment(BaseModel):
+    """Impact assessment for a commit."""
+
+    impact_level: ImpactLevel = Field(..., description="Assessed impact level")
+    change_magnitude: float = Field(..., ge=0.0, description="Magnitude of changes (lines, files)")
+    file_criticality: float = Field(..., ge=0.0, le=1.0, description="Criticality of affected files")
+    quality_factors: dict[str, float] = Field(
+        default_factory=dict, description="Quality factors (test coverage, documentation, etc.)"
+    )
+    reasoning: str = Field(..., description="Explanation of impact assessment")
+
+
+class AnalysisContext(BaseModel):
+    """Context information for commit analysis."""
+
+    repository: Repository = Field(..., description="Repository being analyzed")
+    fork: Fork = Field(..., description="Fork being analyzed")
+    project_type: Optional[str] = Field(None, description="Type of project (web, library, cli, etc.)")
+    main_language: Optional[str] = Field(None, description="Primary programming language")
+    critical_files: list[str] = Field(
+        default_factory=list, description="List of critical files in the project"
+    )
+
+
+class CommitExplanation(BaseModel):
+    """Explanation for a single commit."""
+
+    commit_sha: str = Field(..., description="SHA of the explained commit")
+    category: CommitCategory = Field(..., description="Commit category information")
+    impact_assessment: ImpactAssessment = Field(..., description="Impact assessment")
+    what_changed: str = Field(..., description="Simple description of what the commit does")
+    main_repo_value: MainRepoValue = Field(..., description="Assessment of value for main repository")
+    explanation: str = Field(..., description="1-2 sentence human-readable explanation")
+    is_complex: bool = Field(default=False, description="True if commit does multiple things")
+    github_url: str = Field(..., description="Direct GitHub URL to the commit")
+    generated_at: datetime = Field(
+        default_factory=datetime.utcnow, description="When the explanation was generated"
+    )
+
+
+class FormattedExplanation(BaseModel):
+    """Formatted explanation with separated description and evaluation."""
+
+    commit_sha: str = Field(..., description="SHA of the explained commit")
+    github_url: str = Field(..., description="Direct GitHub URL to the commit")
+    category_display: str = Field(..., description="Category with icon/color formatting")
+    description: str = Field(..., description="Factual 'what changed' description")
+    evaluation: str = Field(..., description="System assessment/verdict")
+    impact_indicator: str = Field(..., description="Visual impact level indicator")
+    is_complex: bool = Field(default=False, description="True if commit does multiple things")
+
+
+class CommitWithExplanation(BaseModel):
+    """A commit paired with its optional explanation."""
+
+    commit: Commit = Field(..., description="The commit")
+    explanation: Optional[CommitExplanation] = Field(None, description="Generated explanation")
+    explanation_error: Optional[str] = Field(None, description="Error message if explanation failed")

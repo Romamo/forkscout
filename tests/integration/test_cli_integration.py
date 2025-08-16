@@ -52,19 +52,30 @@ class TestCLIIntegration:
             # Mock the analysis components
             with patch('forklift.cli.GitHubClient') as mock_github_client, \
                  patch('forklift.cli.ForkDiscoveryService') as mock_fork_discovery, \
-                 patch('forklift.cli.FeatureRankingEngine') as mock_ranking_engine:
+                 patch('forklift.cli.FeatureRankingEngine') as mock_ranking_engine, \
+                 patch('forklift.cli.RepositoryAnalyzer') as mock_repository_analyzer:
                 
                 # Setup mocks
                 mock_client_instance = Mock()
+                mock_client_instance.get_repository = AsyncMock(return_value=Mock(full_name="owner/test-repo"))
                 mock_github_client.return_value = mock_client_instance
                 
                 mock_discovery_instance = Mock()
-                mock_discovery_instance.discover_forks = AsyncMock(return_value=[
-                    Mock(full_name="user1/test-repo"),
-                    Mock(full_name="user2/test-repo"),
-                    Mock(full_name="user3/test-repo")
-                ])
+                mock_forks = [
+                    Mock(repository=Mock(full_name="user1/test-repo")),
+                    Mock(repository=Mock(full_name="user2/test-repo")),
+                    Mock(repository=Mock(full_name="user3/test-repo"))
+                ]
+                mock_discovery_instance.discover_forks = AsyncMock(return_value=mock_forks)
+                mock_discovery_instance.filter_active_forks = AsyncMock(return_value=mock_forks)
                 mock_fork_discovery.return_value = mock_discovery_instance
+                
+                # Setup repository analyzer mock
+                mock_analyzer_instance = Mock()
+                mock_analysis = Mock()
+                mock_analysis.features = []  # No features for simplicity
+                mock_analyzer_instance.analyze_fork = AsyncMock(return_value=mock_analysis)
+                mock_repository_analyzer.return_value = mock_analyzer_instance
                 
                 mock_ranking_instance = Mock()
                 mock_ranking_engine.return_value = mock_ranking_instance

@@ -101,17 +101,129 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 
 ### Requirement 8
 
-**User Story:** As a repository maintainer, I want to see detailed explanations for each commit during analysis, so that I can understand the purpose and value of individual changes without manually reviewing code.
+**User Story:** As a repository maintainer, I want to see short explanations for each commit during analysis, so that I can quickly understand what each change does and whether it has value for the main repository.
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift analyze <repo-url> --explain` THEN the system SHALL provide detailed explanations for each commit being analyzed
-2. WHEN analyzing commits with --explain THEN the system SHALL generate explanations that include the commit's purpose, type of change, and potential impact
+1. WHEN I run `forklift analyze <repo-url> --explain` THEN the system SHALL provide short explanations for each commit being analyzed
+2. WHEN analyzing commits with --explain THEN the system SHALL generate explanations that describe what the commit does in simple terms
 3. WHEN displaying commit explanations THEN the system SHALL show the commit SHA, message, author, and generated explanation in a readable format
 4. WHEN the --explain flag is not provided THEN the system SHALL run the standard analysis without detailed commit explanations
-5. WHEN generating explanations THEN the system SHALL analyze commit diffs, file changes, and commit messages to create meaningful descriptions
+5. WHEN generating explanations THEN the system SHALL analyze commit diffs, file changes, and commit messages to understand what changed
 6. WHEN analyzing commits with explanations THEN the system SHALL categorize each commit as one of: feature, bugfix, refactor, docs, test, chore, or other
 7. WHEN categorizing commits THEN the system SHALL use commit message patterns, file changes, and code analysis to determine the category
-8. WHEN generating commit explanations THEN the system SHALL assess and describe the potential impact of each commit (low, medium, high)
-9. WHEN generating explanations THEN the system SHALL keep each explanation to 2-3 sentences maximum using clear, non-technical language
-10. WHEN using --explain with step-by-step commands THEN the system SHALL support the flag on analyze-fork and show-commits commands
+8. WHEN generating explanations THEN the system SHALL keep each explanation to 1-2 sentences maximum using clear, simple language
+9. WHEN using --explain with step-by-step commands THEN the system SHALL support the flag on analyze-fork and show-commits commands
+10. WHEN explaining what a commit does THEN the system SHALL identify if it adds new features that could benefit all main repository users
+11. WHEN explaining bug fix commits THEN the system SHALL describe what issue was fixed and if it would help main repository users
+12. WHEN explaining refactoring commits THEN the system SHALL describe what code was improved and why it matters
+13. WHEN explaining documentation commits THEN the system SHALL describe what documentation was added or improved
+14. WHEN explaining test commits THEN the system SHALL describe what tests were added or improved
+15. WHEN explaining commits with multiple changes THEN the system SHALL note that the commit does several things at once
+16. WHEN generating explanations THEN the system SHALL focus on what changed rather than providing scores or complex analysis
+17. WHEN describing commit value THEN the system SHALL simply state whether the change could be useful for the main repository (yes/no/unclear)
+18. WHEN commits are unclear or complex THEN the system SHALL state that the commit is difficult to understand or does multiple things
+
+### Requirement 9
+
+**User Story:** As a repository maintainer, I want direct links to GitHub commit pages in commit explanations, so that I can quickly navigate to view the full commit details, diff, and context.
+
+#### Acceptance Criteria
+
+1. WHEN viewing commit explanations THEN the system SHALL include clickable GitHub commit URLs for each analyzed commit
+2. WHEN displaying commit information THEN the system SHALL format GitHub links as `https://github.com/{owner}/{repo}/commit/{sha}`
+3. WHEN generating reports with explanations THEN the system SHALL include GitHub commit links in markdown format
+4. WHEN using CLI commands with --explain flag THEN the system SHALL display GitHub commit URLs alongside explanations
+5. WHEN showing commit details THEN the system SHALL provide both short SHA and full GitHub URL for easy access
+6. WHEN generating explanations THEN the system SHALL ensure all GitHub links are valid and properly formatted
+
+### Requirement 10
+
+**User Story:** As a repository maintainer, I want clear documentation of evaluation criteria, so that I can understand how the system determines commit categories, impact levels, and value assessments.
+
+#### Acceptance Criteria
+
+1. WHEN reading project documentation THEN the system SHALL provide a dedicated section explaining evaluation criteria
+2. WHEN categorizing commits THEN the system SHALL document the patterns and rules used for each category type (feature, bugfix, refactor, docs, test, chore, other)
+3. WHEN assessing impact levels THEN the system SHALL document the factors considered (file criticality, change magnitude, test coverage impact)
+4. WHEN determining main repository value THEN the system SHALL document the criteria for "yes", "no", and "unclear" assessments
+5. WHEN explaining "What Changed" descriptions THEN the system SHALL document how commit messages and file changes are analyzed
+6. WHEN users question evaluation results THEN the system SHALL provide clear reasoning based on documented criteria
+
+### Requirement 11
+
+**User Story:** As a repository maintainer, I want to distinguish between the "What Changed" description and evaluation verdict, so that I can understand the difference between factual description and system assessment.
+
+#### Acceptance Criteria
+
+1. WHEN displaying commit explanations THEN the system SHALL clearly separate factual descriptions from evaluative assessments
+2. WHEN showing "What Changed" information THEN the system SHALL present it as objective description of changes made
+3. WHEN showing evaluation verdict THEN the system SHALL present it as system assessment with clear labeling (e.g., "Assessment:", "Value for main repo:")
+4. WHEN formatting explanations THEN the system SHALL use distinct visual formatting for descriptions vs. evaluations
+5. WHEN generating reports THEN the system SHALL maintain clear separation between descriptive and evaluative content
+6. WHEN users review explanations THEN the system SHALL make it obvious which parts are factual vs. which are system judgments
+
+### Requirement 12
+
+**User Story:** As a repository maintainer, I want enhanced commit explanation display with better formatting, so that I can quickly scan and understand commit analysis results.
+
+#### Acceptance Criteria
+
+1. WHEN displaying commit explanations THEN the system SHALL use consistent formatting with clear visual hierarchy
+2. WHEN showing multiple commits THEN the system SHALL use tables or structured layouts for easy scanning
+3. WHEN displaying GitHub links THEN the system SHALL format them as clickable links in supported terminals
+4. WHEN showing commit categories THEN the system SHALL use color coding or icons for quick visual identification
+5. WHEN displaying impact levels THEN the system SHALL use visual indicators (high/medium/low) for quick assessment
+6. WHEN formatting explanations THEN the system SHALL ensure readability across different terminal environments
+
+### Requirement 13
+
+**User Story:** As a repository maintainer, I want comprehensive README documentation about evaluation criteria, so that I can understand the system's decision-making process before using it.
+
+#### Acceptance Criteria
+
+1. WHEN reading the README THEN the system SHALL include a dedicated "Evaluation Criteria" section
+2. WHEN documenting commit categories THEN the system SHALL provide examples of each category with typical patterns
+3. WHEN explaining impact assessment THEN the system SHALL document file criticality rules and change magnitude calculation
+4. WHEN describing value assessment THEN the system SHALL provide clear examples of "yes", "no", and "unclear" scenarios
+5. WHEN documenting evaluation logic THEN the system SHALL include decision trees or flowcharts where helpful
+6. WHEN users need clarification THEN the system SHALL provide troubleshooting section for common evaluation questions
+
+### Requirement 14
+
+**User Story:** As a repository maintainer, I want optimized pagination support for large repositories, so that I can efficiently analyze repositories with thousands of forks and commits without performance degradation.
+
+#### Acceptance Criteria
+
+1. WHEN analyzing repositories with many forks THEN the system SHALL use maximum per_page values (100) for all GitHub API calls to minimize request count
+2. WHEN fetching large datasets THEN the system SHALL implement intelligent pagination with configurable batch sizes and concurrent processing
+3. WHEN processing paginated results THEN the system SHALL provide progress indicators showing current page and estimated total pages
+4. WHEN encountering rate limits during pagination THEN the system SHALL implement smart backoff strategies that account for remaining pages
+5. WHEN analyzing large repositories THEN the system SHALL support resumable pagination to continue from interruption points
+6. WHEN fetching commits for large branches THEN the system SHALL implement streaming pagination to avoid memory exhaustion
+7. WHEN processing multiple forks concurrently THEN the system SHALL implement pagination pooling to optimize API usage across parallel requests
+8. WHEN users configure analysis limits THEN the system SHALL respect max_forks, max_commits, and max_branches settings while maintaining efficient pagination
+9. WHEN displaying progress for large operations THEN the system SHALL show pagination statistics including pages processed, items fetched, and estimated completion time
+10. WHEN handling pagination errors THEN the system SHALL implement retry logic with exponential backoff and continue processing remaining pages
+
+### Requirement 15
+
+**User Story:** As a repository maintainer, I want an interactive mode for the analyze command with stops and user confirmation after each significant step, so that I can control the analysis process and review intermediate results before proceeding.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift analyze <repo-url> --interactive` THEN the system SHALL execute analysis in interactive mode with user confirmation stops after each major step
+2. WHEN in interactive mode THEN the system SHALL display clear step descriptions and progress indicators before requesting user confirmation
+3. WHEN prompted for confirmation THEN the system SHALL provide options to continue or abort the entire analysis
+4. WHEN displaying step results THEN the system SHALL show intermediate results in a formatted, easy-to-read manner with key metrics and summaries
+5. WHEN I choose to continue THEN the system SHALL proceed to the next analysis step and repeat the confirmation process
+6. WHEN steps complete successfully THEN the system SHALL display results and wait for user confirmation to proceed
+7. WHEN I choose to abort THEN the system SHALL terminate the analysis gracefully and provide a summary of completed steps
+8. WHEN interactive mode is enabled THEN the system SHALL support configuration options for confirmation timeouts and default choices
+9. WHEN running in interactive mode THEN the system SHALL provide clear visual separation between different analysis phases
+10. WHEN fork discovery completes THEN the system SHALL display fork counts, filtering criteria applied, and ask for confirmation to proceed with analysis
+11. WHEN fork filtering completes THEN the system SHALL show the number of forks selected for detailed analysis and request confirmation
+12. WHEN analysis of individual forks completes THEN the system SHALL display feature counts, categories found, and ask for confirmation to proceed with ranking
+13. WHEN each step completes THEN the system SHALL display step results and metrics before requesting confirmation to proceed
+14. WHEN interactive analysis is interrupted THEN the system SHALL provide options to resume from the last completed step
+15. WHEN user chooses to abort THEN the system SHALL provide a summary of all completed steps and their results

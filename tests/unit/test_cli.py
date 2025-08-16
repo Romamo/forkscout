@@ -486,33 +486,60 @@ class TestRunAnalysis:
     """Test the _run_analysis function."""
 
     @pytest.mark.asyncio
+    @patch('forklift.cli.RepositoryAnalyzer')
     @patch('forklift.cli.GitHubClient')
     @patch('forklift.cli.ForkDiscoveryService')
     @patch('forklift.cli.FeatureRankingEngine')
-    async def test_run_analysis_success(self, mock_ranking_engine, mock_fork_discovery, mock_github_client):
+    async def test_run_analysis_success(self, mock_ranking_engine, mock_fork_discovery, mock_github_client, mock_repository_analyzer):
         """Test successful analysis run."""
         from forklift.cli import _run_analysis
         from forklift.config.settings import ForkliftConfig
+        from forklift.models.analysis import ForkAnalysis, Feature
+        from forklift.models.github import Repository, Fork
         
         # Setup config
         config = ForkliftConfig()
         config.github.token = "test_token"
         
-        # Setup mocks
+        # Create mock repository and forks
+        mock_base_repo = Mock(spec=Repository)
+        mock_base_repo.full_name = "owner/repo"
+        
+        mock_fork1 = Mock(spec=Fork)
+        mock_fork1.repository = Mock()
+        mock_fork1.repository.full_name = "user1/repo"
+        
+        mock_fork2 = Mock(spec=Fork)
+        mock_fork2.repository = Mock()
+        mock_fork2.repository.full_name = "user2/repo"
+        
+        # Setup GitHub client mock
         mock_client_instance = Mock()
+        mock_client_instance.get_repository = AsyncMock(return_value=mock_base_repo)
         mock_github_client.return_value = mock_client_instance
         
+        # Setup fork discovery mock
         mock_discovery_instance = Mock()
-        mock_discovery_instance.discover_forks = AsyncMock(return_value=[
-            Mock(full_name="user1/repo"),
-            Mock(full_name="user2/repo")
-        ])
-        mock_discovery_instance.filter_active_forks = AsyncMock(return_value=[
-            Mock(full_name="user1/repo"),
-            Mock(full_name="user2/repo")
-        ])
+        mock_discovery_instance.discover_forks = AsyncMock(return_value=[mock_fork1, mock_fork2])
+        mock_discovery_instance.filter_active_forks = AsyncMock(return_value=[mock_fork1, mock_fork2])
         mock_fork_discovery.return_value = mock_discovery_instance
         
+        # Setup repository analyzer mock
+        mock_analyzer_instance = Mock()
+        mock_feature1 = Mock(spec=Feature)
+        mock_feature1.commits = [Mock(), Mock()]  # 2 commits = high value
+        mock_feature2 = Mock(spec=Feature)
+        mock_feature2.commits = [Mock()]  # 1 commit = not high value
+        
+        mock_analysis1 = Mock(spec=ForkAnalysis)
+        mock_analysis1.features = [mock_feature1]
+        mock_analysis2 = Mock(spec=ForkAnalysis)
+        mock_analysis2.features = [mock_feature2]
+        
+        mock_analyzer_instance.analyze_fork = AsyncMock(side_effect=[mock_analysis1, mock_analysis2])
+        mock_repository_analyzer.return_value = mock_analyzer_instance
+        
+        # Setup ranking engine mock
         mock_ranking_instance = Mock()
         mock_ranking_engine.return_value = mock_ranking_instance
         
@@ -523,12 +550,119 @@ class TestRunAnalysis:
         assert results["repository"] == "owner/repo"
         assert results["total_forks"] == 2
         assert results["analyzed_forks"] == 2
+        assert results["total_features"] == 2
+        assert results["high_value_features"] == 1  # Only mock_feature1 has 2+ commits
         assert "# Fork Analysis Report for owner/repo" in results["report"]
+        assert "Explanations Enabled: False" in results["report"]
         
         # Verify service initialization
         mock_github_client.assert_called_once_with(config.github)
         mock_fork_discovery.assert_called_once()
         mock_ranking_engine.assert_called_once()
+        mock_repository_analyzer.assert_called_once()
+        
+        # Verify repository analyzer was called correctly
+        assert mock_analyzer_instance.analyze_fork.call_count == 2
+        mock_analyzer_instance.analyze_fork.assert_any_call(fork=mock_fork1, base_repo=mock_base_repo, explain=False)
+        mock_analyzer_instance.analyze_fork.assert_any_call(fork=mock_fork2, base_repo=mock_base_repo, explain=False)
+
+    @pytest.mark.asyncio
+    @patch('forklift.cli.CommitExplanationEngine')
+    @patch('forklift.cli.ExplanationGenerator')
+    @patch('forklift.cli.ImpactAssessor')
+    @patch('forklift.cli.CommitCategorizer')
+    @patch('forklift.cli.RepositoryAnalyzer')
+    @patch('forklift.cli.GitHubClient')
+    @patch('forklift.cli.ForkDiscoveryService')
+    @patch('forklift.cli.FeatureRankingEngine')
+    async def test_run_analysis_with_explanations(self, mock_ranking_engine, mock_fork_discovery, mock_github_client, 
+                                                 mock_repository_analyzer, mock_categorizer, mock_assessor, mock_generator, mock_explanation_engine):
+        """Test successful analysis run with explanations enabled."""
+        from forklift.cli import _run_analysis
+        from forklift.config.settings import ForkliftConfig
+        from forklift.models.analysis import ForkAnalysis, Feature
+        from forklift.models.github import Repository, Fork
+        
+        # Setup config
+        config = ForkliftConfig()
+        config.github.token = "test_token"
+        
+        # Create mock repository and forks
+        mock_base_repo = Mock(spec=Repository)
+        mock_base_repo.full_name = "owner/repo"
+        
+        mock_fork1 = Mock(spec=Fork)
+        mock_fork1.repository = Mock()
+        mock_fork1.repository.full_name = "user1/repo"
+        
+        # Setup GitHub client mock
+        mock_client_instance = Mock()
+        mock_client_instance.get_repository = AsyncMock(return_value=mock_base_repo)
+        mock_github_client.return_value = mock_client_instance
+        
+        # Setup fork discovery mock
+        mock_discovery_instance = Mock()
+        mock_discovery_instance.discover_forks = AsyncMock(return_value=[mock_fork1])
+        mock_discovery_instance.filter_active_forks = AsyncMock(return_value=[mock_fork1])
+        mock_fork_discovery.return_value = mock_discovery_instance
+        
+        # Setup explanation engine components
+        mock_categorizer_instance = Mock()
+        mock_categorizer.return_value = mock_categorizer_instance
+        
+        mock_assessor_instance = Mock()
+        mock_assessor.return_value = mock_assessor_instance
+        
+        mock_generator_instance = Mock()
+        mock_generator.return_value = mock_generator_instance
+        
+        mock_explanation_engine_instance = Mock()
+        mock_explanation_engine.return_value = mock_explanation_engine_instance
+        
+        # Setup repository analyzer mock
+        mock_analyzer_instance = Mock()
+        mock_feature1 = Mock(spec=Feature)
+        mock_feature1.commits = [Mock(), Mock()]
+        
+        mock_analysis1 = Mock(spec=ForkAnalysis)
+        mock_analysis1.features = [mock_feature1]
+        
+        mock_analyzer_instance.analyze_fork = AsyncMock(return_value=mock_analysis1)
+        mock_repository_analyzer.return_value = mock_analyzer_instance
+        
+        # Setup ranking engine mock
+        mock_ranking_instance = Mock()
+        mock_ranking_engine.return_value = mock_ranking_instance
+        
+        # Run analysis with explanations
+        results = await _run_analysis(config, "owner", "repo", verbose=False, explain=True)
+        
+        # Verify results
+        assert results["repository"] == "owner/repo"
+        assert results["total_forks"] == 1
+        assert results["analyzed_forks"] == 1
+        assert results["total_features"] == 1
+        assert results["high_value_features"] == 1
+        assert "# Fork Analysis Report for owner/repo" in results["report"]
+        assert "Explanations Enabled: True" in results["report"]
+        assert "Commit Explanations Summary" in results["report"]
+        
+        # Verify explanation engine was created
+        mock_categorizer.assert_called_once()
+        mock_assessor.assert_called_once()
+        mock_generator.assert_called_once()
+        mock_explanation_engine.assert_called_once_with(mock_categorizer_instance, mock_assessor_instance, mock_generator_instance)
+        
+        # Verify repository analyzer was created with explanation engine
+        mock_repository_analyzer.assert_called_once_with(
+            github_client=mock_client_instance,
+            explanation_engine=mock_explanation_engine_instance
+        )
+        
+        # Verify repository analyzer was called with explain=True
+        mock_analyzer_instance.analyze_fork.assert_called_once_with(
+            fork=mock_fork1, base_repo=mock_base_repo, explain=True
+        )
 
     @pytest.mark.asyncio
     async def test_run_analysis_no_token(self):

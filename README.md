@@ -161,6 +161,401 @@ uv run ruff check src/ tests/
 uv run mypy src/
 ```
 
+## Evaluation Criteria
+
+Forklift uses a sophisticated evaluation system to analyze commits and determine their value for the main repository. This section explains how the system makes decisions about commit categorization, impact assessment, and value determination.
+
+### Commit Categorization
+
+The system categorizes each commit into one of the following types based on commit message patterns and file changes:
+
+#### Category Types and Patterns
+
+**🚀 Feature** - New functionality or enhancements
+- **Message patterns**: `feat:`, `feature`, `implement`, `new`, `add`, `introduce`, `create`, `build`, `support for`, `enable`
+- **Examples**: 
+  - `feat: add user authentication system`
+  - `implement OAuth2 login flow`
+  - `add support for PostgreSQL database`
+
+**🐛 Bugfix** - Error corrections and issue resolutions
+- **Message patterns**: `fix:`, `bug`, `patch`, `hotfix`, `repair`, `resolve`, `correct`, `address`, `issue`, `problem`, `error`
+- **Examples**:
+  - `fix: resolve memory leak in data processing`
+  - `correct validation error in user input`
+  - `patch security vulnerability in auth module`
+
+**🔧 Refactor** - Code improvements without functional changes
+- **Message patterns**: `refactor:`, `clean`, `improve`, `restructure`, `reorganize`, `simplify`, `extract`, `rename`, `move`
+- **Examples**:
+  - `refactor: extract common validation logic`
+  - `improve code organization in user module`
+  - `simplify database connection handling`
+
+**📚 Documentation** - Documentation updates and improvements
+- **Message patterns**: `docs:`, `documentation`, `readme`, `comment`, `comments`, `docstring`, `guide`, `tutorial`, `example`
+- **File patterns**: `README.*`, `*.md`, `*.rst`, `docs/`, `*.txt`
+- **Examples**:
+  - `docs: update installation instructions`
+  - `add API documentation for user endpoints`
+  - `improve code comments in core modules`
+
+**🧪 Test** - Test additions and improvements
+- **Message patterns**: `test:`, `tests`, `testing`, `spec`, `unittest`, `pytest`, `coverage`, `mock`, `fixture`, `assert`
+- **File patterns**: `test_*.py`, `*_test.py`, `tests/`, `*.test.js`, `*.spec.js`
+- **Examples**:
+  - `test: add unit tests for user service`
+  - `improve test coverage for authentication`
+  - `add integration tests for API endpoints`
+
+**🔨 Chore** - Maintenance and build-related changes
+- **Message patterns**: `chore:`, `maintenance`, `upgrade`, `dependency`, `dependencies`, `version`, `config`, `configuration`, `setup`
+- **File patterns**: `requirements.txt`, `package.json`, `pyproject.toml`, `setup.py`, `Dockerfile`, `.github/`, `.gitignore`
+- **Examples**:
+  - `chore: update dependencies to latest versions`
+  - `upgrade Python to 3.12`
+  - `configure CI/CD pipeline`
+
+**⚡ Performance** - Performance optimizations
+- **Message patterns**: `perf:`, `performance`, `speed`, `fast`, `optimize`, `optimization`, `efficient`, `cache`, `caching`, `memory`
+- **Examples**:
+  - `perf: optimize database query performance`
+  - `improve memory usage in data processing`
+  - `add caching layer for API responses`
+
+**🔒 Security** - Security-related changes
+- **Message patterns**: `security:`, `secure`, `vulnerability`, `auth`, `authentication`, `authorization`, `encrypt`, `decrypt`, `hash`
+- **File patterns**: `*auth*.py`, `*security*.py`, `*crypto*.py`
+- **Examples**:
+  - `security: fix SQL injection vulnerability`
+  - `implement secure password hashing`
+  - `add rate limiting to API endpoints`
+
+**❓ Other** - Changes that don't fit standard categories
+- Used when commit patterns don't match any specific category
+- Often indicates complex or unclear changes
+
+### Impact Assessment
+
+The system evaluates the potential impact of each commit using multiple factors:
+
+#### File Criticality Rules
+
+Files are assessed for criticality based on their role in the project:
+
+**🔴 Critical Files (Score: 1.0)**
+- Core application files: `main.py`, `index.js`, `app.py`, `server.py`
+- Entry points: `__init__.py`, `setup.py`, `pyproject.toml`, `package.json`
+- Files explicitly listed in project's critical files
+
+**🟠 High Criticality (Score: 0.8-0.9)**
+- Security files: `*auth*.py`, `*security*.py`, `*crypto*.py`, `*permission*.py`
+- Configuration files: `config.*`, `settings.*`, `.env*`, `Dockerfile`, `docker-compose.yml`
+
+**🟡 Medium-High Criticality (Score: 0.7)**
+- Database/model files: `*model*.py`, `*schema*.py`, `*migration*.py`, `*database*.py`
+
+**🟢 Medium Criticality (Score: 0.6)**
+- API/interface files: `*api*.py`, `*endpoint*.py`, `*route*.py`, `*controller*.py`
+
+**🔵 Low Criticality (Score: 0.1-0.2)**
+- Test files: `test_*.py`, `*_test.py`, `tests/`, `*.test.js`, `*.spec.js`
+- Documentation: `README.*`, `*.md`, `*.rst`, `docs/`
+
+#### Change Magnitude Calculation
+
+The system calculates change magnitude based on:
+- **Lines changed**: Additions + deletions (weighted 70%)
+- **Files changed**: Number of modified files (weighted 30%)
+- **Size bonuses**: Large changes (>500 lines) get 1.5x multiplier, medium changes (>200 lines) get 1.2x multiplier
+
+#### Quality Factors
+
+**Test Coverage Factor**
+- Measures proportion of test files in the change
+- Bonus points for including any test files
+- Score: 0.0 (no tests) to 1.0 (comprehensive test coverage)
+
+**Documentation Factor**
+- Measures proportion of documentation files
+- Bonus points for including any documentation
+- Score: 0.0 (no docs) to 1.0 (comprehensive documentation)
+
+**Code Organization Factor**
+- Evaluates focus and coherence of changes
+- Bonus for focused changes (≤3 files)
+- Penalty for scattered changes (>10 files)
+- Considers average changes per file
+
+**Commit Quality Factor**
+- Message length and descriptiveness
+- Conventional commit format bonus
+- Penalty for merge commits
+
+#### Impact Level Determination
+
+The system combines all factors to determine overall impact:
+
+- **🔴 Critical (Score ≥ 0.8)**: Major changes to critical files with high quality
+- **🟠 High (Score ≥ 0.6)**: Significant changes to important files
+- **🟡 Medium (Score ≥ 0.3)**: Moderate changes with reasonable scope
+- **🟢 Low (Score < 0.3)**: Minor changes or low-impact files
+
+### Value Assessment for Main Repository
+
+The system determines whether each commit could be valuable for the main repository:
+
+#### "Yes" - Valuable for Main Repository
+
+**Automatic "Yes" Categories:**
+- **Bugfixes**: Error corrections benefit all users
+- **Security fixes**: Critical for all installations
+- **Performance improvements**: Speed benefits everyone
+- **Documentation**: Helps all users understand the project
+- **Tests**: Improve reliability for everyone
+
+**Conditional "Yes" Examples:**
+- **Features**: Substantial new functionality (>50 lines changed)
+- **Refactoring**: Significant code improvements
+- **Dependency updates**: Security or compatibility improvements
+
+**Example "Yes" Commits:**
+```
+✅ fix: resolve memory leak in data processing loop
+✅ security: patch SQL injection vulnerability in user queries  
+✅ perf: optimize database connection pooling (40% faster)
+✅ feat: add comprehensive input validation system
+✅ docs: add troubleshooting guide for common errors
+✅ test: add integration tests for payment processing
+```
+
+#### "No" - Not Relevant for Main Repository
+
+**Typical "No" Scenarios:**
+- Fork-specific configurations or customizations
+- Environment-specific changes
+- Personal preferences or styling
+- Changes that break compatibility
+- Experimental or incomplete features
+
+**Example "No" Commits:**
+```
+❌ chore: update personal development environment setup
+❌ feat: add company-specific branding and logos
+❌ config: change database from PostgreSQL to MongoDB for our use case
+❌ style: reformat code according to personal preferences
+❌ feat: add integration with internal company API
+```
+
+#### "Unclear" - Needs Further Review
+
+**Typical "Unclear" Scenarios:**
+- Small features that might be too specific
+- Refactoring without clear benefits
+- Complex changes that do multiple things
+- Changes with insufficient context
+- Experimental or unfinished work
+
+**Example "Unclear" Commits:**
+```
+❓ refactor: minor code cleanup in utility functions
+❓ feat: add small convenience method for date formatting
+❓ fix: workaround for edge case in specific environment
+❓ update: misc changes and improvements
+❓ feat: experimental feature for advanced users
+```
+
+### Decision Trees and Logic Flow
+
+#### Commit Categorization Flow
+
+```
+1. Check commit message for conventional commit prefix (feat:, fix:, etc.)
+   ├─ If found → Use prefix category with high confidence (0.9)
+   └─ If not found → Continue to pattern matching
+
+2. Analyze commit message for category keywords
+   ├─ Multiple matches → Use highest priority match
+   └─ No matches → Continue to file analysis
+
+3. Analyze changed files for category patterns
+   ├─ Strong file pattern match (>80% files) → Use file category
+   └─ Weak or mixed patterns → Continue to combination logic
+
+4. Combine message and file analysis
+   ├─ Message and files agree → Boost confidence (+0.2)
+   ├─ Message confidence > File confidence → Use message category
+   ├─ File confidence > Message confidence → Use file category
+   └─ Equal confidence → Default to message category or OTHER
+```
+
+#### Impact Assessment Flow
+
+```
+1. Calculate Change Magnitude
+   ├─ Count lines changed (additions + deletions)
+   ├─ Count files changed
+   └─ Apply size multipliers for large changes
+
+2. Assess File Criticality
+   ├─ Check against critical file patterns
+   ├─ Calculate weighted average by change size
+   └─ Return criticality score (0.0 to 1.0)
+
+3. Evaluate Quality Factors
+   ├─ Test coverage: Proportion of test files
+   ├─ Documentation: Proportion of doc files  
+   ├─ Code organization: Focus and coherence
+   └─ Commit quality: Message and format quality
+
+4. Determine Impact Level
+   ├─ Combine: 40% magnitude + 40% criticality + 20% quality
+   ├─ Score ≥ 0.8 → Critical
+   ├─ Score ≥ 0.6 → High
+   ├─ Score ≥ 0.3 → Medium
+   └─ Score < 0.3 → Low
+```
+
+#### Value Assessment Flow
+
+```
+1. Check Category Type
+   ├─ Bugfix/Security/Performance → Automatic "Yes"
+   ├─ Docs/Test → Automatic "Yes"
+   └─ Feature/Refactor/Chore → Continue evaluation
+
+2. Analyze Change Scope
+   ├─ Substantial changes (>50 lines) → Likely "Yes"
+   ├─ Small changes (<20 lines) → Likely "Unclear"
+   └─ Medium changes → Continue evaluation
+
+3. Check for Fork-Specific Indicators
+   ├─ Personal/company-specific terms → "No"
+   ├─ Environment-specific configs → "No"
+   └─ Generic improvements → Continue evaluation
+
+4. Final Assessment
+   ├─ Clear benefit to all users → "Yes"
+   ├─ Clearly fork-specific → "No"
+   └─ Uncertain or context-dependent → "Unclear"
+```
+
+### Troubleshooting Common Questions
+
+#### "Why was my commit categorized as 'Other'?"
+
+**Possible reasons:**
+- Commit message doesn't match known patterns
+- Mixed file types that don't clearly indicate category
+- Generic or unclear commit message
+
+**Solutions:**
+- Use conventional commit format: `feat:`, `fix:`, `docs:`, etc.
+- Write descriptive commit messages with clear action words
+- Focus commits on single types of changes
+
+#### "Why is the impact level lower than expected?"
+
+**Common causes:**
+- Changes affect low-criticality files (tests, docs)
+- Small change magnitude (few lines/files changed)
+- Poor commit quality (short message, merge commit)
+- Low quality factors (no tests or docs included)
+
+**To increase impact:**
+- Include changes to core application files
+- Add tests and documentation with your changes
+- Write descriptive commit messages
+- Make focused, substantial changes
+
+#### "Why was my feature marked as 'Unclear' for main repo value?"
+
+**Typical reasons:**
+- Feature appears too specific or niche
+- Insufficient context to determine general usefulness
+- Small or experimental change
+- Complex commit that does multiple things
+
+**To improve assessment:**
+- Write clear commit messages explaining the benefit
+- Include documentation explaining the feature
+- Make focused commits that do one thing well
+- Consider if the feature would help other users
+
+#### "The system missed an important security fix"
+
+**Possible issues:**
+- Commit message doesn't include security keywords
+- Files don't match security patterns
+- Change appears as refactoring or other category
+
+**Improvements:**
+- Use security-related keywords: `security`, `vulnerability`, `auth`, `secure`
+- Use conventional commit format: `security: fix vulnerability in...`
+- Include security-related files in the change
+
+#### "My documentation update was categorized as 'Chore'"
+
+**Common causes:**
+- Files don't match documentation patterns
+- Commit message uses maintenance-related words
+- Mixed changes including config files
+
+**Solutions:**
+- Use doc-specific keywords: `docs`, `documentation`, `readme`
+- Focus commits on documentation files only
+- Use conventional commit format: `docs: update installation guide`
+
+### Understanding Explanation Output
+
+When using the `--explain` flag, you'll see structured output with clear separation between factual descriptions and system assessments:
+
+```
+📝 Description: Added user authentication middleware to handle JWT tokens
+⚖️  Assessment: Value for main repo: YES
+   Category: 🚀 Feature | Impact: 🔴 High
+   Reasoning: Large changes affecting critical security files with test coverage
+```
+
+**Key sections:**
+- **📝 Description**: Factual description of what changed
+- **⚖️ Assessment**: System's evaluation and judgment
+- **Category**: Determined commit type with confidence
+- **Impact**: Assessed impact level with reasoning
+- **Value**: Whether this could help the main repository
+
+This separation helps you distinguish between objective facts about the commit and the system's subjective assessment of its value.
+
+### Visual Formatting Guide
+
+The system uses consistent visual indicators to help you quickly scan results:
+
+**Category Icons:**
+- 🚀 Feature - New functionality
+- 🐛 Bugfix - Error corrections  
+- 🔧 Refactor - Code improvements
+- 📚 Documentation - Docs and guides
+- 🧪 Test - Testing improvements
+- 🔨 Chore - Maintenance tasks
+- ⚡ Performance - Speed optimizations
+- 🔒 Security - Security fixes
+- ❓ Other - Uncategorized changes
+
+**Impact Level Colors:**
+- 🔴 Critical - Major system changes
+- 🟠 High - Significant improvements
+- 🟡 Medium - Moderate changes
+- 🟢 Low - Minor modifications
+
+**Value Assessment:**
+- ✅ Yes - Valuable for main repository
+- ❌ No - Fork-specific only
+- ❓ Unclear - Needs further review
+
+**Complexity Indicators:**
+- ⚠️ Complex commits that do multiple things are flagged for careful review
+- Simple, focused commits are preferred for easier integration
+
 ## Contributing
 
 1. Fork the repository

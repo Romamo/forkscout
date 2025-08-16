@@ -4,11 +4,17 @@ import logging
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional, List, TYPE_CHECKING
 
 from forklift.github.client import GitHubClient, GitHubAPIError
 from forklift.models.github import Fork, Repository, Commit
-from forklift.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
+from forklift.models.analysis import (
+    Feature, FeatureCategory, ForkAnalysis, ForkMetrics,
+    CommitExplanation, CommitWithExplanation, AnalysisContext, FileChange
+)
+
+if TYPE_CHECKING:
+    from .commit_explanation_engine import CommitExplanationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +32,7 @@ class RepositoryAnalyzer:
         github_client: GitHubClient,
         min_feature_commits: int = 1,
         max_commits_per_feature: int = 10,
+        explanation_engine: Optional["CommitExplanationEngine"] = None,
     ):
         """Initialize repository analyzer.
         
@@ -33,17 +40,25 @@ class RepositoryAnalyzer:
             github_client: GitHub API client
             min_feature_commits: Minimum commits required to consider a feature
             max_commits_per_feature: Maximum commits to group into a single feature
+            explanation_engine: Optional commit explanation engine for generating explanations
         """
         self.github_client = github_client
         self.min_feature_commits = min_feature_commits
         self.max_commits_per_feature = max_commits_per_feature
+        self.explanation_engine = explanation_engine
 
-    async def analyze_fork(self, fork: Fork, base_repo: Repository) -> ForkAnalysis:
+    async def analyze_fork(
+        self, 
+        fork: Fork, 
+        base_repo: Repository, 
+        explain: bool = False
+    ) -> ForkAnalysis:
         """Analyze a fork to extract features and metrics.
         
         Args:
             fork: Fork to analyze
             base_repo: Base repository to compare against
+            explain: Whether to generate commit explanations
             
         Returns:
             ForkAnalysis with discovered features and metrics
@@ -64,6 +79,18 @@ class RepositoryAnalyzer:
                     features=[],
                     metrics=await self._get_fork_metrics(fork),
                     analysis_date=datetime.utcnow(),
+                    commit_explanations=None,
+                    explanation_summary=None,
+                )
+            
+            # Generate commit explanations if requested and engine is available
+            commit_explanations = None
+            explanation_summary = None
+            
+            if explain and self.explanation_engine:
+                logger.info(f"Generating explanations for {len(unique_commits)} commits")
+                commit_explanations, explanation_summary = await self._analyze_commits_with_explanations(
+                    unique_commits, fork, base_repo
                 )
             
             # Extract features from commits
@@ -79,6 +106,8 @@ class RepositoryAnalyzer:
                 features=features,
                 metrics=metrics,
                 analysis_date=datetime.utcnow(),
+                commit_explanations=commit_explanations,
+                explanation_summary=explanation_summary,
             )
             
         except Exception as e:
@@ -456,6 +485,127 @@ class RepositoryAnalyzer:
         
         return " ".join(description_parts)
 
+    async def _analyze_commits_with_explanations(
+        self,
+        commits: List[Commit],
+        fork: Fork,
+        base_repo: Repository
+    ) -> tuple[List[CommitExplanation], str]:
+        """Analyze commits with explanations using the explanation engine.
+        
+        Args:
+            commits: List of commits to analyze
+            fork: Fork being analyzed
+            base_repo: Base repository for context
+            
+        Returns:
+            Tuple of (commit_explanations, explanation_summary)
+        """
+        if not self.explanation_engine:
+            return [], "No explanation engine available"
+        
+        # Create analysis context
+        context = AnalysisContext(
+            repository=base_repo,
+            fork=fork,
+            project_type=self._infer_project_type(base_repo),
+            main_language=base_repo.language,
+            critical_files=self._identify_critical_files(commits)
+        )
+        
+        # Generate explanations for all commits
+        commit_with_explanations = self.explanation_engine.explain_commits_batch(
+            commits, context
+        )
+        
+        # Extract successful explanations
+        successful_explanations = [
+            cwe.explanation for cwe in commit_with_explanations 
+            if cwe.explanation is not None
+        ]
+        
+        # Generate summary
+        summary = self.explanation_engine.get_explanation_summary(successful_explanations)
+        
+        logger.info(f"Generated {len(successful_explanations)}/{len(commits)} commit explanations")
+        
+        return successful_explanations, summary
+
+    def _infer_project_type(self, repository: Repository) -> Optional[str]:
+        """Infer the project type from repository information.
+        
+        Args:
+            repository: Repository to analyze
+            
+        Returns:
+            Inferred project type or None
+        """
+        if not repository.description:
+            return None
+        
+        description_lower = repository.description.lower()
+        
+        # Check for common project types
+        if any(keyword in description_lower for keyword in ['web', 'website', 'webapp', 'frontend']):
+            return "web"
+        elif any(keyword in description_lower for keyword in ['api', 'backend', 'server']):
+            return "api"
+        elif any(keyword in description_lower for keyword in ['cli', 'command', 'tool']):
+            return "cli"
+        elif any(keyword in description_lower for keyword in ['library', 'package', 'framework']):
+            return "library"
+        elif any(keyword in description_lower for keyword in ['bot', 'automation']):
+            return "bot"
+        
+        return None
+
+    def _identify_critical_files(self, commits: List[Commit]) -> List[str]:
+        """Identify critical files from commit history.
+        
+        Args:
+            commits: List of commits to analyze
+            
+        Returns:
+            List of critical file names
+        """
+        # Count file modification frequency
+        file_counts = {}
+        for commit in commits:
+            for filename in commit.files_changed:
+                file_counts[filename] = file_counts.get(filename, 0) + 1
+        
+        # Identify commonly modified files (likely critical)
+        if not file_counts:
+            return []
+        
+        # Get files modified in more than 20% of commits
+        threshold = max(1, len(commits) * 0.2)
+        critical_files = [
+            filename for filename, count in file_counts.items()
+            if count >= threshold
+        ]
+        
+        # Also include files that match critical patterns
+        critical_patterns = [
+            r'^(main|index|app|server|client)\.py$',
+            r'^(main|index|app)\.js$',
+            r'^(main|index|app)\.ts$',
+            r'^__init__\.py$',
+            r'^setup\.py$',
+            r'^pyproject\.toml$',
+            r'^package\.json$',
+            r'config.*\.(py|js|ts|json|yaml|yml|toml)$',
+        ]
+        
+        for commit in commits:
+            for filename in commit.files_changed:
+                for pattern in critical_patterns:
+                    if re.match(pattern, filename, re.IGNORECASE):
+                        if filename not in critical_files:
+                            critical_files.append(filename)
+        
+        return critical_files[:10]  # Limit to top 10 critical files
+
     async def _get_unique_commits(self, fork: Fork, base_repo: Repository) -> list[Commit]:
         """Get unique commits from a fork compared to base repository.
         
@@ -490,9 +640,23 @@ class RepositoryAnalyzer:
                     logger.debug(f"Skipping merge commit {commit.sha}")
                     continue
                 
+                # If commit has no stats (from comparison API), fetch detailed commit info
+                if commit.total_changes == 0 and not commit_data.get("stats"):
+                    logger.debug(f"Fetching detailed stats for commit {commit.sha}")
+                    try:
+                        detailed_commit = await self.github_client.get_commit(
+                            fork.repository.owner, 
+                            fork.repository.name, 
+                            commit.sha
+                        )
+                        commit = detailed_commit
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch detailed commit {commit.sha}: {e}")
+                        # Continue with original commit data
+                
                 # Skip very small commits (likely not significant features)
                 if not commit.is_significant():
-                    logger.debug(f"Skipping insignificant commit {commit.sha}")
+                    logger.debug(f"Skipping insignificant commit {commit.sha} (changes: {commit.total_changes})")
                     continue
                 
                 unique_commits.append(commit)
