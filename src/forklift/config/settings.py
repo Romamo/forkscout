@@ -9,6 +9,8 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from forklift.models.interactive import InteractiveConfig
+
 
 class ScoringConfig(BaseModel):
     """Configuration for feature scoring algorithm."""
@@ -266,6 +268,7 @@ class ForkliftConfig(BaseSettings):
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+    interactive: InteractiveConfig = Field(default_factory=InteractiveConfig)
 
     # Global settings
     debug: bool = Field(default=False, description="Enable debug mode")

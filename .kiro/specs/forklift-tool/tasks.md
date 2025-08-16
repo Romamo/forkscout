@@ -447,7 +447,7 @@
   - Write unit tests for orchestrator workflow management and user interaction handling
   - _Requirements: 15.1, 15.2, 15.3_
 
-- [-] 14.2 Implement interactive step execution with progress display
+- [x] 14.2 Implement interactive step execution with progress display
   - Create InteractiveStep base class with execute, display_results, and get_user_confirmation methods
   - Implement specific step classes for fork discovery, filtering, analysis, and ranking phases
   - Add Rich-based progress displays with step summaries and intermediate results
@@ -455,7 +455,7 @@
   - Write unit tests for step execution and user interaction flows
   - _Requirements: 15.4, 15.5, 15.6_
 
-- [ ] 14.3 Add interactive CLI command and configuration
+- [-] 14.3 Add interactive CLI command and configuration
   - Add --interactive flag to main analyze command with interactive mode activation
   - Create InteractiveConfig model with settings for confirmation prompts and display options
   - Implement interactive mode detection and orchestrator initialization in CLI

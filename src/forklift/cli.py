@@ -25,6 +25,14 @@ from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
 from forklift.analysis.commit_categorizer import CommitCategorizer
 from forklift.analysis.impact_assessor import ImpactAssessor
 from forklift.analysis.explanation_generator import ExplanationGenerator
+from forklift.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
+from forklift.analysis.interactive_steps import (
+    RepositoryDiscoveryStep,
+    ForkDiscoveryStep,
+    ForkFilteringStep,
+    ForkAnalysisStep,
+    FeatureRankingStep
+)
 from forklift.config.settings import ForkliftConfig, load_config
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
@@ -1413,7 +1421,7 @@ async def _run_interactive_analysis(
     scan_all: bool = False,
     explain: bool = False
 ) -> dict:
-    """Run interactive repository analysis with user choices.
+    """Run interactive repository analysis with user confirmation stops.
 
     Args:
         config: Forklift configuration
@@ -1430,162 +1438,75 @@ async def _run_interactive_analysis(
     if not config.github.token:
         raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
 
-    # Initialize services
+    # Initialize GitHub client
     github_client = GitHubClient(config.github)
-    fork_discovery = ForkDiscoveryService(
+    
+    # Initialize explanation engine if requested
+    explanation_engine = None
+    if explain:
+        categorizer = CommitCategorizer()
+        impact_assessor = ImpactAssessor()
+        generator = ExplanationGenerator()
+        explanation_engine = CommitExplanationEngine(categorizer, generator)
+    
+    # Initialize interactive orchestrator
+    orchestrator = InteractiveAnalysisOrchestrator(
         github_client=github_client,
-        max_forks_to_analyze=config.analysis.max_forks_to_analyze
+        config=config.interactive,
+        console=console
     )
-
-    console.print("\n[bold blue]🔍 Interactive Repository Analysis[/bold blue]")
-    console.print("="*60)
-
-    # Step 1: Get repository details
-    console.print("\n[bold]Step 1: Repository Information[/bold]")
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True
-    ) as progress:
-        task = progress.add_task("Fetching repository details...", total=None)
-
-        try:
-            # Get repository information
-            async with github_client:
-                repo_data = await github_client.get_repository(f"{owner}/{repo_name}")
-
-            progress.update(task, description="Repository details loaded!")
-
-        except Exception as e:
-            progress.update(task, description=f"Failed to fetch repository: {e}")
-            raise CLIError(f"Failed to fetch repository details: {e}")
-
-    # Display repository details
-    display_repository_details(repo_data)
-
-    # Ask if user wants to continue
-    if not Confirm.ask("\n[cyan]Continue with fork discovery?[/cyan]", default=True):
-        console.print("[yellow]Analysis cancelled by user.[/yellow]")
-        return {"repository": f"{owner}/{repo_name}", "cancelled": True}
-
-    # Step 2: Discover forks
-    console.print("\n[bold]Step 2: Fork Discovery[/bold]")
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=not verbose
-    ) as progress:
-        task = progress.add_task("Discovering forks...", total=None)
-
-        try:
-            repository_url = f"https://github.com/{owner}/{repo_name}"
-            forks = await fork_discovery.discover_forks(repository_url)
-            progress.update(task, description=f"Found {len(forks)} forks!")
-
-        except Exception as e:
-            progress.update(task, description=f"Fork discovery failed: {e}")
-            raise CLIError(f"Failed to discover forks: {e}")
-
-    if not forks:
-        console.print("[yellow]No forks found for this repository.[/yellow]")
+    
+    # Add analysis steps
+    orchestrator.add_step(RepositoryDiscoveryStep(github_client))
+    orchestrator.add_step(ForkDiscoveryStep(github_client, config.analysis.max_forks_to_analyze))
+    
+    # Configure filtering based on scan_all flag
+    if not scan_all:
+        orchestrator.add_step(ForkFilteringStep(min_commits_ahead=1, min_stars=0))
+    
+    orchestrator.add_step(ForkAnalysisStep(github_client, explanation_engine))
+    orchestrator.add_step(FeatureRankingStep())
+    
+    try:
+        # Run interactive analysis
+        async with github_client:
+            repo_url = f"https://github.com/{owner}/{repo_name}"
+            result = await orchestrator.run_interactive_analysis(repo_url)
+        
+        # Convert result to expected format
+        if result.user_aborted:
+            return {
+                "repository": f"{owner}/{repo_name}",
+                "cancelled": True,
+                "session_duration": str(result.session_duration),
+                "completed_steps": len(result.completed_steps)
+            }
+        
+        # Extract final results
+        final_result = result.final_result or {}
+        fork_analyses = final_result.get("fork_analyses", [])
+        ranked_features = final_result.get("ranked_features", [])
+        
+        # Calculate summary metrics
+        total_forks = len(fork_analyses)
+        total_features = len(ranked_features)
+        high_value_features = len([f for f in ranked_features if f.score >= 80])
+        
         return {
             "repository": f"{owner}/{repo_name}",
-            "total_forks": 0,
-            "analyzed_forks": 0,
-            "total_features": 0,
-            "high_value_features": 0,
-            "report": f"# No Forks Found\n\nNo forks were found for {owner}/{repo_name}."
+            "total_forks": total_forks,
+            "analyzed_forks": total_forks,
+            "total_features": total_features,
+            "high_value_features": high_value_features,
+            "session_duration": str(result.session_duration),
+            "completed_steps": len(result.completed_steps),
+            "total_confirmations": result.total_confirmations,
+            "report": f"# Interactive Analysis Report for {owner}/{repo_name}\n\nInteractive analysis completed with {total_features} features found across {total_forks} forks."
         }
-
-    # Step 3: Interactive fork exploration
-    console.print(f"\n[bold]Step 3: Fork Analysis ({len(forks)} forks found)[/bold]")
-
-    # Show initial summary
-    display_forks_summary(forks)
-
-    # Ask what the user wants to do
-    console.print("\n[bold cyan]What would you like to do?[/bold cyan]")
-    console.print("1. 🚀 Enter interactive mode for detailed exploration")
-    console.print("2. ⚡ Analyze all forks automatically")
-    console.print("3. 📊 Analyze top N forks")
-    console.print("4. 🚪 Exit")
-
-    choice = Prompt.ask(
-        "\n[cyan]Choose an option[/cyan]",
-        choices=["1", "2", "3", "4"],
-        default="1"
-    )
-
-    if choice == "1":
-        # Interactive mode
-        await interactive_fork_selection(forks, config)
-
-    elif choice == "2":
-        # Analyze all forks
-        console.print(f"\n[green]Analyzing all {len(forks)} forks...[/green]")
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console
-        ) as progress:
-            task = progress.add_task("Analyzing forks...", total=len(forks))
-
-            for i, fork in enumerate(forks):
-                progress.update(task, advance=1, description=f"Analyzing {getattr(fork, 'name', 'fork')} ({i+1}/{len(forks)})")
-                await asyncio.sleep(0.1)  # Simulate analysis
-
-        console.print(f"\n[green]✓ Analyzed all {len(forks)} forks![/green]")
-
-    elif choice == "3":
-        # Analyze top N forks
-        try:
-            n = int(Prompt.ask(
-                f"\n[cyan]How many top forks to analyze? (1-{len(forks)})[/cyan]",
-                default="10"
-            ))
-            n = min(n, len(forks))
-
-            console.print(f"\n[green]Analyzing top {n} forks...[/green]")
-
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TaskProgressColumn(),
-                console=console
-            ) as progress:
-                task = progress.add_task("Analyzing forks...", total=n)
-
-                for i in range(n):
-                    fork = forks[i]
-                    progress.update(task, advance=1, description=f"Analyzing {getattr(fork, 'name', 'fork')} ({i+1}/{n})")
-                    await asyncio.sleep(0.1)  # Simulate analysis
-
-            console.print(f"\n[green]✓ Analyzed top {n} forks![/green]")
-
-        except ValueError:
-            console.print("[red]Invalid number entered![/red]")
-
-    elif choice == "4":
-        console.print("[yellow]Analysis cancelled by user.[/yellow]")
-        return {"repository": f"{owner}/{repo_name}", "cancelled": True}
-
-    # Return results
-    return {
-        "repository": f"{owner}/{repo_name}",
-        "total_forks": len(forks),
-        "analyzed_forks": len(forks),
-        "total_features": 0,  # Placeholder
-        "high_value_features": 0,  # Placeholder
-        "report": f"# Interactive Analysis Report for {owner}/{repo_name}\n\nInteractive analysis completed with {len(forks)} forks discovered."
-    }
+        
+    except Exception as e:
+        logger.error(f"Interactive analysis failed: {e}")
+        raise CLIError(f"Interactive analysis failed: {e}")
 
 
 async def _show_promising_forks(
