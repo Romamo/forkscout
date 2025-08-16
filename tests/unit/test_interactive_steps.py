@@ -337,7 +337,7 @@ class TestForkDiscoveryStep:
         display = step.display_results(result)
         
         assert "✅ **Fork Discovery Complete**" in display
-        assert "Total Forks: 2" in display
+        assert "Total Forks Found: 2" in display
         assert "Active Forks: 2" in display
         assert "Top 5 Most Active Forks:" in display
         assert "fork-owner-2/test-repo" in display  # Should be first (10 commits ahead)
@@ -421,9 +421,9 @@ class TestForkFilteringStep:
         assert "🔍 **Fork Filtering Complete**" in display
         assert "Minimum commits ahead: 1" in display
         assert "Minimum stars: 5" in display
-        assert "Original forks: 2" in display
-        assert "Filtered forks: 2" in display
-        assert "Selected Forks for Analysis:" in display
+        assert "Original forks discovered: 2" in display
+        assert "Forks passing filters: 2" in display
+        assert "Selected Forks for Detailed Analysis:" in display
 
 
 class TestForkAnalysisStep:
@@ -532,10 +532,10 @@ class TestForkAnalysisStep:
         display = step.display_results(result)
         
         assert "🔬 **Fork Analysis Complete**" in display
-        assert "Forks to analyze: 2" in display
+        assert "Forks targeted for analysis: 2" in display
         assert "Successfully analyzed: 2" in display
         assert "Success rate: 100.0%" in display
-        assert "Total features found: 5" in display
+        assert "Total features discovered: 5" in display
 
 
 class TestFeatureRankingStep:
@@ -643,10 +643,29 @@ class TestFeatureRankingStep:
         step = FeatureRankingStep()
         
         # Create mock ranked features
-        mock_features = [
-            Mock(feature=Mock(title="Feature 1", source_fork=Mock(repository=Mock(full_name="owner1/repo")), category=Mock(value="feature")), score=95.0),
-            Mock(feature=Mock(title="Feature 2", source_fork=Mock(repository=Mock(full_name="owner2/repo")), category=Mock(value="bugfix")), score=85.0),
-        ]
+        mock_feature1 = Mock()
+        mock_feature1.score = 95.0
+        mock_feature1.feature = Mock()
+        mock_feature1.feature.title = "Feature 1"
+        mock_feature1.feature.source_fork = Mock()
+        mock_feature1.feature.source_fork.repository = Mock()
+        mock_feature1.feature.source_fork.repository.full_name = "owner1/repo"
+        mock_feature1.feature.category = Mock()
+        mock_feature1.feature.category.value = "feature"
+        mock_feature1.ranking_factors = {"code_quality": 0.9, "community": 0.8}
+        
+        mock_feature2 = Mock()
+        mock_feature2.score = 85.0
+        mock_feature2.feature = Mock()
+        mock_feature2.feature.title = "Feature 2"
+        mock_feature2.feature.source_fork = Mock()
+        mock_feature2.feature.source_fork.repository = Mock()
+        mock_feature2.feature.source_fork.repository.full_name = "owner2/repo"
+        mock_feature2.feature.category = Mock()
+        mock_feature2.feature.category.value = "bugfix"
+        mock_feature2.ranking_factors = {"test_coverage": 0.85, "documentation": 0.7}
+        
+        mock_features = [mock_feature1, mock_feature2]
         
         result = Mock()
         result.success = True
@@ -662,9 +681,9 @@ class TestFeatureRankingStep:
         display = step.display_results(result)
         
         assert "📊 **Feature Ranking Complete**" in display
-        assert "Total features: 2" in display
-        assert "High-value features (≥80): 2" in display
-        assert "Top 5 Features:" in display
+        assert "Total features ranked: 2" in display
+        assert "High-value features (80-89): 1" in display
+        assert "Top-Tier Features (Score ≥80):" in display
         assert "Feature 1" in display
         assert "Score: 95.0" in display
     
