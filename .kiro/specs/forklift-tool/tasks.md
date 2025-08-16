@@ -455,7 +455,7 @@
   - Write unit tests for step execution and user interaction flows
   - _Requirements: 15.4, 15.5, 15.6_
 
-- [-] 14.3 Add interactive CLI command and configuration
+- [x] 14.3 Add interactive CLI command and configuration
   - Add --interactive flag to main analyze command with interactive mode activation
   - Create InteractiveConfig model with settings for confirmation prompts and display options
   - Implement interactive mode detection and orchestrator initialization in CLI
@@ -463,7 +463,7 @@
   - Write integration tests for interactive analyze command with various user input scenarios
   - _Requirements: 15.7, 15.8, 15.9_
 
-- [ ] 14.4 Implement step-specific user confirmations and data display
+- [-] 14.4 Implement step-specific user confirmations and data display
   - Create formatted displays for fork discovery results with counts and filtering criteria
   - Add confirmation prompts for proceeding with filtered fork analysis
   - Implement intermediate results display for analysis progress with feature counts
