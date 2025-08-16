@@ -463,7 +463,7 @@
   - Write integration tests for interactive analyze command with various user input scenarios
   - _Requirements: 15.7, 15.8, 15.9_
 
-- [-] 14.4 Implement step-specific user confirmations and data display
+- [x] 14.4 Implement step-specific user confirmations and data display
   - Create formatted displays for fork discovery results with counts and filtering criteria
   - Add confirmation prompts for proceeding with filtered fork analysis
   - Implement intermediate results display for analysis progress with feature counts
@@ -471,7 +471,7 @@
   - Write unit tests for step-specific displays and confirmation handling
   - _Requirements: 15.10, 15.11, 15.12_
 
-- [ ] 14.5 Add interactive mode session management and completion summary
+- [-] 14.5 Add interactive mode session management and completion summary
   - Implement interactive mode state persistence for resuming interrupted sessions
   - Create comprehensive step completion summaries with metrics and results
   - Add session duration tracking and analysis statistics

@@ -286,7 +286,7 @@ class InteractiveAnalysisOrchestrator:
         user_aborted: bool = False,
         error: Optional[Exception] = None
     ) -> InteractiveAnalysisResult:
-        """Create the final analysis result.
+        """Create the final analysis result with comprehensive summary.
         
         Args:
             final_result: Final analysis result data
@@ -299,6 +299,9 @@ class InteractiveAnalysisOrchestrator:
         session_duration = timedelta(0)
         if self.session_start_time:
             session_duration = datetime.utcnow() - self.session_start_time
+        
+        # Display completion summary
+        self._display_completion_summary(final_result, user_aborted, session_duration, error)
         
         return InteractiveAnalysisResult(
             completed_steps=self.completed_steps,
@@ -320,16 +323,27 @@ class InteractiveAnalysisOrchestrator:
         return any(step.step_name == step_name for step in self.completed_steps)
     
     async def _save_session_state(self) -> None:
-        """Save current session state to file."""
+        """Save current session state to file with enhanced metadata."""
+        if not self.config.save_session_state:
+            return
+            
         try:
+            # Create enhanced session state with metadata
             state = {
+                "version": "1.0",
+                "created_at": datetime.utcnow().isoformat(),
+                "session_id": id(self),  # Simple session identifier
                 "session_start_time": self.session_start_time.isoformat() if self.session_start_time else None,
+                "repo_url": self.context.get("repo_url"),
+                "total_steps": len(self.steps),
                 "completed_steps": [
                     {
                         "step_name": step.step_name,
                         "success": step.success,
                         "summary": step.summary,
-                        "data": step.data if isinstance(step.data, (str, int, float, bool, list, dict)) else str(step.data)
+                        "completed_at": datetime.utcnow().isoformat(),
+                        "data": self._serialize_step_data(step.data),
+                        "metrics": step.metrics
                     }
                     for step in self.completed_steps
                 ],
@@ -337,18 +351,48 @@ class InteractiveAnalysisOrchestrator:
                     k: v for k, v in self.context.items()
                     if isinstance(v, (str, int, float, bool, list, dict))
                 },
-                "confirmation_count": self.confirmation_count
+                "confirmation_count": self.confirmation_count,
+                "session_metrics": self.get_session_metrics()
             }
             
             session_file = Path(self.config.session_state_file)
+            session_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Create backup of existing session if it exists
+            if session_file.exists():
+                backup_file = session_file.with_suffix('.json.backup')
+                session_file.rename(backup_file)
+            
             with open(session_file, 'w') as f:
-                json.dump(state, f, indent=2)
+                json.dump(state, f, indent=2, default=str)
+                
+            logger.info(f"Session state saved to {session_file}")
                 
         except Exception as e:
             logger.warning(f"Failed to save session state: {e}")
     
+    def _serialize_step_data(self, data: Any) -> Any:
+        """Serialize step data for JSON storage."""
+        if isinstance(data, (str, int, float, bool, list, dict, type(None))):
+            return data
+        elif hasattr(data, 'model_dump'):  # Pydantic models
+            try:
+                return data.model_dump()
+            except Exception:
+                return str(data)
+        elif hasattr(data, '__dict__'):  # Objects with attributes
+            try:
+                return {k: v for k, v in data.__dict__.items() if isinstance(v, (str, int, float, bool, list, dict))}
+            except Exception:
+                return str(data)
+        else:
+            return str(data)
+    
     async def _load_session_state(self) -> None:
-        """Load session state from file if it exists."""
+        """Load session state from file if it exists with enhanced recovery."""
+        if not self.config.save_session_state:
+            return
+            
         try:
             session_file = Path(self.config.session_state_file)
             if not session_file.exists():
@@ -357,17 +401,32 @@ class InteractiveAnalysisOrchestrator:
             with open(session_file, 'r') as f:
                 state = json.load(f)
             
+            # Validate session state version
+            version = state.get("version", "unknown")
+            if version != "1.0":
+                logger.warning(f"Unknown session state version: {version}")
+            
+            # Check if session is recent (within 24 hours by default)
+            created_at = state.get("created_at")
+            if created_at:
+                created_time = datetime.fromisoformat(created_at)
+                age = datetime.utcnow() - created_time
+                if age > timedelta(hours=24):
+                    logger.info(f"Session state is {age} old, skipping restore")
+                    return
+            
             # Restore session data
             if state.get("session_start_time"):
                 self.session_start_time = datetime.fromisoformat(state["session_start_time"])
             
-            # Restore completed steps
+            # Restore completed steps with enhanced data
             for step_data in state.get("completed_steps", []):
                 step_result = StepResult(
                     step_name=step_data["step_name"],
                     success=step_data["success"],
-                    data=step_data["data"],
-                    summary=step_data["summary"]
+                    data=step_data.get("data"),
+                    summary=step_data["summary"],
+                    metrics=step_data.get("metrics")
                 )
                 self.completed_steps.append(step_result)
             
@@ -375,10 +434,39 @@ class InteractiveAnalysisOrchestrator:
             self.context.update(state.get("context", {}))
             self.confirmation_count = state.get("confirmation_count", 0)
             
-            self.console.print("[yellow]📂 Restored previous session state[/yellow]")
+            # Display restoration summary
+            repo_url = state.get("repo_url", "unknown repository")
+            completed_count = len(self.completed_steps)
+            total_count = state.get("total_steps", len(self.steps))
+            
+            restore_panel = Panel(
+                f"📂 **Session Restored**\n\n"
+                f"Repository: {repo_url}\n"
+                f"Progress: {completed_count}/{total_count} steps completed\n"
+                f"Session age: {self._format_duration(age) if created_at else 'unknown'}\n\n"
+                f"You can continue from where you left off!",
+                title="🔄 Previous Session Found",
+                border_style="blue"
+            )
+            self.console.print(restore_panel)
             
         except Exception as e:
             logger.warning(f"Failed to load session state: {e}")
+            # Try to load backup if main file is corrupted
+            await self._try_load_backup_session()
+    
+    async def _try_load_backup_session(self) -> None:
+        """Try to load session from backup file."""
+        try:
+            session_file = Path(self.config.session_state_file)
+            backup_file = session_file.with_suffix('.json.backup')
+            
+            if backup_file.exists():
+                logger.info("Attempting to restore from backup session file")
+                backup_file.rename(session_file)
+                await self._load_session_state()
+        except Exception as e:
+            logger.warning(f"Failed to restore from backup: {e}")
     
     async def _cleanup_session_state(self) -> None:
         """Clean up session state file on completion."""
@@ -388,3 +476,206 @@ class InteractiveAnalysisOrchestrator:
                 session_file.unlink()
         except Exception as e:
             logger.warning(f"Failed to cleanup session state: {e}")
+    
+    def _display_completion_summary(
+        self,
+        final_result: Any,
+        user_aborted: bool,
+        session_duration: timedelta,
+        error: Optional[Exception] = None
+    ) -> None:
+        """Display comprehensive completion summary.
+        
+        Args:
+            final_result: Final analysis result data
+            user_aborted: Whether user aborted the analysis
+            session_duration: Total session duration
+            error: Error that occurred (if any)
+        """
+        self.console.print("\n" + "="*80)
+        
+        if user_aborted:
+            self._display_abort_summary(session_duration)
+        elif error:
+            self._display_error_summary(error, session_duration)
+        else:
+            self._display_success_summary(final_result, session_duration)
+        
+        self.console.print("="*80)
+    
+    def _display_success_summary(self, final_result: Any, session_duration: timedelta) -> None:
+        """Display success completion summary."""
+        summary_panel = Panel(
+            self._format_success_summary(final_result, session_duration),
+            title="🎉 Interactive Analysis Complete",
+            border_style="green",
+            padding=(1, 2)
+        )
+        self.console.print(summary_panel)
+    
+    def _display_abort_summary(self, session_duration: timedelta) -> None:
+        """Display abort completion summary."""
+        summary_panel = Panel(
+            self._format_abort_summary(session_duration),
+            title="⏹️  Analysis Aborted",
+            border_style="yellow",
+            padding=(1, 2)
+        )
+        self.console.print(summary_panel)
+    
+    def _display_error_summary(self, error: Exception, session_duration: timedelta) -> None:
+        """Display error completion summary."""
+        summary_panel = Panel(
+            self._format_error_summary(error, session_duration),
+            title="❌ Analysis Failed",
+            border_style="red",
+            padding=(1, 2)
+        )
+        self.console.print(summary_panel)
+    
+    def _format_success_summary(self, final_result: Any, session_duration: timedelta) -> str:
+        """Format success summary content."""
+        summary_lines = [
+            "✅ **Analysis completed successfully!**",
+            "",
+            "**Session Statistics:**"
+        ]
+        
+        # Add session metrics
+        summary_lines.extend([
+            f"⏱️  Duration: {self._format_duration(session_duration)}",
+            f"📋 Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
+            f"🤔 User confirmations: {self.confirmation_count}",
+            ""
+        ])
+        
+        # Add step completion details
+        summary_lines.append("**Step Results:**")
+        for step_result in self.completed_steps:
+            status_emoji = "✅" if step_result.success else "❌"
+            summary_lines.append(f"{status_emoji} {step_result.step_name}: {step_result.summary}")
+        
+        # Add final results if available
+        if final_result and isinstance(final_result, dict):
+            summary_lines.append("")
+            summary_lines.append("**Analysis Results:**")
+            
+            fork_analyses = final_result.get("fork_analyses", [])
+            ranked_features = final_result.get("ranked_features", [])
+            total_features = final_result.get("total_features", 0)
+            
+            if fork_analyses:
+                summary_lines.append(f"🔍 Forks analyzed: {len(fork_analyses)}")
+            
+            if ranked_features:
+                high_value = len([f for f in ranked_features if f.score >= 80])
+                summary_lines.append(f"🎯 Features discovered: {total_features}")
+                summary_lines.append(f"🏆 High-value features: {high_value}")
+                
+                if high_value > 0:
+                    summary_lines.append("")
+                    summary_lines.append("**Top Features:**")
+                    for i, feature in enumerate(ranked_features[:3], 1):
+                        if feature.score >= 80:
+                            summary_lines.append(f"{i}. {feature.feature.title} (Score: {feature.score:.1f})")
+        
+        return "\n".join(summary_lines)
+    
+    def _format_abort_summary(self, session_duration: timedelta) -> str:
+        """Format abort summary content."""
+        summary_lines = [
+            "⏹️  **Analysis was aborted by user**",
+            "",
+            "**Session Statistics:**",
+            f"⏱️  Duration: {self._format_duration(session_duration)}",
+            f"📋 Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
+            f"🤔 User confirmations: {self.confirmation_count}",
+            ""
+        ]
+        
+        if self.completed_steps:
+            summary_lines.append("**Completed Steps:**")
+            for step_result in self.completed_steps:
+                status_emoji = "✅" if step_result.success else "❌"
+                summary_lines.append(f"{status_emoji} {step_result.step_name}: {step_result.summary}")
+            
+            summary_lines.extend([
+                "",
+                "💡 **Note:** You can resume this analysis later if session state is enabled."
+            ])
+        else:
+            summary_lines.append("No steps were completed before aborting.")
+        
+        return "\n".join(summary_lines)
+    
+    def _format_error_summary(self, error: Exception, session_duration: timedelta) -> str:
+        """Format error summary content."""
+        summary_lines = [
+            "❌ **Analysis failed due to an error**",
+            "",
+            f"**Error:** {str(error)}",
+            f"**Error Type:** {type(error).__name__}",
+            "",
+            "**Session Statistics:**",
+            f"⏱️  Duration: {self._format_duration(session_duration)}",
+            f"📋 Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
+            f"🤔 User confirmations: {self.confirmation_count}",
+            ""
+        ]
+        
+        if self.completed_steps:
+            summary_lines.append("**Completed Steps Before Error:**")
+            for step_result in self.completed_steps:
+                status_emoji = "✅" if step_result.success else "❌"
+                summary_lines.append(f"{status_emoji} {step_result.step_name}: {step_result.summary}")
+        
+        summary_lines.extend([
+            "",
+            "💡 **Troubleshooting:**",
+            "- Check your GitHub token and network connection",
+            "- Verify the repository URL is correct and accessible",
+            "- Try running the analysis again with --verbose for more details"
+        ])
+        
+        return "\n".join(summary_lines)
+    
+    def _format_duration(self, duration: timedelta) -> str:
+        """Format duration in a human-readable way."""
+        total_seconds = int(duration.total_seconds())
+        
+        if total_seconds < 60:
+            return f"{total_seconds} seconds"
+        elif total_seconds < 3600:
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            return f"{minutes}m {seconds}s"
+        else:
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            return f"{hours}h {minutes}m"
+    
+    def get_session_metrics(self) -> Dict[str, Any]:
+        """Get comprehensive session metrics.
+        
+        Returns:
+            Dictionary containing session metrics
+        """
+        session_duration = timedelta(0)
+        if self.session_start_time:
+            session_duration = datetime.utcnow() - self.session_start_time
+        
+        successful_steps = [s for s in self.completed_steps if s.success]
+        failed_steps = [s for s in self.completed_steps if not s.success]
+        
+        return {
+            "session_start_time": self.session_start_time,
+            "session_duration": session_duration,
+            "total_steps": len(self.steps),
+            "completed_steps": len(self.completed_steps),
+            "successful_steps": len(successful_steps),
+            "failed_steps": len(failed_steps),
+            "completion_rate": len(self.completed_steps) / len(self.steps) if self.steps else 0,
+            "success_rate": len(successful_steps) / len(self.completed_steps) if self.completed_steps else 0,
+            "total_confirmations": self.confirmation_count,
+            "avg_time_per_step": session_duration / len(self.completed_steps) if self.completed_steps else timedelta(0)
+        }
