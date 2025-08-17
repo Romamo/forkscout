@@ -49,7 +49,7 @@ class RepositoryDiscoveryStep(InteractiveStep):
             owner, repo_name = parts[0], parts[1]
             
             # Fetch repository data
-            repository = await self.github_client.get_repository(f"{owner}/{repo_name}")
+            repository = await self.github_client.get_repository(owner, repo_name)
             
             # Store in context
             context["repository"] = repository
