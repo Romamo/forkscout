@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
+    MofNCompleteColumn,
     Progress,
     SpinnerColumn,
     TaskProgressColumn,
@@ -1004,6 +1005,7 @@ def analyze_fork(
 @click.option("--show-files", is_flag=True, help="Show changed files for each commit")
 @click.option("--show-stats", is_flag=True, help="Show detailed statistics")
 @click.option("--explain", is_flag=True, help="Generate explanations for each commit")
+@click.option("--ai-summary", is_flag=True, help="Generate AI-powered summaries for each commit (requires OpenAI API key)")
 @click.pass_context
 def show_commits(
     ctx: click.Context,
@@ -1016,7 +1018,8 @@ def show_commits(
     include_merge: bool,
     show_files: bool,
     show_stats: bool,
-    explain: bool
+    explain: bool,
+    ai_summary: bool
 ) -> None:
     """Display detailed commit information for a repository or specific branch.
 
@@ -1061,7 +1064,7 @@ def show_commits(
         # Run commit display
         asyncio.run(_show_commits(
             config, fork_url, branch, limit, since_date, until_date,
-            author, include_merge, show_files, show_stats, verbose, explain
+            author, include_merge, show_files, show_stats, verbose, explain, ai_summary
         ))
 
     except CLIError as e:
@@ -1671,7 +1674,8 @@ async def _show_commits(
     show_files: bool,
     show_stats: bool,
     verbose: bool,
-    explain: bool = False
+    explain: bool = False,
+    ai_summary: bool = False
 ) -> None:
     """Show detailed commit information for a repository or branch.
 
@@ -1688,6 +1692,7 @@ async def _show_commits(
         show_stats: Whether to show detailed statistics
         verbose: Whether to show verbose output
         explain: Whether to generate commit explanations
+        ai_summary: Whether to generate AI-powered summaries
     """
     async with GitHubClient(config.github) as github_client:
         try:
@@ -1751,6 +1756,10 @@ async def _show_commits(
             # Generate explanations if requested
             if explain and commits:
                 await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits)
+
+            # Generate AI summaries if requested
+            if ai_summary and commits:
+                await _display_ai_summaries_for_commits(github_client, config, owner, repo_name, commits)
 
             # Display commits
             _display_commits_table(commits, repo, target_branch, show_files, show_stats)
@@ -1973,6 +1982,181 @@ async def _display_commit_explanations_for_commits(
     except Exception as e:
         logger.error(f"Failed to generate commit explanations: {e}")
         console.print(f"[red]Error generating explanations: {e}[/red]")
+
+
+async def _display_ai_summaries_for_commits(
+    github_client: GitHubClient,
+    config: ForkliftConfig,
+    owner: str,
+    repo_name: str,
+    commits: list
+) -> None:
+    """Display AI-powered summaries for a list of commits.
+    
+    Args:
+        github_client: GitHub API client
+        config: Forklift configuration
+        owner: Repository owner
+        repo_name: Repository name
+        commits: List of Commit objects to summarize
+    """
+    from forklift.ai.client import OpenAIClient
+    from forklift.ai.summary_engine import AICommitSummaryEngine
+    from forklift.ai.error_handler import OpenAIErrorHandler
+    from forklift.models.ai_summary import AISummaryConfig
+    from forklift.models.github import Repository
+    
+    console.print(f"\n[bold blue]🤖 AI-Powered Commit Summaries[/bold blue]")
+    console.print("=" * 60)
+    
+    try:
+        # Check if OpenAI API key is configured
+        if not config.openai_api_key:
+            console.print("[red]Error: OpenAI API key not configured.[/red]")
+            console.print("[yellow]Set the OPENAI_API_KEY environment variable or configure it in your settings.[/yellow]")
+            return
+        
+        # Create repository object
+        repository = Repository(
+            owner=owner,
+            name=repo_name,
+            full_name=f"{owner}/{repo_name}",
+            url=f"https://api.github.com/repos/{owner}/{repo_name}",
+            html_url=f"https://github.com/{owner}/{repo_name}",
+            clone_url=f"https://github.com/{owner}/{repo_name}.git"
+        )
+        
+        # Initialize AI components
+        openai_client = OpenAIClient(api_key=config.openai_api_key)
+        ai_config = AISummaryConfig()
+        error_handler = OpenAIErrorHandler(max_retries=ai_config.retry_attempts)
+        summary_engine = AICommitSummaryEngine(
+            openai_client=openai_client,
+            config=ai_config,
+            error_handler=error_handler
+        )
+        
+        # Prepare commits with diffs for AI processing
+        commits_with_diffs = []
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            console=console
+        ) as progress:
+            # Fetch diffs for commits
+            diff_task = progress.add_task("Fetching commit diffs...", total=len(commits))
+            
+            for commit in commits:
+                try:
+                    # Get commit diff from GitHub API
+                    commit_details = await github_client.get_commit_details(owner, repo_name, commit.sha)
+                    diff_text = ""
+                    
+                    # Extract diff from files
+                    if commit_details.get("files"):
+                        for file in commit_details["files"]:
+                            if file.get("patch"):
+                                diff_text += f"\n--- {file.get('filename', 'unknown')}\n"
+                                diff_text += file["patch"]
+                    
+                    commits_with_diffs.append((commit, diff_text))
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to fetch diff for commit {commit.sha[:8]}: {e}")
+                    # Add commit with empty diff to still attempt summary
+                    commits_with_diffs.append((commit, ""))
+                
+                progress.advance(diff_task)
+            
+            # Generate AI summaries
+            summary_task = progress.add_task("Generating AI summaries...", total=len(commits_with_diffs))
+            
+            def progress_callback(progress_pct: float, completed: int, total: int):
+                progress.update(summary_task, completed=completed)
+            
+            summaries = await summary_engine.generate_batch_summaries(
+                commits_with_diffs,
+                repository=repository,
+                progress_callback=progress_callback
+            )
+        
+        # Display summaries
+        if summaries:
+            _display_ai_summaries_table(commits, summaries)
+            
+            # Show usage statistics
+            usage_stats = summary_engine.get_usage_stats()
+            console.print(f"\n[dim]AI Usage: {usage_stats.successful_requests}/{usage_stats.total_requests} successful requests, "
+                         f"{usage_stats.total_tokens_used:,} tokens used, "
+                         f"~${usage_stats.total_cost_usd:.4f} estimated cost[/dim]")
+        else:
+            console.print("[yellow]No AI summaries were generated[/yellow]")
+            
+    except Exception as e:
+        logger.error(f"Failed to generate AI summaries: {e}")
+        console.print(f"[red]Error generating AI summaries: {e}[/red]")
+
+
+def _display_ai_summaries_table(commits: list, summaries: list) -> None:
+    """Display AI summaries in a formatted table.
+    
+    Args:
+        commits: List of Commit objects
+        summaries: List of AISummary objects
+    """
+    from rich.table import Table
+    from rich.text import Text
+    
+    table = Table(title="AI-Powered Commit Summaries", show_header=True, header_style="bold magenta")
+    table.add_column("Commit", style="cyan", width=12)
+    table.add_column("Author", style="green", width=15)
+    table.add_column("Message", style="yellow", width=30)
+    table.add_column("AI Summary", style="white", width=50)
+    
+    # Create a mapping of commit SHA to summary
+    summary_map = {summary.commit_sha: summary for summary in summaries}
+    
+    for commit in commits:
+        summary = summary_map.get(commit.sha)
+        
+        # Format commit info
+        commit_short = commit.sha[:8]
+        author = commit.author.login if commit.author else "Unknown"
+        message = commit.message.split('\n')[0][:30] + "..." if len(commit.message) > 30 else commit.message
+        
+        # Format AI summary
+        if summary and not summary.error:
+            ai_text = Text()
+            
+            if summary.what_changed:
+                ai_text.append("What: ", style="bold blue")
+                ai_text.append(summary.what_changed[:100] + "..." if len(summary.what_changed) > 100 else summary.what_changed)
+                ai_text.append("\n\n")
+            
+            if summary.why_changed:
+                ai_text.append("Why: ", style="bold green")
+                ai_text.append(summary.why_changed[:100] + "..." if len(summary.why_changed) > 100 else summary.why_changed)
+                ai_text.append("\n\n")
+            
+            if summary.potential_side_effects:
+                ai_text.append("Impact: ", style="bold red")
+                ai_text.append(summary.potential_side_effects[:100] + "..." if len(summary.potential_side_effects) > 100 else summary.potential_side_effects)
+            
+            # Add processing info
+            if summary.processing_time_ms:
+                ai_text.append(f"\n\n[dim]({summary.processing_time_ms:.0f}ms, {summary.tokens_used} tokens)[/dim]")
+        
+        elif summary and summary.error:
+            ai_text = Text(f"Error: {summary.error}", style="red")
+        else:
+            ai_text = Text("No summary available", style="dim")
+        
+        table.add_row(commit_short, author, message, ai_text)
+    
+    console.print(table)
 
 
 def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None) -> None:

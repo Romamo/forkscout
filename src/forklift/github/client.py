@@ -370,6 +370,11 @@ class GitHubClient:
         data = await self.get(f"repos/{owner}/{repo}/commits/{sha}")
         return Commit.from_github_api(data)
 
+    async def get_commit_details(self, owner: str, repo: str, sha: str) -> dict[str, Any]:
+        """Get detailed commit information including diff data."""
+        logger.info(f"Fetching commit details with diff for {sha} from {owner}/{repo}")
+        return await self.get(f"repos/{owner}/{repo}/commits/{sha}")
+
     async def compare_commits(
         self, owner: str, repo: str, base: str, head: str
     ) -> dict[str, Any]:

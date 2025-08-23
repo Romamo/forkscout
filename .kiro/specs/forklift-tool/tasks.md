@@ -545,7 +545,7 @@
   - Write unit tests for OpenAI client with mocked API responses and error scenarios
   - _Requirements: 17.5, 17.6, 17.8, 17.14_
 
-- [-] 16.3 Build AI commit summary engine with prompt generation
+- [x] 16.3 Build AI commit summary engine with prompt generation
   - Implement AICommitSummaryEngine class to orchestrate summary generation workflow
   - Create structured prompt generation using the specified template for commit analysis
   - Add diff truncation logic to stay within OpenAI token limits (8000 characters max)
@@ -553,7 +553,7 @@
   - Write unit tests for prompt generation, diff truncation, and batch processing logic
   - _Requirements: 17.2, 17.9, 17.12_
 
-- [ ] 16.4 Add comprehensive error handling for AI operations
+- [x] 16.4 Add comprehensive error handling for AI operations
   - Create OpenAIErrorHandler class for different API error types (authentication, rate limits, timeouts)
   - Implement graceful degradation when AI summary generation fails for individual commits
   - Add detailed error logging with context while protecting API key information
@@ -561,7 +561,7 @@
   - Write unit tests for error handling scenarios and recovery mechanisms
   - _Requirements: 17.6, 17.7, 17.14_
 
-- [ ] 16.5 Enhance show-commits command with AI summary support
+- [-] 16.5 Enhance show-commits command with AI summary support
   - Add --ai-summary flag to show-commits CLI command
   - Update RepositoryDisplayService to integrate AICommitSummaryEngine
   - Implement AI summary generation workflow within existing commit display logic
