@@ -237,7 +237,7 @@
   - Write integration tests for analyze command with --explain flag
   - _Requirements: 8.1, 8.3_
 
-- [ ] 8.9.2 Enhance step-by-step commands with explanations
+- [x] 8.9.2 Enhance step-by-step commands with explanations
   - Add --explain flag to analyze-fork and show-commits commands
   - Update command handlers to generate and display explanations
   - Modify output formatting to include explanation information
@@ -528,6 +528,104 @@
   - Write end-to-end tests for complete analysis workflow with cache disabled
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
+- [ ] 17. Implement console formatting compatibility for terminals without Rich support
+- [ ] 17.1 Create terminal capability detection and plain text formatting system
+  - Implement TerminalCapabilityDetector class to detect Rich formatting support
+  - Create PlainTextFormatter class to convert Rich formatting codes to plain text
+  - Add FormattingMode enum with AUTO, RICH, and PLAIN options
+  - Implement formatting code stripping for `[bold]`, `[green]`, `[red]`, `[blue]`, `[yellow]` patterns
+  - Write unit tests for terminal detection and formatting conversion
+  - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.10_
+
+- [ ] 17.2 Add CLI flags and configuration for formatting control
+  - Add --no-color and --plain-text CLI flags to all commands
+  - Create FormattingConfig model with formatting preferences
+  - Integrate formatting configuration into main ForkliftConfig
+  - Add environment variable support for FORKLIFT_NO_COLOR and FORKLIFT_PLAIN_TEXT
+  - Write unit tests for formatting configuration and CLI flag handling
+  - _Requirements: 18.2, 18.10_
+
+- [ ] 17.3 Implement markdown bold formatting removal system
+  - Create MarkdownFormatter class to handle `**text**` pattern removal
+  - Add bold formatting stripping for all report generation and CLI output
+  - Implement text-based emphasis using UPPERCASE or indentation
+  - Update report generation to produce clean markdown without bold formatting
+  - Write unit tests for markdown formatting removal and text emphasis
+  - _Requirements: 18.5, 18.7, 18.11_
+
+- [ ] 17.4 Update console output system with formatting abstraction
+  - Create ConsoleOutput class that abstracts Rich console and plain text output
+  - Replace all direct `console.print()` calls with ConsoleOutput methods
+  - Implement plain text equivalents for color codes using prefixes (SUCCESS:, ERROR:, INFO:, WARNING:)
+  - Add plain text table formatting using ASCII borders and spacing
+  - Write unit tests for console output abstraction and plain text formatting
+  - _Requirements: 18.4, 18.6, 18.8, 18.11_
+
+- [ ] 17.5 Update progress indicators and visual elements for plain text mode
+  - Implement plain text progress indicators using simple text-based displays
+  - Create text-based separators and visual hierarchy using indentation and spacing
+  - Update all Rich Panel and Table usage to support plain text alternatives
+  - Add plain text formatting for interactive prompts and confirmations
+  - Write unit tests for plain text progress indicators and visual elements
+  - _Requirements: 18.6, 18.9, 18.12_
+
+- [ ] 17.6 Update all CLI commands and display services with formatting compatibility
+  - Update src/forklift/cli.py to use new ConsoleOutput abstraction
+  - Modify src/forklift/display/repository_display_service.py for formatting compatibility
+  - Update explanation formatting in src/forklift/pr/explanation_formatter.py
+  - Ensure all show_commit_summary.py and other scripts support plain text mode
+  - Write integration tests for all CLI commands with --plain-text flag
+  - _Requirements: 18.2, 18.3, 18.4, 18.11_
+
+- [ ] 17.7 Add comprehensive testing for formatting compatibility
+  - Write integration tests for all commands with --no-color and --plain-text flags
+  - Create tests for terminal capability detection with various terminal types
+  - Add tests for formatting conversion accuracy and information preservation
+  - Implement visual regression tests comparing Rich and plain text output
+  - Write end-to-end tests for complete workflows in plain text mode
+  - _Requirements: 18.1, 18.2, 18.11, 18.12_
+
+- [ ] 18. Implement compact AI summary without buzzwords
+- [ ] 18.1 Update AI summary prompt to be concise and direct
+  - Replace verbose prompt with compact "Summarize this commit: what changed, why, impact"
+  - Remove buzzwords like "senior developer" and lengthy instructions
+  - Update create_summary_prompt method in AICommitSummaryEngine
+  - Ensure prompt stays under 50 characters for efficiency
+  - Write unit tests for new compact prompt generation
+  - _Requirements: 17.2, 17.16_
+
+- [ ] 18.2 Simplify AI summary response parsing and display
+  - Remove structured section parsing (what_changed, why_changed, potential_side_effects)
+  - Update _parse_summary_response to return single summary text only
+  - Modify AISummary model to focus on summary_text field only
+  - Remove verbose formatting and structured display sections
+  - Write unit tests for simplified response parsing
+  - _Requirements: 17.10, 17.16, 17.17_
+
+- [ ] 18.3 Enforce brevity in AI summary generation
+  - Reduce max_tokens in AISummaryConfig from 500 to 150 tokens
+  - Add response length validation to ensure summaries stay under 3 sentences
+  - Implement post-processing to trim verbose AI responses
+  - Update cost estimation for shorter token usage
+  - Write unit tests for brevity enforcement and length validation
+  - _Requirements: 17.16, 17.17_
+
+- [ ] 18.4 Update CLI display for compact AI summaries
+  - Modify show-commits command to display compact summaries inline
+  - Remove structured formatting and verbose visual separation
+  - Update progress indicators to reflect shorter processing times
+  - Ensure summaries display cleanly in both Rich and plain text modes
+  - Write integration tests for compact AI summary display
+  - _Requirements: 17.1, 17.10, 17.17_
+
+- [ ] 18.5 Add configuration option for AI summary style
+  - Add compact_mode boolean to AISummaryConfig
+  - Allow users to choose between compact and detailed summary styles
+  - Update CLI to support --ai-summary-compact flag
+  - Provide backward compatibility with existing verbose mode
+  - Write unit tests for configuration options and CLI flag handling
+  - _Requirements: 17.16, 17.17_
+
 - [-] 16. Implement AI-powered commit summaries using OpenAI GPT-4 mini
 - [x] 16.1 Create core AI summary data models and configuration
   - Implement AISummary Pydantic model with structured summary fields (what_changed, why_changed, potential_side_effects)
@@ -561,7 +659,7 @@
   - Write unit tests for error handling scenarios and recovery mechanisms
   - _Requirements: 17.6, 17.7, 17.14_
 
-- [-] 16.5 Enhance show-commits command with AI summary support
+- [x] 16.5 Enhance show-commits command with AI summary support
   - Add --ai-summary flag to show-commits CLI command
   - Update RepositoryDisplayService to integrate AICommitSummaryEngine
   - Implement AI summary generation workflow within existing commit display logic
@@ -569,7 +667,7 @@
   - Write integration tests for show-commits command with --ai-summary flag
   - _Requirements: 17.1, 17.4, 17.12_
 
-- [ ] 16.6 Implement AI summary display formatting and output
+- [-] 16.6 Implement AI summary display formatting and output
   - Create formatted display for commits with AI summaries using Rich library
   - Add visual separation between original commit data and AI-generated analysis
   - Implement structured display showing what changed, why changed, and potential side effects

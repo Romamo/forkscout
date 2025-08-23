@@ -256,7 +256,7 @@ https://github.com/xgboosted/pandas-ta-classic
 #### Acceptance Criteria
 
 1. WHEN I run `forklift show-commits <fork-url> --branch <branch-name> --ai-summary` THEN the system SHALL generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
-2. WHEN generating AI summaries THEN the system SHALL use the prompt "You are a senior developer. Summarize the following Git commit into a clear, human-readable explanation. Include: - What changed - Why it changed - Potential side effects or considerations"
+2. WHEN generating AI summaries THEN the system SHALL use a compact prompt "Summarize this commit: what changed, why, impact" without buzzwords or verbose instructions
 3. WHEN creating AI summaries THEN the system SHALL include both the commit message and diff text in the analysis
 4. WHEN AI summary generation is enabled THEN the system SHALL display commit SHA, GitHub URL, original commit message, and AI-generated summary
 5. WHEN using --ai-summary flag THEN the system SHALL require OPENAI_API_KEY environment variable to be set
@@ -264,9 +264,30 @@ https://github.com/xgboosted/pandas-ta-classic
 7. WHEN AI summary generation fails for a commit THEN the system SHALL log the error and continue with remaining commits
 8. WHEN generating AI summaries THEN the system SHALL respect OpenAI API rate limits and implement appropriate backoff strategies
 9. WHEN AI summaries are requested THEN the system SHALL truncate large diffs to stay within OpenAI token limits (max 8000 characters)
-10. WHEN displaying AI summaries THEN the system SHALL format output with clear visual separation between original commit data and AI analysis
+10. WHEN displaying AI summaries THEN the system SHALL format output with clear visual separation between original commit data and AI analysis, keeping summaries concise and under 3 sentences
 11. WHEN --ai-summary is combined with other flags THEN the system SHALL work with --disable-cache, --limit, and other existing options
 12. WHEN AI summary generation is enabled THEN the system SHALL provide progress indicators showing summary generation status
 13. WHEN using AI summaries THEN the system SHALL log API usage statistics for monitoring and cost tracking
 14. WHEN AI summary fails due to API errors THEN the system SHALL provide helpful error messages distinguishing between authentication, rate limiting, and other API issues
 15. WHEN generating summaries THEN the system SHALL use GPT-4 mini model specifically for cost efficiency while maintaining quality
+16. WHEN AI summaries are generated THEN the system SHALL enforce brevity by limiting responses to essential information only, avoiding technical jargon and buzzwords
+17. WHEN displaying AI summaries THEN the system SHALL show only the core summary text without structured sections or verbose formatting
+
+### Requirement 18
+
+**User Story:** As a repository maintainer using terminals that don't support Rich formatting, I want clean console output without formatting codes, so that I can read the tool's output clearly without seeing literal formatting characters like `[bold]` or `**text**`.
+
+#### Acceptance Criteria
+
+1. WHEN the system detects a terminal that doesn't support Rich formatting THEN it SHALL automatically disable Rich console formatting and use plain text output
+2. WHEN using --no-color or --plain-text flag THEN the system SHALL disable all Rich formatting codes and markdown-style bold formatting throughout the application
+3. WHEN Rich formatting is disabled THEN the system SHALL replace `[bold]text[/bold]` patterns with plain text equivalents
+4. WHEN Rich formatting is disabled THEN the system SHALL replace `[green]`, `[red]`, `[blue]`, `[yellow]` color codes with plain text or simple prefixes like "SUCCESS:", "ERROR:", "INFO:", "WARNING:"
+5. WHEN markdown-style formatting is disabled THEN the system SHALL replace `**text**` patterns with plain text in all output including reports and CLI messages
+6. WHEN formatting is disabled THEN the system SHALL maintain information hierarchy using indentation, spacing, and text-based separators instead of colors and bold text
+7. WHEN generating reports with formatting disabled THEN the system SHALL produce clean markdown without bold formatting that displays properly in all terminals
+8. WHEN displaying tables with formatting disabled THEN the system SHALL use ASCII table borders and plain text headers
+9. WHEN showing progress indicators with formatting disabled THEN the system SHALL use simple text-based progress displays
+10. WHEN the system cannot detect terminal capabilities THEN it SHALL provide a configuration option to force plain text mode
+11. WHEN using plain text mode THEN the system SHALL ensure all information remains accessible and readable without any formatting codes visible
+12. WHEN formatting is disabled THEN the system SHALL maintain consistent spacing and alignment for readability

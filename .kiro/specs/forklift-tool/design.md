@@ -682,6 +682,185 @@ class OpenAIErrorHandler:
 - Comprehensive logging and monitoring
 - Performance impact warnings for cache-disabled operations
 
+## Console Formatting Compatibility
+
+### Design Overview
+
+The console formatting compatibility system ensures that the Forklift tool provides clean, readable output across all terminal environments, including those that don't support Rich library formatting or markdown-style bold text.
+
+### Architecture Components
+
+#### Terminal Capability Detection
+```python
+class TerminalCapabilityDetector:
+    """Detects terminal formatting capabilities"""
+    
+    def __init__(self):
+        self.supports_rich = self._detect_rich_support()
+        self.supports_color = self._detect_color_support()
+    
+    def _detect_rich_support(self) -> bool:
+        """Detect if terminal supports Rich formatting"""
+        # Check for TERM environment variable
+        # Test for color support
+        # Detect terminal type and capabilities
+        
+    def get_formatting_mode(self) -> FormattingMode:
+        """Determine appropriate formatting mode"""
+        if self.supports_rich:
+            return FormattingMode.RICH
+        return FormattingMode.PLAIN
+```
+
+#### Formatting Abstraction Layer
+```python
+class ConsoleOutput:
+    """Abstraction layer for console output"""
+    
+    def __init__(self, formatting_mode: FormattingMode):
+        self.mode = formatting_mode
+        self.rich_console = Console() if formatting_mode == FormattingMode.RICH else None
+        self.plain_formatter = PlainTextFormatter()
+    
+    def print(self, text: str, style: Optional[str] = None):
+        """Print text with appropriate formatting"""
+        if self.mode == FormattingMode.RICH and self.rich_console:
+            self.rich_console.print(text, style=style)
+        else:
+            formatted_text = self.plain_formatter.format(text, style)
+            print(formatted_text)
+    
+    def print_table(self, table_data: List[List[str]], headers: List[str]):
+        """Print table with appropriate formatting"""
+        if self.mode == FormattingMode.RICH:
+            # Use Rich Table
+        else:
+            # Use ASCII table formatting
+```
+
+#### Plain Text Formatting System
+```python
+class PlainTextFormatter:
+    """Converts Rich formatting codes to plain text"""
+    
+    STYLE_MAPPINGS = {
+        'green': 'SUCCESS: ',
+        'red': 'ERROR: ',
+        'yellow': 'WARNING: ',
+        'blue': 'INFO: ',
+        'bold': '',  # Remove bold formatting
+    }
+    
+    def format(self, text: str, style: Optional[str] = None) -> str:
+        """Convert Rich-formatted text to plain text"""
+        # Remove Rich markup tags
+        text = self._strip_rich_markup(text)
+        
+        # Remove markdown bold formatting
+        text = self._strip_markdown_bold(text)
+        
+        # Add style prefixes if needed
+        if style and style in self.STYLE_MAPPINGS:
+            prefix = self.STYLE_MAPPINGS[style]
+            text = f"{prefix}{text}"
+        
+        return text
+    
+    def _strip_rich_markup(self, text: str) -> str:
+        """Remove Rich markup tags like [bold], [green], etc."""
+        import re
+        # Remove [tag] and [/tag] patterns
+        return re.sub(r'\[/?[a-zA-Z0-9_]+\]', '', text)
+    
+    def _strip_markdown_bold(self, text: str) -> str:
+        """Remove markdown **bold** formatting"""
+        import re
+        return re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+```
+
+### Configuration Integration
+
+#### Formatting Configuration
+```python
+@dataclass
+class FormattingConfig:
+    """Configuration for console formatting"""
+    mode: FormattingMode = FormattingMode.AUTO
+    force_plain_text: bool = False
+    use_color_prefixes: bool = True
+    table_style: str = "ascii"  # "ascii" or "simple"
+    
+    @classmethod
+    def from_env(cls) -> 'FormattingConfig':
+        """Create config from environment variables"""
+        force_plain = os.getenv('FORKLIFT_NO_COLOR', '').lower() in ('1', 'true', 'yes')
+        return cls(
+            force_plain_text=force_plain,
+            mode=FormattingMode.PLAIN if force_plain else FormattingMode.AUTO
+        )
+```
+
+#### CLI Integration
+```python
+# Add to all CLI commands
+@click.option('--no-color', is_flag=True, help='Disable color output')
+@click.option('--plain-text', is_flag=True, help='Use plain text formatting')
+def analyze(repository_url: str, no_color: bool, plain_text: bool, ...):
+    """Main analyze command with formatting options"""
+    
+    # Determine formatting mode
+    if plain_text or no_color:
+        formatting_mode = FormattingMode.PLAIN
+    else:
+        detector = TerminalCapabilityDetector()
+        formatting_mode = detector.get_formatting_mode()
+    
+    # Initialize console output
+    console_output = ConsoleOutput(formatting_mode)
+    
+    # Use throughout command execution
+    console_output.print("Starting analysis...", style="blue")
+```
+
+### Implementation Strategy
+
+#### Phase 1: Core Infrastructure
+1. Implement `TerminalCapabilityDetector` for automatic detection
+2. Create `FormattingMode` enum and `FormattingConfig` model
+3. Build `PlainTextFormatter` for Rich markup removal
+4. Develop `ConsoleOutput` abstraction layer
+
+#### Phase 2: CLI Integration
+1. Add `--no-color` and `--plain-text` flags to all commands
+2. Update configuration system to support formatting preferences
+3. Add environment variable support for persistent settings
+4. Integrate formatting detection into CLI initialization
+
+#### Phase 3: Output System Updates
+1. Replace all direct `console.print()` calls with `ConsoleOutput` methods
+2. Update table formatting for plain text compatibility
+3. Convert progress indicators to text-based alternatives
+4. Update report generation to remove markdown bold formatting
+
+#### Phase 4: Testing and Validation
+1. Test formatting conversion accuracy
+2. Validate information preservation in plain text mode
+3. Test terminal capability detection across different environments
+4. Ensure consistent behavior with all CLI flags
+
+### Error Handling
+
+#### Graceful Degradation
+- If Rich formatting fails, automatically fall back to plain text
+- If terminal detection fails, default to plain text mode
+- Preserve all information content regardless of formatting mode
+- Log formatting mode decisions for debugging
+
+#### User Feedback
+- Warn users when falling back to plain text mode
+- Provide clear documentation about formatting options
+- Include troubleshooting guide for terminal compatibility issues
+
 ## Testing Strategy
 
 ### Unit Testing
