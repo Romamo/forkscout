@@ -667,7 +667,7 @@
   - Write integration tests for show-commits command with --ai-summary flag
   - _Requirements: 17.1, 17.4, 17.12_
 
-- [-] 16.6 Implement AI summary display formatting and output
+- [x] 16.6 Implement AI summary display formatting and output
   - Create formatted display for commits with AI summaries using Rich library
   - Add visual separation between original commit data and AI-generated analysis
   - Implement structured display showing what changed, why changed, and potential side effects
@@ -675,7 +675,7 @@
   - Write unit tests for AI summary formatting and visual consistency
   - _Requirements: 17.10, 17.11_
 
-- [ ] 16.7 Add usage tracking and cost monitoring for AI operations
+- [-] 16.7 Add usage tracking and cost monitoring for AI operations
   - Implement API usage statistics collection (tokens used, requests made, estimated costs)
   - Add cost tracking and reporting for transparency in AI API usage
   - Create configuration options for cost limits and usage monitoring

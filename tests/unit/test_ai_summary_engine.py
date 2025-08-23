@@ -50,7 +50,8 @@ class TestAICommitSummaryEngine:
         assert engine.openai_client == mock_client
         assert isinstance(engine.config, AISummaryConfig)
         assert isinstance(engine.error_handler, OpenAIErrorHandler)
-        assert isinstance(engine.usage_stats, AIUsageStats)
+        assert hasattr(engine, 'usage_tracker')
+        assert isinstance(engine.get_usage_stats(), AIUsageStats)
 
     def test_engine_initialization_with_custom_config(self):
         """Test engine initialization with custom configuration."""
@@ -380,7 +381,12 @@ This change prevents unauthorized access to the system."""
         assert initial_stats.successful_requests == 0
         assert initial_stats.total_tokens_used == 0
         
-        engine._update_usage_stats(success=True, tokens_used=150, processing_time=1000.0)
+        engine.usage_tracker.record_request(
+            success=True, 
+            input_tokens=100, 
+            output_tokens=50, 
+            processing_time_ms=1000.0
+        )
         
         updated_stats = engine.get_usage_stats()
         assert updated_stats.total_requests == 1
@@ -395,7 +401,11 @@ This change prevents unauthorized access to the system."""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        engine._update_usage_stats(success=False, tokens_used=0, processing_time=500.0)
+        engine.usage_tracker.record_request(
+            success=False, 
+            processing_time_ms=500.0,
+            error="Test error"
+        )
         
         stats = engine.get_usage_stats()
         assert stats.total_requests == 1
@@ -410,9 +420,19 @@ This change prevents unauthorized access to the system."""
         engine = AICommitSummaryEngine(mock_client)
         
         # First request
-        engine._update_usage_stats(success=True, tokens_used=100, processing_time=1000.0)
+        engine.usage_tracker.record_request(
+            success=True, 
+            input_tokens=80, 
+            output_tokens=20, 
+            processing_time_ms=1000.0
+        )
         # Second request
-        engine._update_usage_stats(success=True, tokens_used=200, processing_time=2000.0)
+        engine.usage_tracker.record_request(
+            success=True, 
+            input_tokens=150, 
+            output_tokens=50, 
+            processing_time_ms=2000.0
+        )
         
         stats = engine.get_usage_stats()
         assert stats.total_requests == 2
@@ -438,7 +458,12 @@ This change prevents unauthorized access to the system."""
         engine = AICommitSummaryEngine(mock_client)
         
         # Add some usage
-        engine._update_usage_stats(success=True, tokens_used=100, processing_time=1000.0)
+        engine.usage_tracker.record_request(
+            success=True, 
+            input_tokens=80, 
+            output_tokens=20, 
+            processing_time_ms=1000.0
+        )
         
         # Verify stats are not zero
         stats = engine.get_usage_stats()

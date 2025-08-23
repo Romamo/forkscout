@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 from forklift.ai.client import OpenAIClient
 from forklift.ai.error_handler import OpenAIErrorHandler
-from forklift.models.ai_summary import AISummary, AISummaryConfig, AIUsageStats
+from forklift.models.ai_summary import AISummary, AISummaryConfig, AIUsageStats, AIUsageTracker
 from forklift.models.github import Commit, Repository
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class AICommitSummaryEngine:
         self.error_handler = error_handler or OpenAIErrorHandler(
             max_retries=self.config.retry_attempts
         )
-        self.usage_stats = AIUsageStats()
+        self.usage_tracker = AIUsageTracker(config=self.config)
 
     def create_summary_prompt(self, commit_message: str, diff_text: str) -> str:
         """Create structured prompt for commit analysis.
@@ -107,12 +107,66 @@ Please provide a concise summary that helps other developers understand the impa
             # Create prompt
             prompt = self.create_summary_prompt(commit.message, diff_text)
             
+            # Check cost limits before making request
+            estimated_cost = self.config.estimate_request_cost(prompt, self.config.max_tokens)
+            
+            if not self.usage_tracker.check_session_cost_limit():
+                error_msg = f"Session cost limit exceeded (${self.config.max_cost_per_session_usd:.2f})"
+                logger.warning(f"Skipping commit {commit.sha[:8]}: {error_msg}")
+                
+                self.usage_tracker.record_request(
+                    success=False,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    error=error_msg
+                )
+                
+                return AISummary(
+                    commit_sha=commit.sha,
+                    summary_text="",
+                    what_changed="",
+                    why_changed="",
+                    potential_side_effects="",
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    error=error_msg
+                )
+            
+            if not self.usage_tracker.check_request_cost_limit(estimated_cost):
+                error_msg = f"Request cost limit exceeded (${self.config.max_cost_per_request_usd:.2f})"
+                logger.warning(f"Skipping commit {commit.sha[:8]}: {error_msg}")
+                
+                self.usage_tracker.record_request(
+                    success=False,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    error=error_msg
+                )
+                
+                return AISummary(
+                    commit_sha=commit.sha,
+                    summary_text="",
+                    what_changed="",
+                    why_changed="",
+                    potential_side_effects="",
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    error=error_msg
+                )
+            
+            # Warn about cost if threshold reached
+            if self.usage_tracker.should_warn_about_cost():
+                logger.warning(
+                    f"Cost warning: ${self.usage_tracker.stats.total_cost_usd:.4f} spent "
+                    f"(threshold: ${self.config.cost_warning_threshold_usd:.2f})"
+                )
+            
             # Prepare messages for OpenAI API
             messages = [
                 {"role": "user", "content": prompt}
             ]
             
-            logger.debug(f"Generating AI summary for commit {commit.sha[:8]}")
+            if self.config.usage_logging_enabled:
+                logger.debug(
+                    f"Generating AI summary for commit {commit.sha[:8]} "
+                    f"(estimated cost: ${estimated_cost:.4f})"
+                )
             
             # Make API call with retry logic
             response = await self.openai_client.create_completion_with_retry(
@@ -124,17 +178,32 @@ Please provide a concise summary that helps other developers understand the impa
             
             processing_time = (time.time() - start_time) * 1000
             
+            # Extract token usage from response
+            usage = response.usage
+            input_tokens = usage.get("prompt_tokens", 0)
+            output_tokens = usage.get("completion_tokens", 0)
+            total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
+            
+            # Record usage statistics
+            self.usage_tracker.record_request(
+                success=True,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                processing_time_ms=processing_time
+            )
+            
             # Parse response into structured summary
             summary_parts = self._parse_summary_response(response.text)
             
-            # Update usage statistics
-            self._update_usage_stats(
-                success=True,
-                tokens_used=response.usage.get("total_tokens", 0),
-                processing_time=processing_time
-            )
-            
-            logger.info(f"Generated AI summary for commit {commit.sha[:8]} in {processing_time:.0f}ms")
+            # Log performance metrics if enabled
+            if self.config.performance_logging_enabled:
+                actual_cost = self.config.calculate_total_cost(input_tokens, output_tokens)
+                logger.info(
+                    f"Generated AI summary for commit {commit.sha[:8]} - "
+                    f"Time: {processing_time:.0f}ms, "
+                    f"Tokens: {total_tokens} ({input_tokens} in, {output_tokens} out), "
+                    f"Cost: ${actual_cost:.4f}"
+                )
             
             return AISummary(
                 commit_sha=commit.sha,
@@ -143,7 +212,7 @@ Please provide a concise summary that helps other developers understand the impa
                 why_changed=summary_parts["why_changed"],
                 potential_side_effects=summary_parts["potential_side_effects"],
                 model_used=response.model,
-                tokens_used=response.usage.get("total_tokens", 0),
+                tokens_used=total_tokens,
                 processing_time_ms=processing_time
             )
             
@@ -157,11 +226,11 @@ Please provide a concise summary that helps other developers understand the impa
                 context="generate_commit_summary"
             )
             
-            # Update usage statistics
-            self._update_usage_stats(
+            # Record failed request
+            self.usage_tracker.record_request(
                 success=False,
-                tokens_used=0,
-                processing_time=processing_time
+                processing_time_ms=processing_time,
+                error=str(e)
             )
             
             # Create error summary
@@ -264,6 +333,10 @@ Please provide a concise summary that helps other developers understand the impa
                     summaries.append(error_summary)
         
         logger.info(f"Completed AI summary generation for {len(summaries)} commits")
+        
+        # Log final usage summary
+        self.log_usage_summary()
+        
         return summaries
 
     def _parse_summary_response(self, response_text: str) -> Dict[str, str]:
@@ -326,56 +399,52 @@ Please provide a concise summary that helps other developers understand the impa
         
         return parsed
 
-    def _update_usage_stats(
-        self,
-        success: bool,
-        tokens_used: int,
-        processing_time: float
-    ) -> None:
-        """Update usage statistics.
-
-        Args:
-            success: Whether the request was successful
-            tokens_used: Number of tokens consumed
-            processing_time: Processing time in milliseconds
-        """
-        self.usage_stats.total_requests += 1
-        
-        if success:
-            self.usage_stats.successful_requests += 1
-        else:
-            self.usage_stats.failed_requests += 1
-        
-        self.usage_stats.total_tokens_used += tokens_used
-        from datetime import datetime
-        self.usage_stats.last_request = datetime.utcnow()
-        
-        # Update average processing time
-        if self.usage_stats.total_requests > 0:
-            total_time = (
-                self.usage_stats.average_processing_time_ms * (self.usage_stats.total_requests - 1) +
-                processing_time
-            )
-            self.usage_stats.average_processing_time_ms = total_time / self.usage_stats.total_requests
-        
-        # Estimate cost (rough approximation for GPT-4o-mini)
-        # GPT-4o-mini: ~$0.00015 per 1K tokens for input, ~$0.0006 per 1K tokens for output
-        # Using average of $0.0003 per 1K tokens as rough estimate
-        if tokens_used > 0:
-            cost_per_token = 0.0003 / 1000
-            self.usage_stats.total_cost_usd += tokens_used * cost_per_token
-
     def get_usage_stats(self) -> AIUsageStats:
         """Get current usage statistics.
 
         Returns:
             AIUsageStats object with current statistics
         """
-        return self.usage_stats
+        return self.usage_tracker.stats
+
+    def get_usage_tracker(self) -> AIUsageTracker:
+        """Get the usage tracker instance.
+
+        Returns:
+            AIUsageTracker object with current statistics and configuration
+        """
+        return self.usage_tracker
 
     def reset_usage_stats(self) -> None:
         """Reset usage statistics."""
-        self.usage_stats = AIUsageStats()
+        self.usage_tracker = AIUsageTracker(config=self.config)
+    
+    def get_usage_report(self) -> dict:
+        """Get comprehensive usage report.
+
+        Returns:
+            Dictionary with detailed usage statistics and cost information
+        """
+        return self.usage_tracker.get_usage_report()
+    
+    def log_usage_summary(self) -> None:
+        """Log a summary of current usage statistics."""
+        if not self.config.usage_logging_enabled:
+            return
+        
+        report = self.get_usage_report()
+        session = report["session_summary"]
+        tokens = report["token_usage"]
+        costs = report["cost_breakdown"]
+        
+        logger.info(
+            f"AI Usage Summary - "
+            f"Requests: {session['total_requests']} "
+            f"(Success: {session['success_rate_percent']:.1f}%), "
+            f"Tokens: {tokens['total_tokens']}, "
+            f"Cost: ${costs['total_cost_usd']:.4f}, "
+            f"Duration: {session['duration_minutes']:.1f}min"
+        )
 
     def estimate_batch_cost(self, commits_with_diffs: List[Tuple[Commit, str]]) -> float:
         """Estimate cost for batch processing.
