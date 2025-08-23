@@ -537,7 +537,7 @@
   - Write unit tests for all new data models including validation and serialization
   - _Requirements: 17.3, 17.5, 17.9, 17.13_
 
-- [-] 16.2 Implement OpenAI client wrapper with error handling
+- [x] 16.2 Implement OpenAI client wrapper with error handling
   - Create OpenAIClient class with async HTTP client for GPT-4 mini API calls
   - Implement API key validation and authentication handling
   - Add rate limiting and retry logic with exponential backoff for API errors
@@ -545,7 +545,7 @@
   - Write unit tests for OpenAI client with mocked API responses and error scenarios
   - _Requirements: 17.5, 17.6, 17.8, 17.14_
 
-- [ ] 16.3 Build AI commit summary engine with prompt generation
+- [-] 16.3 Build AI commit summary engine with prompt generation
   - Implement AICommitSummaryEngine class to orchestrate summary generation workflow
   - Create structured prompt generation using the specified template for commit analysis
   - Add diff truncation logic to stay within OpenAI token limits (8000 characters max)
