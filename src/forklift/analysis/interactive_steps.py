@@ -137,7 +137,7 @@ class ForkDiscoveryStep(InteractiveStep):
             )
             
             # Discover forks
-            forks = await fork_discovery.discover_forks(repository.url)
+            forks = await fork_discovery.discover_forks(repository.html_url)
             
             # Store in context
             context["all_forks"] = forks
@@ -591,11 +591,28 @@ class FeatureRankingStep(InteractiveStep):
                     metrics={"ranked_features": 0}
                 )
             
-            # Initialize ranking engine
-            ranking_engine = FeatureRankingEngine()
+            # Initialize ranking engine with default scoring config
+            from forklift.config.settings import ScoringConfig
+            scoring_config = ScoringConfig()
+            ranking_engine = FeatureRankingEngine(scoring_config)
+            
+            # Create fork metrics map from fork analyses
+            fork_metrics_map = {}
+            for analysis in fork_analyses:
+                fork_url = analysis.fork.repository.url
+                # Create basic fork metrics from available data
+                from forklift.models.analysis import ForkMetrics
+                fork_metrics = ForkMetrics(
+                    stars=analysis.fork.repository.stars,
+                    forks=analysis.fork.repository.forks_count,
+                    contributors=1,  # Default value, could be enhanced later
+                    last_activity=analysis.fork.last_activity,
+                    commit_frequency=len(analysis.features) / max(1, analysis.fork.commits_ahead)  # Rough estimate
+                )
+                fork_metrics_map[fork_url] = fork_metrics
             
             # Rank features
-            ranked_features = ranking_engine.rank_features(all_features)
+            ranked_features = ranking_engine.rank_features(all_features, fork_metrics_map)
             
             # Store in context
             context["ranked_features"] = ranked_features

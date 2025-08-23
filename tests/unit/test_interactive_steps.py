@@ -159,6 +159,9 @@ class TestRepositoryDiscoveryStep:
         assert context["owner"] == "test-owner"
         assert context["repo_name"] == "test-repo"
         
+        # Verify the GitHub client was called with correct arguments
+        mock_github_client.get_repository.assert_called_once_with("test-owner", "test-repo")
+        
         # Check metrics
         assert result.metrics["repository_name"] == "test-owner/test-repo"
         assert result.metrics["stars"] == 100
@@ -183,6 +186,30 @@ class TestRepositoryDiscoveryStep:
         """Test repository discovery with invalid URL."""
         step = RepositoryDiscoveryStep(mock_github_client)
         context = {"repo_url": "invalid-url"}
+        
+        result = await step.execute(context)
+        
+        assert not result.success
+        assert "Invalid repository URL format" in result.summary
+        assert result.error is not None
+    
+    @pytest.mark.asyncio
+    async def test_execute_incomplete_url(self, mock_github_client):
+        """Test repository discovery with incomplete URL (missing repo name)."""
+        step = RepositoryDiscoveryStep(mock_github_client)
+        context = {"repo_url": "https://github.com/owner"}
+        
+        result = await step.execute(context)
+        
+        assert not result.success
+        assert "Invalid repository URL format" in result.summary
+        assert result.error is not None
+    
+    @pytest.mark.asyncio
+    async def test_execute_single_part_url(self, mock_github_client):
+        """Test repository discovery with single part URL."""
+        step = RepositoryDiscoveryStep(mock_github_client)
+        context = {"repo_url": "owner"}
         
         result = await step.execute(context)
         
@@ -240,6 +267,17 @@ class TestRepositoryDiscoveryStep:
         assert "❌ Repository discovery failed" in display
         assert "Test error" in display
     
+    def test_display_results_no_data(self):
+        """Test displaying results when repository data is None."""
+        step = RepositoryDiscoveryStep(Mock())
+        result = Mock()
+        result.success = True
+        result.data = None
+        
+        display = step.display_results(result)
+        
+        assert "❌ No repository data available" in display
+    
     def test_get_confirmation_prompt_success(self, sample_repository):
         """Test confirmation prompt for successful discovery."""
         step = RepositoryDiscoveryStep(Mock())
@@ -264,6 +302,187 @@ class TestRepositoryDiscoveryStep:
         assert "Skip to next step" in prompt
 
 
+class TestForkFilteringStep:
+    """Test cases for ForkFilteringStep."""
+    
+    @pytest.mark.asyncio
+    async def test_execute_success(self, sample_forks):
+        """Test successful fork filtering."""
+        step = ForkFilteringStep(min_commits_ahead=1, min_stars=0)
+        context = {"all_forks": sample_forks}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert result.step_name == "Fork Filtering"
+        assert len(result.data) == 2  # Both sample forks should pass filter
+        assert context["filtered_forks"] == result.data
+        
+        # Check metrics
+        assert result.metrics["total_forks"] == 2
+        assert result.metrics["filtered_forks"] == 2
+        assert result.metrics["filter_ratio"] == 1.0
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_strict_filters(self, sample_forks):
+        """Test fork filtering with strict criteria."""
+        step = ForkFilteringStep(min_commits_ahead=10, min_stars=50)
+        context = {"all_forks": sample_forks}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        # Only the second fork has 10 commits ahead
+        assert len(result.data) == 1
+        assert result.data[0].commits_ahead == 10
+    
+    @pytest.mark.asyncio
+    async def test_execute_no_forks(self):
+        """Test fork filtering with no forks."""
+        step = ForkFilteringStep()
+        context = {"all_forks": []}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert len(result.data) == 0
+        assert "No forks to filter" in result.summary
+        assert result.metrics["filtered_forks"] == 0
+        assert result.metrics["total_forks"] == 0
+    
+    @pytest.mark.asyncio
+    async def test_execute_missing_forks_context(self):
+        """Test fork filtering with missing forks in context."""
+        step = ForkFilteringStep()
+        context = {}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert len(result.data) == 0
+        assert "No forks to filter" in result.summary
+    
+    @pytest.mark.asyncio
+    async def test_execute_inactive_forks(self, sample_forks):
+        """Test fork filtering with inactive forks."""
+        # Make forks inactive
+        for fork in sample_forks:
+            fork.is_active = False
+        
+        step = ForkFilteringStep()
+        context = {"all_forks": sample_forks}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert len(result.data) == 0  # No active forks should pass
+    
+    @pytest.mark.asyncio
+    async def test_execute_exception(self):
+        """Test fork filtering with exception."""
+        step = ForkFilteringStep()
+        # Create a mock fork that will cause an exception
+        mock_fork = Mock()
+        mock_fork.commits_ahead = None  # This should cause an exception
+        context = {"all_forks": [mock_fork]}
+        
+        result = await step.execute(context)
+        
+        assert not result.success
+        assert "Failed to filter forks" in result.summary
+        assert result.error is not None
+    
+    def test_display_results_success(self, sample_forks):
+        """Test displaying successful filtering results."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = True
+        result.data = sample_forks
+        result.metrics = {
+            "total_forks": 5,
+            "filtered_forks": 2,
+            "filter_ratio": 0.4,
+            "avg_stars_filtered": 25.0,
+            "avg_commits_ahead_filtered": 7.5
+        }
+        
+        display = step.display_results(result)
+        
+        assert "🔍 **Fork Filtering Complete**" in display
+        assert "5" in display
+        assert "2" in display
+    
+    def test_display_results_no_forks(self):
+        """Test displaying results when no forks pass filter."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = True
+        result.data = []
+        result.metrics = {"total_forks": 5, "filtered_forks": 0}
+        
+        display = step.display_results(result)
+        
+        assert "No Forks Passed Filtering" in display
+    
+    def test_display_results_failure(self):
+        """Test displaying failed filtering results."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = False
+        result.summary = "Filter error"
+        
+        display = step.display_results(result)
+        
+        assert "❌ Fork filtering failed" in display
+        assert "Filter error" in display
+    
+    def test_get_confirmation_prompt_many_forks(self, sample_forks):
+        """Test confirmation prompt with many filtered forks."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = True
+        result.data = sample_forks * 10  # 20 forks
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "20 forks" in prompt
+        assert "Continue" in prompt or "Proceed" in prompt
+    
+    def test_get_confirmation_prompt_few_forks(self, sample_forks):
+        """Test confirmation prompt with few filtered forks."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = True
+        result.data = sample_forks[:1]  # 1 fork
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "1 forks" in prompt or "1 fork" in prompt
+    
+    def test_get_confirmation_prompt_no_forks(self):
+        """Test confirmation prompt with no filtered forks."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = True
+        result.data = []
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "No forks passed" in prompt
+        assert "summary report" in prompt
+    
+    def test_get_confirmation_prompt_failure(self):
+        """Test confirmation prompt for failed filtering."""
+        step = ForkFilteringStep()
+        result = Mock()
+        result.success = False
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "filtering encountered issues" in prompt
+        assert "partial results" in prompt
+
+
 class TestForkDiscoveryStep:
     """Test cases for ForkDiscoveryStep."""
     
@@ -286,6 +505,9 @@ class TestForkDiscoveryStep:
             assert result.data == sample_forks
             assert context["all_forks"] == sample_forks
             assert context["total_forks"] == 2
+            
+            # Verify the service was called with the HTML URL, not the API URL
+            mock_service.discover_forks.assert_called_once_with(sample_repository.html_url)
             
             # Check metrics
             assert result.metrics["total_forks"] == 2
@@ -538,6 +760,274 @@ class TestForkAnalysisStep:
         assert "Total features discovered: 5" in display
 
 
+class TestForkAnalysisStep:
+    """Test cases for ForkAnalysisStep."""
+    
+    @pytest.mark.asyncio
+    async def test_execute_success(self, mock_github_client, sample_repository, sample_forks):
+        """Test successful fork analysis."""
+        with patch('forklift.analysis.interactive_steps.RepositoryAnalyzer') as mock_analyzer_class:
+            mock_analyzer = AsyncMock()
+            
+            # Create mock analyses
+            mock_analyses = []
+            for i, fork in enumerate(sample_forks):
+                features = [
+                    Feature(
+                        id=f"feature-{i}-{j}",
+                        title=f"Feature {j} from {fork.repository.owner}",
+                        description="Test feature",
+                        category=FeatureCategory.NEW_FEATURE,
+                        source_fork=fork
+                    )
+                    for j in range(2)  # 2 features per fork
+                ]
+                
+                analysis = ForkAnalysis(
+                    fork=fork,
+                    features=features,
+                    metrics=ForkMetrics(stars=fork.repository.stars),
+                    analysis_date=datetime.now()
+                )
+                mock_analyses.append(analysis)
+            
+            mock_analyzer.analyze_fork.side_effect = mock_analyses
+            mock_analyzer_class.return_value = mock_analyzer
+            
+            step = ForkAnalysisStep(mock_github_client)
+            context = {
+                "repository": sample_repository,
+                "filtered_forks": sample_forks
+            }
+            
+            result = await step.execute(context)
+            
+            assert result.success
+            assert result.step_name == "Fork Analysis"
+            assert len(result.data) == 2
+            assert context["fork_analyses"] == result.data
+            assert context["total_features"] == 4  # 2 features per fork
+            
+            # Check metrics
+            assert result.metrics["total_forks_to_analyze"] == 2
+            assert result.metrics["successfully_analyzed"] == 2
+            assert result.metrics["failed_analyses"] == 0
+            assert result.metrics["total_features"] == 4
+            assert result.metrics["avg_features_per_fork"] == 2.0
+            assert result.metrics["analysis_success_rate"] == 1.0
+    
+    @pytest.mark.asyncio
+    async def test_execute_no_repository(self, mock_github_client):
+        """Test fork analysis without repository in context."""
+        step = ForkAnalysisStep(mock_github_client)
+        context = {"filtered_forks": []}
+        
+        result = await step.execute(context)
+        
+        assert not result.success
+        assert "Repository not found in context" in result.summary
+    
+    @pytest.mark.asyncio
+    async def test_execute_no_forks(self, mock_github_client, sample_repository):
+        """Test fork analysis with no filtered forks."""
+        step = ForkAnalysisStep(mock_github_client)
+        context = {
+            "repository": sample_repository,
+            "filtered_forks": []
+        }
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert len(result.data) == 0
+        assert "No forks to analyze" in result.summary
+        assert result.metrics["analyzed_forks"] == 0
+        assert result.metrics["total_features"] == 0
+    
+    @pytest.mark.asyncio
+    async def test_execute_missing_forks_context(self, mock_github_client, sample_repository):
+        """Test fork analysis with missing filtered_forks in context."""
+        step = ForkAnalysisStep(mock_github_client)
+        context = {"repository": sample_repository}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert len(result.data) == 0
+        assert "No forks to analyze" in result.summary
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_explanation_engine(self, mock_github_client, sample_repository, sample_forks):
+        """Test fork analysis with explanation engine."""
+        mock_explanation_engine = Mock()
+        
+        with patch('forklift.analysis.interactive_steps.RepositoryAnalyzer') as mock_analyzer_class:
+            mock_analyzer = AsyncMock()
+            mock_analysis = Mock(spec=ForkAnalysis)
+            mock_analysis.features = []
+            mock_analyzer.analyze_fork.return_value = mock_analysis
+            mock_analyzer_class.return_value = mock_analyzer
+            
+            step = ForkAnalysisStep(mock_github_client, explanation_engine=mock_explanation_engine)
+            context = {
+                "repository": sample_repository,
+                "filtered_forks": sample_forks[:1]
+            }
+            
+            result = await step.execute(context)
+            
+            assert result.success
+            # Verify analyzer was called with explain=True
+            mock_analyzer.analyze_fork.assert_called_once_with(
+                sample_forks[0], sample_repository, explain=True
+            )
+    
+    @pytest.mark.asyncio
+    async def test_execute_partial_failures(self, mock_github_client, sample_repository, sample_forks):
+        """Test fork analysis with some failures."""
+        with patch('forklift.analysis.interactive_steps.RepositoryAnalyzer') as mock_analyzer_class:
+            mock_analyzer = AsyncMock()
+            
+            # First fork succeeds, second fails
+            mock_analysis = Mock(spec=ForkAnalysis)
+            mock_analysis.features = [Mock()]
+            mock_analyzer.analyze_fork.side_effect = [
+                mock_analysis,
+                Exception("Analysis failed")
+            ]
+            mock_analyzer_class.return_value = mock_analyzer
+            
+            step = ForkAnalysisStep(mock_github_client)
+            context = {
+                "repository": sample_repository,
+                "filtered_forks": sample_forks
+            }
+            
+            result = await step.execute(context)
+            
+            assert result.success
+            assert len(result.data) == 1  # Only one successful analysis
+            assert result.metrics["successfully_analyzed"] == 1
+            assert result.metrics["failed_analyses"] == 1
+            assert result.metrics["analysis_success_rate"] == 0.5
+    
+    @pytest.mark.asyncio
+    async def test_execute_exception(self, mock_github_client):
+        """Test fork analysis with exception."""
+        step = ForkAnalysisStep(mock_github_client)
+        context = {"repository": None}  # This should cause an exception
+        
+        result = await step.execute(context)
+        
+        assert not result.success
+        assert "Failed to analyze forks" in result.summary
+        assert result.error is not None
+    
+    def test_display_results_success(self, sample_forks):
+        """Test displaying successful analysis results."""
+        step = ForkAnalysisStep(Mock())
+        
+        # Create mock analyses
+        mock_analyses = []
+        for fork in sample_forks:
+            analysis = Mock()
+            analysis.fork = fork
+            analysis.features = [Mock(), Mock()]  # 2 features each
+            mock_analyses.append(analysis)
+        
+        result = Mock()
+        result.success = True
+        result.data = mock_analyses
+        result.metrics = {
+            "total_forks_to_analyze": 2,
+            "successfully_analyzed": 2,
+            "failed_analyses": 0,
+            "analysis_success_rate": 1.0,
+            "total_features": 4,
+            "avg_features_per_fork": 2.0
+        }
+        
+        display = step.display_results(result)
+        
+        assert "🔬 **Fork Analysis Complete**" in display
+        assert "2" in display  # forks analyzed
+        assert "4" in display  # total features
+    
+    def test_display_results_no_analyses(self):
+        """Test displaying results when no analyses are available."""
+        step = ForkAnalysisStep(Mock())
+        result = Mock()
+        result.success = True
+        result.data = []
+        result.metrics = {
+            "total_forks_to_analyze": 0,
+            "successfully_analyzed": 0,
+            "total_features": 0
+        }
+        
+        display = step.display_results(result)
+        
+        assert "🔬 **Fork Analysis Complete**" in display
+        assert "0" in display
+    
+    def test_display_results_failure(self):
+        """Test displaying failed analysis results."""
+        step = ForkAnalysisStep(Mock())
+        result = Mock()
+        result.success = False
+        result.summary = "Analysis error"
+        
+        display = step.display_results(result)
+        
+        assert "❌ Fork analysis failed" in display
+        assert "Analysis error" in display
+    
+    def test_get_confirmation_prompt_many_features(self):
+        """Test confirmation prompt with many features found."""
+        step = ForkAnalysisStep(Mock())
+        result = Mock()
+        result.success = True
+        result.metrics = {"total_features": 50}
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "50 features" in prompt
+        assert "rank" in prompt
+    
+    def test_get_confirmation_prompt_few_features(self):
+        """Test confirmation prompt with few features found."""
+        step = ForkAnalysisStep(Mock())
+        result = Mock()
+        result.success = True
+        result.metrics = {"total_features": 3}
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "3 features" in prompt
+    
+    def test_get_confirmation_prompt_no_features(self):
+        """Test confirmation prompt with no features found."""
+        step = ForkAnalysisStep(Mock())
+        result = Mock()
+        result.success = True
+        result.metrics = {"total_features": 0}
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "No forks were successfully analyzed" in prompt
+        assert "diagnostic report" in prompt
+    
+    def test_get_confirmation_prompt_failure(self):
+        """Test confirmation prompt for failed analysis."""
+        step = ForkAnalysisStep(Mock())
+        result = Mock()
+        result.success = False
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "encountered significant errors" in prompt
+
+
 class TestFeatureRankingStep:
     """Test cases for FeatureRankingStep."""
     
@@ -638,6 +1128,54 @@ class TestFeatureRankingStep:
         assert len(result.data) == 0
         assert "No features found to rank" in result.summary
     
+    @pytest.mark.asyncio
+    async def test_execute_missing_analyses_context(self):
+        """Test feature ranking with missing fork_analyses in context."""
+        step = FeatureRankingStep()
+        context = {}
+        
+        result = await step.execute(context)
+        
+        assert result.success
+        assert len(result.data) == 0
+        assert "No features to rank" in result.summary
+        assert result.metrics["ranked_features"] == 0
+    
+    @pytest.mark.asyncio
+    async def test_execute_exception(self, sample_forks):
+        """Test feature ranking with exception."""
+        # Create mock analyses with real features
+        mock_analyses = []
+        for fork in sample_forks:
+            features = [
+                Feature(
+                    id="test-feature",
+                    title="Test Feature",
+                    description="Test feature",
+                    category=FeatureCategory.NEW_FEATURE,
+                    source_fork=fork
+                )
+            ]
+            analysis = ForkAnalysis(
+                fork=fork,
+                features=features,
+                metrics=ForkMetrics(stars=fork.repository.stars),
+                analysis_date=datetime.now()
+            )
+            mock_analyses.append(analysis)
+        
+        with patch('forklift.analysis.interactive_steps.FeatureRankingEngine') as mock_engine_class:
+            mock_engine_class.side_effect = Exception("Ranking engine failed")
+            
+            step = FeatureRankingStep()
+            context = {"fork_analyses": mock_analyses}
+            
+            result = await step.execute(context)
+            
+            assert not result.success
+            assert "Failed to rank features" in result.summary
+            assert result.error is not None
+    
     def test_display_results_with_features(self):
         """Test displaying results with ranked features."""
         step = FeatureRankingStep()
@@ -699,3 +1237,64 @@ class TestFeatureRankingStep:
         
         assert "📊 **Feature Ranking Complete**" in display
         assert "No features were found to rank" in display
+    
+    def test_display_results_failure(self):
+        """Test displaying failed ranking results."""
+        step = FeatureRankingStep()
+        result = Mock()
+        result.success = False
+        result.summary = "Ranking error"
+        
+        display = step.display_results(result)
+        
+        assert "❌ Feature ranking failed" in display
+        assert "Ranking error" in display
+    
+    def test_get_confirmation_prompt_excellent_features(self):
+        """Test confirmation prompt with excellent features."""
+        step = FeatureRankingStep()
+        result = Mock()
+        result.success = True
+        result.data = [Mock(score=95), Mock(score=85)]  # Mock ranked features
+        result.metrics = {"high_value_features": 5, "total_features": 10}
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "features" in prompt
+        assert "report" in prompt
+    
+    def test_get_confirmation_prompt_few_features(self):
+        """Test confirmation prompt with few features."""
+        step = FeatureRankingStep()
+        result = Mock()
+        result.success = True
+        result.data = [Mock(score=70), Mock(score=65), Mock(score=60)]  # Mock ranked features
+        result.metrics = {"high_value_features": 0, "total_features": 3}
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "features" in prompt
+        assert "report" in prompt
+    
+    def test_get_confirmation_prompt_no_features(self):
+        """Test confirmation prompt with no features."""
+        step = FeatureRankingStep()
+        result = Mock()
+        result.success = True
+        result.data = []  # No ranked features
+        result.metrics = {"total_features": 0}
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "no features were identified" in prompt
+        assert "diagnostic report" in prompt
+    
+    def test_get_confirmation_prompt_failure(self):
+        """Test confirmation prompt for failed ranking."""
+        step = FeatureRankingStep()
+        result = Mock()
+        result.success = False
+        
+        prompt = step.get_confirmation_prompt(result)
+        
+        assert "encountered errors" in prompt

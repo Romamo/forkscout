@@ -1,7 +1,10 @@
 """Storage and caching services."""
 
-from .cache import CacheManager
+from .cache import CacheDatabase, ForkliftCache
+from .analysis_cache import AnalysisCacheManager
 
 __all__ = [
-    "CacheManager",
+    "CacheDatabase",
+    "ForkliftCache",
+    "AnalysisCacheManager",
 ]

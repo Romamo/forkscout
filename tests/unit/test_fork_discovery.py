@@ -232,6 +232,14 @@ class TestForkDiscoveryService:
         assert owner == "owner"
         assert repo == "repo"
 
+    def test_parse_repository_url_api_url(self, fork_discovery_service):
+        """Test parsing GitHub API URL."""
+        owner, repo = fork_discovery_service._parse_repository_url(
+            "https://api.github.com/repos/maliayas/github-network-ninja"
+        )
+        assert owner == "maliayas"
+        assert repo == "github-network-ninja"
+
     def test_parse_repository_url_invalid(self, fork_discovery_service):
         """Test parsing invalid URL."""
         with pytest.raises(ForkDiscoveryError, match="Invalid repository URL format"):

@@ -6,6 +6,9 @@ The Forklift tool is a GitHub repository analysis system built with Python 3.12 
 
 The tool provides both comprehensive batch analysis and step-by-step interactive analysis commands to help users understand repository ecosystems incrementally. For testing and development, the system uses small repositories like https://github.com/maliayas/github-network-ninja and https://github.com/sanila2007/youtube-bot-telegram to ensure reliable and fast testing scenarios.
 
+## Example repositories not for testing but for production use with multiple valuable forks
+https://github.com/aarigs/pandas-ta/network
+
 ## Requirements
 
 ### Requirement 1

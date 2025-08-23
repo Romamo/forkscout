@@ -248,9 +248,17 @@ class FeatureRankingEngine:
         if not feature.commits:
             return 0.0
         
-        now = datetime.utcnow()
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
         most_recent_commit = max(feature.commits, key=lambda c: c.date)
-        days_old = (now - most_recent_commit.date).days
+        
+        # Ensure both datetimes are timezone-aware for comparison
+        commit_date = most_recent_commit.date
+        if commit_date.tzinfo is None:
+            # If commit date is naive, assume it's UTC
+            commit_date = commit_date.replace(tzinfo=timezone.utc)
+        
+        days_old = (now - commit_date).days
         
         # Score decreases with age
         if days_old <= 7:
@@ -362,8 +370,16 @@ class FeatureRankingEngine:
         Returns:
             Score between 0 and 100
         """
-        now = datetime.utcnow()
-        days_since_activity = (now - last_activity).days
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
+        
+        # Ensure both datetimes are timezone-aware for comparison
+        activity_date = last_activity
+        if activity_date.tzinfo is None:
+            # If activity date is naive, assume it's UTC
+            activity_date = activity_date.replace(tzinfo=timezone.utc)
+        
+        days_since_activity = (now - activity_date).days
         
         if days_since_activity <= 7:
             return 100.0

@@ -258,7 +258,13 @@ class ForkDiscoveryService:
             # Extract from various GitHub URL formats
             elif "github.com/" in url:
                 # Extract the part after github.com/
-                parts = url.split("github.com/")[-1].split("/")
+                path_part = url.split("github.com/")[-1]
+                
+                # Handle API URLs like https://api.github.com/repos/owner/repo
+                if path_part.startswith("repos/"):
+                    path_part = path_part[6:]  # Remove "repos/" prefix
+                
+                parts = path_part.split("/")
                 if len(parts) >= 2:
                     return parts[0], parts[1]
 
