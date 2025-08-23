@@ -529,7 +529,7 @@
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
 - [-] 16. Implement AI-powered commit summaries using OpenAI GPT-4 mini
-- [-] 16.1 Create core AI summary data models and configuration
+- [x] 16.1 Create core AI summary data models and configuration
   - Implement AISummary Pydantic model with structured summary fields (what_changed, why_changed, potential_side_effects)
   - Create AISummaryConfig model with OpenAI API settings, token limits, and cost tracking options
   - Add openai_api_key field to ForkliftConfig with optional validation
@@ -537,7 +537,7 @@
   - Write unit tests for all new data models including validation and serialization
   - _Requirements: 17.3, 17.5, 17.9, 17.13_
 
-- [ ] 16.2 Implement OpenAI client wrapper with error handling
+- [-] 16.2 Implement OpenAI client wrapper with error handling
   - Create OpenAIClient class with async HTTP client for GPT-4 mini API calls
   - Implement API key validation and authentication handling
   - Add rate limiting and retry logic with exponential backoff for API errors
