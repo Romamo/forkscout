@@ -86,21 +86,50 @@ The commit explanation system is designed with simplicity and clarity as primary
 5. **Generate Links**: Create direct GitHub commit URLs for easy navigation
 6. **Format Output**: Present information in a clear, scannable format with visual separation between descriptions and evaluations
 
+## AI-Powered Commit Summary Design Philosophy
+
+The AI commit summary system complements the existing explanation system by providing deeper, more contextual analysis using OpenAI's GPT-4 mini model. This system is designed for cases where maintainers need comprehensive understanding of complex commits.
+
+### AI Summary Design Principles
+
+- **Comprehensive Analysis**: Provide detailed understanding of what changed, why it changed, and potential implications
+- **Context Awareness**: Use both commit messages and diff content to understand the full scope of changes
+- **Cost Efficiency**: Use GPT-4 mini model to balance quality with cost considerations
+- **Optional Enhancement**: AI summaries are opt-in via `--ai-summary` flag, not replacing existing explanations
+- **Error Resilience**: Gracefully handle API failures and continue processing remaining commits
+- **Rate Limit Respect**: Implement proper backoff and batching to respect OpenAI API limits
+
+### AI Summary Workflow
+
+1. **Validate Prerequisites**: Check for OpenAI API key and validate configuration
+2. **Prepare Context**: Combine commit message and truncated diff for optimal token usage
+3. **Generate Prompt**: Use structured prompt to guide AI analysis toward actionable insights
+4. **Process Response**: Parse AI response into structured components (what/why/side effects)
+5. **Handle Errors**: Log failures and continue with remaining commits
+6. **Display Results**: Format AI summaries with clear visual distinction from standard explanations
+7. **Track Usage**: Monitor API usage and costs for transparency
+
 ## Components and Interfaces
 
 ### GitHub Client
 ```python
 class GitHubClient:
-    def __init__(self, token: str, rate_limit_handler: RateLimitHandler)
-    async def get_repository(self, owner: str, repo: str) -> Repository
-    async def get_forks(self, owner: str, repo: str) -> List[Fork]
-    async def get_commits_ahead(self, fork: Fork, base_repo: Repository) -> List[Commit]
+    def __init__(self, token: str, rate_limit_handler: RateLimitHandler, cache_manager: Optional[CacheManager] = None)
+    async def get_repository(self, owner: str, repo: str, disable_cache: bool = False) -> Repository
+    async def get_forks(self, owner: str, repo: str, disable_cache: bool = False) -> List[Fork]
+    async def get_commits_ahead(self, fork: Fork, base_repo: Repository, disable_cache: bool = False) -> List[Commit]
     async def create_pull_request(self, pr_data: PullRequestData) -> PullRequest
     
     # Enhanced pagination methods
-    async def get_all_repository_forks(self, owner: str, repo: str, max_forks: int = None, progress_callback: Callable = None) -> List[Fork]
-    async def get_paginated_commits(self, owner: str, repo: str, branch: str = None, max_commits: int = None, progress_callback: Callable = None) -> AsyncIterator[List[Commit]]
-    async def get_repository_branches_paginated(self, owner: str, repo: str, max_branches: int = None) -> List[Branch]
+    async def get_all_repository_forks(self, owner: str, repo: str, max_forks: int = None, progress_callback: Callable = None, disable_cache: bool = False) -> List[Fork]
+    async def get_paginated_commits(self, owner: str, repo: str, branch: str = None, max_commits: int = None, progress_callback: Callable = None, disable_cache: bool = False) -> AsyncIterator[List[Commit]]
+    async def get_repository_branches_paginated(self, owner: str, repo: str, max_branches: int = None, disable_cache: bool = False) -> List[Branch]
+    
+    # Cache management methods
+    def set_cache_disabled(self, disabled: bool) -> None
+    def is_cache_disabled(self) -> bool
+    async def _get_with_cache(self, cache_key: str, fetch_func: Callable, disable_cache: bool = False) -> Any
+    def _log_cache_operation(self, operation: str, cache_key: str, hit: bool) -> None
 ```
 
 ### Pagination Manager
@@ -128,16 +157,16 @@ class PaginationProgressTracker:
 ```python
 class ForkDiscoveryService:
     def __init__(self, github_client: GitHubClient)
-    async def discover_forks(self, repository_url: str) -> List[Fork]
-    async def filter_active_forks(self, forks: List[Fork]) -> List[Fork]
-    async def get_unique_commits(self, fork: Fork, base_repo: Repository) -> List[Commit]
+    async def discover_forks(self, repository_url: str, disable_cache: bool = False) -> List[Fork]
+    async def filter_active_forks(self, forks: List[Fork], disable_cache: bool = False) -> List[Fork]
+    async def get_unique_commits(self, fork: Fork, base_repo: Repository, disable_cache: bool = False) -> List[Commit]
 ```
 
 ### Repository Analyzer
 ```python
 class RepositoryAnalyzer:
-    def __init__(self, github_client: GitHubClient, explanation_engine: Optional[CommitExplanationEngine] = None)
-    async def analyze_fork(self, fork: Fork, base_repo: Repository, explain: bool = False) -> ForkAnalysis
+    def __init__(self, github_client: GitHubClient, explanation_engine: Optional[CommitExplanationEngine] = None, cache_manager: Optional[CacheManager] = None)
+    async def analyze_fork(self, fork: Fork, base_repo: Repository, explain: bool = False, disable_cache: bool = False) -> ForkAnalysis
     async def extract_features(self, commits: List[Commit]) -> List[Feature]
     async def categorize_changes(self, commits: List[Commit]) -> Dict[str, List[Commit]]
     async def _analyze_commits_with_explanations(self, commits: List[Commit], context: AnalysisContext) -> List[CommitWithExplanation]
@@ -171,6 +200,27 @@ class ExplanationGenerator:
     def _assess_main_repo_value(self, commit: Commit, category: CategoryType, file_changes: List[FileChange]) -> str
     def _ensure_brevity(self, explanation: str, max_sentences: int = 2) -> str
     def _generate_github_commit_url(self, commit: Commit, repository: Repository) -> str
+```
+
+### AI Commit Summary Engine
+```python
+class AICommitSummaryEngine:
+    def __init__(self, openai_client: OpenAIClient, config: AISummaryConfig)
+    async def generate_commit_summary(self, commit: Commit, diff_text: str) -> AISummary
+    async def generate_batch_summaries(self, commits_with_diffs: List[Tuple[Commit, str]]) -> List[AISummary]
+    def _create_summary_prompt(self, commit_message: str, diff_text: str) -> str
+    def _truncate_diff_for_tokens(self, diff_text: str, max_chars: int = 8000) -> str
+    async def _call_openai_api(self, prompt: str) -> str
+    def _handle_api_error(self, error: Exception) -> None
+    def _log_api_usage(self, tokens_used: int, cost_estimate: float) -> None
+
+class OpenAIClient:
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini")
+    async def create_chat_completion(self, messages: List[dict], max_tokens: int = 500) -> dict
+    async def __aenter__(self) -> 'OpenAIClient'
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None
+    def _validate_api_key(self) -> None
+    def _handle_rate_limit(self, retry_after: int) -> None
 ```
 
 ### GitHub Link Generator
@@ -207,24 +257,26 @@ class FeatureRankingEngine:
 ### CLI Command Handlers
 ```python
 class RepositoryDisplayService:
-    def __init__(self, github_client: GitHubClient)
-    async def show_repository_details(self, repo_url: str) -> RepositoryDetails
-    async def list_forks_preview(self, repo_url: str) -> ForksPreview
-    async def show_forks_summary(self, repo_url: str) -> ForksSummary
-    async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter) -> List[Fork]
-    async def show_fork_details(self, fork_url: str) -> ForkDetails
-    async def show_commits(self, fork_url: str, branch: str, limit: int) -> List[CommitDetails]
+    def __init__(self, github_client: GitHubClient, cache_manager: Optional[CacheManager] = None, ai_summary_engine: Optional[AICommitSummaryEngine] = None)
+    async def show_repository_details(self, repo_url: str, disable_cache: bool = False) -> RepositoryDetails
+    async def list_forks_preview(self, repo_url: str, disable_cache: bool = False) -> ForksPreview
+    async def show_forks_summary(self, repo_url: str, disable_cache: bool = False) -> ForksSummary
+    async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter, disable_cache: bool = False) -> List[Fork]
+    async def show_fork_details(self, fork_url: str, disable_cache: bool = False) -> ForkDetails
+    async def show_commits(self, fork_url: str, branch: str, limit: int, disable_cache: bool = False, ai_summary: bool = False) -> List[CommitDetails]
+    async def _generate_ai_summaries(self, commits: List[Commit], repository: Repository) -> Dict[str, AISummary]
+    def _format_commit_with_ai_summary(self, commit: CommitDetails, ai_summary: Optional[AISummary]) -> str
 
 class InteractiveAnalyzer:
-    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer)
-    async def analyze_specific_fork(self, fork_url: str, branch: str) -> ForkAnalysisResult
+    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, cache_manager: Optional[CacheManager] = None)
+    async def analyze_specific_fork(self, fork_url: str, branch: str, disable_cache: bool = False) -> ForkAnalysisResult
     def format_repository_display(self, repo: Repository) -> str
     def format_forks_table(self, forks: List[Fork]) -> str
     def format_commits_display(self, commits: List[Commit]) -> str
 
 class InteractiveAnalysisOrchestrator:
-    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, config: InteractiveConfig)
-    async def run_interactive_analysis(self, repo_url: str) -> InteractiveAnalysisResult
+    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, config: InteractiveConfig, cache_manager: Optional[CacheManager] = None)
+    async def run_interactive_analysis(self, repo_url: str, disable_cache: bool = False) -> InteractiveAnalysisResult
     async def execute_step(self, step: InteractiveStep) -> StepResult
     async def get_user_confirmation(self, step_name: str, results: Any) -> UserChoice
     def display_step_results(self, step_name: str, results: Any) -> None
@@ -237,6 +289,15 @@ class InteractiveStep:
     def get_confirmation_prompt(self, results: StepResult) -> str
     def format_completion_summary(self, results: StepResult) -> str
     def get_metrics_display(self, results: StepResult) -> Dict[str, Any]
+
+class CacheBypassManager:
+    def __init__(self, cache_manager: CacheManager)
+    def is_cache_disabled(self) -> bool
+    def set_cache_disabled(self, disabled: bool) -> None
+    async def bypass_cache_get(self, key: str) -> None
+    async def bypass_cache_set(self, key: str, value: Any) -> None
+    def log_cache_bypass(self, operation: str, key: str) -> None
+    def get_bypass_statistics(self) -> Dict[str, Any]
 ```
 
 ## Data Models
@@ -359,6 +420,32 @@ class CommitDetails:
     lines_added: int
     lines_removed: int
     commit_url: str
+    ai_summary: Optional['AISummary'] = None
+
+@dataclass
+class AISummary:
+    commit_sha: str
+    summary_text: str
+    what_changed: str
+    why_changed: str
+    potential_side_effects: str
+    generated_at: datetime
+    model_used: str
+    tokens_used: int
+    processing_time_ms: float
+    error: Optional[str] = None
+
+@dataclass
+class AISummaryConfig:
+    enabled: bool = False
+    model: str = "gpt-4o-mini"
+    max_tokens: int = 500
+    max_diff_chars: int = 8000
+    temperature: float = 0.3
+    timeout_seconds: int = 30
+    retry_attempts: int = 3
+    cost_tracking: bool = True
+    batch_size: int = 5  # Process commits in batches to manage rate limits
 
 @dataclass
 class CommitExplanation:
@@ -523,16 +610,28 @@ class UserChoice(Enum):
     ABORT = "abort"
 
 @dataclass
+class CacheConfig:
+    enabled: bool = True
+    duration_hours: int = 24
+    max_cache_size_mb: int = 500
+    cleanup_interval_hours: int = 6
+    bypass_on_error: bool = True
+    log_cache_operations: bool = False
+
+@dataclass
 class ForkliftConfig:
     github_token: str
+    openai_api_key: Optional[str] = None
     min_score_threshold: float = 70.0
     auto_pr_enabled: bool = False
     excluded_file_patterns: List[str]
     max_forks_to_analyze: int = 100
     cache_duration_hours: int = 24
     explanation: ExplanationConfig = field(default_factory=ExplanationConfig)
+    ai_summary: AISummaryConfig = field(default_factory=AISummaryConfig)
     pagination: PaginationConfig = field(default_factory=PaginationConfig)
     interactive: InteractiveConfig = field(default_factory=InteractiveConfig)
+    cache: CacheConfig = field(default_factory=CacheConfig)
 ```
 
 ## Error Handling
@@ -541,7 +640,20 @@ class ForkliftConfig:
 - Implement exponential backoff with jitter for GitHub API rate limits
 - Use token bucket algorithm for request throttling
 - Support multiple GitHub tokens for increased rate limits
-- Cache responses to minimize API calls
+- Cache responses to minimize API calls (unless cache is disabled)
+- Maintain rate limiting even when cache is disabled to respect GitHub API limits
+
+### Cache Bypass Error Handling
+When cache is disabled, the system must handle increased API load and potential failures:
+
+```python
+class CacheBypassErrorHandler:
+    def __init__(self, rate_limiter: RateLimiter)
+    async def handle_increased_api_load(self, operation: str) -> None
+    async def handle_rate_limit_with_bypass(self, error: RateLimitError) -> None
+    def warn_user_about_performance_impact(self, estimated_calls: int) -> None
+    def log_cache_bypass_impact(self, operation: str, duration: float, api_calls: int) -> None
+```
 
 ### Error Recovery
 ```python
@@ -549,14 +661,26 @@ class ErrorHandler:
     async def handle_api_error(self, error: GitHubAPIError) -> ErrorAction
     async def handle_network_error(self, error: NetworkError) -> ErrorAction
     async def handle_analysis_error(self, fork: Fork, error: Exception) -> None
+    async def handle_cache_bypass_error(self, error: Exception, operation: str) -> ErrorAction
+    async def handle_openai_error(self, error: OpenAIError, commit_sha: str) -> ErrorAction
     def log_error_with_context(self, error: Exception, context: Dict[str, Any]) -> None
+
+class OpenAIErrorHandler:
+    def __init__(self, retry_config: RetryConfig)
+    async def handle_rate_limit_error(self, error: RateLimitError) -> None
+    async def handle_authentication_error(self, error: AuthenticationError) -> None
+    async def handle_token_limit_error(self, error: TokenLimitError, diff_text: str) -> str
+    async def handle_timeout_error(self, error: TimeoutError) -> None
+    def should_retry(self, error: Exception, attempt: int) -> bool
+    def calculate_backoff_delay(self, attempt: int, base_delay: float = 1.0) -> float
 ```
 
 ### Resilience Patterns
 - Circuit breaker pattern for external API calls
-- Retry logic with exponential backoff
+- Retry logic with exponential backoff (more aggressive when cache is disabled)
 - Graceful degradation when individual fork analysis fails
 - Comprehensive logging and monitoring
+- Performance impact warnings for cache-disabled operations
 
 ## Testing Strategy
 
@@ -612,6 +736,36 @@ def mock_github_client():
 - Support cache cleanup and maintenance operations
 - Cache pagination results to avoid re-fetching during interruptions
 
+### Cache Disabling Architecture
+
+The cache disabling functionality is designed to provide users with fresh data when needed while maintaining system performance and respecting API rate limits:
+
+#### Design Principles
+- **Selective Bypass**: Cache disabling affects only data retrieval, not rate limiting or error handling
+- **Performance Awareness**: Users are warned about increased API usage and longer execution times
+- **Consistent Interface**: All commands support the same `--disable-cache` flag with consistent behavior
+- **Logging and Monitoring**: Cache bypass operations are logged for debugging and performance analysis
+- **Configuration Flexibility**: Cache behavior can be configured globally or per-operation
+
+#### Cache Bypass Flow
+```mermaid
+graph TD
+    A[CLI Command with --disable-cache] --> B[Set Cache Bypass Flag]
+    B --> C[GitHub Client API Call]
+    C --> D{Cache Disabled?}
+    D -->|Yes| E[Direct API Call]
+    D -->|No| F[Check Cache First]
+    F --> G{Cache Hit?}
+    G -->|Yes| H[Return Cached Data]
+    G -->|No| I[API Call + Cache Result]
+    E --> J[Log Cache Bypass]
+    I --> K[Log Cache Miss]
+    H --> L[Log Cache Hit]
+    J --> M[Return Fresh Data]
+    K --> M
+    L --> M
+```
+
 ### Pagination Optimization Storage
 ```python
 class PaginationCache:
@@ -622,6 +776,27 @@ class PaginationCache:
     async def load_checkpoint(self, endpoint: str) -> Optional[PaginationCheckpoint]
     async def cleanup_expired_cache(self, max_age_hours: int = 24) -> None
     def get_cache_stats(self) -> CacheStats
+
+class CacheManager:
+    def __init__(self, cache_config: CacheConfig)
+    async def get(self, key: str, disable_cache: bool = False) -> Optional[Any]
+    async def set(self, key: str, value: Any, disable_cache: bool = False) -> None
+    async def invalidate(self, pattern: str) -> None
+    def is_cache_disabled(self) -> bool
+    def set_cache_disabled(self, disabled: bool) -> None
+    def get_cache_statistics(self) -> CacheStatistics
+    def log_cache_operation(self, operation: str, key: str, hit: bool, bypass: bool) -> None
+
+@dataclass
+class CacheStatistics:
+    total_requests: int
+    cache_hits: int
+    cache_misses: int
+    cache_bypasses: int
+    hit_rate: float
+    bypass_rate: float
+    api_calls_saved: int
+    performance_impact_ms: float
 ```
 
 ## Documentation and Evaluation Criteria Design
@@ -680,15 +855,29 @@ The system will include comprehensive documentation of evaluation criteria to en
 
 ### API Token Management
 - Secure storage of GitHub tokens using environment variables
+- Secure storage of OpenAI API keys using environment variables
 - Support for GitHub App authentication for enhanced security
 - Token rotation and validation mechanisms
 - Audit logging for API access
+- OpenAI API key validation and error handling
 
 ### Data Privacy
 - No storage of sensitive repository content
 - Respect private repository access permissions
 - Anonymization options for generated reports
 - Compliance with GitHub's terms of service
+- OpenAI data handling compliance - commit diffs sent to OpenAI for analysis
+- User consent and awareness of external AI processing
+- No persistent storage of AI-generated summaries unless explicitly configured
+- Truncation of large diffs to prevent sensitive data exposure
+
+### AI-Specific Security Considerations
+- API key validation before processing any commits
+- Diff content sanitization to remove potential secrets
+- Rate limiting to prevent excessive API usage and costs
+- Error handling to prevent API key exposure in logs
+- Cost monitoring and usage tracking for transparency
+- Timeout handling to prevent hanging requests
 
 ## Deployment and Distribution
 
@@ -740,9 +929,19 @@ forklift analyze https://github.com/owner/repo --interactive
 # Interactive mode with explanations
 forklift analyze https://github.com/owner/repo --interactive --explain
 
+# Disable caching for fresh data
+forklift analyze https://github.com/owner/repo --disable-cache
+
+# Disable cache with explanations and interactive mode
+forklift analyze https://github.com/owner/repo --disable-cache --explain --interactive
+
 # Step-by-step commands with explanations
 forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --explain
 forklift show-commits https://github.com/fork-owner/repo --branch main --limit 20 --explain
+
+# Step-by-step commands with cache disabled
+forklift show-forks https://github.com/owner/repo --disable-cache
+forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --disable-cache
 
 # With configuration
 forklift analyze --config config.yaml --output report.md

@@ -3,13 +3,14 @@
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from forklift.models.interactive import InteractiveConfig
+from forklift.models.ai_summary import AISummaryConfig
 
 
 class ScoringConfig(BaseModel):
@@ -269,6 +270,7 @@ class ForkliftConfig(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     interactive: InteractiveConfig = Field(default_factory=InteractiveConfig)
+    ai_summary: AISummaryConfig = Field(default_factory=AISummaryConfig)
 
     # Global settings
     debug: bool = Field(default=False, description="Enable debug mode")
@@ -276,6 +278,7 @@ class ForkliftConfig(BaseSettings):
     output_format: str = Field(
         default="markdown", description="Output format (markdown, json, yaml)"
     )
+    openai_api_key: Optional[str] = Field(None, description="OpenAI API key for AI summaries")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -292,6 +295,22 @@ class ForkliftConfig(BaseSettings):
         if v.lower() not in valid_formats:
             raise ValueError(f"Invalid output format. Must be one of: {valid_formats}")
         return v.lower()
+
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai_api_key(cls, v: Optional[str]) -> Optional[str]:
+        """Validate OpenAI API key format."""
+        if v is None:
+            return v
+
+        # OpenAI API keys should start with 'sk-' and be at least 20 characters
+        if not v.startswith("sk-"):
+            raise ValueError("OpenAI API key must start with 'sk-'")
+        
+        if len(v) < 20:
+            raise ValueError("OpenAI API key is too short")
+        
+        return v
 
     @classmethod
     def from_file(cls, config_path: str | Path) -> "ForkliftConfig":
@@ -373,6 +392,7 @@ class ForkliftConfig(BaseSettings):
             "MAX_CONCURRENT_REQUESTS": ("rate_limit", "max_concurrent_requests"),
             "LOG_LEVEL": ("logging", "level"),
             "DEBUG": ("debug",),
+            "OPENAI_API_KEY": ("openai_api_key",),
         }
 
         for env_var, config_path in env_mappings.items():
@@ -430,6 +450,18 @@ class ForkliftConfig(BaseSettings):
 
         try:
             self.github.validate_token_format(self.github.token)
+            return True
+        except ValueError:
+            return False
+
+    def validate_openai_api_key_available(self) -> bool:
+        """Validate that OpenAI API key is available and properly formatted."""
+        if not self.openai_api_key:
+            return False
+
+        try:
+            # Call the class method validator
+            self.__class__.validate_openai_api_key(self.openai_api_key)
             return True
         except ValueError:
             return False

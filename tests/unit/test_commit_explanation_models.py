@@ -415,7 +415,8 @@ class TestCommitExplanation:
             what_changed="Added user authentication system",
             main_repo_value=MainRepoValue.YES,
             explanation="This commit adds a comprehensive user authentication system with JWT tokens.",
-            is_complex=False
+            is_complex=False,
+            github_url="https://github.com/test/repo/commit/a1b2c3d4e5f6789012345678901234567890abcd"
         )
         
         assert explanation.commit_sha == "a1b2c3d4e5f6789012345678901234567890abcd"
@@ -436,7 +437,8 @@ class TestCommitExplanation:
             what_changed="Multiple changes: added auth, fixed bugs, updated docs",
             main_repo_value=MainRepoValue.UNCLEAR,
             explanation="This commit does multiple things at once, making it complex to integrate.",
-            is_complex=True
+            is_complex=True,
+            github_url="https://github.com/test/repo/commit/b2c3d4e5f6789012345678901234567890abcdef"
         )
         
         assert explanation.is_complex is True
@@ -451,7 +453,8 @@ class TestCommitExplanation:
             impact_assessment=sample_impact_assessment,
             what_changed="Fixed critical security vulnerability",
             main_repo_value=MainRepoValue.YES,
-            explanation="This commit fixes a critical security issue in user input validation."
+            explanation="This commit fixes a critical security issue in user input validation.",
+            github_url="https://github.com/test/repo/commit/c3d4e5f6789012345678901234567890abcdef12"
         )
         
         data = explanation.model_dump()
@@ -501,7 +504,8 @@ class TestCommitWithExplanation:
             impact_assessment=impact,
             what_changed="Added authentication system",
             main_repo_value=MainRepoValue.YES,
-            explanation="This commit adds user authentication with JWT tokens."
+            explanation="This commit adds user authentication with JWT tokens.",
+            github_url="https://github.com/test/repo/commit/d4e5f6789012345678901234567890abcdef1234"
         )
 
     def test_commit_with_explanation_creation_with_explanation(self, sample_commit, sample_explanation):

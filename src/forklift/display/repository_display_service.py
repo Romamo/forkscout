@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -12,6 +12,8 @@ from forklift.github.client import GitHubClient
 from forklift.models.analysis import ForkPreviewItem, ForksPreview
 from forklift.models.filters import PromisingForksFilter
 from forklift.models.github import Repository
+from forklift.storage.analysis_cache import AnalysisCacheManager
+from forklift.storage.cache_validation import CacheValidator, CacheValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +21,22 @@ logger = logging.getLogger(__name__)
 class RepositoryDisplayService:
     """Service for displaying repository information in a structured format."""
 
-    def __init__(self, github_client: GitHubClient, console: Console | None = None):
+    def __init__(
+        self, 
+        github_client: GitHubClient, 
+        console: Console | None = None,
+        cache_manager: Optional[AnalysisCacheManager] = None
+    ):
         """Initialize the repository display service.
 
         Args:
             github_client: GitHub API client for fetching data
             console: Rich console for output (optional, creates new if None)
+            cache_manager: Cache manager for caching repository data (optional)
         """
         self.github_client = github_client
         self.console = console or Console()
+        self.cache_manager = cache_manager
 
     async def list_forks_preview(self, repo_url: str) -> dict[str, Any]:
         """Display a lightweight preview of repository forks using minimal API calls.
@@ -111,7 +120,7 @@ class RepositoryDisplayService:
             raise
 
     async def show_repository_details(self, repo_url: str) -> dict[str, Any]:
-        """Display detailed repository information.
+        """Display detailed repository information with caching support.
 
         Args:
             repo_url: Repository URL in format owner/repo or full GitHub URL
@@ -128,6 +137,71 @@ class RepositoryDisplayService:
         logger.info(f"Fetching repository details for {owner}/{repo_name}")
 
         try:
+            # Try to get from cache first if cache manager is available
+            cached_details = None
+            if self.cache_manager:
+                try:
+                    cached_data = await self.cache_manager.get_repository_metadata(owner, repo_name)
+                    if cached_data:
+                        logger.info(f"Using cached repository details for {owner}/{repo_name}")
+                        
+                        # Validate cached data before reconstruction
+                        try:
+                            CacheValidator.validate_repository_reconstruction(cached_data["repository_data"])
+                        except CacheValidationError as e:
+                            logger.warning(f"Cache validation failed for {owner}/{repo_name}: {e}")
+                            # Fall through to fetch from API
+                            cached_data = None
+                        
+                        if cached_data:
+                            # Reconstruct Repository object from cached data
+                            repo_data = cached_data["repository_data"]
+                            repository = Repository(
+                                id=repo_data.get("id"),  # May not be cached
+                                name=repo_data["name"],
+                                owner=repo_data["owner"],
+                                full_name=repo_data["full_name"],
+                                url=repo_data.get("url", f"https://github.com/{repo_data['full_name']}"),
+                                html_url=repo_data.get("html_url", f"https://github.com/{repo_data['full_name']}"),
+                                clone_url=repo_data.get("clone_url", f"https://github.com/{repo_data['full_name']}.git"),
+                                description=repo_data.get("description"),
+                                language=repo_data.get("language"),
+                                stars=repo_data.get("stars", 0),
+                                forks_count=repo_data.get("forks_count", 0),
+                                watchers_count=repo_data.get("watchers_count", 0),
+                                open_issues_count=repo_data.get("open_issues_count", 0),
+                                size=repo_data.get("size", 0),
+                                topics=cached_data.get("topics", []),  # Add topics from cache
+                                license_name=repo_data.get("license_name"),
+                                default_branch=repo_data.get("default_branch", "main"),
+                                is_private=repo_data.get("is_private", False),
+                                is_fork=repo_data.get("is_fork", False),
+                                is_archived=repo_data.get("is_archived", False),
+                                created_at=datetime.fromisoformat(repo_data["created_at"]) if repo_data.get("created_at") else None,
+                                updated_at=datetime.fromisoformat(repo_data["updated_at"]) if repo_data.get("updated_at") else None,
+                                pushed_at=datetime.fromisoformat(repo_data["pushed_at"]) if repo_data.get("pushed_at") else None,
+                            )
+                            
+                            # Reconstruct the full repo_details structure
+                            cached_details = {
+                                "repository": repository,
+                                "languages": cached_data["languages"],
+                                "topics": cached_data["topics"],
+                                "primary_language": cached_data["primary_language"],
+                                "license": cached_data["license"],
+                                "last_activity": cached_data["last_activity"],
+                                "created": cached_data["created"],
+                                "updated": cached_data["updated"]
+                            }
+                            
+                            # Display the cached information
+                            self._display_repository_table(cached_details)
+                            return cached_details
+                except Exception as e:
+                    logger.warning(f"Failed to get cached repository details: {e}")
+                    # Continue to fetch from API
+
+            # Fetch from GitHub API if not in cache
             repository = await self.github_client.get_repository(owner, repo_name)
 
             # Get additional information
@@ -145,6 +219,54 @@ class RepositoryDisplayService:
                 "created": self._format_datetime(repository.created_at),
                 "updated": self._format_datetime(repository.updated_at)
             }
+
+            # Cache the results if cache manager is available
+            if self.cache_manager:
+                try:
+                    # Create a serializable version for caching
+                    cacheable_details = {
+                        "repository_data": {
+                            "id": repository.id,
+                            "name": repository.name,
+                            "owner": repository.owner,
+                            "full_name": repository.full_name,
+                            "url": repository.url,
+                            "html_url": repository.html_url,
+                            "clone_url": repository.clone_url,
+                            "description": repository.description,
+                            "language": repository.language,
+                            "stars": repository.stars,
+                            "forks_count": repository.forks_count,
+                            "watchers_count": repository.watchers_count,
+                            "open_issues_count": repository.open_issues_count,
+                            "size": repository.size,
+                            "license_name": repository.license_name,
+                            "default_branch": repository.default_branch,
+                            "is_private": repository.is_private,
+                            "is_fork": repository.is_fork,
+                            "is_archived": repository.is_archived,
+                            "created_at": repository.created_at.isoformat() if repository.created_at else None,
+                            "updated_at": repository.updated_at.isoformat() if repository.updated_at else None,
+                            "pushed_at": repository.pushed_at.isoformat() if repository.pushed_at else None,
+                        },
+                        "languages": languages,
+                        "topics": topics,
+                        "primary_language": repository.language or "Not specified",
+                        "license": repository.license_name or "No license",
+                        "last_activity": self._format_datetime(repository.pushed_at),
+                        "created": self._format_datetime(repository.created_at),
+                        "updated": self._format_datetime(repository.updated_at)
+                    }
+                    
+                    await self.cache_manager.cache_repository_metadata(
+                        owner, 
+                        repo_name, 
+                        cacheable_details,
+                        ttl_hours=24  # Cache for 24 hours
+                    )
+                    logger.info(f"Cached repository details for {owner}/{repo_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache repository details: {e}")
 
             # Display the information
             self._display_repository_table(repo_details)

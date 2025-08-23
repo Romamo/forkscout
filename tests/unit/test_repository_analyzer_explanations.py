@@ -264,7 +264,8 @@ class TestRepositoryAnalyzerExplanations:
                 ),
                 what_changed="user authentication system",
                 main_repo_value=MainRepoValue.YES,
-                explanation="This commit adds user authentication system. This could be useful for the main repository."
+                explanation="This commit adds user authentication system. This could be useful for the main repository.",
+                github_url=f"https://github.com/forkowner/testrepo/commit/{sample_commits[0].sha}"
             )
         ]
         
@@ -313,7 +314,8 @@ class TestRepositoryAnalyzerExplanations:
                 ),
                 what_changed="user authentication system",
                 main_repo_value=MainRepoValue.YES,
-                explanation="This commit adds user authentication system."
+                explanation="This commit adds user authentication system.",
+                github_url=f"https://github.com/forkowner/testrepo/commit/{sample_commits[0].sha}"
             )
         ]
         

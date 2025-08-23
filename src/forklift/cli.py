@@ -38,6 +38,7 @@ from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
 from forklift.models.github import Commit
 from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
+from forklift.storage.analysis_cache import AnalysisCacheManager
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -1144,25 +1145,43 @@ async def _show_repository_details(
     repository_url: str,
     verbose: bool
 ) -> None:
-    """Show repository details using the display service.
+    """Show repository details using the display service with caching.
 
     Args:
         config: Forklift configuration
         repository_url: Repository URL to display
         verbose: Whether to show verbose output
     """
-    async with GitHubClient(config.github) as github_client:
-        display_service = RepositoryDisplayService(github_client, console)
+    # Initialize cache manager
+    cache_manager = None
+    try:
+        cache_manager = AnalysisCacheManager()
+        await cache_manager.initialize()
+    except Exception as e:
+        logger.warning(f"Failed to initialize cache manager: {e}")
+        # Continue without cache
 
-        try:
-            repo_details = await display_service.show_repository_details(repository_url)
+    try:
+        async with GitHubClient(config.github) as github_client:
+            display_service = RepositoryDisplayService(github_client, console, cache_manager)
 
-            if verbose:
-                console.print("\n[green]✓ Repository details displayed successfully[/green]")
+            try:
+                repo_details = await display_service.show_repository_details(repository_url)
 
-        except Exception as e:
-            logger.error(f"Failed to display repository details: {e}")
-            raise CLIError(f"Failed to display repository details: {e}")
+                if verbose:
+                    console.print("\n[green]✓ Repository details displayed successfully[/green]")
+
+            except Exception as e:
+                logger.error(f"Failed to display repository details: {e}")
+                raise CLIError(f"Failed to display repository details: {e}")
+
+    finally:
+        # Clean up cache manager
+        if cache_manager:
+            try:
+                await cache_manager.close()
+            except Exception as e:
+                logger.warning(f"Failed to close cache manager: {e}")
 
 
 async def _list_forks_preview(

@@ -8,6 +8,7 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 
 ## Example repositories not for testing but for production use with multiple valuable forks
 https://github.com/aarigs/pandas-ta/network
+https://github.com/xgboosted/pandas-ta-classic
 
 ## Requirements
 
@@ -230,3 +231,42 @@ https://github.com/aarigs/pandas-ta/network
 13. WHEN each step completes THEN the system SHALL display step results and metrics before requesting confirmation to proceed
 14. WHEN interactive analysis is interrupted THEN the system SHALL provide options to resume from the last completed step
 15. WHEN user chooses to abort THEN the system SHALL provide a summary of all completed steps and their results
+
+### Requirement 16
+
+**User Story:** As a repository maintainer, I want to disable caching for analysis operations, so that I can ensure fresh data retrieval and bypass potentially stale cached results when needed.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift analyze <repo-url> --disable-cache` THEN the system SHALL bypass all caching mechanisms and fetch fresh data from GitHub API
+2. WHEN --disable-cache flag is provided THEN the system SHALL not read from existing cache entries for repository, fork, or commit data
+3. WHEN --disable-cache flag is provided THEN the system SHALL not write new data to cache during the analysis process
+4. WHEN using --disable-cache THEN the system SHALL display a warning that analysis may take longer due to increased API calls
+5. WHEN --disable-cache is combined with other flags THEN the system SHALL respect the cache bypass for all operations including explanations and interactive mode
+6. WHEN --disable-cache is used with step-by-step commands THEN the system SHALL bypass cache for show-forks, show-commits, and analyze-fork commands
+7. WHEN cache is disabled THEN the system SHALL still respect GitHub API rate limits and implement appropriate backoff strategies
+8. WHEN analysis completes with --disable-cache THEN the system SHALL provide timing information showing the impact of bypassing cache
+9. WHEN --disable-cache is used THEN the system SHALL log cache bypass operations for debugging and performance analysis
+10. WHEN cache is disabled THEN the system SHALL ensure all data is fetched fresh while maintaining data consistency throughout the analysis
+
+### Requirement 17
+
+**User Story:** As a repository maintainer, I want AI-powered commit summaries using OpenAI GPT-4 mini, so that I can get clear, human-readable explanations of what each commit does and its potential impact on my repository.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-commits <fork-url> --branch <branch-name> --ai-summary` THEN the system SHALL generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
+2. WHEN generating AI summaries THEN the system SHALL use the prompt "You are a senior developer. Summarize the following Git commit into a clear, human-readable explanation. Include: - What changed - Why it changed - Potential side effects or considerations"
+3. WHEN creating AI summaries THEN the system SHALL include both the commit message and diff text in the analysis
+4. WHEN AI summary generation is enabled THEN the system SHALL display commit SHA, GitHub URL, original commit message, and AI-generated summary
+5. WHEN using --ai-summary flag THEN the system SHALL require OPENAI_API_KEY environment variable to be set
+6. WHEN OpenAI API key is missing THEN the system SHALL display a clear error message and exit gracefully
+7. WHEN AI summary generation fails for a commit THEN the system SHALL log the error and continue with remaining commits
+8. WHEN generating AI summaries THEN the system SHALL respect OpenAI API rate limits and implement appropriate backoff strategies
+9. WHEN AI summaries are requested THEN the system SHALL truncate large diffs to stay within OpenAI token limits (max 8000 characters)
+10. WHEN displaying AI summaries THEN the system SHALL format output with clear visual separation between original commit data and AI analysis
+11. WHEN --ai-summary is combined with other flags THEN the system SHALL work with --disable-cache, --limit, and other existing options
+12. WHEN AI summary generation is enabled THEN the system SHALL provide progress indicators showing summary generation status
+13. WHEN using AI summaries THEN the system SHALL log API usage statistics for monitoring and cost tracking
+14. WHEN AI summary fails due to API errors THEN the system SHALL provide helpful error messages distinguishing between authentication, rate limiting, and other API issues
+15. WHEN generating summaries THEN the system SHALL use GPT-4 mini model specifically for cost efficiency while maintaining quality

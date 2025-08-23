@@ -289,7 +289,7 @@
   - Write integration tests for enhanced CLI output
   - _Requirements: 12.2, 12.3, 12.6_
 
-- [ ] 9. Implement caching and storage layer
+- [x] 9. Implement caching and storage layer
 - [x] 9.1 Create SQLite-based caching system
   - Implement database schema for caching fork analysis results
   - Add cache invalidation based on repository activity
@@ -297,7 +297,7 @@
   - Write tests for cache operations and data persistence
   - _Requirements: 1.5, 6.3_
 
-- [-] 9.2 Add cache management features
+- [x] 9.2 Add cache management features
   - Implement cache warming for frequently analyzed repositories
   - Add cache cleanup and maintenance operations
   - Create cache statistics and monitoring capabilities
@@ -478,3 +478,133 @@
   - Implement graceful abort handling with summary of completed work
   - Write unit tests for session management and completion summary generation
   - _Requirements: 15.13, 15.14, 15.15_
+
+- [ ] 15. Implement cache disabling functionality for fresh data retrieval
+- [ ] 15.1 Add cache bypass infrastructure to core components
+  - Create CacheBypassManager class to handle cache disabling logic
+  - Add disable_cache parameter to GitHubClient methods for API calls
+  - Update CacheManager to support bypass mode that skips read/write operations
+  - Add cache bypass logging and statistics tracking
+  - Write unit tests for cache bypass functionality and logging
+  - _Requirements: 16.2, 16.3, 16.9_
+
+- [ ] 15.2 Enhance GitHub client with cache disabling support
+  - Add disable_cache parameter to all GitHub API methods (get_repository, get_forks, get_commits_ahead)
+  - Implement cache bypass logic in _get_with_cache method
+  - Add cache operation logging for debugging and performance analysis
+  - Update pagination methods to support cache disabling
+  - Write unit tests for GitHub client cache bypass functionality
+  - _Requirements: 16.1, 16.2, 16.3, 16.7_
+
+- [ ] 15.3 Update analysis services with cache disabling support
+  - Add disable_cache parameter to ForkDiscoveryService methods
+  - Update RepositoryAnalyzer to support cache bypass for fork analysis
+  - Modify RepositoryDisplayService and InteractiveAnalyzer to handle cache disabling
+  - Add cache bypass support to InteractiveAnalysisOrchestrator
+  - Write unit tests for analysis services with cache disabled
+  - _Requirements: 16.5, 16.6_
+
+- [ ] 15.4 Add --disable-cache CLI flag to all relevant commands
+  - Add --disable-cache flag to main analyze command
+  - Update step-by-step commands (show-forks, show-commits, analyze-fork) with cache disabling
+  - Implement cache bypass warning messages for user awareness
+  - Add timing information display when cache is disabled
+  - Write integration tests for all CLI commands with --disable-cache flag
+  - _Requirements: 16.1, 16.4, 16.6, 16.8_
+
+- [ ] 15.5 Implement cache configuration and performance monitoring
+  - Create CacheConfig model with cache disabling and logging options
+  - Add cache bypass statistics collection and reporting
+  - Implement performance impact measurement for cache-disabled operations
+  - Add configuration options for cache bypass behavior
+  - Write unit tests for cache configuration and performance monitoring
+  - _Requirements: 16.8, 16.9, 16.10_
+
+- [ ] 15.6 Add comprehensive testing for cache disabling functionality
+  - Write integration tests for cache bypass with real GitHub API calls
+  - Create performance comparison tests between cached and non-cached operations
+  - Add tests for cache bypass with interactive mode and explanations
+  - Implement error handling tests for cache bypass scenarios
+  - Write end-to-end tests for complete analysis workflow with cache disabled
+  - _Requirements: 16.1, 16.5, 16.7, 16.10_
+
+- [-] 16. Implement AI-powered commit summaries using OpenAI GPT-4 mini
+- [-] 16.1 Create core AI summary data models and configuration
+  - Implement AISummary Pydantic model with structured summary fields (what_changed, why_changed, potential_side_effects)
+  - Create AISummaryConfig model with OpenAI API settings, token limits, and cost tracking options
+  - Add openai_api_key field to ForkliftConfig with optional validation
+  - Update CommitDetails model to include optional ai_summary field
+  - Write unit tests for all new data models including validation and serialization
+  - _Requirements: 17.3, 17.5, 17.9, 17.13_
+
+- [ ] 16.2 Implement OpenAI client wrapper with error handling
+  - Create OpenAIClient class with async HTTP client for GPT-4 mini API calls
+  - Implement API key validation and authentication handling
+  - Add rate limiting and retry logic with exponential backoff for API errors
+  - Create timeout handling and request cancellation for long-running requests
+  - Write unit tests for OpenAI client with mocked API responses and error scenarios
+  - _Requirements: 17.5, 17.6, 17.8, 17.14_
+
+- [ ] 16.3 Build AI commit summary engine with prompt generation
+  - Implement AICommitSummaryEngine class to orchestrate summary generation workflow
+  - Create structured prompt generation using the specified template for commit analysis
+  - Add diff truncation logic to stay within OpenAI token limits (8000 characters max)
+  - Implement batch processing for multiple commits with rate limit management
+  - Write unit tests for prompt generation, diff truncation, and batch processing logic
+  - _Requirements: 17.2, 17.9, 17.12_
+
+- [ ] 16.4 Add comprehensive error handling for AI operations
+  - Create OpenAIErrorHandler class for different API error types (authentication, rate limits, timeouts)
+  - Implement graceful degradation when AI summary generation fails for individual commits
+  - Add detailed error logging with context while protecting API key information
+  - Create user-friendly error messages distinguishing between different failure types
+  - Write unit tests for error handling scenarios and recovery mechanisms
+  - _Requirements: 17.6, 17.7, 17.14_
+
+- [ ] 16.5 Enhance show-commits command with AI summary support
+  - Add --ai-summary flag to show-commits CLI command
+  - Update RepositoryDisplayService to integrate AICommitSummaryEngine
+  - Implement AI summary generation workflow within existing commit display logic
+  - Add progress indicators for AI summary generation with batch processing status
+  - Write integration tests for show-commits command with --ai-summary flag
+  - _Requirements: 17.1, 17.4, 17.12_
+
+- [ ] 16.6 Implement AI summary display formatting and output
+  - Create formatted display for commits with AI summaries using Rich library
+  - Add visual separation between original commit data and AI-generated analysis
+  - Implement structured display showing what changed, why changed, and potential side effects
+  - Add compatibility with existing flags (--disable-cache, --limit) and error handling
+  - Write unit tests for AI summary formatting and visual consistency
+  - _Requirements: 17.10, 17.11_
+
+- [ ] 16.7 Add usage tracking and cost monitoring for AI operations
+  - Implement API usage statistics collection (tokens used, requests made, estimated costs)
+  - Add cost tracking and reporting for transparency in AI API usage
+  - Create configuration options for cost limits and usage monitoring
+  - Add logging for AI operations with performance metrics and usage data
+  - Write unit tests for usage tracking and cost calculation accuracy
+  - _Requirements: 17.13, 17.15_
+
+- [ ] 16.8 Create comprehensive testing suite for AI functionality
+  - Write unit tests for all AI summary components with mocked OpenAI responses
+  - Create integration tests with real OpenAI API calls (marked as billable tests)
+  - Add error scenario testing for API failures, rate limits, and authentication issues
+  - Implement performance tests for batch processing and large commit sets
+  - Write end-to-end tests for complete AI summary workflow with real repository data
+  - _Requirements: 17.1, 17.7, 17.8, 17.14_
+
+- [ ] 16.9 Add AI summary configuration and environment setup
+  - Create environment variable validation for OPENAI_API_KEY requirement
+  - Add configuration file support for AI summary settings and preferences
+  - Implement runtime configuration validation and helpful setup guidance
+  - Create documentation for AI summary setup and usage with cost considerations
+  - Write tests for configuration loading and environment variable handling
+  - _Requirements: 17.5, 17.6_
+
+- [ ] 16.10 Finalize AI summary integration and documentation
+  - Update CLI help documentation to include --ai-summary flag and usage examples
+  - Create comprehensive README section explaining AI summary functionality and costs
+  - Add troubleshooting guide for common AI summary issues and API errors
+  - Implement final integration testing with existing forklift commands and workflows
+  - Write performance benchmarks and cost analysis for AI summary usage
+  - _Requirements: 17.1, 17.11, 17.13, 17.15_
