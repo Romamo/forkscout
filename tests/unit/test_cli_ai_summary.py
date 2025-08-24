@@ -337,9 +337,6 @@ class TestShowCommitsAISummary:
         error_summary = AISummary(
             commit_sha="abc123def456789012345678901234567890abcd",
             summary_text="",
-            what_changed="",
-            why_changed="",
-            potential_side_effects="",
             error="API rate limit exceeded"
         )
         mock_summary_engine.generate_batch_summaries.return_value = [error_summary]

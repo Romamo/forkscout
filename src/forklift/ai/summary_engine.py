@@ -91,6 +91,25 @@ Diff:
         truncated = diff_text[:max_chars - 50]  # Leave room for truncation message
         return truncated + "\n\n[... diff truncated for length ...]"
 
+    def _parse_summary_response(self, response_text: str) -> str:
+        """Parse AI response and return single summary text only.
+
+        This method ensures that AI responses are simplified to contain only
+        the core summary text without any structured sections or verbose formatting.
+
+        Args:
+            response_text: Raw response text from OpenAI API
+
+        Returns:
+            Cleaned summary text as a single string
+        """
+        if not response_text:
+            return ""
+
+        # Simply strip whitespace and return the text as-is
+        # No structured parsing of sections like what_changed, why_changed, etc.
+        return response_text.strip()
+
     async def generate_commit_summary(
         self,
         commit: Commit,
@@ -208,9 +227,12 @@ Diff:
                     f"Cost: ${actual_cost:.4f}"
                 )
 
+            # Parse the response to ensure simplified format
+            parsed_summary = self._parse_summary_response(response.text)
+
             return AISummary(
                 commit_sha=commit.sha,
-                summary_text=response.text.strip(),
+                summary_text=parsed_summary,
                 model_used=response.model,
                 tokens_used=total_tokens,
                 processing_time_ms=processing_time

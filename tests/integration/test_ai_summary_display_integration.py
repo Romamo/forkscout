@@ -42,9 +42,6 @@ class TestAISummaryDisplayIntegration:
             summary = AISummary(
                 commit_sha=commit.sha,
                 summary_text=f"Implemented feature {i} with comprehensive functionality",
-                what_changed=f"Added new feature {i} with proper error handling and validation",
-                why_changed=f"To provide users with feature {i} capability for better workflow",
-                potential_side_effects=f"May impact performance in feature {i} related operations",
                 model_used="gpt-4o-mini",
                 tokens_used=200 + i * 25,
                 processing_time_ms=1000.0 + i * 200
@@ -71,10 +68,9 @@ class TestAISummaryDisplayIntegration:
             assert f"developer{i-1}" in output  # Fix off-by-one error (i starts at 1, but developer starts at 0)
             assert f"feat: implement feature {i-1}" in output
         
-        # Verify AI analysis sections are present
-        assert "What Changed" in output
-        assert "Why Changed" in output
-        assert "Potential Impact" in output
+        # Verify AI summary is present (simplified format)
+        assert "🤖 AI Summary" in output
+        assert "Implemented feature" in output  # Part of summary text
         
         # Verify metadata is shown
         assert "ms" in output  # Processing time
@@ -98,9 +94,7 @@ class TestAISummaryDisplayIntegration:
         assert "Commit" in output
         assert "Author" in output
         assert "Message" in output
-        assert "What Changed" in output
-        assert "Why" in output
-        assert "Impact" in output
+        assert "AI Summary" in output  # Column header for simplified summaries
         assert "Meta" in output
         
         # Verify all commits are in table
@@ -120,11 +114,9 @@ class TestAISummaryDisplayIntegration:
         
         output = console.file.getvalue()
         
-        # Verify structured sections
+        # Verify simplified structured display
         assert "Structured AI Commit Analysis" in output
-        assert "What Changed:" in output
-        assert "Why Changed:" in output
-        assert "Potential Impact:" in output
+        assert "🤖 AI Summary" in output  # Simplified summary section
         
         # Verify commit information
         for commit in commits:
@@ -155,9 +147,6 @@ class TestAISummaryDisplayIntegration:
         error_summary = AISummary(
             commit_sha=commit.sha,
             summary_text="",
-            what_changed="",
-            why_changed="",
-            potential_side_effects="",
             error="OpenAI API rate limit exceeded"
         )
         
@@ -251,9 +240,7 @@ class TestAISummaryDisplayIntegration:
         # Verify clear separation between commit info and AI analysis
         assert "📝" in output  # Commit message indicator
         assert "🔄" in output  # Changes indicator
-        assert "🔍 What Changed" in output  # AI analysis section
-        assert "💡 Why Changed" in output  # AI analysis section
-        assert "⚠️  Potential Impact" in output  # AI analysis section
+        assert "🤖 AI Summary" in output  # Simplified AI analysis section
         
         # Verify panels are used for visual separation (Rich uses different box styles)
         assert any(char in output for char in ["┌", "┏", "╭", "╔"])  # Panel top borders
@@ -282,9 +269,6 @@ class TestAISummaryDisplayIntegration:
         summaries[1] = AISummary(
             commit_sha=commits[1].sha,
             summary_text="",
-            what_changed="",
-            why_changed="",
-            potential_side_effects="",
             error="Network timeout"
         )
         
@@ -296,6 +280,6 @@ class TestAISummaryDisplayIntegration:
         output = console.file.getvalue()
         
         # Should show both successful and error summaries
-        assert "What Changed" in output  # From successful summaries
+        assert "🤖 AI Summary" in output  # From successful summaries
         assert "AI Analysis Error" in output  # From error summary
         assert "Network timeout" in output  # Error message

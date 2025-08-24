@@ -603,6 +603,99 @@ class TestAICommitSummaryEngine:
         assert double_cost > single_cost
         assert double_cost >= single_cost * 1.8  # Allow some variance
 
+    def test_parse_summary_response_simple_text(self):
+        """Test parsing simple summary response text."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Test simple text
+        response_text = "This commit adds user authentication functionality."
+        parsed = engine._parse_summary_response(response_text)
+        
+        assert parsed == "This commit adds user authentication functionality."
+
+    def test_parse_summary_response_with_whitespace(self):
+        """Test parsing response with leading/trailing whitespace."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Test text with whitespace
+        response_text = "  \n  This commit fixes a bug in the login system.  \n  "
+        parsed = engine._parse_summary_response(response_text)
+        
+        assert parsed == "This commit fixes a bug in the login system."
+
+    def test_parse_summary_response_empty_text(self):
+        """Test parsing empty response text."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Test empty text
+        parsed = engine._parse_summary_response("")
+        assert parsed == ""
+        
+        # Test None
+        parsed = engine._parse_summary_response(None)
+        assert parsed == ""
+
+    def test_parse_summary_response_multiline_text(self):
+        """Test parsing multiline response text."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Test multiline text (should be preserved as-is after stripping)
+        response_text = "This commit adds authentication.\nIt includes JWT token support.\nUsers can now log in securely."
+        parsed = engine._parse_summary_response(response_text)
+        
+        assert parsed == "This commit adds authentication.\nIt includes JWT token support.\nUsers can now log in securely."
+
+    def test_parse_summary_response_no_structured_parsing(self):
+        """Test that structured content is not parsed into sections."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Test text that looks like structured format but should be treated as plain text
+        response_text = """What changed: Added user authentication
+Why changed: To improve security
+Potential side effects: May require users to re-login"""
+        
+        parsed = engine._parse_summary_response(response_text)
+        
+        # Should return the entire text as-is, not parse it into sections
+        assert "What changed: Added user authentication" in parsed
+        assert "Why changed: To improve security" in parsed
+        assert "Potential side effects: May require users to re-login" in parsed
+        assert parsed == response_text.strip()
+
+    @pytest.mark.asyncio
+    async def test_generate_commit_summary_uses_parse_method(self):
+        """Test that commit summary generation uses the parse method."""
+        mock_client = AsyncMock(spec=OpenAIClient)
+        
+        # Mock successful API response with whitespace
+        mock_response = OpenAIResponse(
+            text="  This commit adds authentication functionality.  \n",
+            usage={"total_tokens": 100, "prompt_tokens": 70, "completion_tokens": 30},
+            model="gpt-4o-mini",
+            finish_reason="stop"
+        )
+        mock_client.create_completion_with_retry.return_value = mock_response
+        
+        engine = AICommitSummaryEngine(mock_client)
+        
+        commit = self.create_test_commit(
+            sha_suffix="parse",
+            message="Add authentication",
+            author_name="Test Author"
+        )
+        diff_text = "test diff content"
+        
+        summary = await engine.generate_commit_summary(commit, diff_text)
+        
+        # Verify the response was parsed (whitespace stripped)
+        assert summary.summary_text == "This commit adds authentication functionality."
+        assert summary.commit_sha == commit.sha
+
     @pytest.mark.asyncio
     async def test_generate_commit_summary_compact_mode_token_limit(self):
         """Test that compact mode uses reduced token limits."""

@@ -384,9 +384,6 @@ class TestAISummaryDisplayFormatter:
             summary = AISummary(
                 commit_sha=f"abc123def45{i}" + "0" * (40 - len(f"abc123def45{i}")),
                 summary_text=f"Added feature {i}",
-                what_changed=f"Implemented feature {i} functionality",
-                why_changed=f"To provide feature {i} capability",
-                potential_side_effects=f"May affect feature {i} performance",
                 model_used="gpt-4o-mini",
                 tokens_used=200 + i * 10,
                 processing_time_ms=1000.0 + i * 100
