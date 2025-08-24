@@ -15,6 +15,7 @@ from ..models.analysis import (
 )
 from ..models.github import Commit
 from .github_link_generator import GitHubLinkGenerator
+from .simple_table_formatter import SimpleTableFormatter
 
 
 class ExplanationFormatter:
@@ -73,17 +74,20 @@ class ExplanationFormatter:
         MainRepoValue.UNCLEAR: "yellow",
     }
 
-    def __init__(self, use_colors: bool = True, use_icons: bool = True):
+    def __init__(self, use_colors: bool = True, use_icons: bool = True, use_simple_tables: bool = False):
         """
         Initialize the formatter.
         
         Args:
             use_colors: Whether to use color coding
             use_icons: Whether to use icons for visual identification
+            use_simple_tables: Whether to use simple ASCII tables instead of Rich tables
         """
         self.use_colors = use_colors
         self.use_icons = use_icons
+        self.use_simple_tables = use_simple_tables
         self.console = Console()
+        self.simple_formatter = SimpleTableFormatter()
 
     def format_commit_explanation(
         self, commit: Commit, explanation: CommitExplanation, github_url: str
@@ -135,7 +139,7 @@ class ExplanationFormatter:
 
     def format_explanation_table(
         self, explanations: list[CommitWithExplanation]
-    ) -> Table:
+    ) -> Table | str:
         """
         Format multiple commit explanations as a table.
         
@@ -143,8 +147,11 @@ class ExplanationFormatter:
             explanations: List of commits with explanations
             
         Returns:
-            Rich Table object for display
+            Rich Table object or simple ASCII table string for display
         """
+        if self.use_simple_tables:
+            return self._format_explanation_table_simple(explanations)
+        
         table = Table(title="Commit Explanations", show_header=True, header_style="bold magenta")
 
         # Add columns
@@ -193,6 +200,54 @@ class ExplanationFormatter:
             )
 
         return table
+
+    def _format_explanation_table_simple(
+        self, explanations: list[CommitWithExplanation]
+    ) -> str:
+        """
+        Format multiple commit explanations as a simple ASCII table.
+        
+        Args:
+            explanations: List of commits with explanations
+            
+        Returns:
+            Simple ASCII table string for display
+        """
+        table_data = []
+        
+        for commit_with_explanation in explanations:
+            commit = commit_with_explanation.commit
+            explanation = commit_with_explanation.explanation
+
+            if explanation is None:
+                # Handle missing explanation
+                table_data.append([
+                    commit.sha[:8],
+                    "[OTHER] Unknown",
+                    "[UNCLEAR]",
+                    "[UNCLEAR]",
+                    "No explanation available",
+                    "N/A"
+                ])
+                continue
+
+            # Create formatted explanation
+            formatted = self.create_formatted_explanation(explanation, explanation.github_url)
+
+            # Simple link display
+            link_display = "Link"
+
+            # Add row to table data
+            table_data.append([
+                commit.sha[:8],
+                self._strip_rich_formatting(formatted.category_display),
+                self._strip_rich_formatting(formatted.impact_indicator),
+                self._strip_rich_formatting(self._format_value_indicator(explanation.main_repo_value)),
+                formatted.description[:50] + ("..." if len(formatted.description) > 50 else ""),
+                link_display
+            ])
+
+        return self.simple_formatter.format_commit_explanations_table(table_data)
 
     def create_formatted_explanation(
         self, explanation: CommitExplanation, github_url: str
@@ -345,4 +400,28 @@ class ExplanationFormatter:
             explanations: List of commits with explanations
         """
         table = self.format_explanation_table(explanations)
-        self.console.print(table)
+        if isinstance(table, str):
+            # Simple ASCII table
+            print(table)
+        else:
+            # Rich table
+            self.console.print(table)
+
+    def _strip_rich_formatting(self, text: str) -> str:
+        """
+        Strip Rich formatting codes from text.
+        
+        Args:
+            text: Text that may contain Rich formatting
+            
+        Returns:
+            Plain text without formatting codes
+        """
+        if not isinstance(text, str):
+            return str(text)
+        
+        # Remove Rich markup patterns like [color]text[/color]
+        import re
+        # Remove [style] and [/style] patterns
+        text = re.sub(r'\[/?[^\]]*\]', '', text)
+        return text

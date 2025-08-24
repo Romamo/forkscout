@@ -265,7 +265,7 @@ class DetailedCommitDisplay:
         
         return Panel(
             content,
-            title="[bold green]🤖 AI Summary[/bold green]",
+            title="[bold green]AI Summary[/bold green]",
             border_style="green",
             padding=(0, 1)
         )

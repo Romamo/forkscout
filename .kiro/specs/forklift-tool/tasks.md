@@ -529,7 +529,7 @@
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
 - [ ] 17. Fix immediate console formatting issues and implement simple, compatible formatting as default
-- [ ] 17.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
+- [-] 17.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
   - Replace all emoji characters (📝, ❓, 🟢, ❔) with simple text labels in commit explanations
   - Fix Unicode table borders that display as literal characters in some terminals
   - Update ExplanationFormatter to use ASCII characters instead of Unicode box drawing

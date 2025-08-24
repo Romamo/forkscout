@@ -220,7 +220,7 @@ def display_commit_explanations(fork_analyses: list, explain: bool) -> None:
     console.print("\n[bold blue]Commit Explanations[/bold blue]")
     console.print("=" * 60)
 
-    formatter = ExplanationFormatter(use_colors=True, use_icons=True)
+    formatter = ExplanationFormatter(use_colors=True, use_icons=True, use_simple_tables=True)
     total_explanations = 0
 
     for fork_analysis in fork_analyses:
@@ -255,7 +255,12 @@ def display_commit_explanations(fork_analyses: list, explain: bool) -> None:
         if commits_with_explanations:
             # Use the formatter to display explanations as a table
             table = formatter.format_explanation_table(commits_with_explanations)
-            console.print(table)
+            if isinstance(table, str):
+                # Simple ASCII table
+                print(table)
+            else:
+                # Rich table
+                console.print(table)
             total_explanations += len(commits_with_explanations)
 
         console.print()  # Empty line between forks
@@ -1972,7 +1977,7 @@ async def _display_commit_explanations_for_commits(
 
         # Create explanation engine and formatter
         explanation_engine = CommitExplanationEngine()
-        formatter = ExplanationFormatter(use_colors=True, use_icons=True)
+        formatter = ExplanationFormatter(use_colors=True, use_icons=True, use_simple_tables=True)
 
         # Generate explanations for commits
         commits_with_explanations = []
@@ -1995,7 +2000,12 @@ async def _display_commit_explanations_for_commits(
         if commits_with_explanations:
             # Display explanations using the formatter
             table = formatter.format_explanation_table(commits_with_explanations)
-            console.print(table)
+            if isinstance(table, str):
+                # Simple ASCII table
+                print(table)
+            else:
+                # Rich table
+                console.print(table)
 
             successful_explanations = sum(1 for c in commits_with_explanations if c.explanation is not None)
             console.print(f"\n[green]✓ Generated {successful_explanations}/{len(commits)} commit explanations[/green]")
@@ -2034,7 +2044,7 @@ async def _display_ai_summaries_for_commits(
     from forklift.models.github import Repository
 
     mode_text = " (Compact Mode)" if compact_mode else ""
-    console.print(f"\n[bold blue]🤖 AI-Powered Commit Summaries{mode_text}[/bold blue]")
+    console.print(f"\n[bold blue]AI-Powered Commit Summaries{mode_text}[/bold blue]")
     console.print("=" * 60)
 
     if disable_cache:

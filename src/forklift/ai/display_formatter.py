@@ -42,7 +42,7 @@ class AISummaryDisplayFormatter:
             self.console.print("[yellow]No AI summaries to display[/yellow]")
             return
 
-        self.console.print("\n[bold blue]🤖 AI-Powered Commit Analysis[/bold blue]")
+        self.console.print("\n[bold blue]AI-Powered Commit Analysis[/bold blue]")
         self.console.print(Rule(style="blue"))
 
         # Create a mapping of commit SHA to summary
@@ -75,9 +75,9 @@ class AISummaryDisplayFormatter:
             return
 
         if plain_text:
-            print("\n🤖 AI Commit Summaries")
+            print("\nAI Commit Summaries")
         else:
-            self.console.print("\n[bold blue]🤖 AI Commit Summaries[/bold blue]")
+            self.console.print("\n[bold blue]AI Commit Summaries[/bold blue]")
 
         # Create a mapping of commit SHA to summary
         summary_map = {summary.commit_sha: summary for summary in summaries}
@@ -104,7 +104,7 @@ class AISummaryDisplayFormatter:
             self.console.print("[yellow]No AI summaries to display[/yellow]")
             return
 
-        self.console.print("\n[bold blue]🤖 AI-Powered Commit Summaries[/bold blue]")
+        self.console.print("\n[bold blue]AI-Powered Commit Summaries[/bold blue]")
         self.console.print(f"[dim]Showing {len(summaries)} AI-generated summaries in compact format[/dim]")
 
         table = Table(
@@ -145,7 +145,7 @@ class AISummaryDisplayFormatter:
             self.console.print("[yellow]No AI summaries to display[/yellow]")
             return
 
-        self.console.print("\n[bold blue]🤖 Structured AI Commit Analysis[/bold blue]")
+        self.console.print("\n[bold blue]Structured AI Commit Analysis[/bold blue]")
         self.console.print(Rule(style="blue"))
 
         # Create a mapping of commit SHA to summary
@@ -262,15 +262,15 @@ class AISummaryDisplayFormatter:
         """
         # Display the summary text
         if summary.summary_text:
-            self.console.print("\n[bold blue]🤖 AI Summary:[/bold blue]")
+            self.console.print("\n[bold blue]AI Summary:[/bold blue]")
             self.console.print(f"[white]{summary.summary_text}[/white]")
 
         # Processing metadata
         if summary.processing_time_ms and summary.tokens_used:
             metadata = (
-                f"[dim]⚡ {summary.processing_time_ms:.0f}ms • "
-                f"🎯 {summary.tokens_used} tokens • "
-                f"🤖 {summary.model_used or 'gpt-4o-mini'}[/dim]"
+                f"[dim]Processing: {summary.processing_time_ms:.0f}ms • "
+                f"Tokens: {summary.tokens_used} • "
+                f"Model: {summary.model_used or 'gpt-4o-mini'}[/dim]"
             )
             self.console.print(f"\n{metadata}")
 
@@ -348,7 +348,7 @@ class AISummaryDisplayFormatter:
         if summary.summary_text:
             summary_panel = Panel(
                 Text(summary.summary_text, style="white"),
-                title="[bold blue]🤖 AI Summary[/bold blue]",
+                title="[bold blue]AI Summary[/bold blue]",
                 border_style="blue",
                 padding=(0, 1)
             )
@@ -357,7 +357,7 @@ class AISummaryDisplayFormatter:
         # Processing metadata
         if show_metadata and summary.processing_time_ms and summary.tokens_used:
             metadata = Text(
-                f"⚡ {summary.processing_time_ms:.0f}ms • 🎯 {summary.tokens_used} tokens • 🤖 {summary.model_used or 'gpt-4o-mini'}",
+                f"Processing: {summary.processing_time_ms:.0f}ms • Tokens: {summary.tokens_used} • Model: {summary.model_used or 'gpt-4o-mini'}",
                 style="dim"
             )
             ai_content.append(metadata)
@@ -540,7 +540,7 @@ class AISummaryDisplayFormatter:
             else f"${usage_stats.total_cost_usd:.2f}"
         )
 
-        self.console.print(f"\n[bold]📊 {title}[/bold]")
+        self.console.print(f"\n[bold]{title}[/bold]")
         usage_table = Table(show_header=False, box=None, padding=(0, 1))
         usage_table.add_column("Metric", style="cyan")
         usage_table.add_column("Value", style="green")
@@ -549,8 +549,8 @@ class AISummaryDisplayFormatter:
             "✅ Successful requests:",
             f"{usage_stats.successful_requests}/{usage_stats.total_requests} ({success_rate:.1f}%)"
         )
-        usage_table.add_row("🎯 Tokens used:", f"{usage_stats.total_tokens_used:,}")
-        usage_table.add_row("💰 Estimated cost:", cost_str)
-        usage_table.add_row("⚡ Avg processing time:", f"{usage_stats.average_processing_time_ms:.0f}ms")
+        usage_table.add_row("Tokens used:", f"{usage_stats.total_tokens_used:,}")
+        usage_table.add_row("Estimated cost:", cost_str)
+        usage_table.add_row("Avg processing time:", f"{usage_stats.average_processing_time_ms:.0f}ms")
 
         self.console.print(usage_table)
