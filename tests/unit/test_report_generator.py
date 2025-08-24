@@ -1,8 +1,8 @@
 """Tests for the ReportGenerator class."""
 
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock
 
 from src.forklift.models.analysis import (
     Feature,
@@ -62,12 +62,12 @@ def sample_fork(sample_repository, sample_user):
         language="Python",
         is_fork=True,
     )
-    
+
     return Fork(
         repository=fork_repo,
         parent=sample_repository,
         owner=sample_user,
-        last_activity=datetime(2024, 1, 15, tzinfo=timezone.utc),
+        last_activity=datetime(2024, 1, 15, tzinfo=UTC),
         commits_ahead=3,
         commits_behind=1,
     )
@@ -80,7 +80,7 @@ def sample_commit(sample_user):
         sha="a1b2c3d4e5f6789012345678901234567890abcd",
         message="Add new feature for user authentication",
         author=sample_user,
-        date=datetime(2024, 1, 15, tzinfo=timezone.utc),
+        date=datetime(2024, 1, 15, tzinfo=UTC),
         files_changed=["auth.py", "tests/test_auth.py"],
         additions=50,
         deletions=5,
@@ -127,10 +127,10 @@ def sample_fork_analysis(sample_fork, sample_feature):
             stars=5,
             forks=0,
             contributors=1,
-            last_activity=datetime(2024, 1, 15, tzinfo=timezone.utc),
+            last_activity=datetime(2024, 1, 15, tzinfo=UTC),
             commit_frequency=0.5,
         ),
-        analysis_date=datetime(2024, 1, 20, tzinfo=timezone.utc),
+        analysis_date=datetime(2024, 1, 20, tzinfo=UTC),
     )
 
 
@@ -140,27 +140,27 @@ class TestReportGenerator:
     def test_init_default_parameters(self):
         """Test ReportGenerator initialization with default parameters."""
         generator = ReportGenerator()
-        
+
         assert generator.include_code_snippets is True
         assert generator.max_features == 20
 
     def test_init_custom_parameters(self):
         """Test ReportGenerator initialization with custom parameters."""
         generator = ReportGenerator(include_code_snippets=False, max_features=10)
-        
+
         assert generator.include_code_snippets is False
         assert generator.max_features == 10
 
     def test_generate_analysis_report_empty_data(self, sample_repository):
         """Test generating report with empty data."""
         generator = ReportGenerator()
-        
+
         report = generator.generate_analysis_report(
             repository=sample_repository,
             fork_analyses=[],
             ranked_features=[],
         )
-        
+
         assert isinstance(report, str)
         assert len(report) > 0
         assert "testowner/testrepo" in report
@@ -171,32 +171,32 @@ class TestReportGenerator:
     ):
         """Test generating report with actual features."""
         generator = ReportGenerator()
-        
+
         report = generator.generate_analysis_report(
             repository=sample_repository,
             fork_analyses=[sample_fork_analysis],
             ranked_features=[sample_ranked_feature],
         )
-        
+
         assert isinstance(report, str)
         assert len(report) > 0
-        
+
         # Check header content
         assert "# Fork Analysis Report: testowner/testrepo" in report
         assert "testowner/testrepo" in report
         assert "Python" in report
         assert "100" in report  # stars
-        
+
         # Check overview content
         assert "## Overview" in report
         assert "**1** unique features discovered" in report
         assert "**1** forks contain potentially valuable contributions" in report
-        
+
         # Check executive summary
         assert "## Executive Summary" in report
         assert "User Authentication System" in report
         assert "Score: 85.5" in report
-        
+
         # Check detailed features
         assert "## Top 1 Features (Detailed Analysis)" in report
         assert "JWT-based user authentication" in report
@@ -205,23 +205,25 @@ class TestReportGenerator:
     def test_generate_header(self, sample_repository):
         """Test header generation."""
         generator = ReportGenerator()
-        
+
         header = generator._generate_header(sample_repository)
-        
+
         assert "# Fork Analysis Report: testowner/testrepo" in header
         assert "[testowner/testrepo](https://github.com/testowner/testrepo)" in header
         assert "**Primary Language:** Python" in header
         assert "**Stars:** 100" in header
         assert "**Forks:** 50" in header
 
-    def test_generate_overview(self, sample_repository, sample_fork_analysis, sample_ranked_feature):
+    def test_generate_overview(
+        self, sample_repository, sample_fork_analysis, sample_ranked_feature
+    ):
         """Test overview generation."""
         generator = ReportGenerator()
-        
+
         overview = generator._generate_overview(
             sample_repository, [sample_fork_analysis], [sample_ranked_feature]
         )
-        
+
         assert "## Overview" in overview
         assert "**1** unique features discovered" in overview
         assert "**1** forks contain potentially valuable contributions" in overview
@@ -230,18 +232,18 @@ class TestReportGenerator:
     def test_generate_executive_summary_empty(self):
         """Test executive summary with no features."""
         generator = ReportGenerator()
-        
+
         summary = generator._generate_executive_summary([])
-        
+
         assert "## Executive Summary" in summary
         assert "No significant features were identified" in summary
 
     def test_generate_executive_summary_with_features(self, sample_ranked_feature):
         """Test executive summary with features."""
         generator = ReportGenerator()
-        
+
         summary = generator._generate_executive_summary([sample_ranked_feature])
-        
+
         assert "## Executive Summary" in summary
         assert "User Authentication System" in summary
         assert "Score: 85.5" in summary
@@ -250,7 +252,7 @@ class TestReportGenerator:
     def test_generate_features_by_category(self, sample_ranked_feature):
         """Test features by category generation."""
         generator = ReportGenerator()
-        
+
         # Create multiple features with different categories
         bug_fix_feature = RankedFeature(
             feature=Feature(
@@ -266,11 +268,11 @@ class TestReportGenerator:
             ranking_factors={},
             similar_implementations=[],
         )
-        
+
         features = [sample_ranked_feature, bug_fix_feature]
-        
+
         section = generator._generate_features_by_category(features)
-        
+
         assert "## Features by Category" in section
         assert "✨ New Feature" in section
         assert "🐛 Bug Fix" in section
@@ -280,9 +282,9 @@ class TestReportGenerator:
     def test_generate_detailed_features(self, sample_ranked_feature):
         """Test detailed features generation."""
         generator = ReportGenerator()
-        
+
         section = generator._generate_detailed_features([sample_ranked_feature])
-        
+
         assert "## Top 1 Features (Detailed Analysis)" in section
         assert "### 1. User Authentication System" in section
         assert "**Category:** ✨ New Feature" in section
@@ -296,9 +298,9 @@ class TestReportGenerator:
     def test_generate_fork_statistics(self, sample_fork_analysis):
         """Test fork statistics generation."""
         generator = ReportGenerator()
-        
+
         section = generator._generate_fork_statistics([sample_fork_analysis])
-        
+
         assert "## Fork Analysis Statistics" in section
         assert "**Total Forks Analyzed:** 1" in section
         assert "**Active Forks:** 1 (100.0%)" in section
@@ -310,15 +312,15 @@ class TestReportGenerator:
     def test_generate_analysis_metadata(self):
         """Test analysis metadata generation."""
         generator = ReportGenerator()
-        
+
         metadata = {
             "analysis_duration": "45.2s",
             "github_api_calls": 150,
             "cache_hit_rate": "78%",
         }
-        
+
         section = generator._generate_analysis_metadata(metadata)
-        
+
         assert "## Analysis Configuration" in section
         assert "**Analysis Duration:** 45.2s" in section
         assert "**Github Api Calls:** 150" in section
@@ -327,9 +329,9 @@ class TestReportGenerator:
     def test_generate_footer(self):
         """Test footer generation."""
         generator = ReportGenerator()
-        
+
         footer = generator._generate_footer()
-        
+
         assert "Report generated by Forklift v1.0" in footer
         assert "**Next Steps:**" in footer
         assert "Review the top-ranked features" in footer
@@ -338,9 +340,9 @@ class TestReportGenerator:
     def test_generate_code_snippet(self, sample_feature):
         """Test code snippet generation."""
         generator = ReportGenerator()
-        
+
         snippet = generator._generate_code_snippet(sample_feature)
-        
+
         assert "**Code Changes Preview:**" in snippet
         assert "```" in snippet
         assert "Commit: a1b2c3d4" in snippet
@@ -354,15 +356,15 @@ class TestReportGenerator:
         """Test code snippet generation with no commits."""
         generator = ReportGenerator()
         sample_feature.commits = []
-        
+
         snippet = generator._generate_code_snippet(sample_feature)
-        
+
         assert snippet == ""
 
     def test_get_category_emoji(self):
         """Test category emoji mapping."""
         generator = ReportGenerator()
-        
+
         assert generator._get_category_emoji(FeatureCategory.NEW_FEATURE) == "✨"
         assert generator._get_category_emoji(FeatureCategory.BUG_FIX) == "🐛"
         assert generator._get_category_emoji(FeatureCategory.PERFORMANCE) == "⚡"
@@ -374,14 +376,14 @@ class TestReportGenerator:
     def test_generate_summary_report(self, sample_repository):
         """Test summary report generation."""
         generator = ReportGenerator()
-        
+
         report = generator.generate_summary_report(
             repository=sample_repository,
             total_forks=25,
             features_found=8,
             analysis_duration=45.2,
         )
-        
+
         assert "# Fork Analysis Summary: testowner/testrepo" in report
         assert "completed in 45.2s" in report
         assert "**Forks analyzed:** 25" in report
@@ -391,13 +393,13 @@ class TestReportGenerator:
     def test_generate_summary_report_no_features(self, sample_repository):
         """Test summary report generation with no features."""
         generator = ReportGenerator()
-        
+
         report = generator.generate_summary_report(
             repository=sample_repository,
             total_forks=10,
             features_found=0,
         )
-        
+
         assert "# Fork Analysis Summary: testowner/testrepo" in report
         assert "**Forks analyzed:** 10" in report
         assert "**Features discovered:** 0" in report
@@ -406,13 +408,13 @@ class TestReportGenerator:
     def test_generate_summary_report_no_duration(self, sample_repository):
         """Test summary report generation without duration."""
         generator = ReportGenerator()
-        
+
         report = generator.generate_summary_report(
             repository=sample_repository,
             total_forks=5,
             features_found=2,
         )
-        
+
         assert "# Fork Analysis Summary: testowner/testrepo" in report
         assert "**Analysis completed**" in report
         assert "completed in" not in report
@@ -420,7 +422,7 @@ class TestReportGenerator:
     def test_max_features_limit(self, sample_repository, sample_fork_analysis):
         """Test that max_features limit is respected."""
         generator = ReportGenerator(max_features=2)
-        
+
         # Create 3 ranked features
         ranked_features = []
         for i in range(3):
@@ -433,40 +435,46 @@ class TestReportGenerator:
                 files_affected=[],
                 source_fork=sample_fork_analysis.fork,
             )
-            ranked_features.append(RankedFeature(
-                feature=feature,
-                score=90.0 - i,
-                ranking_factors={},
-                similar_implementations=[],
-            ))
-        
+            ranked_features.append(
+                RankedFeature(
+                    feature=feature,
+                    score=90.0 - i,
+                    ranking_factors={},
+                    similar_implementations=[],
+                )
+            )
+
         report = generator.generate_analysis_report(
             repository=sample_repository,
             fork_analyses=[sample_fork_analysis],
             ranked_features=ranked_features,
         )
-        
+
         # Should only show top 2 features in detailed section
         assert "## Top 2 Features (Detailed Analysis)" in report
         assert "### 1. Feature 0" in report
         assert "### 2. Feature 1" in report
         assert "### 3. Feature 2" not in report
 
-    def test_include_code_snippets_disabled(self, sample_repository, sample_fork_analysis, sample_ranked_feature):
+    def test_include_code_snippets_disabled(
+        self, sample_repository, sample_fork_analysis, sample_ranked_feature
+    ):
         """Test report generation with code snippets disabled."""
         generator = ReportGenerator(include_code_snippets=False)
-        
+
         report = generator.generate_analysis_report(
             repository=sample_repository,
             fork_analyses=[sample_fork_analysis],
             ranked_features=[sample_ranked_feature],
         )
-        
+
         # Should not contain code snippet sections
         assert "**Code Changes Preview:**" not in report
         assert "```" not in report
 
-    def test_similar_implementations_display(self, sample_ranked_feature, sample_fork_analysis):
+    def test_similar_implementations_display(
+        self, sample_ranked_feature, sample_fork_analysis
+    ):
         """Test display of similar implementations."""
         # Add similar implementation
         similar_feature = Feature(
@@ -479,10 +487,10 @@ class TestReportGenerator:
             source_fork=sample_fork_analysis.fork,
         )
         sample_ranked_feature.similar_implementations = [similar_feature]
-        
+
         generator = ReportGenerator()
         section = generator._generate_detailed_features([sample_ranked_feature])
-        
+
         assert "**Similar Implementations Found:**" in section
         assert "Similar Auth Feature" in section
 
@@ -495,13 +503,13 @@ class TestReportGenerator:
                 sha=f"a1b2c3d4e5f6789012345678901234567890abc{i:01d}",
                 message=f"Commit {i}",
                 author=sample_user,
-                date=datetime(2024, 1, 15, tzinfo=timezone.utc),
+                date=datetime(2024, 1, 15, tzinfo=UTC),
                 files_changed=[f"file{i}.py"],
                 additions=10,
                 deletions=2,
             )
             commits.append(commit)
-        
+
         sample_feature.commits = commits
         ranked_feature = RankedFeature(
             feature=sample_feature,
@@ -509,10 +517,10 @@ class TestReportGenerator:
             ranking_factors={},
             similar_implementations=[],
         )
-        
+
         generator = ReportGenerator()
         section = generator._generate_detailed_features([ranked_feature])
-        
+
         # Should show only first 3 commits plus truncation message
         assert "**Related Commits (10):**" in section
         assert "Commit 0" in section
@@ -525,17 +533,17 @@ class TestReportGenerator:
         # Add many files
         files = [f"file{i}.py" for i in range(10)]
         sample_feature.files_affected = files
-        
+
         ranked_feature = RankedFeature(
             feature=sample_feature,
             score=85.0,
             ranking_factors={},
             similar_implementations=[],
         )
-        
+
         generator = ReportGenerator()
         section = generator._generate_detailed_features([ranked_feature])
-        
+
         # Should show only first 5 files plus truncation message
         assert "**Files Affected (10):**" in section
         assert "file0.py" in section
