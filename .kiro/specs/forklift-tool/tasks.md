@@ -131,7 +131,7 @@
   - _Requirements: 2.4, 2.5_
 
 - [ ] 6. Build report generation system
-- [ ] 6.1 Implement markdown report generator
+- [-] 6.1 Implement markdown report generator
   - Create ReportGenerator class to produce human-readable reports
   - Add feature summaries with code snippets and fork links
   - Implement categorized organization of features in reports
@@ -678,7 +678,7 @@
   - Write integration tests for compact AI summary display
   - _Requirements: 17.1, 17.10, 17.17_
 
-- [-] 18.5 Add configuration option for AI summary style
+- [ ] 18.5 Add configuration option for AI summary style
   - Add compact_mode boolean to AISummaryConfig
   - Allow users to choose between compact and detailed summary styles
   - Update CLI to support --ai-summary-compact flag
