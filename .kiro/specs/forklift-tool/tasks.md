@@ -654,7 +654,7 @@
   - Write unit tests for new compact prompt generation
   - _Requirements: 17.2, 17.16_
 
-- [ ] 18.2 Simplify AI summary response parsing and display
+- [x] 18.2 Simplify AI summary response parsing and display
   - Remove structured section parsing (what_changed, why_changed, potential_side_effects)
   - Update _parse_summary_response to return single summary text only
   - Modify AISummary model to focus on summary_text field only
@@ -662,7 +662,7 @@
   - Write unit tests for simplified response parsing
   - _Requirements: 17.10, 17.16, 17.17_
 
-- [ ] 18.3 Enforce brevity in AI summary generation
+- [-] 18.3 Enforce brevity in AI summary generation
   - Reduce max_tokens in AISummaryConfig from 500 to 150 tokens
   - Add response length validation to ensure summaries stay under 3 sentences
   - Implement post-processing to trim verbose AI responses

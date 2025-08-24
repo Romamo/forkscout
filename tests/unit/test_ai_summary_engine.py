@@ -314,9 +314,9 @@ class TestAICommitSummaryEngine:
         
         assert len(summaries) == 2
         assert summaries[0].commit_sha == commits_with_diffs[0][0].sha
-        assert summaries[0].summary_text == "Summary for commit 1"
+        assert summaries[0].summary_text == "Summary for commit 1."
         assert summaries[1].commit_sha == commits_with_diffs[1][0].sha
-        assert summaries[1].summary_text == "Summary for commit 2"
+        assert summaries[1].summary_text == "Summary for commit 2."
 
     @pytest.mark.asyncio
     async def test_generate_batch_summaries_with_progress_callback(self):
@@ -647,7 +647,7 @@ class TestAICommitSummaryEngine:
         response_text = "This commit adds authentication.\nIt includes JWT token support.\nUsers can now log in securely."
         parsed = engine._parse_summary_response(response_text)
         
-        assert parsed == "This commit adds authentication.\nIt includes JWT token support.\nUsers can now log in securely."
+        assert parsed == "This commit adds authentication. It includes JWT token support. Users can now log in securely."
 
     def test_parse_summary_response_no_structured_parsing(self):
         """Test that structured content is not parsed into sections."""
@@ -665,7 +665,9 @@ Potential side effects: May require users to re-login"""
         assert "What changed: Added user authentication" in parsed
         assert "Why changed: To improve security" in parsed
         assert "Potential side effects: May require users to re-login" in parsed
-        assert parsed == response_text.strip()
+        # The brevity enforcement will add punctuation but preserve newlines
+        expected = "What changed: Added user authentication\nWhy changed: To improve security\nPotential side effects: May require users to re-login."
+        assert parsed == expected
 
     @pytest.mark.asyncio
     async def test_generate_commit_summary_uses_parse_method(self):
@@ -711,7 +713,7 @@ Potential side effects: May require users to re-login"""
         mock_client.create_completion_with_retry.return_value = mock_response
         
         # Test with compact mode enabled
-        config = AISummaryConfig(compact_mode=True, max_tokens=500)
+        config = AISummaryConfig(compact_mode=True, max_tokens=150)
         engine = AICommitSummaryEngine(mock_client, config)
         
         commit = self.create_test_commit()
@@ -722,11 +724,11 @@ Potential side effects: May require users to re-login"""
         # Verify API was called with reduced token limit (100 instead of 500)
         mock_client.create_completion_with_retry.assert_called_once()
         call_args = mock_client.create_completion_with_retry.call_args
-        assert call_args[1]['max_tokens'] == 100  # Should be limited to 100 in compact mode
+        assert call_args[1]['max_tokens'] == 75  # Should be limited to 75 in compact mode
         
         # Verify summary was created successfully
         assert summary.commit_sha == commit.sha
-        assert summary.summary_text == "Brief summary of changes"
+        assert summary.summary_text == "Brief summary of changes."
 
     @pytest.mark.asyncio
     async def test_generate_commit_summary_standard_mode_token_limit(self):
@@ -742,8 +744,8 @@ Potential side effects: May require users to re-login"""
         )
         mock_client.create_completion_with_retry.return_value = mock_response
         
-        # Test with compact mode disabled
-        config = AISummaryConfig(compact_mode=False, max_tokens=500)
+        # Test with compact mode disabled - note new default max_tokens is 150
+        config = AISummaryConfig(compact_mode=False, max_tokens=150)
         engine = AICommitSummaryEngine(mock_client, config)
         
         commit = self.create_test_commit()
@@ -751,11 +753,193 @@ Potential side effects: May require users to re-login"""
         
         summary = await engine.generate_commit_summary(commit, diff_text)
         
-        # Verify API was called with full token limit
+        # Verify API was called with full token limit (150 in standard mode)
         mock_client.create_completion_with_retry.assert_called_once()
         call_args = mock_client.create_completion_with_retry.call_args
-        assert call_args[1]['max_tokens'] == 500  # Should use full config value
+        assert call_args[1]['max_tokens'] == 150  # Should use full config limit
         
         # Verify summary was created successfully
         assert summary.commit_sha == commit.sha
-        assert summary.summary_text == "Detailed summary of changes with full context"
+        assert summary.summary_text == "Detailed summary of changes with full context."
+
+    def test_enforce_brevity_within_limit(self):
+        """Test brevity enforcement with text within sentence limit."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Text with 2 sentences (within 3 sentence limit)
+        text = "This commit adds authentication. It improves security."
+        result = engine._enforce_brevity(text)
+        
+        assert result == text  # Should return unchanged
+
+    def test_enforce_brevity_exceeds_limit(self):
+        """Test brevity enforcement with text exceeding sentence limit."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Text with 5 sentences (exceeds 3 sentence limit)
+        text = "This commit adds authentication. It improves security. Users can now log in. The system is more robust. Performance is better."
+        result = engine._enforce_brevity(text)
+        
+        # Should be limited to first 3 sentences
+        expected = "This commit adds authentication. It improves security. Users can now log in."
+        assert result == expected
+
+    def test_enforce_brevity_empty_text(self):
+        """Test brevity enforcement with empty text."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        assert engine._enforce_brevity("") == ""
+        assert engine._enforce_brevity(None) == ""
+
+    def test_enforce_brevity_single_sentence(self):
+        """Test brevity enforcement with single sentence."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        text = "This commit adds user authentication functionality."
+        result = engine._enforce_brevity(text)
+        
+        assert result == text  # Should return unchanged
+
+    def test_enforce_brevity_custom_limit(self):
+        """Test brevity enforcement with custom sentence limit."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        text = "First sentence. Second sentence. Third sentence. Fourth sentence."
+        result = engine._enforce_brevity(text, max_sentences=2)
+        
+        expected = "First sentence. Second sentence."
+        assert result == expected
+
+    def test_enforce_brevity_different_punctuation(self):
+        """Test brevity enforcement with different sentence ending punctuation."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        text = "This commit fixes a bug! It improves performance? The system is now stable. Additional changes were made."
+        result = engine._enforce_brevity(text)
+        
+        # Should handle different punctuation and limit to 3 sentences
+        expected = "This commit fixes a bug! It improves performance? The system is now stable."
+        assert result == expected
+
+    def test_enforce_brevity_adds_punctuation(self):
+        """Test that brevity enforcement adds punctuation when needed."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Text where the last kept sentence doesn't end with punctuation
+        text = "First sentence. Second sentence. Third sentence without punctuation"
+        result = engine._enforce_brevity(text)
+        
+        # Should add period at the end
+        expected = "First sentence. Second sentence. Third sentence without punctuation."
+        assert result == expected
+
+    def test_validate_response_length_within_limit(self):
+        """Test response length validation for text within limit."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Text with 2 sentences
+        text = "This commit adds authentication. It improves security."
+        assert engine._validate_response_length(text) is True
+
+    def test_validate_response_length_exceeds_limit(self):
+        """Test response length validation for text exceeding limit."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Text with 5 sentences
+        text = "First. Second. Third. Fourth. Fifth."
+        assert engine._validate_response_length(text) is False
+
+    def test_validate_response_length_empty_text(self):
+        """Test response length validation for empty text."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        assert engine._validate_response_length("") is True
+        assert engine._validate_response_length(None) is True
+
+    def test_validate_response_length_exactly_at_limit(self):
+        """Test response length validation for text exactly at limit."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Text with exactly 3 sentences
+        text = "First sentence. Second sentence. Third sentence."
+        assert engine._validate_response_length(text) is True
+
+    def test_parse_summary_response_enforces_brevity(self):
+        """Test that parse method enforces brevity on long responses."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Long response with 5 sentences
+        response_text = "This commit adds authentication. It improves security. Users can log in. The system is robust. Performance is better."
+        parsed = engine._parse_summary_response(response_text)
+        
+        # Should be limited to 3 sentences
+        expected = "This commit adds authentication. It improves security. Users can log in."
+        assert parsed == expected
+
+    @pytest.mark.asyncio
+    async def test_generate_commit_summary_compact_mode_reduced_tokens(self):
+        """Test that compact mode uses even more reduced token limits for brevity."""
+        mock_client = AsyncMock(spec=OpenAIClient)
+        
+        # Mock successful API response
+        mock_response = OpenAIResponse(
+            text="Brief summary",
+            usage={"total_tokens": 30, "prompt_tokens": 20, "completion_tokens": 10},
+            model="gpt-4o-mini",
+            finish_reason="stop"
+        )
+        mock_client.create_completion_with_retry.return_value = mock_response
+        
+        # Test with compact mode enabled - should use 75 tokens instead of 100
+        config = AISummaryConfig(compact_mode=True, max_tokens=150)
+        engine = AICommitSummaryEngine(mock_client, config)
+        
+        commit = self.create_test_commit()
+        diff_text = "test diff content"
+        
+        summary = await engine.generate_commit_summary(commit, diff_text)
+        
+        # Verify API was called with reduced token limit (75 instead of 150)
+        mock_client.create_completion_with_retry.assert_called_once()
+        call_args = mock_client.create_completion_with_retry.call_args
+        assert call_args[1]['max_tokens'] == 75  # Should be limited to 75 in compact mode
+        
+        # Verify summary was created successfully
+        assert summary.commit_sha == commit.sha
+        assert summary.summary_text == "Brief summary."
+
+    def test_default_max_tokens_reduced(self):
+        """Test that default max_tokens is now 150 instead of 500."""
+        config = AISummaryConfig()
+        assert config.max_tokens == 150
+
+    def test_brevity_enforcement_integration(self):
+        """Test integration of brevity enforcement with response parsing."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        # Test various scenarios
+        test_cases = [
+            # (input, expected_output)
+            ("Short response.", "Short response."),
+            ("First. Second. Third.", "First. Second. Third."),
+            ("First. Second. Third. Fourth. Fifth.", "First. Second. Third."),
+            ("  Whitespace and multiple sentences. Another one. Third one. Fourth.  ", "Whitespace and multiple sentences. Another one. Third one."),
+            ("", ""),
+        ]
+        
+        for input_text, expected in test_cases:
+            result = engine._parse_summary_response(input_text)
+            assert result == expected, f"Failed for input: {input_text}"

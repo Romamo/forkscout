@@ -96,19 +96,99 @@ Diff:
 
         This method ensures that AI responses are simplified to contain only
         the core summary text without any structured sections or verbose formatting.
+        It also enforces brevity by limiting responses to 3 sentences maximum.
 
         Args:
             response_text: Raw response text from OpenAI API
 
         Returns:
-            Cleaned summary text as a single string
+            Cleaned and brevity-enforced summary text as a single string
         """
         if not response_text:
             return ""
 
-        # Simply strip whitespace and return the text as-is
-        # No structured parsing of sections like what_changed, why_changed, etc.
-        return response_text.strip()
+        # Strip whitespace first
+        cleaned_text = response_text.strip()
+        
+        # Enforce brevity by limiting to 3 sentences maximum
+        return self._enforce_brevity(cleaned_text)
+    
+    def _enforce_brevity(self, text: str, max_sentences: int = 3) -> str:
+        """Enforce brevity by limiting text to maximum number of sentences.
+        
+        Args:
+            text: Input text to limit
+            max_sentences: Maximum number of sentences allowed (default: 3)
+            
+        Returns:
+            Text limited to maximum sentences
+        """
+        if not text:
+            return ""
+        
+        # Split text into sentences using common sentence endings
+        import re
+        
+        # Split on sentence boundaries, preserving the punctuation
+        # This regex captures the sentence ending punctuation
+        parts = re.split(r'([.!?]+)\s*', text)
+        
+        # Reconstruct sentences with their punctuation
+        sentences = []
+        for i in range(0, len(parts) - 1, 2):
+            sentence_text = parts[i].strip()
+            if sentence_text:  # Only add non-empty sentences
+                punctuation = parts[i + 1] if i + 1 < len(parts) else ''
+                # Use only the first punctuation mark to avoid multiple punctuation
+                if punctuation:
+                    punctuation = punctuation[0]
+                sentences.append(sentence_text + punctuation)
+        
+        # Handle case where text doesn't end with punctuation
+        if len(parts) % 2 == 1 and parts[-1].strip():
+            sentences.append(parts[-1].strip())
+        
+        # If we have more sentences than allowed, take only the first max_sentences
+        if len(sentences) > max_sentences:
+            limited_sentences = sentences[:max_sentences]
+            result = ' '.join(limited_sentences)
+            
+            # Ensure the result ends with proper punctuation
+            if not result.endswith(('.', '!', '?')):
+                result += '.'
+                
+            return result
+        
+        # If within limit, return original text but ensure proper punctuation
+        result = ' '.join(sentences)
+        if result and not result.endswith(('.', '!', '?')):
+            result += '.'
+        
+        return result
+    
+    def _validate_response_length(self, text: str) -> bool:
+        """Validate that response meets brevity requirements.
+        
+        Args:
+            text: Text to validate
+            
+        Returns:
+            True if text meets brevity requirements, False otherwise
+        """
+        if not text:
+            return True
+            
+        # Count sentences using the same logic as _enforce_brevity
+        import re
+        parts = re.split(r'([.!?]+)\s*', text)
+        
+        # Count actual sentences (non-empty text parts)
+        sentence_count = 0
+        for i in range(0, len(parts), 2):
+            if parts[i].strip():
+                sentence_count += 1
+        
+        return sentence_count <= 3
 
     async def generate_commit_summary(
         self,
@@ -190,8 +270,8 @@ Diff:
                     f"(estimated cost: ${estimated_cost:.4f})"
                 )
 
-            # Adjust max tokens for compact mode
-            max_tokens = min(100, self.config.max_tokens) if self.config.compact_mode else self.config.max_tokens
+            # Adjust max tokens for compact mode (even more restrictive for brevity)
+            max_tokens = min(75, self.config.max_tokens) if self.config.compact_mode else self.config.max_tokens
             
             # Make API call with retry logic
             response = await self.openai_client.create_completion_with_retry(
@@ -421,7 +501,7 @@ Diff:
         # Rough token estimation (4 chars per token)
         estimated_input_tokens = total_chars // 4
 
-        # Estimate output tokens (assume average response length)
+        # Estimate output tokens (assume average response length with new brevity limits)
         estimated_output_tokens = len(commits_with_diffs) * (self.config.max_tokens // 2)
 
         # Cost calculation for GPT-4o-mini

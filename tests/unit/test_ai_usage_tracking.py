@@ -20,7 +20,7 @@ class TestAISummaryConfig:
         
         assert config.enabled is False
         assert config.model == "gpt-4o-mini"
-        assert config.max_tokens == 500
+        assert config.max_tokens == 150
         assert config.cost_tracking is True
         assert config.max_cost_per_session_usd == 5.0
         assert config.max_cost_per_request_usd == 0.10

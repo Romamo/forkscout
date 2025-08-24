@@ -25,7 +25,7 @@ class AISummaryConfig(BaseModel):
 
     enabled: bool = Field(default=False, description="Enable AI summary generation")
     model: str = Field(default="gpt-4o-mini", description="OpenAI model to use")
-    max_tokens: int = Field(default=500, ge=1, le=4000, description="Maximum tokens per summary")
+    max_tokens: int = Field(default=150, ge=1, le=4000, description="Maximum tokens per summary")
     max_diff_chars: int = Field(default=8000, ge=100, description="Maximum diff characters to include")
     temperature: float = Field(default=0.3, ge=0.0, le=2.0, description="Model temperature for creativity")
     timeout_seconds: int = Field(default=30, ge=1, description="Request timeout in seconds")

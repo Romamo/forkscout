@@ -128,7 +128,7 @@ class TestAISummaryConfig:
         
         assert config.enabled is False
         assert config.model == "gpt-4o-mini"
-        assert config.max_tokens == 500
+        assert config.max_tokens == 150
         assert config.max_diff_chars == 8000
         assert config.temperature == 0.3
         assert config.timeout_seconds == 30

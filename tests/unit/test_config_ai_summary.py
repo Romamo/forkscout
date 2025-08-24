@@ -206,7 +206,7 @@ class TestAISummaryConfigIntegration:
         
         assert config.ai_summary.enabled is False
         assert config.ai_summary.model == "gpt-4o-mini"
-        assert config.ai_summary.max_tokens == 500
+        assert config.ai_summary.max_tokens == 150
         assert config.ai_summary.max_diff_chars == 8000
         assert config.ai_summary.temperature == 0.3
         assert config.ai_summary.timeout_seconds == 30

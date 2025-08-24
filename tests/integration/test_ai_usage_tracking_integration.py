@@ -23,7 +23,7 @@ def ai_config():
     return AISummaryConfig(
         enabled=True,
         model="gpt-4o-mini",
-        max_tokens=500,
+        max_tokens=150,
         max_cost_per_session_usd=1.0,
         max_cost_per_request_usd=0.001,  # Very low limit for testing
         cost_warning_threshold_usd=0.50,
