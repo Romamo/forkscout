@@ -562,7 +562,7 @@
   - _Requirements: 18.8, 18.9, 18.11, 18.12_
 
 - [ ] 18. Implement detailed commit view with comprehensive information display
-- [-] 18.1 Add --detail flag to show-commits command
+- [x] 18.1 Add --detail flag to show-commits command
   - Add --detail CLI option to show-commits command with comprehensive output mode
   - Create DetailedCommitDisplay class for formatting detailed commit information
   - Implement automatic AI summary generation when --detail flag is used
@@ -646,7 +646,7 @@
   - _Requirements: 18.1, 18.2, 18.11, 18.12_
 
 - [ ] 18. Implement compact AI summary without buzzwords
-- [ ] 18.1 Update AI summary prompt to be concise and direct
+- [x] 18.1 Update AI summary prompt to be concise and direct
   - Replace verbose prompt with compact "Summarize this commit: what changed, why, impact"
   - Remove buzzwords like "senior developer" and lengthy instructions
   - Update create_summary_prompt method in AICommitSummaryEngine
@@ -678,7 +678,7 @@
   - Write integration tests for compact AI summary display
   - _Requirements: 17.1, 17.10, 17.17_
 
-- [ ] 18.5 Add configuration option for AI summary style
+- [-] 18.5 Add configuration option for AI summary style
   - Add compact_mode boolean to AISummaryConfig
   - Allow users to choose between compact and detailed summary styles
   - Update CLI to support --ai-summary-compact flag

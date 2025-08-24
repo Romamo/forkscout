@@ -38,10 +38,7 @@ def sample_ai_summary():
     """Create a sample AI summary for testing."""
     return AISummary(
         commit_sha="abc123def456789012345678901234567890abcd",
-        summary_text="Added comprehensive user authentication system with JWT tokens",
-        what_changed="Implemented JWT-based authentication with login/logout endpoints",
-        why_changed="To provide secure user access control for the application",
-        potential_side_effects="May require database migration for user sessions",
+        summary_text="Added comprehensive user authentication system with JWT tokens for secure user access control",
         model_used="gpt-4o-mini",
         tokens_used=245,
         processing_time_ms=1250.5
@@ -54,9 +51,6 @@ def sample_ai_summary_with_error():
     return AISummary(
         commit_sha="abc123def456789012345678901234567890abcd",
         summary_text="",
-        what_changed="",
-        why_changed="",
-        potential_side_effects="",
         error="Rate limit exceeded"
     )
 
@@ -111,9 +105,7 @@ class TestAISummaryDisplayFormatter:
         assert "abc123de" in output  # Short SHA
         assert "testuser" in output
         assert "feat: add user authentication system" in output
-        assert "What Changed" in output
-        assert "Why Changed" in output
-        assert "Potential Impact" in output
+        assert "AI Summary" in output
         assert "1250ms" in output  # Processing time
         assert "245 tokens" in output
 
@@ -177,9 +169,7 @@ class TestAISummaryDisplayFormatter:
         output = mock_console.file.getvalue()
         assert "Structured AI Commit Analysis" in output
         assert "abc123de" in output
-        assert "What Changed:" in output
-        assert "Why Changed:" in output
-        assert "Potential Impact:" in output
+        assert "AI Summary:" in output
 
     def test_format_ai_summaries_structured_without_github_links(
         self, mock_console, sample_commit, sample_ai_summary
@@ -328,9 +318,7 @@ class TestAISummaryDisplayFormatter:
         table.add_column("Commit")
         table.add_column("Author")
         table.add_column("Message")
-        table.add_column("What Changed")
-        table.add_column("Why")
-        table.add_column("Impact")
+        table.add_column("AI Summary")
         table.add_column("Meta")
         
         formatter._add_compact_table_row(table, sample_commit, sample_ai_summary)
@@ -347,9 +335,7 @@ class TestAISummaryDisplayFormatter:
         table.add_column("Commit")
         table.add_column("Author")
         table.add_column("Message")
-        table.add_column("What Changed")
-        table.add_column("Why")
-        table.add_column("Impact")
+        table.add_column("AI Summary")
         table.add_column("Meta")
         
         formatter._add_compact_table_row(table, sample_commit, sample_ai_summary_with_error)
@@ -366,9 +352,7 @@ class TestAISummaryDisplayFormatter:
         table.add_column("Commit")
         table.add_column("Author")
         table.add_column("Message")
-        table.add_column("What Changed")
-        table.add_column("Why")
-        table.add_column("Impact")
+        table.add_column("AI Summary")
         table.add_column("Meta")
         
         formatter._add_compact_table_row(table, sample_commit, None)
@@ -466,6 +450,6 @@ class TestAISummaryDisplayFormatter:
         assert "testuser" in structured_output
         
         # All should contain some form of AI analysis
-        assert any(keyword in detailed_output for keyword in ["What Changed", "AI"])
+        assert any(keyword in detailed_output for keyword in ["AI Summary", "AI"])
         assert any(keyword in compact_output for keyword in ["AI", "Summary"])
-        assert any(keyword in structured_output for keyword in ["What Changed", "AI"])
+        assert any(keyword in structured_output for keyword in ["AI Summary", "AI"])

@@ -258,18 +258,10 @@ class DetailedCommitDisplay:
         if ai_summary.error:
             content = Text(f"❌ {ai_summary.error}", style="red")
         else:
-            summary_parts = []
-            
-            if ai_summary.what_changed:
-                summary_parts.append(Text(ai_summary.what_changed, style="white"))
-            
-            if ai_summary.why_changed:
-                summary_parts.append(Text(f"Why: {ai_summary.why_changed}", style="green"))
-            
-            if ai_summary.potential_side_effects:
-                summary_parts.append(Text(f"Impact: {ai_summary.potential_side_effects}", style="yellow"))
-            
-            content = Group(*summary_parts) if summary_parts else Text("No summary available", style="dim")
+            if ai_summary.summary_text:
+                content = Text(ai_summary.summary_text, style="white")
+            else:
+                content = Text("No summary available", style="dim")
         
         return Panel(
             content,
@@ -467,9 +459,6 @@ class DetailedCommitProcessor:
         error_summary = AISummary(
             commit_sha=commit.sha,
             summary_text="",
-            what_changed="",
-            why_changed="",
-            potential_side_effects="",
             error=f"Processing failed: {str(error)}"
         )
         

@@ -11,9 +11,6 @@ class AISummary(BaseModel):
 
     commit_sha: str = Field(..., description="SHA of the summarized commit")
     summary_text: str = Field(..., description="Complete AI-generated summary")
-    what_changed: str = Field(..., description="Description of what changed in the commit")
-    why_changed: str = Field(..., description="Explanation of why the change was made")
-    potential_side_effects: str = Field(..., description="Potential side effects or considerations")
     generated_at: datetime = Field(
         default_factory=datetime.utcnow, description="When the summary was generated"
     )
@@ -35,6 +32,7 @@ class AISummaryConfig(BaseModel):
     retry_attempts: int = Field(default=3, ge=0, description="Number of retry attempts on failure")
     cost_tracking: bool = Field(default=True, description="Enable cost tracking and reporting")
     batch_size: int = Field(default=5, ge=1, le=20, description="Number of commits to process in batches")
+    compact_mode: bool = Field(default=False, description="Use compact summary style with minimal formatting")
     
     # Cost monitoring configuration
     max_cost_per_session_usd: float = Field(default=5.0, ge=0.0, description="Maximum cost per session in USD")

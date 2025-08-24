@@ -35,10 +35,7 @@ def mock_ai_engine():
     engine = AsyncMock()
     engine.generate_commit_summary.return_value = AISummary(
         commit_sha="abc123",
-        summary_text="Test summary",
-        what_changed="Added print statement",
-        why_changed="For debugging",
-        potential_side_effects="None"
+        summary_text="Test summary: Added print statement for debugging purposes"
     )
     return engine
 
@@ -94,10 +91,7 @@ class TestDetailedCommitInfo:
         """Test creating DetailedCommitInfo with AI summary."""
         ai_summary = AISummary(
             commit_sha="abc123",
-            summary_text="Test summary",
-            what_changed="Test change",
-            why_changed="Test reason",
-            potential_side_effects="Test effects"
+            summary_text="Test summary with comprehensive details about the changes made"
         )
         
         detailed_info = DetailedCommitInfo(
@@ -274,10 +268,7 @@ class TestDetailedCommitDisplay:
         
         ai_summary = AISummary(
             commit_sha="abc123",
-            summary_text="Test summary",
-            what_changed="Test change",
-            why_changed="Test reason",
-            potential_side_effects="Test effects"
+            summary_text="Test summary with comprehensive details about the changes made"
         )
         
         ai_section = display._create_ai_summary_section(ai_summary)
@@ -291,9 +282,6 @@ class TestDetailedCommitDisplay:
         ai_summary = AISummary(
             commit_sha="abc123",
             summary_text="",
-            what_changed="",
-            why_changed="",
-            potential_side_effects="",
             error="Test error"
         )
         

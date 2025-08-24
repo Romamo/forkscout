@@ -21,17 +21,11 @@ class TestAISummary:
         """Test creating AISummary with required fields."""
         summary = AISummary(
             commit_sha="abc123",
-            summary_text="This commit adds user authentication",
-            what_changed="Added login functionality",
-            why_changed="To secure user access",
-            potential_side_effects="May affect existing sessions"
+            summary_text="This commit adds user authentication functionality to secure user access"
         )
         
         assert summary.commit_sha == "abc123"
-        assert summary.summary_text == "This commit adds user authentication"
-        assert summary.what_changed == "Added login functionality"
-        assert summary.why_changed == "To secure user access"
-        assert summary.potential_side_effects == "May affect existing sessions"
+        assert summary.summary_text == "This commit adds user authentication functionality to secure user access"
         assert summary.model_used == "gpt-4o-mini"  # Default value
         assert summary.tokens_used == 0  # Default value
         assert summary.processing_time_ms == 0.0  # Default value
@@ -44,10 +38,7 @@ class TestAISummary:
         
         summary = AISummary(
             commit_sha="def456",
-            summary_text="Complete summary text",
-            what_changed="Modified database schema",
-            why_changed="To improve performance",
-            potential_side_effects="Requires migration",
+            summary_text="Complete summary text describing database schema modifications for performance improvements",
             generated_at=generated_at,
             model_used="gpt-4",
             tokens_used=150,
@@ -56,6 +47,7 @@ class TestAISummary:
         )
         
         assert summary.commit_sha == "def456"
+        assert summary.summary_text == "Complete summary text describing database schema modifications for performance improvements"
         assert summary.model_used == "gpt-4"
         assert summary.tokens_used == 150
         assert summary.processing_time_ms == 1250.5
@@ -66,13 +58,11 @@ class TestAISummary:
         summary = AISummary(
             commit_sha="error123",
             summary_text="",
-            what_changed="",
-            why_changed="",
-            potential_side_effects="",
             error="Rate limit exceeded"
         )
         
         assert summary.error == "Rate limit exceeded"
+        assert summary.summary_text == ""
 
     def test_ai_summary_validation_negative_tokens(self):
         """Test that negative tokens_used raises validation error."""
@@ -80,9 +70,6 @@ class TestAISummary:
             AISummary(
                 commit_sha="abc123",
                 summary_text="Test",
-                what_changed="Test",
-                why_changed="Test",
-                potential_side_effects="Test",
                 tokens_used=-1
             )
         
@@ -94,9 +81,6 @@ class TestAISummary:
             AISummary(
                 commit_sha="abc123",
                 summary_text="Test",
-                what_changed="Test",
-                why_changed="Test",
-                potential_side_effects="Test",
                 processing_time_ms=-1.0
             )
         
@@ -106,16 +90,13 @@ class TestAISummary:
         """Test AISummary serialization to dict."""
         summary = AISummary(
             commit_sha="serialize123",
-            summary_text="Test summary",
-            what_changed="Test change",
-            why_changed="Test reason",
-            potential_side_effects="Test effects"
+            summary_text="Test summary with comprehensive details"
         )
         
         data = summary.model_dump()
         
         assert data["commit_sha"] == "serialize123"
-        assert data["summary_text"] == "Test summary"
+        assert data["summary_text"] == "Test summary with comprehensive details"
         assert data["model_used"] == "gpt-4o-mini"
         assert "generated_at" in data
 
@@ -123,10 +104,7 @@ class TestAISummary:
         """Test AISummary deserialization from dict."""
         data = {
             "commit_sha": "deserialize123",
-            "summary_text": "Test summary",
-            "what_changed": "Test change",
-            "why_changed": "Test reason",
-            "potential_side_effects": "Test effects",
+            "summary_text": "Test summary with comprehensive details",
             "generated_at": "2024-01-15T10:30:00",
             "model_used": "gpt-4o-mini",
             "tokens_used": 100,
@@ -157,6 +135,7 @@ class TestAISummaryConfig:
         assert config.retry_attempts == 3
         assert config.cost_tracking is True
         assert config.batch_size == 5
+        assert config.compact_mode is False
 
     def test_ai_summary_config_custom_values(self):
         """Test AISummaryConfig with custom values."""
@@ -169,7 +148,8 @@ class TestAISummaryConfig:
             timeout_seconds=60,
             retry_attempts=5,
             cost_tracking=False,
-            batch_size=10
+            batch_size=10,
+            compact_mode=True
         )
         
         assert config.enabled is True
@@ -181,6 +161,7 @@ class TestAISummaryConfig:
         assert config.retry_attempts == 5
         assert config.cost_tracking is False
         assert config.batch_size == 10
+        assert config.compact_mode is True
 
     def test_ai_summary_config_validation_max_tokens(self):
         """Test validation of max_tokens field."""
@@ -267,10 +248,7 @@ class TestCommitDetails:
         commit_date = datetime(2024, 1, 15, 10, 30, 0)
         ai_summary = AISummary(
             commit_sha="commit123",
-            summary_text="This commit fixes authentication bug",
-            what_changed="Modified login validation",
-            why_changed="To prevent unauthorized access",
-            potential_side_effects="May require user re-login"
+            summary_text="This commit fixes authentication bug by modifying login validation to prevent unauthorized access"
         )
         
         details = CommitDetails(
@@ -284,7 +262,7 @@ class TestCommitDetails:
         
         assert details.ai_summary is not None
         assert details.ai_summary.commit_sha == "commit123"
-        assert details.ai_summary.summary_text == "This commit fixes authentication bug"
+        assert details.ai_summary.summary_text == "This commit fixes authentication bug by modifying login validation to prevent unauthorized access"
 
     def test_commit_details_validation_negative_counts(self):
         """Test validation of count fields."""
@@ -460,10 +438,7 @@ class TestModelSerialization:
         """Test AISummary serialization roundtrip."""
         original = AISummary(
             commit_sha="roundtrip123",
-            summary_text="Test summary",
-            what_changed="Test change",
-            why_changed="Test reason",
-            potential_side_effects="Test effects",
+            summary_text="Test summary with comprehensive details",
             tokens_used=100,
             processing_time_ms=500.0
         )
@@ -483,10 +458,7 @@ class TestModelSerialization:
         """Test CommitDetails serialization roundtrip."""
         ai_summary = AISummary(
             commit_sha="roundtrip123",
-            summary_text="Test summary",
-            what_changed="Test change",
-            why_changed="Test reason",
-            potential_side_effects="Test effects"
+            summary_text="Test summary with comprehensive details"
         )
         
         original = CommitDetails(
@@ -532,3 +504,37 @@ class TestModelSerialization:
         assert reconstructed.total_requests == original.total_requests
         assert reconstructed.successful_requests == original.successful_requests
         assert reconstructed.total_cost_usd == original.total_cost_usd
+
+    def test_ai_summary_config_compact_mode(self):
+        """Test AISummaryConfig compact_mode functionality."""
+        # Test default compact_mode is False
+        config = AISummaryConfig()
+        assert config.compact_mode is False
+        
+        # Test setting compact_mode to True
+        config_compact = AISummaryConfig(compact_mode=True)
+        assert config_compact.compact_mode is True
+        
+        # Test that compact_mode can be combined with other settings
+        config_full = AISummaryConfig(
+            enabled=True,
+            model="gpt-4o-mini",
+            max_tokens=100,
+            compact_mode=True
+        )
+        assert config_full.enabled is True
+        assert config_full.model == "gpt-4o-mini"
+        assert config_full.max_tokens == 100
+        assert config_full.compact_mode is True
+
+    def test_ai_summary_config_compact_mode_serialization(self):
+        """Test AISummaryConfig compact_mode serialization."""
+        config = AISummaryConfig(compact_mode=True)
+        
+        # Serialize to dict
+        data = config.model_dump()
+        assert data["compact_mode"] is True
+        
+        # Deserialize back to object
+        reconstructed = AISummaryConfig(**data)
+        assert reconstructed.compact_mode is True

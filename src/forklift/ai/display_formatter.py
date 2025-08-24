@@ -83,9 +83,7 @@ class AISummaryDisplayFormatter:
         table.add_column("Commit", style="cyan", width=8)
         table.add_column("Author", style="green", width=12)
         table.add_column("Message", style="yellow", width=30)
-        table.add_column("What Changed", style="white", width=35)
-        table.add_column("Why", style="bright_green", width=25)
-        table.add_column("Impact", style="red", width=25)
+        table.add_column("AI Summary", style="white", width=60)
         table.add_column("Meta", style="dim", width=8)
 
         # Create a mapping of commit SHA to summary
@@ -224,25 +222,15 @@ class AISummaryDisplayFormatter:
             self.console.print(Rule(style="dim"))
 
     def _display_ai_analysis_sections(self, summary: AISummary) -> None:
-        """Display AI analysis in structured sections.
+        """Display AI analysis as simple summary text.
 
         Args:
             summary: AISummary object with analysis data
         """
-        # What Changed section
-        if summary.what_changed:
-            self.console.print(f"\n[bold blue]🔍 What Changed:[/bold blue]")
-            self.console.print(f"[white]{summary.what_changed}[/white]")
-
-        # Why Changed section
-        if summary.why_changed:
-            self.console.print(f"\n[bold green]💡 Why Changed:[/bold green]")
-            self.console.print(f"[white]{summary.why_changed}[/white]")
-
-        # Potential Side Effects section
-        if summary.potential_side_effects:
-            self.console.print(f"\n[bold red]⚠️  Potential Impact:[/bold red]")
-            self.console.print(f"[white]{summary.potential_side_effects}[/white]")
+        # Display the summary text
+        if summary.summary_text:
+            self.console.print(f"\n[bold blue]🤖 AI Summary:[/bold blue]")
+            self.console.print(f"[white]{summary.summary_text}[/white]")
 
         # Processing metadata
         if summary.processing_time_ms and summary.tokens_used:
@@ -323,35 +311,15 @@ class AISummaryDisplayFormatter:
 
         ai_content = []
 
-        # What Changed panel
-        if summary.what_changed:
-            what_panel = Panel(
-                Text(summary.what_changed, style="white"),
-                title="[bold blue]🔍 What Changed[/bold blue]",
+        # AI Summary panel
+        if summary.summary_text:
+            summary_panel = Panel(
+                Text(summary.summary_text, style="white"),
+                title="[bold blue]🤖 AI Summary[/bold blue]",
                 border_style="blue",
                 padding=(0, 1)
             )
-            ai_content.append(what_panel)
-
-        # Why Changed panel
-        if summary.why_changed:
-            why_panel = Panel(
-                Text(summary.why_changed, style="white"),
-                title="[bold green]💡 Why Changed[/bold green]",
-                border_style="green",
-                padding=(0, 1)
-            )
-            ai_content.append(why_panel)
-
-        # Potential Impact panel
-        if summary.potential_side_effects:
-            impact_panel = Panel(
-                Text(summary.potential_side_effects, style="white"),
-                title="[bold red]⚠️  Potential Impact[/bold red]",
-                border_style="red",
-                padding=(0, 1)
-            )
-            ai_content.append(impact_panel)
+            ai_content.append(summary_panel)
 
         # Processing metadata
         if show_metadata and summary.processing_time_ms and summary.tokens_used:
@@ -383,30 +351,22 @@ class AISummaryDisplayFormatter:
         if len(message) > 30:
             message = message[:27] + "..."
 
-        # Format AI summary components
+        # Format AI summary
         if summary and not summary.error:
-            what_changed = self._truncate_text(summary.what_changed, 35)
-            why_changed = self._truncate_text(summary.why_changed, 25)
-            impact = self._truncate_text(summary.potential_side_effects, 25)
+            ai_summary = self._truncate_text(summary.summary_text, 60)
             meta = f"{summary.tokens_used}t" if summary.tokens_used else "N/A"
         elif summary and summary.error:
-            what_changed = Text(f"Error: {summary.error[:30]}...", style="red")
-            why_changed = Text("N/A", style="dim")
-            impact = Text("N/A", style="dim")
+            ai_summary = Text(f"Error: {summary.error[:50]}...", style="red")
             meta = "ERR"
         else:
-            what_changed = Text("No summary", style="dim")
-            why_changed = Text("N/A", style="dim")
-            impact = Text("N/A", style="dim")
+            ai_summary = Text("No summary", style="dim")
             meta = "N/A"
 
         table.add_row(
             commit_short,
             author,
             message,
-            what_changed,
-            why_changed,
-            impact,
+            ai_summary,
             meta
         )
 

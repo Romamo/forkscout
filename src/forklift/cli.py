@@ -1009,6 +1009,7 @@ def analyze_fork(
 @click.option("--show-stats", is_flag=True, help="Show detailed statistics")
 @click.option("--explain", is_flag=True, help="Generate explanations for each commit")
 @click.option("--ai-summary", is_flag=True, help="Generate AI-powered summaries for each commit (requires OpenAI API key)")
+@click.option("--ai-summary-compact", is_flag=True, help="Generate compact AI summaries with minimal formatting (requires OpenAI API key)")
 @click.option("--detail", is_flag=True, help="Display comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs")
 @click.option("--disable-cache", is_flag=True, help="Disable caching and fetch fresh data from GitHub API")
 @click.pass_context
@@ -1025,6 +1026,7 @@ def show_commits(
     show_stats: bool,
     explain: bool,
     ai_summary: bool,
+    ai_summary_compact: bool,
     detail: bool,
     disable_cache: bool
 ) -> None:
@@ -1049,6 +1051,10 @@ def show_commits(
         if not config.github.token:
             raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
 
+        # Validate AI summary options
+        if ai_summary and ai_summary_compact:
+            raise CLIError("Cannot use both --ai-summary and --ai-summary-compact flags together. Choose one.")
+
         # Parse date filters if provided
         since_date = None
         until_date = None
@@ -1071,7 +1077,7 @@ def show_commits(
         # Run commit display
         asyncio.run(_show_commits(
             config, fork_url, branch, limit, since_date, until_date,
-            author, include_merge, show_files, show_stats, verbose, explain, ai_summary, detail, disable_cache
+            author, include_merge, show_files, show_stats, verbose, explain, ai_summary, ai_summary_compact, detail, disable_cache
         ))
 
     except CLIError as e:
@@ -1683,6 +1689,7 @@ async def _show_commits(
     verbose: bool,
     explain: bool = False,
     ai_summary: bool = False,
+    ai_summary_compact: bool = False,
     detail: bool = False,
     disable_cache: bool = False
 ) -> None:
@@ -1702,6 +1709,7 @@ async def _show_commits(
         verbose: Whether to show verbose output
         explain: Whether to generate commit explanations
         ai_summary: Whether to generate AI-powered summaries
+        ai_summary_compact: Whether to generate compact AI summaries
         detail: Whether to display comprehensive commit information
         disable_cache: Whether to disable caching and fetch fresh data
     """
@@ -1777,8 +1785,8 @@ async def _show_commits(
                     await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits)
 
                 # Generate AI summaries if requested
-                if ai_summary and commits:
-                    await _display_ai_summaries_for_commits(github_client, config, owner, repo_name, commits, disable_cache)
+                if (ai_summary or ai_summary_compact) and commits:
+                    await _display_ai_summaries_for_commits(github_client, config, owner, repo_name, commits, disable_cache, compact_mode=ai_summary_compact)
 
                 # Display commits
                 _display_commits_table(commits, repo, target_branch, show_files, show_stats)
@@ -2003,7 +2011,8 @@ async def _display_ai_summaries_for_commits(
     owner: str,
     repo_name: str,
     commits: list,
-    disable_cache: bool = False
+    disable_cache: bool = False,
+    compact_mode: bool = False
 ) -> None:
     """Display AI-powered summaries for a list of commits.
     
@@ -2014,6 +2023,7 @@ async def _display_ai_summaries_for_commits(
         repo_name: Repository name
         commits: List of Commit objects to summarize
         disable_cache: Whether to disable caching and fetch fresh data
+        compact_mode: Whether to use compact summary style
     """
     from forklift.ai.client import OpenAIClient
     from forklift.ai.summary_engine import AICommitSummaryEngine
@@ -2021,7 +2031,8 @@ async def _display_ai_summaries_for_commits(
     from forklift.models.ai_summary import AISummaryConfig
     from forklift.models.github import Repository
     
-    console.print(f"\n[bold blue]🤖 AI-Powered Commit Summaries[/bold blue]")
+    mode_text = " (Compact Mode)" if compact_mode else ""
+    console.print(f"\n[bold blue]🤖 AI-Powered Commit Summaries{mode_text}[/bold blue]")
     console.print("=" * 60)
     
     if disable_cache:
@@ -2045,7 +2056,7 @@ async def _display_ai_summaries_for_commits(
         )
         
         # Initialize AI components with proper async context manager
-        ai_config = AISummaryConfig()
+        ai_config = AISummaryConfig(compact_mode=compact_mode)
         error_handler = OpenAIErrorHandler(max_retries=ai_config.retry_attempts)
         
         # Use async context manager for OpenAI client
@@ -2107,8 +2118,10 @@ async def _display_ai_summaries_for_commits(
             if summaries:
                 formatter = AISummaryDisplayFormatter(console)
                 
-                # Use detailed format for <= 5 commits, compact for more
-                if len(commits) <= 5:
+                # Use compact format if requested, otherwise use detailed format for <= 5 commits
+                if compact_mode:
+                    formatter.format_ai_summaries_compact(commits, summaries)
+                elif len(commits) <= 5:
                     formatter.format_ai_summaries_detailed(commits, summaries, show_metadata=True)
                 else:
                     formatter.format_ai_summaries_compact(commits, summaries)

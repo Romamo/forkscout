@@ -78,12 +78,15 @@ class TestAICommitSummaryEngine:
         
         prompt = engine.create_summary_prompt(commit_message, diff_text)
         
-        assert "senior developer" in prompt.lower()
-        assert "what changed" in prompt.lower()
-        assert "why it changed" in prompt.lower()
-        assert "potential side effects" in prompt.lower()
+        # Check for concise prompt format
+        assert "Summarize this commit: what changed, why, impact" in prompt
+        assert "senior developer" not in prompt.lower()  # Should not contain buzzwords
         assert commit_message in prompt
         assert diff_text in prompt
+        
+        # Verify the prompt is concise - the base instruction should be under 50 chars
+        base_instruction = "Summarize this commit: what changed, why, impact"
+        assert len(base_instruction) < 50
 
     def test_create_summary_prompt_with_long_diff(self):
         """Test prompt creation with diff that needs truncation."""
@@ -98,6 +101,76 @@ class TestAICommitSummaryEngine:
         
         assert "[... diff truncated for length ...]" in prompt
         assert len(prompt) < len(commit_message) + len(long_diff) + 500  # Should be truncated
+
+    def test_create_summary_prompt_is_concise(self):
+        """Test that the prompt instruction is concise and under 50 characters."""
+        mock_client = Mock(spec=OpenAIClient)
+        engine = AICommitSummaryEngine(mock_client)
+        
+        commit_message = "Test commit"
+        diff_text = "test diff"
+        
+        prompt = engine.create_summary_prompt(commit_message, diff_text)
+        
+        # Extract the base instruction (first line)
+        lines = prompt.split('\n')
+        base_instruction = lines[0]
+        
+        # Verify it's the expected concise format
+        assert base_instruction == "Summarize this commit: what changed, why, impact"
+        
+        # Verify it's under 50 characters
+        assert len(base_instruction) < 50
+        
+        # Verify no verbose language or buzzwords
+        assert "senior developer" not in prompt.lower()
+        assert "clear, human-readable explanation" not in prompt.lower()
+        assert "please provide" not in prompt.lower()
+        assert "considerations" not in prompt.lower()
+
+    def test_create_summary_prompt_compact_mode(self):
+        """Test prompt creation in compact mode."""
+        mock_client = Mock(spec=OpenAIClient)
+        config = AISummaryConfig(compact_mode=True)
+        engine = AICommitSummaryEngine(mock_client, config)
+        
+        commit_message = "feat: add user authentication"
+        diff_text = "+def authenticate_user():\n+    return True"
+        
+        prompt = engine.create_summary_prompt(commit_message, diff_text)
+        
+        # Verify compact prompt format
+        assert "Brief summary:" in prompt
+        assert "One sentence: what changed and why." in prompt
+        
+        # Verify it doesn't contain standard prompt elements
+        assert "Summarize this commit: what changed, why, impact" not in prompt
+        
+        # Verify commit message and diff are included
+        assert commit_message in prompt
+        assert diff_text in prompt
+
+    def test_create_summary_prompt_standard_mode(self):
+        """Test prompt creation in standard (non-compact) mode."""
+        mock_client = Mock(spec=OpenAIClient)
+        config = AISummaryConfig(compact_mode=False)
+        engine = AICommitSummaryEngine(mock_client, config)
+        
+        commit_message = "feat: add user authentication"
+        diff_text = "+def authenticate_user():\n+    return True"
+        
+        prompt = engine.create_summary_prompt(commit_message, diff_text)
+        
+        # Verify standard prompt format
+        assert "Summarize this commit: what changed, why, impact" in prompt
+        
+        # Verify it doesn't contain compact prompt elements
+        assert "Brief summary:" not in prompt
+        assert "One sentence: what changed and why." not in prompt
+        
+        # Verify commit message and diff are included
+        assert commit_message in prompt
+        assert diff_text in prompt
 
     def test_truncate_diff_for_tokens(self):
         """Test diff truncation logic."""
@@ -134,7 +207,7 @@ class TestAICommitSummaryEngine:
         
         # Mock successful API response
         mock_response = OpenAIResponse(
-            text="What changed: Fixed authentication bug\nWhy: To prevent unauthorized access\nSide effects: Users may need to re-login",
+            text="Fixed authentication bug to prevent unauthorized access. Users may need to re-login after the update.",
             usage={"total_tokens": 150, "prompt_tokens": 100, "completion_tokens": 50},
             model="gpt-4o-mini",
             finish_reason="stop"
@@ -154,10 +227,10 @@ class TestAICommitSummaryEngine:
         
         assert isinstance(summary, AISummary)
         assert summary.commit_sha == commit.sha
-        assert summary.summary_text == mock_response.text
-        assert "Fixed authentication bug" in summary.what_changed
-        assert "prevent unauthorized access" in summary.why_changed
-        assert "re-login" in summary.potential_side_effects
+        assert summary.summary_text == mock_response.text.strip()
+        assert "Fixed authentication bug" in summary.summary_text
+        assert "prevent unauthorized access" in summary.summary_text
+        assert "re-login" in summary.summary_text
         assert summary.model_used == "gpt-4o-mini"
         assert summary.tokens_used == 150
         assert summary.processing_time_ms > 0
@@ -189,9 +262,6 @@ class TestAICommitSummaryEngine:
         assert summary.commit_sha == commit.sha
         assert summary.error == "Friendly error message"
         assert summary.summary_text == ""
-        assert summary.what_changed == ""
-        assert summary.why_changed == ""
-        assert summary.potential_side_effects == ""
         
         # Verify error handling was called
         mock_error_handler.log_error.assert_called_once()
@@ -330,46 +400,36 @@ class TestAICommitSummaryEngine:
         # Should have slept once between batches
         mock_sleep.assert_called_once_with(1.0)
 
-    def test_parse_summary_response_structured(self):
-        """Test parsing structured AI response."""
+    def test_summary_response_processing(self):
+        """Test that summary response is properly processed."""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        response_text = """What changed: Fixed authentication bug in login system
-Why: To prevent unauthorized access to user accounts
-Side effects: Users may need to re-login after the update"""
+        # Test that response text is stripped of whitespace
+        response_text = "  This commit fixes a bug in the authentication system.  \n"
+        expected_text = "This commit fixes a bug in the authentication system."
         
-        parsed = engine._parse_summary_response(response_text)
-        
-        assert "Fixed authentication bug" in parsed["what_changed"]
-        assert "prevent unauthorized access" in parsed["why_changed"]
-        assert "re-login" in parsed["potential_side_effects"]
+        # Since we no longer parse structured responses, we just verify the text is cleaned
+        assert response_text.strip() == expected_text
 
-    def test_parse_summary_response_unstructured(self):
-        """Test parsing unstructured AI response."""
+    def test_simplified_response_handling(self):
+        """Test that AI responses are handled as simple text without structured parsing."""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        response_text = "This commit fixes a bug in the authentication system that was allowing unauthorized access."
+        # Test various response formats - all should be treated as simple text
+        test_cases = [
+            "Simple commit description",
+            "What changed: Added feature\nWhy: For users\nImpact: None",  # Structured format
+            "This commit does multiple things:\n- Adds feature A\n- Fixes bug B\n- Updates docs",
+            "   Whitespace should be trimmed   \n\n"
+        ]
         
-        parsed = engine._parse_summary_response(response_text)
-        
-        assert parsed["what_changed"] == response_text
-        assert parsed["why_changed"] == ""
-        assert parsed["potential_side_effects"] == ""
-
-    def test_parse_summary_response_partial_structure(self):
-        """Test parsing partially structured AI response."""
-        mock_client = Mock(spec=OpenAIClient)
-        engine = AICommitSummaryEngine(mock_client)
-        
-        response_text = """What: Fixed authentication bug
-This change prevents unauthorized access to the system."""
-        
-        parsed = engine._parse_summary_response(response_text)
-        
-        assert "Fixed authentication bug" in parsed["what_changed"]
-        assert "prevents unauthorized access" in parsed["what_changed"]
+        for response_text in test_cases:
+            # All responses should just be stripped, no parsing
+            processed = response_text.strip()
+            assert isinstance(processed, str)
+            assert processed == response_text.strip()
 
     def test_update_usage_stats_success(self):
         """Test usage statistics update for successful request."""
@@ -542,3 +602,67 @@ This change prevents unauthorized access to the system."""
         # Double the commits should roughly double the cost
         assert double_cost > single_cost
         assert double_cost >= single_cost * 1.8  # Allow some variance
+
+    @pytest.mark.asyncio
+    async def test_generate_commit_summary_compact_mode_token_limit(self):
+        """Test that compact mode uses reduced token limits."""
+        mock_client = AsyncMock(spec=OpenAIClient)
+        
+        # Mock successful API response
+        mock_response = OpenAIResponse(
+            text="Brief summary of changes",
+            usage={"total_tokens": 50, "prompt_tokens": 30, "completion_tokens": 20},
+            model="gpt-4o-mini",
+            finish_reason="stop"
+        )
+        mock_client.create_completion_with_retry.return_value = mock_response
+        
+        # Test with compact mode enabled
+        config = AISummaryConfig(compact_mode=True, max_tokens=500)
+        engine = AICommitSummaryEngine(mock_client, config)
+        
+        commit = self.create_test_commit()
+        diff_text = "test diff content"
+        
+        summary = await engine.generate_commit_summary(commit, diff_text)
+        
+        # Verify API was called with reduced token limit (100 instead of 500)
+        mock_client.create_completion_with_retry.assert_called_once()
+        call_args = mock_client.create_completion_with_retry.call_args
+        assert call_args[1]['max_tokens'] == 100  # Should be limited to 100 in compact mode
+        
+        # Verify summary was created successfully
+        assert summary.commit_sha == commit.sha
+        assert summary.summary_text == "Brief summary of changes"
+
+    @pytest.mark.asyncio
+    async def test_generate_commit_summary_standard_mode_token_limit(self):
+        """Test that standard mode uses full token limits."""
+        mock_client = AsyncMock(spec=OpenAIClient)
+        
+        # Mock successful API response
+        mock_response = OpenAIResponse(
+            text="Detailed summary of changes with full context",
+            usage={"total_tokens": 200, "prompt_tokens": 100, "completion_tokens": 100},
+            model="gpt-4o-mini",
+            finish_reason="stop"
+        )
+        mock_client.create_completion_with_retry.return_value = mock_response
+        
+        # Test with compact mode disabled
+        config = AISummaryConfig(compact_mode=False, max_tokens=500)
+        engine = AICommitSummaryEngine(mock_client, config)
+        
+        commit = self.create_test_commit()
+        diff_text = "test diff content"
+        
+        summary = await engine.generate_commit_summary(commit, diff_text)
+        
+        # Verify API was called with full token limit
+        mock_client.create_completion_with_retry.assert_called_once()
+        call_args = mock_client.create_completion_with_retry.call_args
+        assert call_args[1]['max_tokens'] == 500  # Should use full config value
+        
+        # Verify summary was created successfully
+        assert summary.commit_sha == commit.sha
+        assert summary.summary_text == "Detailed summary of changes with full context"
