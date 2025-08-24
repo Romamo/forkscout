@@ -245,7 +245,8 @@ class TestAISummaryConfigIntegration:
                 "timeout_seconds": 60,
                 "retry_attempts": 5,
                 "cost_tracking": False,
-                "batch_size": 10
+                "batch_size": 10,
+                "compact_mode": True
             }
         }
         
@@ -259,3 +260,24 @@ class TestAISummaryConfigIntegration:
         assert config.ai_summary.retry_attempts == 5
         assert config.ai_summary.cost_tracking is False
         assert config.ai_summary.batch_size == 10
+        assert config.ai_summary.compact_mode is True
+
+    def test_ai_summary_config_compact_mode_integration(self):
+        """Test ForkliftConfig integration with compact_mode setting."""
+        # Test default compact_mode is False
+        config = ForkliftConfig()
+        assert config.ai_summary.compact_mode is False
+        
+        # Test setting compact_mode to True
+        config_compact = ForkliftConfig(
+            ai_summary=AISummaryConfig(compact_mode=True)
+        )
+        assert config_compact.ai_summary.compact_mode is True
+        
+        # Test serialization includes compact_mode
+        data = config_compact.to_dict()
+        assert data["ai_summary"]["compact_mode"] is True
+        
+        # Test deserialization preserves compact_mode
+        reconstructed = ForkliftConfig.from_dict(data)
+        assert reconstructed.ai_summary.compact_mode is True

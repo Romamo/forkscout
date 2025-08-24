@@ -275,22 +275,23 @@ https://github.com/xgboosted/pandas-ta-classic
 
 ### Requirement 18
 
-**User Story:** As a repository maintainer using terminals that don't support Rich formatting, I want clean console output without formatting codes, so that I can read the tool's output clearly without seeing literal formatting characters like `[bold]` or `**text**`.
+**User Story:** As a repository maintainer, I want clean, simple console output that works reliably across all terminal environments, so that I can read the tool's output clearly without formatting issues or special character problems.
 
 #### Acceptance Criteria
 
-1. WHEN the system detects a terminal that doesn't support Rich formatting THEN it SHALL automatically disable Rich console formatting and use plain text output
-2. WHEN using --no-color or --plain-text flag THEN the system SHALL disable all Rich formatting codes and markdown-style bold formatting throughout the application
-3. WHEN Rich formatting is disabled THEN the system SHALL replace `[bold]text[/bold]` patterns with plain text equivalents
-4. WHEN Rich formatting is disabled THEN the system SHALL replace `[green]`, `[red]`, `[blue]`, `[yellow]` color codes with plain text or simple prefixes like "SUCCESS:", "ERROR:", "INFO:", "WARNING:"
-5. WHEN markdown-style formatting is disabled THEN the system SHALL replace `**text**` patterns with plain text in all output including reports and CLI messages
-6. WHEN formatting is disabled THEN the system SHALL maintain information hierarchy using indentation, spacing, and text-based separators instead of colors and bold text
-7. WHEN generating reports with formatting disabled THEN the system SHALL produce clean markdown without bold formatting that displays properly in all terminals
-8. WHEN displaying tables with formatting disabled THEN the system SHALL use ASCII table borders and plain text headers
-9. WHEN showing progress indicators with formatting disabled THEN the system SHALL use simple text-based progress displays
-10. WHEN the system cannot detect terminal capabilities THEN it SHALL provide a configuration option to force plain text mode
-11. WHEN using plain text mode THEN the system SHALL ensure all information remains accessible and readable without any formatting codes visible
-12. WHEN formatting is disabled THEN the system SHALL maintain consistent spacing and alignment for readability
+1. WHEN running any forklift command THEN the system SHALL use simple, compatible formatting by default that works in all terminal environments
+1.1. WHEN displaying commit explanations THEN the system SHALL NOT use emoji characters (📝, ❓, 🟢, ❔) or Unicode box drawing characters that may display as literal text
+2. WHEN displaying output THEN the system SHALL avoid complex Rich formatting, emojis, and special Unicode characters that may not render properly
+3. WHEN showing tables THEN the system SHALL use simple ASCII characters (|, -, +) instead of Unicode box drawing characters
+4. WHEN indicating status or categories THEN the system SHALL use text labels (SUCCESS, ERROR, INFO, WARNING) instead of colored icons or emojis
+5. WHEN using --no-color or --plain-text flag THEN the system SHALL disable all color codes and use only plain text output
+6. WHEN the system detects limited terminal capabilities THEN it SHALL automatically fall back to plain text mode
+7. WHEN displaying commit explanations THEN the system SHALL use simple text formatting without emojis, special symbols, or complex Rich markup
+8. WHEN showing progress indicators THEN the system SHALL use simple text-based progress displays (e.g., "Processing 5/10...")
+9. WHEN generating reports THEN the system SHALL produce clean markdown without bold formatting or special characters
+10. WHEN formatting is minimal THEN the system SHALL maintain information hierarchy using indentation, spacing, and clear text separators
+11. WHEN using simple formatting THEN the system SHALL ensure all information remains accessible and readable in any terminal
+12. WHEN displaying data THEN the system SHALL prioritize readability and compatibility over visual aesthetics
 
 ### Requirement 19
 

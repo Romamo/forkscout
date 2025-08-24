@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -215,7 +216,7 @@ def display_commit_explanations(fork_analyses: list, explain: bool) -> None:
     from forklift.analysis.explanation_formatter import ExplanationFormatter
     from forklift.models.analysis import CommitWithExplanation
     
-    console.print("\n[bold blue]📝 Commit Explanations[/bold blue]")
+    console.print("\n[bold blue]Commit Explanations[/bold blue]")
     console.print("=" * 60)
     
     formatter = ExplanationFormatter(use_colors=True, use_icons=True)
@@ -1944,7 +1945,7 @@ async def _display_commit_explanations_for_commits(
     from forklift.models.analysis import CommitWithExplanation, AnalysisContext
     from forklift.models.github import Repository, Fork, User
     
-    console.print(f"\n[bold blue]📝 Commit Explanations[/bold blue]")
+    console.print(f"\n[bold blue]Commit Explanations[/bold blue]")
     console.print("=" * 60)
     
     try:
@@ -2103,7 +2104,8 @@ async def _display_ai_summaries_for_commits(
                     progress.advance(diff_task)
                 
                 # Generate AI summaries
-                summary_task = progress.add_task("Generating AI summaries...", total=len(commits_with_diffs))
+                summary_task_desc = "Generating compact AI summaries..." if compact_mode else "Generating AI summaries..."
+                summary_task = progress.add_task(summary_task_desc, total=len(commits_with_diffs))
                 
                 def progress_callback(progress_pct: float, completed: int, total: int):
                     progress.update(summary_task, completed=completed)
@@ -2114,23 +2116,35 @@ async def _display_ai_summaries_for_commits(
                     progress_callback=progress_callback
                 )
             
+            # Detect plain text mode (no Rich formatting support)
+            plain_text_mode = (
+                os.getenv('NO_COLOR') is not None or 
+                os.getenv('FORKLIFT_NO_COLOR') is not None or
+                os.getenv('FORKLIFT_PLAIN_TEXT') is not None or
+                not console.is_terminal
+            )
+            
             # Display summaries using the new formatter
             if summaries:
                 formatter = AISummaryDisplayFormatter(console)
                 
                 # Use compact format if requested, otherwise use detailed format for <= 5 commits
                 if compact_mode:
-                    formatter.format_ai_summaries_compact(commits, summaries)
+                    formatter.format_ai_summaries_compact(commits, summaries, plain_text=plain_text_mode)
                 elif len(commits) <= 5:
                     formatter.format_ai_summaries_detailed(commits, summaries, show_metadata=True)
                 else:
-                    formatter.format_ai_summaries_compact(commits, summaries)
+                    formatter.format_ai_summaries_compact(commits, summaries, plain_text=plain_text_mode)
                 
                 # Show usage statistics with enhanced formatting
                 usage_stats = summary_engine.get_usage_stats()
                 formatter.display_usage_statistics(usage_stats)
             else:
-                console.print("[yellow]No AI summaries were generated[/yellow]")
+                if plain_text_mode:
+                    print("No AI summaries were generated")
+                else:
+                    console.print("[yellow]No AI summaries were generated[/yellow]")
+            
             
     except Exception as e:
         logger.error(f"Failed to generate AI summaries: {e}")
@@ -2376,7 +2390,7 @@ def _display_commits_table(
         return
 
     # Header
-    console.print(f"\n[bold blue]📝 Commits from {repo.full_name} (branch: {branch})[/bold blue]")
+    console.print(f"\n[bold blue]Commits from {repo.full_name} (branch: {branch})[/bold blue]")
     console.print(f"[dim]Showing {len(commits)} commits[/dim]")
 
     # Main commits table

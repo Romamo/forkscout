@@ -436,7 +436,7 @@ class InteractiveAnalyzer:
 [bold cyan]Language:[/bold cyan] {fork.language or 'Not specified'}
 [bold cyan]Stars:[/bold cyan] ⭐ {fork.stars:,}
 [bold cyan]Forks:[/bold cyan] 🍴 {fork.forks_count:,}
-[bold cyan]Total Commits:[/bold cyan] 📝 {fork_details.total_commits:,}
+[bold cyan]Total Commits:[/bold cyan] {fork_details.total_commits:,}
 [bold cyan]Contributors:[/bold cyan] 👥 {fork_details.contributor_count:,}
         """.strip()
         
@@ -483,7 +483,7 @@ class InteractiveAnalyzer:
         table.add_row("Size", f"📦 {fork.size:,} KB")
         table.add_row("Default Branch", fork.default_branch)
         table.add_row("Total Branches", str(len(fork_details.branches)))
-        table.add_row("Total Commits", f"📝 {fork_details.total_commits:,}")
+        table.add_row("Total Commits", f"{fork_details.total_commits:,}")
         table.add_row("Contributors", f"👥 {fork_details.contributor_count:,}")
         table.add_row("Created", self._format_datetime(fork.created_at))
         table.add_row("Last Updated", self._format_datetime(fork.updated_at))

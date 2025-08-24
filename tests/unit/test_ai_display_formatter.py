@@ -141,11 +141,11 @@ class TestAISummaryDisplayFormatter:
         formatter.format_ai_summaries_compact([sample_commit], [sample_ai_summary])
         
         output = mock_console.file.getvalue()
-        assert "AI-Powered Commit Summaries" in output
-        assert "AI Commit Analysis" in output
-        assert "abc12" in output  # Short SHA (truncated in table)
+        assert "🤖 AI Commit Summaries" in output
+        assert "abc123de" in output  # Short SHA
         assert "testuser" in output
-        assert "feat: add user" in output  # Message truncated in table
+        assert "feat: add user authentication system" in output  # Full message
+        assert "Added comprehensive user authentication system" in output  # AI summary
 
     def test_format_ai_summaries_structured_empty_lists(self, mock_console):
         """Test structured formatting with empty lists."""
@@ -400,6 +400,61 @@ class TestAISummaryDisplayFormatter:
         assert "user0" in output
         assert "user1" in output
         assert "user2" in output
+
+    def test_format_ai_summaries_compact_plain_text(self, sample_commit, sample_ai_summary):
+        """Test compact formatting in plain text mode."""
+        from io import StringIO
+        import sys
+        
+        # Capture stdout for plain text output
+        captured_output = StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured_output
+        
+        try:
+            formatter = AISummaryDisplayFormatter()
+            formatter.format_ai_summaries_compact([sample_commit], [sample_ai_summary], plain_text=True)
+            
+            output = captured_output.getvalue()
+            
+            # Verify plain text output (no Rich formatting codes)
+            assert "[bold]" not in output
+            assert "[cyan]" not in output
+            assert "[green]" not in output
+            assert "[yellow]" not in output
+            
+            # Verify content is present
+            assert "🤖 AI Commit Summaries" in output
+            assert "abc123de" in output
+            assert "testuser" in output
+            assert "Added comprehensive user authentication system" in output
+            
+        finally:
+            sys.stdout = old_stdout
+
+    def test_format_ai_summaries_compact_plain_text_with_error(self, sample_commit, sample_ai_summary_with_error):
+        """Test compact formatting in plain text mode with error."""
+        from io import StringIO
+        import sys
+        
+        # Capture stdout for plain text output
+        captured_output = StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured_output
+        
+        try:
+            formatter = AISummaryDisplayFormatter()
+            formatter.format_ai_summaries_compact([sample_commit], [sample_ai_summary_with_error], plain_text=True)
+            
+            output = captured_output.getvalue()
+            
+            # Verify plain text error output
+            assert "[red]" not in output  # No Rich formatting
+            assert "AI Error: Rate limit exceeded" in output
+            assert "abc123de" in output
+            
+        finally:
+            sys.stdout = old_stdout
 
     def test_compatibility_with_existing_flags(self, mock_console, sample_commit, sample_ai_summary):
         """Test that formatter works with existing CLI flags like --disable-cache and --limit."""

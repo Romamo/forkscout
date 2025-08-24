@@ -321,7 +321,7 @@ class ForkFilteringStep(InteractiveStep):
         if filtered_forks:
             display_text += f"""
 - ⭐ Average stars (selected): {metrics.get('avg_stars_filtered', 0):.1f}
-- 📝 Average commits ahead (selected): {metrics.get('avg_commits_ahead_filtered', 0):.1f}
+- Average commits ahead (selected): {metrics.get('avg_commits_ahead_filtered', 0):.1f}
 
 **🎯 Selected Forks for Detailed Analysis:**"""
             

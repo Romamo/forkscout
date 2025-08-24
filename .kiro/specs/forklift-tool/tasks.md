@@ -199,7 +199,7 @@
 - [x] 8.5 Implement commit analysis and display commands
   - Create analyze-fork command for specific fork/branch combination analysis
   - Implement show-commits command with detailed commit information display
-  - Add formatted output with tables, colors, and progress indicators
+  - Add formatted output with simple tables and text-based progress indicators
   - Write tests for commit analysis and display formatting
   - _Requirements: 6.6, 6.7, 6.8, 6.9_
 
@@ -215,7 +215,7 @@
   - Create ForksPreview and ForkPreviewItem data models in models/analysis.py
   - Add @cli.command("list-forks") decorator and function to CLI
   - Implement lightweight fork preview using minimal API calls (no commit analysis)
-  - Add proper error handling and Rich formatting for fast fork display
+  - Add proper error handling and simple text formatting for fast fork display
   - Write unit and integration tests for the complete list-forks functionality
   - _Requirements: 6.2_
 
@@ -244,11 +244,11 @@
   - Write integration tests for all enhanced commands with explanation support
   - _Requirements: 8.10_
 
-- [x] 8.9.3 Implement Rich-based explanation display
-  - Implement formatted output for commits with explanations using Rich library
-  - Add color coding for different category types and impact levels
-  - Create visual hierarchy with proper spacing and typography
-  - Write unit tests for output formatting and visual consistency
+- [x] 8.9.3 Implement simple text-based explanation display
+  - Implement formatted output for commits with explanations using simple text formatting
+  - Add text labels for different category types and impact levels (instead of colors/emojis)
+  - Create clear hierarchy with indentation and text separators
+  - Write unit tests for output formatting and terminal compatibility
   - _Requirements: 8.3, 8.9_
 
 - [ ] 8.9.4 Add explanation configuration support
@@ -528,38 +528,47 @@
   - Write end-to-end tests for complete analysis workflow with cache disabled
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
-- [ ] 17. Implement console formatting compatibility for terminals without Rich support
-- [ ] 17.1 Create terminal capability detection and plain text formatting system
-  - Implement TerminalCapabilityDetector class to detect Rich formatting support
-  - Create PlainTextFormatter class to convert Rich formatting codes to plain text
-  - Add FormattingMode enum with AUTO, RICH, and PLAIN options
-  - Implement formatting code stripping for `[bold]`, `[green]`, `[red]`, `[blue]`, `[yellow]` patterns
-  - Write unit tests for terminal detection and formatting conversion
-  - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.10_
+- [ ] 17. Fix immediate console formatting issues and implement simple, compatible formatting as default
+- [-] 17.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
+  - Replace all emoji characters (📝, ❓, 🟢, ❔) with simple text labels in commit explanations
+  - Fix Unicode table borders that display as literal characters in some terminals
+  - Update ExplanationFormatter to use ASCII characters instead of Unicode box drawing
+  - Remove special symbols from commit category and impact displays
+  - Write unit tests for ASCII-only output formatting
+  - _Requirements: 18.1, 18.2, 18.7_
 
-- [ ] 17.2 Add CLI flags and configuration for formatting control
-  - Add --no-color and --plain-text CLI flags to all commands
-  - Create FormattingConfig model with formatting preferences
-  - Integrate formatting configuration into main ForkliftConfig
-  - Add environment variable support for FORKLIFT_NO_COLOR and FORKLIFT_PLAIN_TEXT
-  - Write unit tests for formatting configuration and CLI flag handling
-  - _Requirements: 18.2, 18.10_
+- [ ] 17. Implement simple, compatible console formatting as default
+- [ ] 17.1 Replace Rich formatting with simple text-based output
+  - Remove emoji and Unicode symbols from all CLI output (replace ❓, 🟢, ❔ with text labels)
+  - Replace Rich table formatting with simple ASCII tables using |, -, + characters
+  - Convert color-coded status indicators to text prefixes (SUCCESS:, ERROR:, INFO:, WARNING:)
+  - Remove complex Rich markup and use simple indentation and spacing for hierarchy
+  - Write unit tests for simple formatting output and compatibility
+  - _Requirements: 18.1, 18.2, 18.3, 18.4_
 
-- [ ] 17.3 Implement markdown bold formatting removal system
-  - Create MarkdownFormatter class to handle `**text**` pattern removal
-  - Add bold formatting stripping for all report generation and CLI output
-  - Implement text-based emphasis using UPPERCASE or indentation
-  - Update report generation to produce clean markdown without bold formatting
-  - Write unit tests for markdown formatting removal and text-based emphasis
-  - _Requirements: 18.5, 18.6, 18.7_
+- [ ] 17.2 Update commit explanation display to use simple formatting
+  - Replace emoji category indicators (❓, 🟢, etc.) with text labels (OTHER, LOW, UNCLEAR)
+  - Convert Rich table borders to simple ASCII characters for commit explanation tables
+  - Remove special Unicode characters from all commit display formatting
+  - Use plain text separators and indentation instead of Rich visual elements
+  - Write unit tests for simplified commit explanation display
+  - _Requirements: 18.7, 18.11_
 
-- [ ] 17.4 Update all CLI commands with plain text formatting support
-  - Modify all CLI commands to use FormattingMode configuration
-  - Update progress indicators and status messages for plain text compatibility
-  - Ensure table displays work correctly in both Rich and plain text modes
-  - Add comprehensive testing for all CLI commands in plain text mode
-  - Write integration tests for formatting compatibility across different terminal types
-  - _Requirements: 18.8, 18.9, 18.11, 18.12_
+- [ ] 17.3 Add optional enhanced formatting mode
+  - Create FormattingMode enum with SIMPLE (default), ENHANCED, and PLAIN options
+  - Add --enhanced-formatting CLI flag to enable Rich formatting for users who want it
+  - Implement TerminalCapabilityDetector to auto-detect when enhanced formatting is safe
+  - Create FormattingConfig model with user preferences for formatting level
+  - Write unit tests for formatting mode detection and configuration
+  - _Requirements: 18.5, 18.6, 18.12_
+
+- [ ] 17.4 Update all CLI commands to use simple formatting by default
+  - Modify all CLI commands to use simple ASCII formatting as the default mode
+  - Update progress indicators to use simple text (e.g., "Processing 5/10..." instead of progress bars)
+  - Ensure all table displays use ASCII characters and work in any terminal
+  - Add --no-color flag support for completely plain text output
+  - Write integration tests for all CLI commands with simple formatting
+  - _Requirements: 18.8, 18.9, 18.10, 18.11_
 
 - [ ] 18. Implement detailed commit view with comprehensive information display
 - [x] 18.1 Add --detail flag to show-commits command
@@ -662,7 +671,7 @@
   - Write unit tests for simplified response parsing
   - _Requirements: 17.10, 17.16, 17.17_
 
-- [-] 18.3 Enforce brevity in AI summary generation
+- [x] 18.3 Enforce brevity in AI summary generation
   - Reduce max_tokens in AISummaryConfig from 500 to 150 tokens
   - Add response length validation to ensure summaries stay under 3 sentences
   - Implement post-processing to trim verbose AI responses
@@ -670,7 +679,7 @@
   - Write unit tests for brevity enforcement and length validation
   - _Requirements: 17.16, 17.17_
 
-- [ ] 18.4 Update CLI display for compact AI summaries
+- [x] 18.4 Update CLI display for compact AI summaries
   - Modify show-commits command to display compact summaries inline
   - Remove structured formatting and verbose visual separation
   - Update progress indicators to reflect shorter processing times
@@ -678,7 +687,7 @@
   - Write integration tests for compact AI summary display
   - _Requirements: 17.1, 17.10, 17.17_
 
-- [ ] 18.5 Add configuration option for AI summary style
+- [x] 18.5 Add configuration option for AI summary style
   - Add compact_mode boolean to AISummaryConfig
   - Allow users to choose between compact and detailed summary styles
   - Update CLI to support --ai-summary-compact flag

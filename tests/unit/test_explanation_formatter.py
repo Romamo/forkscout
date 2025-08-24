@@ -84,25 +84,25 @@ class TestExplanationFormatter:
     def test_format_category_with_icon_and_color(self, formatter):
         """Test formatting category with icon and color."""
         result = formatter.format_category_with_icon(CategoryType.FEATURE)
-        assert "🚀" in result
+        assert "[FEAT]" in result
         assert "Feature" in result
 
     def test_format_category_without_icon_and_color(self, formatter_no_colors):
         """Test formatting category without icon and color."""
         result = formatter_no_colors.format_category_with_icon(CategoryType.FEATURE)
-        assert "🚀" not in result
+        assert "[FEAT]" not in result
         assert result == "Feature"
 
     def test_format_impact_indicator_with_icon_and_color(self, formatter):
         """Test formatting impact indicator with icon and color."""
         result = formatter.format_impact_indicator(ImpactLevel.HIGH)
-        assert "🟠" in result
+        assert "[HIGH]" in result
         assert "High" in result
 
     def test_format_impact_indicator_without_icon_and_color(self, formatter_no_colors):
         """Test formatting impact indicator without icon and color."""
         result = formatter_no_colors.format_impact_indicator(ImpactLevel.HIGH)
-        assert "🟠" not in result
+        assert "[HIGH]" not in result
         assert result == "High"
 
     def test_separate_description_from_evaluation_simple(self, formatter, sample_explanation):
@@ -141,14 +141,14 @@ class TestExplanationFormatter:
         
         result = formatter.format_commit_explanation(sample_commit, sample_explanation, github_url)
         
-        # Check structure
-        assert "┌─ Commit: abc123de" in result
-        assert "🔗" in result
-        assert "📝 Description:" in result
-        assert "⚖️  Assessment:" in result
+        # Check structure - now using ASCII characters
+        assert "+- Commit: abc123de" in result
+        assert "Link:" in result
+        assert "Description:" in result
+        assert "Assessment:" in result
         assert "Category:" in result
         assert "Impact:" in result
-        assert "└" in result
+        assert "+" in result and "-" in result
         
         # Check content
         assert "Added JWT-based user authentication system" in result
@@ -161,11 +161,11 @@ class TestExplanationFormatter:
         result = formatter_no_colors.format_commit_explanation(sample_commit, sample_explanation, github_url)
         
         # Check structure (should still have basic formatting)
-        assert "┌─ Commit: abc123de" in result
+        assert "+- Commit: abc123de" in result
         assert "Link:" in result  # No clickable link formatting
         assert "Description:" in result
         assert "Assessment:" in result
-        assert "└" in result
+        assert "+" in result and "-" in result
 
     def test_format_commit_explanation_complex_commit(self, formatter, sample_commit, sample_explanation):
         """Test formatting a complex commit explanation."""
@@ -174,7 +174,7 @@ class TestExplanationFormatter:
         
         result = formatter.format_commit_explanation(sample_commit, sample_explanation, github_url)
         
-        assert "⚠️  Complex: Does multiple things" in result
+        assert "Complex: Does multiple things" in result
 
     def test_format_explanation_table(self, formatter, sample_commit, sample_explanation):
         """Test formatting explanations as a table."""
@@ -269,9 +269,9 @@ class TestExplanationFormatter:
         no_result = formatter._format_value_indicator(MainRepoValue.NO)
         unclear_result = formatter._format_value_indicator(MainRepoValue.UNCLEAR)
         
-        assert "✅" in yes_result
-        assert "❌" in no_result
-        assert "❔" in unclear_result
+        assert "[YES]" in yes_result
+        assert "[NO]" in no_result
+        assert "[UNCLEAR]" in unclear_result
         assert "YES" in yes_result
         assert "NO" in no_result
         assert "UNCLEAR" in unclear_result
@@ -282,9 +282,9 @@ class TestExplanationFormatter:
         no_result = formatter_no_colors._format_value_indicator(MainRepoValue.NO)
         unclear_result = formatter_no_colors._format_value_indicator(MainRepoValue.UNCLEAR)
         
-        assert "✅" not in yes_result
-        assert "❌" not in no_result
-        assert "❔" not in unclear_result
+        assert "[YES]" not in yes_result
+        assert "[NO]" not in no_result
+        assert "[UNCLEAR]" not in unclear_result
         assert yes_result == "YES"
         assert no_result == "NO"
         assert unclear_result == "UNCLEAR"
@@ -358,3 +358,79 @@ class TestExplanationFormatter:
         
         # Verify console.print was called
         mock_console.print.assert_called_once()
+
+    def test_ascii_only_output_formatting(self, formatter_no_colors, sample_commit, sample_explanation):
+        """Test that output uses only ASCII characters and no emojis or Unicode."""
+        github_url = "https://github.com/owner/repo/commit/abc123def456789012345678901234567890abcd"
+        
+        # Test commit explanation formatting
+        result = formatter_no_colors.format_commit_explanation(sample_commit, sample_explanation, github_url)
+        
+        # Verify no emojis are present
+        emoji_chars = ["📝", "❓", "🟢", "❔", "🚀", "🐛", "♻️", "🧪", "🔧", "⚡", "🔒", 
+                      "🟡", "🟠", "🔴", "✅", "❌", "⚠️", "🔗", "⚖️"]
+        for emoji in emoji_chars:
+            assert emoji not in result, f"Found emoji {emoji} in ASCII-only output"
+        
+        # Verify no Unicode box drawing characters are present
+        unicode_chars = ["┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼", "─", "│"]
+        for char in unicode_chars:
+            assert char not in result, f"Found Unicode character {char} in ASCII-only output"
+        
+        # Verify ASCII alternatives are used
+        assert "+- Commit:" in result
+        assert "| Link:" in result
+        assert "| Description:" in result
+        assert "| Assessment:" in result
+        
+        # Test category formatting
+        category_result = formatter_no_colors.format_category_with_icon(CategoryType.FEATURE)
+        assert category_result == "Feature"
+        assert "[FEAT]" not in category_result  # No icons when use_icons=False
+        
+        # Test impact formatting
+        impact_result = formatter_no_colors.format_impact_indicator(ImpactLevel.HIGH)
+        assert impact_result == "High"
+        assert "[HIGH]" not in impact_result  # No indicators when use_icons=False
+        
+        # Test value formatting
+        value_result = formatter_no_colors._format_value_indicator(MainRepoValue.YES)
+        assert value_result == "YES"
+        assert "[YES]" not in value_result  # No indicators when use_icons=False
+
+    def test_ascii_icons_when_enabled(self, formatter, sample_commit, sample_explanation):
+        """Test that ASCII text labels are used instead of emojis when icons are enabled."""
+        github_url = "https://github.com/owner/repo/commit/abc123def456789012345678901234567890abcd"
+        
+        # Test category formatting with ASCII icons
+        category_result = formatter.format_category_with_icon(CategoryType.FEATURE)
+        assert "[FEAT]" in category_result
+        assert "Feature" in category_result
+        assert "🚀" not in category_result  # No emoji
+        
+        # Test impact formatting with ASCII indicators
+        impact_result = formatter.format_impact_indicator(ImpactLevel.HIGH)
+        assert "[HIGH]" in impact_result
+        assert "High" in impact_result
+        assert "🟠" not in impact_result  # No emoji
+        
+        # Test value formatting with ASCII indicators
+        value_result = formatter._format_value_indicator(MainRepoValue.YES)
+        assert "[YES]" in value_result
+        assert "YES" in value_result
+        assert "✅" not in value_result  # No emoji
+        
+        # Test all category types have ASCII labels
+        for category_type in CategoryType:
+            result = formatter.format_category_with_icon(category_type)
+            assert "[" in result and "]" in result, f"Category {category_type} should have ASCII label"
+        
+        # Test all impact levels have ASCII labels
+        for impact_level in ImpactLevel:
+            result = formatter.format_impact_indicator(impact_level)
+            assert "[" in result and "]" in result, f"Impact {impact_level} should have ASCII label"
+        
+        # Test all value types have ASCII labels
+        for value in MainRepoValue:
+            result = formatter._format_value_indicator(value)
+            assert "[" in result and "]" in result, f"Value {value} should have ASCII label"

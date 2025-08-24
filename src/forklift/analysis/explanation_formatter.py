@@ -21,17 +21,17 @@ from .github_link_generator import GitHubLinkGenerator
 class ExplanationFormatter:
     """Formats commit explanations for rich terminal output."""
 
-    # Category icons and colors
+    # Category icons and colors - using simple text labels instead of emojis
     CATEGORY_ICONS = {
-        CategoryType.FEATURE: "🚀",
-        CategoryType.BUGFIX: "🐛",
-        CategoryType.REFACTOR: "♻️",
-        CategoryType.DOCS: "📝",
-        CategoryType.TEST: "🧪",
-        CategoryType.CHORE: "🔧",
-        CategoryType.PERFORMANCE: "⚡",
-        CategoryType.SECURITY: "🔒",
-        CategoryType.OTHER: "❓",
+        CategoryType.FEATURE: "[FEAT]",
+        CategoryType.BUGFIX: "[FIX]",
+        CategoryType.REFACTOR: "[REF]",
+        CategoryType.DOCS: "[DOCS]",
+        CategoryType.TEST: "[TEST]",
+        CategoryType.CHORE: "[CHORE]",
+        CategoryType.PERFORMANCE: "[PERF]",
+        CategoryType.SECURITY: "[SEC]",
+        CategoryType.OTHER: "[OTHER]",
     }
 
     CATEGORY_COLORS = {
@@ -46,12 +46,12 @@ class ExplanationFormatter:
         CategoryType.OTHER: "white",
     }
 
-    # Impact level indicators
+    # Impact level indicators - using simple text labels instead of emojis
     IMPACT_INDICATORS = {
-        ImpactLevel.LOW: "🟢",
-        ImpactLevel.MEDIUM: "🟡",
-        ImpactLevel.HIGH: "🟠",
-        ImpactLevel.CRITICAL: "🔴",
+        ImpactLevel.LOW: "[LOW]",
+        ImpactLevel.MEDIUM: "[MED]",
+        ImpactLevel.HIGH: "[HIGH]",
+        ImpactLevel.CRITICAL: "[CRIT]",
     }
 
     IMPACT_COLORS = {
@@ -61,11 +61,11 @@ class ExplanationFormatter:
         ImpactLevel.CRITICAL: "red",
     }
 
-    # Main repo value indicators
+    # Main repo value indicators - using simple text labels instead of emojis
     VALUE_INDICATORS = {
-        MainRepoValue.YES: "✅",
-        MainRepoValue.NO: "❌",
-        MainRepoValue.UNCLEAR: "❔",
+        MainRepoValue.YES: "[YES]",
+        MainRepoValue.NO: "[NO]",
+        MainRepoValue.UNCLEAR: "[UNCLEAR]",
     }
 
     VALUE_COLORS = {
@@ -106,31 +106,31 @@ class ExplanationFormatter:
         # Build the display string
         lines = []
         
-        # Header with commit info
-        lines.append(f"┌─ Commit: {commit.sha[:8]} {'─' * 50}")
+        # Header with commit info - using ASCII characters instead of Unicode
+        lines.append(f"+- Commit: {commit.sha[:8]} {'-' * 50}")
         
         # GitHub link
         if self.use_colors:
             link_text = GitHubLinkGenerator.format_clickable_link(github_url, github_url)
-            lines.append(f"│ 🔗 {link_text}")
+            lines.append(f"| Link: {link_text}")
         else:
-            lines.append(f"│ Link: {github_url}")
+            lines.append(f"| Link: {github_url}")
         
-        lines.append("│")
+        lines.append("|")
         
         # Description section
-        lines.append(f"│ 📝 Description: {formatted.description}")
-        lines.append("│")
+        lines.append(f"| Description: {formatted.description}")
+        lines.append("|")
         
         # Evaluation section
-        lines.append(f"│ ⚖️  Assessment: {formatted.evaluation}")
-        lines.append(f"│    Category: {formatted.category_display}")
-        lines.append(f"│    Impact: {formatted.impact_indicator}")
+        lines.append(f"| Assessment: {formatted.evaluation}")
+        lines.append(f"|    Category: {formatted.category_display}")
+        lines.append(f"|    Impact: {formatted.impact_indicator}")
         
         if formatted.is_complex:
-            lines.append("│    ⚠️  Complex: Does multiple things")
+            lines.append("|    Complex: Does multiple things")
         
-        lines.append("└" + "─" * 60)
+        lines.append("+" + "-" * 60)
         
         return "\n".join(lines)
 
@@ -164,9 +164,9 @@ class ExplanationFormatter:
                 # Handle missing explanation
                 table.add_row(
                     commit.sha[:8],
-                    "❓ Unknown",
-                    "❓",
-                    "❓",
+                    "[OTHER] Unknown",
+                    "[UNCLEAR]",
+                    "[UNCLEAR]",
                     "No explanation available",
                     "N/A"
                 )
@@ -237,7 +237,7 @@ class ExplanationFormatter:
         Returns:
             Formatted category string
         """
-        icon = self.CATEGORY_ICONS.get(category, "❓") if self.use_icons else ""
+        icon = self.CATEGORY_ICONS.get(category, "[OTHER]") if self.use_icons else ""
         color = self.CATEGORY_COLORS.get(category, "white") if self.use_colors else None
         
         category_text = category.value.title()
@@ -264,7 +264,7 @@ class ExplanationFormatter:
         Returns:
             Formatted impact string
         """
-        indicator = self.IMPACT_INDICATORS.get(impact, "❓") if self.use_icons else ""
+        indicator = self.IMPACT_INDICATORS.get(impact, "[UNCLEAR]") if self.use_icons else ""
         color = self.IMPACT_COLORS.get(impact, "white") if self.use_colors else None
         
         impact_text = impact.value.title()
@@ -283,7 +283,7 @@ class ExplanationFormatter:
 
     def _format_value_indicator(self, value: MainRepoValue) -> str:
         """Format main repo value with indicator."""
-        indicator = self.VALUE_INDICATORS.get(value, "❓") if self.use_icons else ""
+        indicator = self.VALUE_INDICATORS.get(value, "[UNCLEAR]") if self.use_icons else ""
         color = self.VALUE_COLORS.get(value, "white") if self.use_colors else None
         
         if indicator:

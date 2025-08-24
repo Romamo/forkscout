@@ -194,7 +194,7 @@ def _display_detailed_commits(
         console.print("[yellow]No commits found matching the criteria.[/yellow]")
         return
     
-    console.print(f"\n[bold blue]📝 Detailed Commit Analysis ({len(commits)} commits)[/bold blue]")
+    console.print(f"\n[bold blue]Detailed Commit Analysis ({len(commits)} commits)[/bold blue]")
     
     # Main commit table with detailed data
     table = Table(title="Commit History with File Changes")
@@ -406,7 +406,7 @@ def _display_basic_commits(commits: list[Commit], verbose: bool) -> None:
         console.print("[yellow]No commits found matching the criteria.[/yellow]")
         return
     
-    console.print(f"\n[bold blue]📝 Commit History ({len(commits)} commits)[/bold blue]")
+    console.print(f"\n[bold blue]Commit History ({len(commits)} commits)[/bold blue]")
     
     table = Table(title="Basic Commit Information")
     table.add_column("SHA", style="cyan", width=10)

@@ -292,7 +292,7 @@ class DetailedCommitDisplay:
         
         return Panel(
             Group(*content_parts),
-            title="[bold yellow]📝 Commit Message[/bold yellow]",
+            title="[bold yellow]Commit Message[/bold yellow]",
             border_style="yellow",
             padding=(0, 1)
         )

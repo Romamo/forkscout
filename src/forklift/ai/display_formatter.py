@@ -59,6 +59,41 @@ class AISummaryDisplayFormatter:
     def format_ai_summaries_compact(
         self,
         commits: List[Commit],
+        summaries: List[AISummary],
+        plain_text: bool = False
+    ) -> None:
+        """Display AI summaries in compact inline format without structured sections.
+
+        Args:
+            commits: List of Commit objects
+            summaries: List of AISummary objects
+            plain_text: Whether to use plain text formatting (no Rich codes)
+        """
+        if not commits or not summaries:
+            if plain_text:
+                print("No AI summaries to display")
+            else:
+                self.console.print("[yellow]No AI summaries to display[/yellow]")
+            return
+
+        if plain_text:
+            print("\n🤖 AI Commit Summaries")
+        else:
+            self.console.print(f"\n[bold blue]🤖 AI Commit Summaries[/bold blue]")
+
+        # Create a mapping of commit SHA to summary
+        summary_map = {summary.commit_sha: summary for summary in summaries}
+
+        for i, commit in enumerate(commits, 1):
+            summary = summary_map.get(commit.sha)
+            if plain_text:
+                self._display_compact_commit_summary_plain(commit, summary, i, len(commits))
+            else:
+                self._display_compact_commit_summary(commit, summary, i, len(commits))
+
+    def format_ai_summaries_compact_table(
+        self,
+        commits: List[Commit],
         summaries: List[AISummary]
     ) -> None:
         """Display AI summaries in compact table format.
@@ -205,7 +240,7 @@ class AISummaryDisplayFormatter:
         title = message_lines[0]
         body = '\n'.join(message_lines[1:]).strip() if len(message_lines) > 1 else ""
 
-        self.console.print(f"\n[bold yellow]📝 Message:[/bold yellow] {title}")
+        self.console.print(f"\n[bold yellow]Message:[/bold yellow] {title}")
         if body:
             self.console.print(f"[dim]{body}[/dim]")
 
@@ -278,7 +313,7 @@ class AISummaryDisplayFormatter:
             changes_text += f" in {len(commit.files_changed)} files"
 
         return Group(
-            Text(f"📝 {message}", style="yellow"),
+            Text(f"Message: {message}", style="yellow"),
             Text(changes_text, style="dim")
         )
 
@@ -330,6 +365,90 @@ class AISummaryDisplayFormatter:
             ai_content.append(metadata)
 
         return Group(*ai_content) if ai_content else Group(Text("No AI analysis available", style="dim"))
+
+    def _display_compact_commit_summary(
+        self,
+        commit: Commit,
+        summary: Optional[AISummary],
+        index: int,
+        total: int
+    ) -> None:
+        """Display a single commit with compact AI summary inline.
+
+        Args:
+            commit: Commit object
+            summary: AISummary object (optional)
+            index: Current commit index
+            total: Total number of commits
+        """
+        # Basic commit info on one line
+        commit_line = (
+            f"[cyan]{commit.sha[:8]}[/cyan] "
+            f"[green]{commit.author.login if commit.author else 'Unknown'}[/green] "
+            f"[dim]({self._format_datetime_simple(commit.date)})[/dim] "
+            f"[yellow]{commit.message.split(chr(10))[0][:60]}[/yellow]"
+        )
+        
+        if len(commit.message.split('\n')[0]) > 60:
+            commit_line += "[yellow]...[/yellow]"
+        
+        self.console.print(commit_line)
+        
+        # AI summary on the next line, indented
+        if summary and not summary.error and summary.summary_text:
+            # Clean summary text without formatting
+            summary_text = summary.summary_text.strip()
+            self.console.print(f"  [white]{summary_text}[/white]")
+        elif summary and summary.error:
+            self.console.print(f"  [red]AI Error: {summary.error}[/red]")
+        else:
+            self.console.print(f"  [dim]No AI summary available[/dim]")
+        
+        # Add spacing between commits (except for the last one)
+        if index < total:
+            self.console.print()
+
+    def _display_compact_commit_summary_plain(
+        self,
+        commit: Commit,
+        summary: Optional[AISummary],
+        index: int,
+        total: int
+    ) -> None:
+        """Display a single commit with compact AI summary inline in plain text.
+
+        Args:
+            commit: Commit object
+            summary: AISummary object (optional)
+            index: Current commit index
+            total: Total number of commits
+        """
+        # Basic commit info on one line (plain text)
+        commit_line = (
+            f"{commit.sha[:8]} "
+            f"{commit.author.login if commit.author else 'Unknown'} "
+            f"({self._format_datetime_simple(commit.date)}) "
+            f"{commit.message.split(chr(10))[0][:60]}"
+        )
+        
+        if len(commit.message.split('\n')[0]) > 60:
+            commit_line += "..."
+        
+        print(commit_line)
+        
+        # AI summary on the next line, indented (plain text)
+        if summary and not summary.error and summary.summary_text:
+            # Clean summary text without formatting
+            summary_text = summary.summary_text.strip()
+            print(f"  {summary_text}")
+        elif summary and summary.error:
+            print(f"  AI Error: {summary.error}")
+        else:
+            print(f"  No AI summary available")
+        
+        # Add spacing between commits (except for the last one)
+        if index < total:
+            print()
 
     def _add_compact_table_row(
         self,

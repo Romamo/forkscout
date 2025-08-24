@@ -10,12 +10,44 @@ from forklift.models.ai_summary import AISummary
 from datetime import datetime
 
 
+def create_mock_commit_data(commit):
+    """Create properly formatted mock commit data for GitHub API."""
+    return {
+        "sha": commit.sha,
+        "commit": {
+            "message": commit.message,
+            "author": {
+                "name": commit.author.login,
+                "email": f"{commit.author.login}@example.com",
+                "date": commit.date.isoformat() + "Z"
+            },
+            "committer": {
+                "name": commit.author.login,
+                "email": f"{commit.author.login}@example.com",
+                "date": commit.date.isoformat() + "Z"
+            }
+        },
+        "author": {
+            "login": commit.author.login,
+            "id": commit.author.id,
+            "html_url": commit.author.html_url
+        },
+        "stats": {"additions": commit.additions, "deletions": commit.deletions},
+        "files": [{"filename": f} for f in commit.files_changed],
+        "parents": []
+    }
+
+
 @pytest.fixture
 def mock_config():
     """Create a mock configuration."""
-    config = MagicMock()
-    config.github.token = "test_token"
-    config.openai_api_key = "test_openai_key"
+    from forklift.config.settings import ForkliftConfig, GitHubConfig, LoggingConfig
+    
+    config = ForkliftConfig(
+        github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
+        openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef",
+        logging=LoggingConfig(level="INFO")
+    )
     return config
 
 
@@ -33,7 +65,7 @@ def sample_commits():
             deletions=2
         ),
         Commit(
-            sha="def456ghi789012345678901234567890abcdef0",
+            sha="def456789012345678901234567890abcdef12ab",
             message="fix: resolve bug in feature",
             author=User(login="testuser2", id=456, html_url="https://github.com/testuser2"),
             date=datetime(2024, 1, 16, 14, 45, 0),
@@ -431,3 +463,293 @@ class TestDetailedCommitsIntegration:
                 call_args = mock_show_commits.call_args[0]
                 detail_param = call_args[13]  # detail parameter position
                 assert detail_param is True
+
+
+class TestCompactAISummaryDisplay:
+    """Test cases for compact AI summary display functionality."""
+    
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli.GitHubClient')
+    @patch('forklift.ai.client.OpenAIClient')
+    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    def test_show_commits_ai_summary_compact_display(
+        self,
+        mock_summary_engine_class,
+        mock_openai_client_class,
+        mock_github_client_class,
+        mock_load_config,
+        mock_config,
+        sample_commits,
+        sample_repository
+    ):
+        """Test show-commits command with --ai-summary-compact flag displays compact format."""
+        # Setup mocks
+        mock_load_config.return_value = mock_config
+        
+        mock_github_client = AsyncMock()
+        mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_branch_commits.return_value = [
+            create_mock_commit_data(commit) for commit in sample_commits
+        ]
+        mock_github_client.get_commit_details.return_value = {
+            "sha": "abc123def456",
+            "files": [{"filename": "test.py", "patch": "@@ -1,3 +1,4 @@\n def test():\n+    print('hello')\n     pass"}]
+        }
+        
+        # Mock AI components
+        mock_openai_client = AsyncMock()
+        mock_openai_client_class.return_value = mock_openai_client
+        
+        mock_summary_engine = AsyncMock()
+        mock_summary_engine_class.return_value = mock_summary_engine
+        mock_summary_engine.generate_batch_summaries.return_value = [
+            AISummary(
+                commit_sha=commit.sha,
+                summary_text=f"This commit {commit.message.split(':')[1].strip()}",
+                model_used="gpt-4o-mini",
+                tokens_used=50,
+                processing_time_ms=500
+            )
+            for commit in sample_commits
+        ]
+        mock_summary_engine.get_usage_stats.return_value = MagicMock()
+        
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            'show-commits',
+            'testowner/testrepo',
+            '--ai-summary-compact'
+        ])
+        
+        if result.exit_code != 0:
+            print(f"Exit code: {result.exit_code}")
+            print(f"Output: {result.output}")
+            print(f"Exception: {result.exception}")
+            if result.exception:
+                import traceback
+                traceback.print_exception(type(result.exception), result.exception, result.exception.__traceback__)
+        
+        assert result.exit_code == 0
+        assert "🤖 AI" in result.output and "Summaries" in result.output
+        assert "Compact Mode" in result.output
+        
+        # Verify compact format is used (inline display, not table)
+        assert "abc123de" in result.output  # Short SHA
+        assert "testuser" in result.output  # Author
+        
+        # Verify AI summaries are displayed inline
+        assert "add new feature" in result.output
+    
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli.GitHubClient')
+    @patch('forklift.ai.client.OpenAIClient')
+    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    @patch.dict('os.environ', {'NO_COLOR': '1'})
+    def test_show_commits_ai_summary_compact_plain_text_mode(
+        self,
+        mock_summary_engine_class,
+        mock_openai_client_class,
+        mock_github_client_class,
+        mock_load_config,
+        mock_config,
+        sample_commits,
+        sample_repository
+    ):
+        """Test compact AI summary display in plain text mode (no Rich formatting)."""
+        # Setup mocks
+        mock_load_config.return_value = mock_config
+        
+        mock_github_client = AsyncMock()
+        mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_branch_commits.return_value = [
+            create_mock_commit_data(sample_commits[0])
+        ]
+        mock_github_client.get_commit_details.return_value = {
+            "sha": "abc123def456",
+            "files": [{"filename": "test.py", "patch": "@@ -1,3 +1,4 @@\n def test():\n+    print('hello')\n     pass"}]
+        }
+        
+        # Mock AI components
+        mock_openai_client = AsyncMock()
+        mock_openai_client_class.return_value = mock_openai_client
+        
+        mock_summary_engine = AsyncMock()
+        mock_summary_engine_class.return_value = mock_summary_engine
+        mock_summary_engine.generate_batch_summaries.return_value = [
+            AISummary(
+                commit_sha=sample_commits[0].sha,
+                summary_text="This commit adds a new feature for testing purposes",
+                model_used="gpt-4o-mini",
+                tokens_used=50,
+                processing_time_ms=500
+            )
+        ]
+        mock_summary_engine.get_usage_stats.return_value = MagicMock()
+        
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            'show-commits',
+            'testowner/testrepo',
+            '--ai-summary-compact'
+        ])
+        
+        assert result.exit_code == 0
+        
+        # Verify plain text output (no Rich formatting codes)
+        assert "[bold]" not in result.output
+        assert "[cyan]" not in result.output
+        assert "[green]" not in result.output
+        assert "[yellow]" not in result.output
+        
+        # Verify content is still present
+        assert "abc123de" in result.output
+        assert "testuser" in result.output
+        assert "This commit adds a new feature" in result.output
+    
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli.GitHubClient')
+    @patch('forklift.ai.client.OpenAIClient')
+    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    def test_show_commits_ai_summary_compact_progress_indicators(
+        self,
+        mock_summary_engine_class,
+        mock_openai_client_class,
+        mock_github_client_class,
+        mock_load_config,
+        mock_config,
+        sample_commits,
+        sample_repository
+    ):
+        """Test that compact mode shows appropriate progress indicators."""
+        # Setup mocks
+        mock_load_config.return_value = mock_config
+        
+        mock_github_client = AsyncMock()
+        mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_branch_commits.return_value = [
+            create_mock_commit_data(commit) for commit in sample_commits
+        ]
+        mock_github_client.get_commit_details.return_value = {
+            "sha": "abc123def456",
+            "files": [{"filename": "test.py", "patch": "@@ -1,3 +1,4 @@\n def test():\n+    print('hello')\n     pass"}]
+        }
+        
+        # Mock AI components
+        mock_openai_client = AsyncMock()
+        mock_openai_client_class.return_value = mock_openai_client
+        
+        mock_summary_engine = AsyncMock()
+        mock_summary_engine_class.return_value = mock_summary_engine
+        mock_summary_engine.generate_batch_summaries.return_value = [
+            AISummary(
+                commit_sha=commit.sha,
+                summary_text=f"Summary for {commit.sha[:8]}",
+                model_used="gpt-4o-mini",
+                tokens_used=30,
+                processing_time_ms=300  # Shorter processing time for compact mode
+            )
+            for commit in sample_commits
+        ]
+        mock_summary_engine.get_usage_stats.return_value = MagicMock()
+        
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            'show-commits',
+            'testowner/testrepo',
+            '--ai-summary-compact'
+        ])
+        
+        assert result.exit_code == 0
+        
+        # Verify compact mode progress indicator
+        assert "Generating compact AI summaries..." in result.output or "compact" in result.output.lower()
+    
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli.GitHubClient')
+    @patch('forklift.ai.client.OpenAIClient')
+    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    def test_show_commits_ai_summary_compact_with_errors(
+        self,
+        mock_summary_engine_class,
+        mock_openai_client_class,
+        mock_github_client_class,
+        mock_load_config,
+        mock_config,
+        sample_commits,
+        sample_repository
+    ):
+        """Test compact AI summary display handles errors gracefully."""
+        # Setup mocks
+        mock_load_config.return_value = mock_config
+        
+        mock_github_client = AsyncMock()
+        mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_branch_commits.return_value = [
+            create_mock_commit_data(sample_commits[0])
+        ]
+        mock_github_client.get_commit_details.return_value = {
+            "sha": "abc123def456",
+            "files": [{"filename": "test.py", "patch": "@@ -1,3 +1,4 @@\n def test():\n+    print('hello')\n     pass"}]
+        }
+        
+        # Mock AI components with error
+        mock_openai_client = AsyncMock()
+        mock_openai_client_class.return_value = mock_openai_client
+        
+        mock_summary_engine = AsyncMock()
+        mock_summary_engine_class.return_value = mock_summary_engine
+        mock_summary_engine.generate_batch_summaries.return_value = [
+            AISummary(
+                commit_sha=sample_commits[0].sha,
+                summary_text="",
+                error="Rate limit exceeded"
+            )
+        ]
+        mock_summary_engine.get_usage_stats.return_value = MagicMock()
+        
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            'show-commits',
+            'testowner/testrepo',
+            '--ai-summary-compact'
+        ])
+        
+        assert result.exit_code == 0
+        
+        # Verify error is displayed inline in compact format
+        assert "AI Error: Rate limit exceeded" in result.output
+        assert "abc123de" in result.output  # Commit info still shown
+    
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli.GitHubClient')
+    def test_show_commits_ai_summary_compact_no_summaries(
+        self,
+        mock_github_client_class,
+        mock_load_config,
+        mock_config,
+        sample_repository
+    ):
+        """Test compact AI summary display when no summaries are generated."""
+        # Setup mocks
+        mock_load_config.return_value = mock_config
+        
+        mock_github_client = AsyncMock()
+        mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
+        mock_github_client.get_repository.return_value = sample_repository
+        mock_github_client.get_branch_commits.return_value = []  # No commits
+        
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            'show-commits',
+            'testowner/testrepo',
+            '--ai-summary-compact'
+        ])
+        
+        assert result.exit_code == 0
+        
+        # Should handle empty commits gracefully
+        assert "No commits found" in result.output or "No AI summaries" in result.output
