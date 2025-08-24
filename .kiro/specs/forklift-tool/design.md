@@ -99,6 +99,64 @@ The AI commit summary system complements the existing explanation system by prov
 - **Error Resilience**: Gracefully handle API failures and continue processing remaining commits
 - **Rate Limit Respect**: Implement proper backoff and batching to respect OpenAI API limits
 
+## Detailed Commit View Design Philosophy
+
+The detailed commit view (`--detail` flag) is designed to provide comprehensive commit analysis in a single command, combining multiple information sources for thorough commit understanding. This feature is intended for deep analysis scenarios where maintainers need complete context about specific commits.
+
+### Detailed View Design Principles
+
+- **Comprehensive Information**: Combine GitHub URLs, AI summaries, commit messages, and diffs in one view
+- **Automatic Enhancement**: Automatically enable AI summaries when using `--detail` flag
+- **Visual Clarity**: Use clear visual separation between different information sections
+- **Filter Compatibility**: Work seamlessly with existing filtering options (limit, branch, date ranges, author)
+- **Performance Awareness**: Implement intelligent batching and rate limiting for multiple API calls
+- **Graceful Degradation**: Continue processing when individual components fail (e.g., AI summary generation)
+
+### Detailed View Information Architecture
+
+```
+┌─ Commit Details: abc1234 ─────────────────────────────────────┐
+│                                                               │
+│ 🔗 GitHub URL                                                 │
+│ https://github.com/owner/repo/commit/abc1234567890            │
+│                                                               │
+│ 🤖 AI Summary                                                 │
+│ This commit adds user authentication middleware that handles  │
+│ JWT token validation and session management. The change       │
+│ improves security by centralizing auth logic.                 │
+│                                                               │
+│ 📝 Commit Message                                             │
+│ feat: add JWT authentication middleware                       │
+│                                                               │
+│ - Implement JWT token validation                              │
+│ - Add session management                                      │
+│ - Update middleware chain                                     │
+│                                                               │
+│ 📊 Diff Content                                               │
+│ src/middleware/auth.py                    | +45 -0           │
+│ src/config/security.py                    | +12 -3           │
+│ tests/test_auth_middleware.py             | +67 -0           │
+│                                                               │
+│ +class AuthMiddleware:                                        │
+│ +    def __init__(self, secret_key):                          │
+│ +        self.secret_key = secret_key                         │
+│ +                                                             │
+│ +    def validate_token(self, token):                         │
+│ +        # JWT validation logic                               │
+│ [... truncated for readability ...]                          │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### Component Integration Design
+
+1. **GitHub Client Enhancement**: Extend to fetch complete commit details including diff content
+2. **AI Integration**: Automatically trigger AI summary generation for detailed view
+3. **Display Formatter**: Create specialized formatter for detailed commit information
+4. **Rate Limiting Coordination**: Manage both GitHub API and OpenAI API rate limits
+5. **Error Handling**: Provide fallback displays when components fail
+6. **Progress Tracking**: Show detailed processing progress for multiple API calls
+
 ### AI Summary Workflow
 
 1. **Validate Prerequisites**: Check for OpenAI API key and validate configuration
@@ -240,6 +298,41 @@ class ExplanationFormatter:
     def __init__(self, use_colors: bool = True, use_icons: bool = True)
     def format_commit_explanation(self, commit: Commit, explanation: CommitExplanation, github_url: str) -> str
     def format_explanation_table(self, explanations: List[CommitWithExplanation]) -> str
+    def format_detailed_commit_view(self, detailed_commit: DetailedCommitInfo) -> str
+    def _format_diff_content(self, diff_content: str, max_lines: int = 50) -> str
+```
+
+### Detailed Commit Display Components
+```python
+class DetailedCommitDisplay:
+    def __init__(self, github_client: GitHubClient, ai_engine: AICommitSummaryEngine, formatter: ExplanationFormatter)
+    async def generate_detailed_view(self, commits: List[Commit], repository: Repository) -> List[DetailedCommitInfo]
+    async def _fetch_commit_details(self, commit: Commit, repository: Repository) -> DetailedCommitInfo
+    async def _get_commit_diff(self, commit: Commit, repository: Repository) -> str
+    def _create_github_url(self, commit: Commit, repository: Repository) -> str
+    async def _generate_ai_summary(self, commit: Commit, diff_content: str) -> Optional[AISummary]
+    def _format_commit_message(self, message: str) -> str
+
+class DetailedCommitProcessor:
+    def __init__(self, github_client: GitHubClient, ai_engine: AICommitSummaryEngine)
+    async def process_commits_for_detail_view(self, commits: List[Commit], repository: Repository, progress_callback: Callable = None) -> List[DetailedCommitInfo]
+    async def _process_single_commit(self, commit: Commit, repository: Repository) -> DetailedCommitInfo
+    def _handle_processing_error(self, commit: Commit, error: Exception) -> DetailedCommitInfo
+    async def _batch_process_with_rate_limiting(self, commits: List[Commit], repository: Repository) -> List[DetailedCommitInfo]
+```
+
+### Enhanced GitHub Client for Detailed Views
+```python
+# Additional methods for GitHubClient to support detailed commit views
+class GitHubClient:
+    # ... existing methods ...
+    
+    async def get_commit_details(self, owner: str, repo: str, commit_sha: str, disable_cache: bool = False) -> CommitDetails
+    async def get_commit_diff(self, owner: str, repo: str, commit_sha: str, disable_cache: bool = False) -> str
+    async def get_commits_with_details(self, owner: str, repo: str, branch: str = None, limit: int = 20, disable_cache: bool = False) -> List[CommitDetails]
+    def _truncate_large_diff(self, diff_content: str, max_size: int = 10000) -> str
+    def _sanitize_diff_content(self, diff_content: str) -> str
+```
     def format_category_with_icon(self, category: CategoryType) -> str
     def format_impact_indicator(self, impact: str) -> str
     def separate_description_from_evaluation(self, explanation: CommitExplanation) -> Tuple[str, str]
@@ -604,6 +697,53 @@ class InteractiveAnalysisResult:
     user_aborted: bool
     session_duration: timedelta
     total_confirmations: int
+
+@dataclass
+class DetailedCommitInfo:
+    """Comprehensive commit information for detailed view"""
+    commit: Commit
+    github_url: str
+    ai_summary: Optional[AISummary]
+    commit_message_formatted: str
+    diff_content: str
+    diff_truncated: bool
+    processing_error: Optional[str] = None
+    fetch_time_ms: float = 0.0
+
+@dataclass
+class DetailedViewConfig:
+    """Configuration for detailed commit view"""
+    auto_enable_ai_summary: bool = True  # Automatically enable AI summaries with --detail
+    max_diff_lines: int = 50  # Maximum lines of diff to display
+    max_diff_chars: int = 10000  # Maximum characters in diff before truncation
+    show_file_stats: bool = True  # Show file change statistics
+    show_commit_stats: bool = True  # Show commit statistics (additions/deletions)
+    visual_separation: bool = True  # Use visual separators between sections
+    progress_indicators: bool = True  # Show progress for detailed processing
+    batch_processing: bool = True  # Process commits in batches for performance
+    batch_size: int = 5  # Number of commits to process concurrently
+
+@dataclass
+class DetailedViewProgress:
+    """Progress tracking for detailed view processing"""
+    total_commits: int
+    processed_commits: int
+    current_commit_sha: str
+    github_api_calls: int
+    openai_api_calls: int
+    processing_errors: int
+    estimated_completion: Optional[datetime]
+    current_stage: str  # "fetching_details", "generating_summaries", "formatting"
+
+@dataclass
+class DetailedViewResult:
+    """Result of detailed commit view processing"""
+    detailed_commits: List[DetailedCommitInfo]
+    processing_stats: DetailedViewProgress
+    total_processing_time: timedelta
+    api_usage_stats: Dict[str, int]
+    errors_encountered: List[str]
+    success_rate: float
 
 class UserChoice(Enum):
     CONTINUE = "continue"
@@ -1096,6 +1236,9 @@ forklift show-fork-details https://github.com/fork-owner/repo
 forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch
 forklift show-commits https://github.com/fork-owner/repo --branch main --limit 20
 
+# Detailed commit analysis with comprehensive information
+forklift show-commits https://github.com/fork-owner/repo --branch main --detail --limit 10
+
 # Comprehensive batch analysis (existing)
 forklift analyze https://github.com/owner/repo
 
@@ -1121,6 +1264,9 @@ forklift show-commits https://github.com/fork-owner/repo --branch main --limit 2
 # Step-by-step commands with cache disabled
 forklift show-forks https://github.com/owner/repo --disable-cache
 forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --disable-cache
+
+# Detailed commit view with filters
+forklift show-commits https://github.com/fork-owner/repo --detail --since 2024-01-01 --author username
 
 # With configuration
 forklift analyze --config config.yaml --output report.md

@@ -244,7 +244,7 @@
   - Write integration tests for all enhanced commands with explanation support
   - _Requirements: 8.10_
 
-- [ ] 8.9.3 Implement Rich-based explanation display
+- [x] 8.9.3 Implement Rich-based explanation display
   - Implement formatted output for commits with explanations using Rich library
   - Add color coding for different category types and impact levels
   - Create visual hierarchy with proper spacing and typography
@@ -550,7 +550,67 @@
   - Add bold formatting stripping for all report generation and CLI output
   - Implement text-based emphasis using UPPERCASE or indentation
   - Update report generation to produce clean markdown without bold formatting
-  - Write unit tests for markdown formatting removal and text emphasis
+  - Write unit tests for markdown formatting removal and text-based emphasis
+  - _Requirements: 18.5, 18.6, 18.7_
+
+- [ ] 17.4 Update all CLI commands with plain text formatting support
+  - Modify all CLI commands to use FormattingMode configuration
+  - Update progress indicators and status messages for plain text compatibility
+  - Ensure table displays work correctly in both Rich and plain text modes
+  - Add comprehensive testing for all CLI commands in plain text mode
+  - Write integration tests for formatting compatibility across different terminal types
+  - _Requirements: 18.8, 18.9, 18.11, 18.12_
+
+- [ ] 18. Implement detailed commit view with comprehensive information display
+- [-] 18.1 Add --detail flag to show-commits command
+  - Add --detail CLI option to show-commits command with comprehensive output mode
+  - Create DetailedCommitDisplay class for formatting detailed commit information
+  - Implement automatic AI summary generation when --detail flag is used
+  - Add GitHub URL generation and display for each commit in detailed view
+  - Write unit tests for detailed commit display formatting and option handling
+  - _Requirements: 19.1, 19.2, 19.3, 19.6_
+
+- [ ] 18.2 Implement comprehensive commit information fetching
+  - Enhance GitHub client to fetch complete commit details including diff content
+  - Add commit diff retrieval with proper formatting and truncation for large diffs
+  - Implement commit message formatting with proper line breaks and structure
+  - Create diff processing logic to handle various file types and change patterns
+  - Write unit tests for commit detail fetching and diff processing
+  - _Requirements: 19.4, 19.5, 19.10_
+
+- [ ] 18.3 Integrate AI summary generation with detailed view
+  - Modify detailed commit display to automatically trigger AI summary generation
+  - Add error handling for AI summary failures in detailed mode
+  - Implement progress indicators for detailed processing including AI summary generation
+  - Create fallback display when AI summaries are unavailable
+  - Write integration tests for detailed view with AI summary integration
+  - _Requirements: 19.3, 19.8, 19.9, 19.11_
+
+- [ ] 18.4 Add detailed view formatting and display enhancements
+  - Create visual separation between GitHub URL, AI summary, message, and diff sections
+  - Implement proper formatting for diff content with syntax highlighting where possible
+  - Add support for combining --detail with existing filter options (limit, branch, since, until, author)
+  - Create comprehensive output formatting that maintains readability for detailed information
+  - Write unit tests for detailed formatting and visual separation
+  - _Requirements: 19.6, 19.7, 19.10_
+
+- [ ] 18.5 Add rate limiting and performance optimization for detailed view
+  - Implement intelligent rate limiting for combined GitHub API and OpenAI API calls
+  - Add batch processing optimization for detailed commit analysis
+  - Create progress tracking and estimation for detailed processing operations
+  - Implement caching strategies for detailed commit information to reduce API calls
+  - Write performance tests for detailed view with various commit volumes
+  - _Requirements: 19.11, 19.12_
+
+- [ ] 18.6 Add comprehensive testing for detailed commit view
+  - Write unit tests for DetailedCommitDisplay and DetailedCommitProcessor classes
+  - Create integration tests for --detail flag with real GitHub repositories
+  - Add tests for error handling when AI summary generation fails
+  - Write performance tests for detailed view with various commit volumes and rate limiting scenarios
+  - Create tests for diff truncation and formatting with large commits
+  - Add tests for combining --detail with existing filter options
+  - Write tests for progress tracking and batch processing functionality
+  - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9, 19.10, 19.11, 19.12_unit tests for markdown formatting removal and text emphasis
   - _Requirements: 18.5, 18.7, 18.11_
 
 - [ ] 17.4 Update console output system with formatting abstraction
@@ -675,7 +735,7 @@
   - Write unit tests for AI summary formatting and visual consistency
   - _Requirements: 17.10, 17.11_
 
-- [-] 16.7 Add usage tracking and cost monitoring for AI operations
+- [x] 16.7 Add usage tracking and cost monitoring for AI operations
   - Implement API usage statistics collection (tokens used, requests made, estimated costs)
   - Add cost tracking and reporting for transparency in AI API usage
   - Create configuration options for cost limits and usage monitoring

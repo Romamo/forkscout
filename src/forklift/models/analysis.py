@@ -166,7 +166,7 @@ class AnalysisContext(BaseModel):
     """Context information for commit analysis."""
 
     repository: Repository = Field(..., description="Repository being analyzed")
-    fork: Fork = Field(..., description="Fork being analyzed")
+    fork: Optional[Fork] = Field(None, description="Fork being analyzed (None for original repositories)")
     project_type: Optional[str] = Field(None, description="Type of project (web, library, cli, etc.)")
     main_language: Optional[str] = Field(None, description="Primary programming language")
     critical_files: list[str] = Field(

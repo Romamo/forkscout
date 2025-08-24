@@ -291,3 +291,22 @@ https://github.com/xgboosted/pandas-ta-classic
 10. WHEN the system cannot detect terminal capabilities THEN it SHALL provide a configuration option to force plain text mode
 11. WHEN using plain text mode THEN the system SHALL ensure all information remains accessible and readable without any formatting codes visible
 12. WHEN formatting is disabled THEN the system SHALL maintain consistent spacing and alignment for readability
+
+### Requirement 19
+
+**User Story:** As a repository maintainer, I want a detailed view option for the show-commits command that displays comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs, so that I can thoroughly analyze individual commits without navigating to multiple sources.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-commits <fork-url> --detail` THEN the system SHALL display comprehensive commit information for each commit including full GitHub URL, AI summary, commit message, and diff content
+2. WHEN using --detail flag THEN the system SHALL generate clickable GitHub commit URLs in the format `https://github.com/{owner}/{repo}/commit/{sha}`
+3. WHEN --detail is specified THEN the system SHALL automatically generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
+4. WHEN displaying detailed commit information THEN the system SHALL show the original commit message with proper formatting and line breaks
+5. WHEN --detail flag is used THEN the system SHALL fetch and display the complete diff content for each commit showing file changes, additions, and deletions
+6. WHEN generating detailed output THEN the system SHALL format the information with clear visual separation between GitHub URL, AI summary, commit message, and diff sections
+7. WHEN --detail is combined with other flags THEN the system SHALL respect existing options like --limit, --branch, --since, --until, and --author filters
+8. WHEN using --detail flag THEN the system SHALL require OPENAI_API_KEY environment variable to be set for AI summary generation
+9. WHEN AI summary generation fails in detail mode THEN the system SHALL display the commit without AI summary and continue processing remaining commits
+10. WHEN displaying diffs in detail mode THEN the system SHALL truncate extremely large diffs to prevent terminal overflow while maintaining readability
+11. WHEN --detail flag is used THEN the system SHALL provide progress indicators showing detailed processing status for each commit
+12. WHEN using detail mode THEN the system SHALL respect rate limiting for both GitHub API calls and OpenAI API calls with appropriate backoff strategies

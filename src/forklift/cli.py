@@ -5,6 +5,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 import click
 from rich.console import Console
@@ -37,6 +38,7 @@ from forklift.analysis.interactive_steps import (
 from forklift.ai.display_formatter import AISummaryDisplayFormatter
 from forklift.config.settings import ForkliftConfig, load_config
 from forklift.display.repository_display_service import RepositoryDisplayService
+from forklift.display.detailed_commit_display import DetailedCommitDisplay, DetailedCommitProcessor
 from forklift.github.client import GitHubClient
 from forklift.models.github import Commit
 from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
@@ -1007,6 +1009,7 @@ def analyze_fork(
 @click.option("--show-stats", is_flag=True, help="Show detailed statistics")
 @click.option("--explain", is_flag=True, help="Generate explanations for each commit")
 @click.option("--ai-summary", is_flag=True, help="Generate AI-powered summaries for each commit (requires OpenAI API key)")
+@click.option("--detail", is_flag=True, help="Display comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs")
 @click.option("--disable-cache", is_flag=True, help="Disable caching and fetch fresh data from GitHub API")
 @click.pass_context
 def show_commits(
@@ -1022,6 +1025,7 @@ def show_commits(
     show_stats: bool,
     explain: bool,
     ai_summary: bool,
+    detail: bool,
     disable_cache: bool
 ) -> None:
     """Display detailed commit information for a repository or specific branch.
@@ -1067,7 +1071,7 @@ def show_commits(
         # Run commit display
         asyncio.run(_show_commits(
             config, fork_url, branch, limit, since_date, until_date,
-            author, include_merge, show_files, show_stats, verbose, explain, ai_summary, disable_cache
+            author, include_merge, show_files, show_stats, verbose, explain, ai_summary, detail, disable_cache
         ))
 
     except CLIError as e:
@@ -1679,6 +1683,7 @@ async def _show_commits(
     verbose: bool,
     explain: bool = False,
     ai_summary: bool = False,
+    detail: bool = False,
     disable_cache: bool = False
 ) -> None:
     """Show detailed commit information for a repository or branch.
@@ -1697,6 +1702,7 @@ async def _show_commits(
         verbose: Whether to show verbose output
         explain: Whether to generate commit explanations
         ai_summary: Whether to generate AI-powered summaries
+        detail: Whether to display comprehensive commit information
         disable_cache: Whether to disable caching and fetch fresh data
     """
     async with GitHubClient(config.github) as github_client:
@@ -1762,12 +1768,20 @@ async def _show_commits(
             if explain and commits:
                 await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits)
 
-            # Generate AI summaries if requested
-            if ai_summary and commits:
-                await _display_ai_summaries_for_commits(github_client, config, owner, repo_name, commits, disable_cache)
+            # Handle detail mode with comprehensive display
+            if detail and commits:
+                await _display_detailed_commits(github_client, config, owner, repo_name, commits, repo, disable_cache)
+            else:
+                # Generate explanations if requested
+                if explain and commits:
+                    await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits)
 
-            # Display commits
-            _display_commits_table(commits, repo, target_branch, show_files, show_stats)
+                # Generate AI summaries if requested
+                if ai_summary and commits:
+                    await _display_ai_summaries_for_commits(github_client, config, owner, repo_name, commits, disable_cache)
+
+                # Display commits
+                _display_commits_table(commits, repo, target_branch, show_files, show_stats)
 
             if verbose:
                 console.print(f"\n[green]✓ Displayed {len(commits)} commits from branch '{target_branch}'[/green]")
@@ -1936,17 +1950,11 @@ async def _display_commit_explanations_for_commits(
             clone_url=f"https://github.com/{owner}/{repo_name}.git"
         )
         
-        # Create a minimal fork object (same as repository for this case)
-        fork_owner = User(login=owner, html_url=f"https://github.com/{owner}")
-        fork = Fork(
-            repository=repository,
-            parent=repository,  # For simplicity, use same repo
-            owner=fork_owner
-        )
-        
+        # For non-fork repositories, don't create a Fork object
+        # The AnalysisContext now supports None for fork field
         context = AnalysisContext(
             repository=repository,
-            fork=fork,
+            fork=None,  # No fork object for original repositories
             project_type="unknown",
             main_language="unknown",
             critical_files=[]
@@ -2115,6 +2123,151 @@ async def _display_ai_summaries_for_commits(
         logger.error(f"Failed to generate AI summaries: {e}")
         console.print(f"[red]Error generating AI summaries: {e}[/red]")
 
+
+async def _display_detailed_commits(
+    github_client: GitHubClient,
+    config: ForkliftConfig,
+    owner: str,
+    repo_name: str,
+    commits: List[Commit],
+    repository,
+    disable_cache: bool = False
+) -> None:
+    """Display commits in detailed view with comprehensive information.
+    
+    Args:
+        github_client: GitHub API client
+        config: Forklift configuration
+        owner: Repository owner
+        repo_name: Repository name
+        commits: List of Commit objects to display
+        repository: Repository object
+        disable_cache: Whether to disable caching and fetch fresh data
+    """
+    from forklift.ai.client import OpenAIClient
+    from forklift.ai.summary_engine import AICommitSummaryEngine
+    from forklift.ai.error_handler import OpenAIErrorHandler
+    from forklift.models.ai_summary import AISummaryConfig
+    from forklift.models.github import Repository
+    
+    console.print(f"\n[bold blue]📋 Detailed Commit View[/bold blue]")
+    console.print("=" * 60)
+    
+    if disable_cache:
+        console.print("[yellow]⚠️  Cache disabled - fetching fresh data from GitHub API[/yellow]")
+    
+    try:
+        # Create repository object
+        repo_obj = Repository(
+            owner=owner,
+            name=repo_name,
+            full_name=f"{owner}/{repo_name}",
+            url=f"https://api.github.com/repos/{owner}/{repo_name}",
+            html_url=f"https://github.com/{owner}/{repo_name}",
+            clone_url=f"https://github.com/{owner}/{repo_name}.git"
+        )
+        
+        # Initialize AI components if OpenAI API key is available
+        ai_engine = None
+        if config.openai_api_key:
+            try:
+                ai_config = AISummaryConfig()
+                error_handler = OpenAIErrorHandler(max_retries=ai_config.retry_attempts)
+                
+                # Use async context manager for OpenAI client
+                async with OpenAIClient(api_key=config.openai_api_key, config=ai_config) as openai_client:
+                    ai_engine = AICommitSummaryEngine(
+                        openai_client=openai_client,
+                        config=ai_config,
+                        error_handler=error_handler
+                    )
+                    
+                    # Create detailed commit display
+                    detailed_display = DetailedCommitDisplay(
+                        github_client=github_client,
+                        ai_engine=ai_engine,
+                        console=console
+                    )
+                    
+                    # Generate detailed view for all commits
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        BarColumn(),
+                        MofNCompleteColumn(),
+                        console=console
+                    ) as progress:
+                        task = progress.add_task("Generating detailed commit information...", total=len(commits))
+                        
+                        def progress_callback(completed: int, total: int):
+                            progress.update(task, completed=completed)
+                        
+                        detailed_commits = await detailed_display.generate_detailed_view(
+                            commits, repo_obj, progress_callback
+                        )
+                    
+                    # Display each detailed commit
+                    for i, detailed_commit in enumerate(detailed_commits, 1):
+                        console.print(f"\n[bold cyan]Commit {i}/{len(detailed_commits)}[/bold cyan]")
+                        detailed_display.format_detailed_commit_view(detailed_commit)
+                        
+                        # Add spacing between commits (except for the last one)
+                        if i < len(detailed_commits):
+                            console.print()
+                    
+                    # Show AI usage statistics if available
+                    if ai_engine:
+                        usage_stats = ai_engine.get_usage_stats()
+                        if usage_stats.total_requests > 0:
+                            from forklift.ai.display_formatter import AISummaryDisplayFormatter
+                            formatter = AISummaryDisplayFormatter(console)
+                            formatter.display_usage_statistics(usage_stats, "Detailed View AI Usage")
+                            
+            except Exception as e:
+                logger.warning(f"Failed to initialize AI engine: {e}")
+                console.print(f"[yellow]AI summaries unavailable: {e}[/yellow]")
+                # Fall back to detailed display without AI
+                ai_engine = None
+        
+        # If no AI engine available, create detailed display without AI
+        if not ai_engine:
+            detailed_display = DetailedCommitDisplay(
+                github_client=github_client,
+                ai_engine=None,
+                console=console
+            )
+            
+            # Generate detailed view without AI summaries
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                MofNCompleteColumn(),
+                console=console
+            ) as progress:
+                task = progress.add_task("Generating detailed commit information...", total=len(commits))
+                
+                def progress_callback(completed: int, total: int):
+                    progress.update(task, completed=completed)
+                
+                detailed_commits = await detailed_display.generate_detailed_view(
+                    commits, repo_obj, progress_callback
+                )
+            
+            # Display each detailed commit
+            for i, detailed_commit in enumerate(detailed_commits, 1):
+                console.print(f"\n[bold cyan]Commit {i}/{len(detailed_commits)}[/bold cyan]")
+                detailed_display.format_detailed_commit_view(detailed_commit)
+                
+                # Add spacing between commits (except for the last one)
+                if i < len(detailed_commits):
+                    console.print()
+        
+        console.print(f"\n[green]✓ Displayed {len(commits)} commits in detailed view[/green]")
+        
+    except Exception as e:
+        logger.error(f"Failed to display detailed commits: {e}")
+        console.print(f"[red]Error displaying detailed commits: {e}[/red]")
 
 
 def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None) -> None:
