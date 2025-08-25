@@ -778,12 +778,12 @@ Potential side effects: May require users to re-login"""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        # Text with 5 sentences (exceeds 3 sentence limit)
-        text = "This commit adds authentication. It improves security. Users can now log in. The system is more robust. Performance is better."
+        # Text with 7 sentences (exceeds 5 sentence limit)
+        text = "This commit adds authentication. It improves security. Users can now log in. The system is more robust. Performance is better. Additional features added. Final improvements made."
         result = engine._enforce_brevity(text)
         
-        # Should be limited to first 3 sentences
-        expected = "This commit adds authentication. It improves security. Users can now log in."
+        # Should be limited to first 5 sentences (new default)
+        expected = "This commit adds authentication. It improves security. Users can now log in. The system is more robust. Performance is better."
         assert result == expected
 
     def test_enforce_brevity_empty_text(self):
@@ -820,11 +820,11 @@ Potential side effects: May require users to re-login"""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        text = "This commit fixes a bug! It improves performance? The system is now stable. Additional changes were made."
+        text = "This commit fixes a bug! It improves performance? The system is now stable. Additional changes were made. More improvements added. Final touches done."
         result = engine._enforce_brevity(text)
         
-        # Should handle different punctuation and limit to 3 sentences
-        expected = "This commit fixes a bug! It improves performance? The system is now stable."
+        # Should handle different punctuation and limit to 5 sentences (new default)
+        expected = "This commit fixes a bug! It improves performance? The system is now stable. Additional changes were made. More improvements added."
         assert result == expected
 
     def test_enforce_brevity_adds_punctuation(self):
@@ -854,8 +854,8 @@ Potential side effects: May require users to re-login"""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        # Text with 5 sentences
-        text = "First. Second. Third. Fourth. Fifth."
+        # Text with 7 sentences (exceeds 5 sentence limit)
+        text = "First. Second. Third. Fourth. Fifth. Sixth. Seventh."
         assert engine._validate_response_length(text) is False
 
     def test_validate_response_length_empty_text(self):
@@ -880,12 +880,12 @@ Potential side effects: May require users to re-login"""
         mock_client = Mock(spec=OpenAIClient)
         engine = AICommitSummaryEngine(mock_client)
         
-        # Long response with 5 sentences
-        response_text = "This commit adds authentication. It improves security. Users can log in. The system is robust. Performance is better."
+        # Long response with 7 sentences
+        response_text = "This commit adds authentication. It improves security. Users can log in. The system is robust. Performance is better. Additional features added. Final improvements made."
         parsed = engine._parse_summary_response(response_text)
         
-        # Should be limited to 3 sentences
-        expected = "This commit adds authentication. It improves security. Users can log in."
+        # Should be limited to 5 sentences (new default)
+        expected = "This commit adds authentication. It improves security. Users can log in. The system is robust. Performance is better."
         assert parsed == expected
 
     @pytest.mark.asyncio
@@ -935,8 +935,9 @@ Potential side effects: May require users to re-login"""
             # (input, expected_output)
             ("Short response.", "Short response."),
             ("First. Second. Third.", "First. Second. Third."),
-            ("First. Second. Third. Fourth. Fifth.", "First. Second. Third."),
-            ("  Whitespace and multiple sentences. Another one. Third one. Fourth.  ", "Whitespace and multiple sentences. Another one. Third one."),
+            ("First. Second. Third. Fourth. Fifth.", "First. Second. Third. Fourth. Fifth."),  # Now within 5 sentence limit
+            ("First. Second. Third. Fourth. Fifth. Sixth. Seventh.", "First. Second. Third. Fourth. Fifth."),  # Exceeds 5 sentence limit
+            ("  Whitespace and multiple sentences. Another one. Third one. Fourth.  ", "Whitespace and multiple sentences. Another one. Third one. Fourth."),  # Within limit
             ("", ""),
         ]
         

@@ -110,19 +110,21 @@ Diff:
         # Strip whitespace first
         cleaned_text = response_text.strip()
         
-        # Enforce brevity by limiting to 3 sentences maximum
+        # Enforce brevity by limiting to configured maximum sentences
         return self._enforce_brevity(cleaned_text)
     
-    def _enforce_brevity(self, text: str, max_sentences: int = 3) -> str:
+    def _enforce_brevity(self, text: str, max_sentences: int | None = None) -> str:
         """Enforce brevity by limiting text to maximum number of sentences.
         
         Args:
             text: Input text to limit
-            max_sentences: Maximum number of sentences allowed (default: 3)
+            max_sentences: Maximum number of sentences allowed (uses config default if None)
             
         Returns:
             Text limited to maximum sentences
         """
+        if max_sentences is None:
+            max_sentences = self.config.max_sentences
         if not text:
             return ""
         
@@ -188,7 +190,7 @@ Diff:
             if parts[i].strip():
                 sentence_count += 1
         
-        return sentence_count <= 3
+        return sentence_count <= self.config.max_sentences
 
     async def generate_commit_summary(
         self,

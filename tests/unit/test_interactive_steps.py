@@ -250,7 +250,7 @@ class TestRepositoryDiscoveryStep:
         
         display = step.display_results(result)
         
-        assert "✅ **Repository Found**" in display
+        assert "SUCCESS - **Repository Found**" in display
         assert "test-owner/test-repo" in display
         assert "Python" in display
         assert "100" in display  # stars
@@ -264,7 +264,7 @@ class TestRepositoryDiscoveryStep:
         
         display = step.display_results(result)
         
-        assert "❌ Repository discovery failed" in display
+        assert "ERROR - Repository discovery failed" in display
         assert "Test error" in display
     
     def test_display_results_no_data(self):
@@ -276,7 +276,7 @@ class TestRepositoryDiscoveryStep:
         
         display = step.display_results(result)
         
-        assert "❌ No repository data available" in display
+        assert "ERROR - No repository data available" in display
     
     def test_get_confirmation_prompt_success(self, sample_repository):
         """Test confirmation prompt for successful discovery."""
@@ -558,7 +558,7 @@ class TestForkDiscoveryStep:
         
         display = step.display_results(result)
         
-        assert "✅ **Fork Discovery Complete**" in display
+        assert "SUCCESS - **Fork Discovery Complete**" in display
         assert "Total Forks Found: 2" in display
         assert "Active Forks: 2" in display
         assert "Top 5 Most Active Forks:" in display
@@ -979,7 +979,7 @@ class TestForkAnalysisStep:
         
         display = step.display_results(result)
         
-        assert "❌ Fork analysis failed" in display
+        assert "ERROR - Fork analysis failed" in display
         assert "Analysis error" in display
     
     def test_get_confirmation_prompt_many_features(self):
@@ -1218,7 +1218,7 @@ class TestFeatureRankingStep:
         
         display = step.display_results(result)
         
-        assert "📊 **Feature Ranking Complete**" in display
+        assert "**Feature Ranking Complete**" in display
         assert "Total features ranked: 2" in display
         assert "High-value features (80-89): 1" in display
         assert "Top-Tier Features (Score ≥80):" in display
@@ -1235,7 +1235,7 @@ class TestFeatureRankingStep:
         
         display = step.display_results(result)
         
-        assert "📊 **Feature Ranking Complete**" in display
+        assert "**Feature Ranking Complete**" in display
         assert "No features were found to rank" in display
     
     def test_display_results_failure(self):
@@ -1247,7 +1247,7 @@ class TestFeatureRankingStep:
         
         display = step.display_results(result)
         
-        assert "❌ Feature ranking failed" in display
+        assert "ERROR - Feature ranking failed" in display
         assert "Ranking error" in display
     
     def test_get_confirmation_prompt_excellent_features(self):

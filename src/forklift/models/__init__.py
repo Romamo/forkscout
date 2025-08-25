@@ -23,6 +23,12 @@ from .analysis import (
     MainRepoValue,
     RankedFeature,
 )
+from .fork_qualification import (
+    CollectedForkData,
+    ForkQualificationMetrics,
+    QualificationStats,
+    QualifiedForksResult,
+)
 from .github import Commit, Fork, Repository, User
 
 __all__ = [
@@ -33,6 +39,7 @@ __all__ = [
     "AIUsageStats",
     "AnalysisContext",
     "CategoryType",
+    "CollectedForkData",
     "Commit",
     "CommitCategory",
     "CommitDetails",
@@ -43,9 +50,12 @@ __all__ = [
     "Fork",
     "ForkAnalysis",
     "ForkMetrics",
+    "ForkQualificationMetrics",
     "ImpactAssessment",
     "ImpactLevel",
     "MainRepoValue",
+    "QualificationStats",
+    "QualifiedForksResult",
     "RankedFeature",
     "Repository",
     "User",

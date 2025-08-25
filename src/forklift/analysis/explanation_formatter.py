@@ -422,6 +422,10 @@ class ExplanationFormatter:
         
         # Remove Rich markup patterns like [color]text[/color]
         import re
-        # Remove [style] and [/style] patterns
-        text = re.sub(r'\[/?[^\]]*\]', '', text)
+        # Remove Rich style patterns but preserve our ASCII labels like [FEAT], [HIGH], etc.
+        # First remove closing tags [/anything]
+        text = re.sub(r'\[/[^\]]*\]', '', text)
+        # Then remove opening Rich style tags (colors, styles, links, compound styles)
+        # This pattern matches Rich markup but not our ASCII labels
+        text = re.sub(r'\[(?:bold|italic|underline|strike|dim|bright_\w+|\w+_\w+|red|green|blue|yellow|cyan|magenta|white|black|link=\S*|bold\s+\w+|\w+\s+\w+)\]', '', text)
         return text

@@ -112,7 +112,7 @@ def _display_detailed_commits(commits: list[Commit], show_files: bool, show_stat
     console.print(table)
     
     if show_files:
-        console.print("\n[bold blue]📁 File Changes[/bold blue]")
+        console.print("\n[bold blue]FILES - File Changes[/bold blue]")
         for i, commit in enumerate(commits[:5], 1):  # Show files for first 5 commits
             if commit.files_changed:
                 console.print(f"\n{i}. [bold]{commit.sha[:8]}[/bold] - {commit.message.split()[0]}")

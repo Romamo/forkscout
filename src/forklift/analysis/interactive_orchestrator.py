@@ -130,7 +130,7 @@ class InteractiveAnalysisOrchestrator:
         Returns:
             StepResult with execution results
         """
-        self.console.print(f"\n[bold blue]🔄 Executing: {step.name}[/bold blue]")
+        self.console.print(f"\n[bold blue]EXECUTING - {step.name}[/bold blue]")
         self.console.print(f"[dim]{step.description}[/dim]")
         
         try:
@@ -170,7 +170,7 @@ class InteractiveAnalysisOrchestrator:
         # Create a panel with the results
         panel = Panel(
             display_content,
-            title=f"📊 {step_name} Results",
+            title=f"RESULTS - {step_name} Results",
             border_style="green" if results.success else "red"
         )
         self.console.print(panel)
@@ -197,7 +197,7 @@ class InteractiveAnalysisOrchestrator:
         else:
             prompt = step.get_confirmation_prompt(results)
         
-        self.console.print(f"\n[bold cyan]🤔 {prompt}[/bold cyan]")
+        self.console.print(f"\n[bold cyan]CONFIRM - {prompt}[/bold cyan]")
         
         # Get user confirmation
         try:
@@ -230,7 +230,7 @@ class InteractiveAnalysisOrchestrator:
         """
         error_msg = str(error) if error else "Unknown error"
         
-        self.console.print(f"\n[bold red]❌ Step '{step_name}' failed: {error_msg}[/bold red]")
+        self.console.print(f"\n[bold red]FAILED - Step '{step_name}' failed: {error_msg}[/bold red]")
         
         try:
             continue_anyway = Confirm.ask(
@@ -257,7 +257,7 @@ class InteractiveAnalysisOrchestrator:
             f"Repository: [cyan]{repo_url}[/cyan]\n"
             f"Steps: {len(self.steps)} analysis phases\n\n"
             f"[dim]You will be prompted to continue after each step completes.[/dim]",
-            title="🚀 Welcome to Forklift Interactive Mode",
+            title="WELCOME - Forklift Interactive Mode",
             border_style="blue"
         )
         self.console.print(welcome_panel)
@@ -271,7 +271,7 @@ class InteractiveAnalysisOrchestrator:
         if not metrics:
             return
         
-        table = Table(title="📈 Step Metrics", show_header=True, header_style="bold magenta")
+        table = Table(title="METRICS - Step Metrics", show_header=True, header_style="bold magenta")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
         
@@ -440,12 +440,12 @@ class InteractiveAnalysisOrchestrator:
             total_count = state.get("total_steps", len(self.steps))
             
             restore_panel = Panel(
-                f"📂 **Session Restored**\n\n"
+                f"RESTORED - **Session Restored**\n\n"
                 f"Repository: {repo_url}\n"
                 f"Progress: {completed_count}/{total_count} steps completed\n"
                 f"Session age: {self._format_duration(age) if created_at else 'unknown'}\n\n"
                 f"You can continue from where you left off!",
-                title="🔄 Previous Session Found",
+                title="SESSION - Previous Session Found",
                 border_style="blue"
             )
             self.console.print(restore_panel)
@@ -507,7 +507,7 @@ class InteractiveAnalysisOrchestrator:
         """Display success completion summary."""
         summary_panel = Panel(
             self._format_success_summary(final_result, session_duration),
-            title="🎉 Interactive Analysis Complete",
+            title="COMPLETE - Interactive Analysis Complete",
             border_style="green",
             padding=(1, 2)
         )
@@ -527,7 +527,7 @@ class InteractiveAnalysisOrchestrator:
         """Display error completion summary."""
         summary_panel = Panel(
             self._format_error_summary(error, session_duration),
-            title="❌ Analysis Failed",
+            title="FAILED - Analysis Failed",
             border_style="red",
             padding=(1, 2)
         )
@@ -536,16 +536,16 @@ class InteractiveAnalysisOrchestrator:
     def _format_success_summary(self, final_result: Any, session_duration: timedelta) -> str:
         """Format success summary content."""
         summary_lines = [
-            "✅ **Analysis completed successfully!**",
+            "SUCCESS - **Analysis completed successfully!**",
             "",
             "**Session Statistics:**"
         ]
         
         # Add session metrics
         summary_lines.extend([
-            f"⏱️  Duration: {self._format_duration(session_duration)}",
-            f"📋 Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
-            f"🤔 User confirmations: {self.confirmation_count}",
+            f"DURATION: {self._format_duration(session_duration)}",
+            f"STEPS: {len(self.completed_steps)}/{len(self.steps)} completed",
+            f"CONFIRMATIONS: {self.confirmation_count}",
             ""
         ])
         

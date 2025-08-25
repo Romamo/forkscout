@@ -33,7 +33,7 @@ async def show_commit_summary(repo_url: str, limit: int = 5):
         # Get basic commit list first
         commits = await client.get_repository_commits(owner, repo_name, per_page=limit)
         
-        console.print(f"\n[green]📝 Detailed Commit Summary ({len(commits)} commits)[/green]")
+        console.print(f"\n[green]SUMMARY - Detailed Commit Summary ({len(commits)} commits)[/green]")
         console.print("=" * 80)
         
         for i, commit in enumerate(commits, 1):

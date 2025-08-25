@@ -528,8 +528,67 @@
   - Write end-to-end tests for complete analysis workflow with cache disabled
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
-- [ ] 17. Fix immediate console formatting issues and implement simple, compatible formatting as default
-- [-] 17.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
+- [ ] 17. Implement fork qualification data collection for user decision-making
+- [ ] 17.1 Create fork qualification data models
+  - Implement ForkQualificationMetrics data model with all GitHub API fields (stars, forks, size, language, activity dates, topics, etc.)
+  - Create QualifiedForksResult to hold collection of fork metrics and statistics
+  - Add QualificationStats for summary information (total forks, API calls saved, etc.)
+  - Write unit tests for all qualification data models and validation
+  - _Requirements: 20.1, 20.2_
+
+- [ ] 17.2 Build ForkListProcessor for efficient API usage
+  - Implement ForkListProcessor class to handle paginated forks list endpoint calls
+  - Add get_all_forks_list_data method using only `/repos/{owner}/{repo}/forks?per_page=100&page=N`
+  - Create extract_qualification_fields method to extract all available metrics from fork list response
+  - Implement validate_fork_data_completeness for handling missing data gracefully
+  - Write unit tests for fork list processing and comprehensive data extraction
+  - _Requirements: 20.1, 20.2, 20.9_
+
+- [ ] 17.3 Create ForkDataCollectionEngine for data collection and commits-ahead detection
+  - Implement ForkDataCollectionEngine class with collect_fork_data_from_list method
+  - Extract and organize all qualification metrics without scoring or filtering
+  - Add determine_commits_ahead_status method using created_at >= pushed_at comparison logic
+  - Implement exclude_archived_and_disabled and exclude_no_commits_ahead methods
+  - Calculate activity patterns (days since creation, last update, last push) and commits ahead status
+  - Write unit tests for data collection, commits-ahead detection, and organization logic
+  - _Requirements: 20.2, 20.3, 20.4.1, 20.4.2, 20.4.3, 20.6, 20.7_
+
+- [ ] 17.4 Enhance ForkDiscoveryService with data collection and automatic filtering
+  - Add ForkDataCollectionEngine to ForkDiscoveryService constructor
+  - Implement discover_and_collect_fork_data method that gathers comprehensive fork information
+  - Add automatic exclusion of forks with no commits ahead (created_at >= pushed_at) from expensive analysis
+  - Update existing methods to work with collected fork data and commits-ahead detection
+  - Add statistics tracking for API call savings from filtering forks with no commits ahead
+  - Write unit tests for integrated fork discovery, data collection, and automatic filtering workflow
+  - _Requirements: 20.4.2, 20.4.3, 20.9, 20.10, 20.12, 20.13_
+
+- [ ] 17.5 Add fork data display CLI commands with commits-ahead status
+  - Create show_fork_data method in RepositoryDisplayService to display all collected fork metrics
+  - Implement comprehensive fork data display showing stars, forks, size, language, activity dates, topics, commits-ahead status
+  - Add clear indication of forks with "No commits ahead" vs "Has commits" based on date comparison
+  - Add sortable columns for user decision-making (by stars, activity, size, commits status, etc.)
+  - Create clear tabular display showing which forks are excluded from analysis and why
+  - Write integration tests for fork data display CLI commands including commits-ahead detection
+  - _Requirements: 20.4.1, 20.4.2, 20.4.3, 20.9, 20.10, 20.13_
+
+- [ ] 17.6 Let users choose forks for analysis based on displayed data
+  - Update CLI to display comprehensive fork data and let users decide which forks to analyze
+  - Remove automatic filtering and scoring - present all data for user decision
+  - Add optional basic filters (exclude archived/disabled) but no quality scoring
+  - Implement user-driven fork selection for detailed analysis
+  - Write integration tests for user-driven fork selection workflow
+  - _Requirements: 20.8, 20.10, 20.11, 20.13_
+
+- [ ] 17.7 Add comprehensive testing for fork data collection system
+  - Write unit tests for all data collection components with realistic fork data
+  - Create integration tests using test repositories with various fork patterns
+  - Add performance tests measuring API call reduction and processing efficiency
+  - Implement contract tests for GitHub API fork list response handling
+  - Write end-to-end tests for complete data collection workflow with real data
+  - _Requirements: 20.1, 20.2, 20.12, 20.13_
+
+- [ ] 18. Fix immediate console formatting issues and implement simple, compatible formatting as default
+- [ ] 18.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
   - Replace all emoji characters (📝, ❓, 🟢, ❔) with simple text labels in commit explanations
   - Fix Unicode table borders that display as literal characters in some terminals
   - Update ExplanationFormatter to use ASCII characters instead of Unicode box drawing
@@ -537,8 +596,8 @@
   - Write unit tests for ASCII-only output formatting
   - _Requirements: 18.1, 18.2, 18.7_
 
-- [ ] 17. Implement simple, compatible console formatting as default
-- [ ] 17.1 Replace Rich formatting with simple text-based output
+- [ ] 18. Implement simple, compatible console formatting as default
+- [ ] 18.1 Replace Rich formatting with simple text-based output
   - Remove emoji and Unicode symbols from all CLI output (replace ❓, 🟢, ❔ with text labels)
   - Replace Rich table formatting with simple ASCII tables using |, -, + characters
   - Convert color-coded status indicators to text prefixes (SUCCESS:, ERROR:, INFO:, WARNING:)
@@ -546,7 +605,7 @@
   - Write unit tests for simple formatting output and compatibility
   - _Requirements: 18.1, 18.2, 18.3, 18.4_
 
-- [ ] 17.2 Update commit explanation display to use simple formatting
+- [ ] 18.2 Update commit explanation display to use simple formatting
   - Replace emoji category indicators (❓, 🟢, etc.) with text labels (OTHER, LOW, UNCLEAR)
   - Convert Rich table borders to simple ASCII characters for commit explanation tables
   - Remove special Unicode characters from all commit display formatting
@@ -775,3 +834,52 @@
   - Implement final integration testing with existing forklift commands and workflows
   - Write performance benchmarks and cost analysis for AI summary usage
   - _Requirements: 17.1, 17.11, 17.13, 17.15_
+-
+ [ ] 17. Fix immediate console formatting issues and implement simple, compatible formatting as default
+- [ ] 17.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
+  - Replace all emoji characters (📝, ❓, 🟢, ❔) with simple text labels in commit explanations
+  - Fix Unicode table borders that display as literal characters in some terminals
+  - Update ExplanationFormatter to use ASCII characters instead of Unicode box drawing
+  - Remove special symbols from commit category and impact displays
+  - Write unit tests for ASCII-only output formatting
+  - _Requirements: 18.1, 18.2, 18.7_
+
+- [ ] 17.1 Replace Rich formatting with simple text-based output
+  - Remove emoji and Unicode symbols from all CLI output (replace ❓, 🟢, ❔ with text labels)
+  - Replace Rich table formatting with simple ASCII tables using |, -, + characters
+  - Convert color-coded status indicators to text prefixes (SUCCESS:, ERROR:, INFO:, WARNING:)
+  - Remove complex Rich markup and use simple indentation and spacing for hierarchy
+  - Write unit tests for simple formatting output and compatibility
+  - _Requirements: 18.1, 18.2, 18.3, 18.4_
+
+- [ ] 17.2 Update commit explanation display to use simple formatting
+  - Replace emoji category indicators (❓, 🟢, etc.) with text labels (OTHER, LOW, UNCLEAR, etc.)
+  - Convert Rich table displays to simple ASCII tables for commit explanations
+  - Remove color coding and use text-based status indicators
+  - Implement simple indentation and spacing for visual hierarchy
+  - Write unit tests for simple explanation formatting
+  - _Requirements: 18.1, 18.7, 18.10_
+
+- [ ] 17.3 Add plain text mode configuration and detection
+  - Add --no-color and --plain-text CLI flags to force simple formatting
+  - Implement automatic terminal capability detection for fallback to plain text
+  - Create configuration options for default formatting mode
+  - Add environment variable support for FORKLIFT_PLAIN_TEXT mode
+  - Write unit tests for plain text mode activation and detection
+  - _Requirements: 18.5, 18.6, 18.11_
+
+- [ ] 17.4 Update progress indicators and status displays
+  - Replace Rich progress bars with simple text-based progress (e.g., "Processing 5/10...")
+  - Convert status spinners to simple text updates
+  - Remove complex visual elements and use clear text descriptions
+  - Maintain information hierarchy using indentation and spacing
+  - Write unit tests for simple progress display formatting
+  - _Requirements: 18.8, 18.10, 18.11_
+
+- [ ] 17.5 Finalize simple formatting integration and testing
+  - Ensure all CLI commands use simple formatting by default
+  - Test compatibility across different terminal environments
+  - Validate that all information remains accessible in plain text mode
+  - Create comprehensive integration tests for simple formatting
+  - Update documentation to reflect simple formatting as default
+  - _Requirements: 18.1, 18.11, 18.12_

@@ -246,7 +246,7 @@ def _display_detailed_commits(
         
     # Show explanations if requested (placeholder for now)
     if explain:
-        console.print(f"\n[yellow]💡 Commit explanations feature coming soon...[/yellow]")
+        console.print(f"\n[yellow]INFO - Commit explanations feature coming soon...[/yellow]")
 
 
 def _display_file_changes_detailed(commits: list[Commit]) -> None:
@@ -255,10 +255,10 @@ def _display_file_changes_detailed(commits: list[Commit]) -> None:
     commits_with_files = [c for c in commits if hasattr(c, 'files_changed') and c.files_changed]
     
     if not commits_with_files:
-        console.print(f"\n[yellow]📁 No file changes available (commits may not have detailed data)[/yellow]")
+        console.print(f"\n[yellow]FILES - No file changes available (commits may not have detailed data)[/yellow]")
         return
     
-    console.print(f"\n[bold blue]📁 File Changes (Recent {min(5, len(commits_with_files))} commits)[/bold blue]")
+    console.print(f"\n[bold blue]FILES - File Changes (Recent {min(5, len(commits_with_files))} commits)[/bold blue]")
     
     for i, commit in enumerate(commits_with_files[:5], 1):
         # Commit header
@@ -305,7 +305,7 @@ def _display_statistics_detailed(commits: list[Commit]) -> None:
     commits_with_stats = [c for c in commits if hasattr(c, 'additions') and hasattr(c, 'deletions')]
     
     if not commits_with_stats:
-        console.print(f"\n[yellow]📊 No detailed statistics available (commits may not have detailed data)[/yellow]")
+        console.print(f"\n[yellow]STATS - No detailed statistics available (commits may not have detailed data)[/yellow]")
         return
     
     # Calculate aggregate statistics
@@ -335,7 +335,7 @@ def _display_statistics_detailed(commits: list[Commit]) -> None:
         commit_types[commit_type] = commit_types.get(commit_type, 0) + 1
     
     # Overall statistics table
-    console.print(f"\n[bold blue]📊 Detailed Statistics[/bold blue]")
+    console.print(f"\n[bold blue]STATS - Detailed Statistics[/bold blue]")
     
     stats_table = Table(title="Overall Statistics")
     stats_table.add_column("Metric", style="cyan")
@@ -431,7 +431,7 @@ def _display_basic_commits(commits: list[Commit], verbose: bool) -> None:
     console.print(table)
     
     # Helpful hint for users
-    console.print(f"\n[dim]💡 Use --show-files or --show-stats for detailed commit analysis[/dim]")
+    console.print(f"\n[dim]TIP - Use --show-files or --show-stats for detailed commit analysis[/dim]")
     if verbose:
         console.print(f"[dim]   This fast mode used 1 API call. Detailed mode would use {len(commits) + 1} API calls.[/dim]")
 

@@ -230,7 +230,7 @@ def display_commit_explanations(fork_analyses: list, explain: bool) -> None:
         fork_name = fork_analysis.fork.repository.full_name
         explanations = fork_analysis.commit_explanations
 
-        console.print(f"\n[bold cyan]🔍 Fork: {fork_name}[/bold cyan]")
+        console.print(f"\n[bold cyan]Fork: {fork_name}[/bold cyan]")
         console.print(f"Found {len(explanations)} explained commits:")
 
         # Create CommitWithExplanation objects for the formatter
@@ -312,11 +312,11 @@ async def interactive_fork_selection(forks: list, config: ForkliftConfig) -> Non
 
         # Display options
         console.print("\n[bold]Available Actions:[/bold]")
-        console.print("1. 📋 View forks summary")
-        console.print("2. 🔍 View detailed fork information")
-        console.print("3. ⚡ Analyze specific fork")
-        console.print("4. 📊 Analyze multiple forks")
-        console.print("5. 🚪 Exit interactive mode")
+        console.print("1. View forks summary")
+        console.print("2. View detailed fork information")
+        console.print("3. Analyze specific fork")
+        console.print("4. Analyze multiple forks")
+        console.print("5. Exit interactive mode")
 
         choice = Prompt.ask(
             "\n[bold cyan]Choose an action[/bold cyan]",
@@ -1658,7 +1658,7 @@ async def _analyze_fork(
 
             # Display comprehensive analysis results
             console.print("\n" + "="*80)
-            console.print("[bold blue]🔍 Fork Analysis Results[/bold blue]")
+            console.print("[bold blue]Fork Analysis Results[/bold blue]")
             console.print("="*80)
 
             # Show commit analysis if we have branch analysis
@@ -1870,7 +1870,7 @@ async def _display_commit_analysis(
         await _display_commit_explanations_for_commits(github_client, owner, repo_name, commits[:10])  # Limit to 10 for readability
 
     # Display analysis results
-    console.print(f"\n[bold yellow]📊 Commit Analysis for branch '{branch}'[/bold yellow]")
+    console.print(f"\n[bold yellow]Commit Analysis for branch '{branch}'[/bold yellow]")
 
     # Summary statistics
     stats_table = Table(title="Analysis Summary")
@@ -1918,7 +1918,7 @@ async def _display_commit_analysis(
 
     # Show most significant commits
     if significant_commits:
-        console.print(f"\n[bold]🌟 Most Significant Commits (top {min(5, len(significant_commits))})[/bold]")
+        console.print(f"\n[bold]SIGNIFICANT - Most Significant Commits (top {min(5, len(significant_commits))})[/bold]")
 
         # Sort by total changes (descending)
         significant_commits.sort(key=lambda c: c.total_changes, reverse=True)
@@ -2188,7 +2188,7 @@ async def _display_detailed_commits(
     from forklift.models.ai_summary import AISummaryConfig
     from forklift.models.github import Repository
 
-    console.print("\n[bold blue]📋 Detailed Commit View[/bold blue]")
+    console.print("\n[bold blue]DETAILS - Detailed Commit View[/bold blue]")
     console.print("=" * 60)
 
     if disable_cache:
@@ -2317,7 +2317,7 @@ def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None
         fork_details: Fork details object
         branch_analysis: Branch analysis results (optional)
     """
-    console.print("\n[bold green]🎯 Feature Analysis Summary[/bold green]")
+    console.print("\n[bold green]ANALYSIS - Feature Analysis Summary[/bold green]")
 
     fork = fork_details.fork
 
@@ -2327,7 +2327,7 @@ def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None
     overview_table.add_column("Value", style="green")
 
     overview_table.add_row("Repository", fork.full_name)
-    overview_table.add_row("Stars", f"⭐ {fork.stars:,}")
+    overview_table.add_row("Stars", f"{fork.stars:,}")
     overview_table.add_row("Language", fork.language or "Not specified")
     overview_table.add_row("Total Branches", str(len(fork_details.branches)))
     overview_table.add_row("Contributors", str(fork_details.contributor_count))
@@ -2357,27 +2357,27 @@ def _display_feature_analysis_summary(fork_details, branch_analysis: dict | None
     insights = []
 
     if fork.stars > 10:
-        insights.append("🌟 Popular fork with significant community interest")
+        insights.append("[POPULAR] Popular fork with significant community interest")
 
     if fork_details.contributor_count > 5:
-        insights.append("👥 Active collaboration with multiple contributors")
+        insights.append("[COLLABORATIVE] Active collaboration with multiple contributors")
 
     if branch_analysis:
         commits = branch_analysis.get("commits", [])
         if len(commits) > 20:
-            insights.append("📈 High development activity with many commits")
+            insights.append("[ACTIVE] High development activity with many commits")
 
         commit_types = branch_analysis.get("commit_types", {})
         if commit_types.get("feature", 0) > commit_types.get("fix", 0):
-            insights.append("🚀 Feature-focused development")
+            insights.append("[FEATURES] Feature-focused development")
         elif commit_types.get("fix", 0) > 0:
-            insights.append("🔧 Bug-fix focused development")
+            insights.append("[BUGFIXES] Bug-fix focused development")
 
     if len(fork_details.branches) > 5:
-        insights.append("🌿 Multiple development branches indicating active work")
+        insights.append("[BRANCHES] Multiple development branches indicating active work")
 
     if insights:
-        console.print("\n[bold blue]💡 Key Insights[/bold blue]")
+        console.print("\n[bold blue]INSIGHTS - Key Insights[/bold blue]")
         for insight in insights:
             console.print(f"  • {insight}")
 
@@ -2493,7 +2493,7 @@ def _display_commit_statistics(commits: list) -> None:
         files_changed.update(commit.files_changed)
 
     # Display statistics
-    console.print("\n[bold yellow]📊 Detailed Statistics[/bold yellow]")
+    console.print("\n[bold yellow]Detailed Statistics[/bold yellow]")
 
     # Overall stats
     stats_table = Table(title="Overall Statistics")
@@ -2542,7 +2542,7 @@ def _display_file_changes(commits: list) -> None:
     if not commits:
         return
 
-    console.print(f"\n[bold blue]📁 File Changes (Recent {len(commits)} commits)[/bold blue]")
+    console.print(f"\n[bold blue]FILES - File Changes (Recent {len(commits)} commits)[/bold blue]")
 
     for i, commit in enumerate(commits, 1):
         if not commit.files_changed:

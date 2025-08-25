@@ -7,7 +7,7 @@ The Forklift tool is a GitHub repository analysis system built with Python 3.12 
 The tool provides both comprehensive batch analysis and step-by-step interactive analysis commands to help users understand repository ecosystems incrementally. For testing and development, the system uses small repositories like https://github.com/maliayas/github-network-ninja and https://github.com/sanila2007/youtube-bot-telegram to ensure reliable and fast testing scenarios.
 
 ## Example repositories not for testing but for production use with multiple valuable forks
-https://github.com/aarigs/pandas-ta/network
+https://github.com/aarigs/pandas-ta
 https://github.com/xgboosted/pandas-ta-classic
 
 ## Requirements
@@ -311,3 +311,25 @@ https://github.com/xgboosted/pandas-ta-classic
 10. WHEN displaying diffs in detail mode THEN the system SHALL truncate extremely large diffs to prevent terminal overflow while maintaining readability
 11. WHEN --detail flag is used THEN the system SHALL provide progress indicators showing detailed processing status for each commit
 12. WHEN using detail mode THEN the system SHALL respect rate limiting for both GitHub API calls and OpenAI API calls with appropriate backoff strategies
+
+### Requirement 20
+
+**User Story:** As a repository maintainer, I want comprehensive fork data collection using GitHub API paginated forks list to see all available fork information with minimal API requests, so that I can make informed decisions about which forks to analyze in detail.
+
+#### Acceptance Criteria
+
+1. WHEN discovering forks THEN the system SHALL use only the paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) to collect all available fork data without making individual repository API calls
+2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, topics, watchers_count, archived, and disabled status
+3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
+4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since last push, and activity ratios
+4.1. WHEN identifying forks with no commits ahead THEN the system SHALL use created_at >= pushed_at comparison to detect forks that have never had new commits
+4.2. WHEN a fork has created_at >= pushed_at THEN the system SHALL mark it as "No commits ahead" and exclude it from expensive commit analysis
+4.3. WHEN a fork has pushed_at > created_at THEN the system SHALL mark it as "Has commits" and include it for potential detailed analysis
+5. WHEN displaying fork information THEN the system SHALL show all collected metrics in a clear, sortable format including community engagement indicators (stars, forks, watchers), development indicators (topics, issues, language), and activity patterns
+6. WHEN presenting fork data THEN the system SHALL provide basic filtering options to exclude archived=true and disabled=true forks but not apply quality scoring
+7. WHEN users review fork data THEN the system SHALL display comprehensive information allowing users to identify valuable forks based on their own criteria and priorities
+8. WHEN displaying fork lists THEN the system SHALL show all key metrics (stars, forks, size, language, last activity, topics count, issues count) derived entirely from the forks list data
+9. WHEN users want to see all forks THEN the system SHALL display complete fork data including archived and disabled forks with clear status indicators
+10. WHEN fork data collection is complete THEN the system SHALL let users choose which forks to analyze in detail based on the comprehensive information provided, automatically excluding forks with no commits ahead
+11. WHEN users make fork selections THEN the system SHALL proceed with expensive commit analysis only for user-selected forks that have commits ahead, dramatically reducing API usage
+12. WHEN fork data collection is complete THEN the system SHALL provide summary statistics showing total forks discovered, forks with no commits ahead (excluded), forks available for analysis, and percentage of API calls saved by filtering and user selection

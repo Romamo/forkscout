@@ -86,6 +86,57 @@ The commit explanation system is designed with simplicity and clarity as primary
 5. **Generate Links**: Create direct GitHub commit URLs for easy navigation
 6. **Format Output**: Present information in a clear, scannable format with visual separation between descriptions and evaluations
 
+## Fork Data Collection System Design Philosophy
+
+The fork data collection system is designed to dramatically reduce GitHub API usage by collecting comprehensive fork information using only the paginated forks list endpoint. This allows users to make informed decisions about which forks warrant expensive commit analysis based on complete, transparent data.
+
+### Fork Data Collection Design Principles
+
+- **API Efficiency First**: Use only paginated forks list data to avoid individual repository API calls during data collection
+- **Comprehensive Data Collection**: Extract and present all available fork metrics without filtering or scoring
+- **User-Driven Decision Making**: Provide complete information and let users decide which forks to analyze
+- **Transparent Information**: Present all collected data clearly without hidden scoring algorithms
+- **Graceful Degradation**: Handle missing or incomplete fork data without failing the entire collection process
+- **Performance Optimization**: Process large numbers of forks efficiently with minimal memory usage
+
+### Fork Data Collection Workflow
+
+1. **Paginated Discovery**: Fetch all forks using paginated `/repos/{owner}/{repo}/forks` endpoint with maximum per_page=100
+2. **Data Extraction**: Extract all available metrics from each fork object in the response
+3. **Activity Calculation**: Calculate activity patterns and time-based metrics for user reference
+4. **Data Organization**: Organize collected data in clear, sortable format for user review
+5. **Optional Basic Filtering**: Provide option to exclude archived and disabled forks
+6. **User Selection**: Allow users to choose which forks to analyze based on displayed data
+7. **Statistics Reporting**: Provide detailed statistics on data collected and potential API savings
+
+### Collected Fork Metrics
+
+The system collects and displays all available fork information:
+
+**Community Engagement Metrics:**
+- Stars count (stargazers_count)
+- Forks count (forks_count) 
+- Watchers count (watchers_count)
+
+**Development Activity Metrics:**
+- Repository size in KB (size)
+- Primary language (language)
+- Topics count and list (topics)
+- Open issues count (open_issues_count)
+
+**Activity Timeline Metrics:**
+- Creation date (created_at)
+- Last update date (updated_at)
+- Last push date (pushed_at)
+- Days since creation, last update, last push
+- Activity ratios and patterns
+- Commits ahead status: "No commits ahead" (created_at >= pushed_at) or "Has commits" (pushed_at > created_at)
+
+**Repository Status:**
+- Archived status (archived)
+- Disabled status (disabled)
+- Fork status confirmation (fork)
+
 ## AI-Powered Commit Summary Design Philosophy
 
 The AI commit summary system complements the existing explanation system by providing deeper, more contextual analysis using OpenAI's GPT-4 mini model. This system is designed for cases where maintainers need comprehensive understanding of complex commits.
@@ -214,10 +265,29 @@ class PaginationProgressTracker:
 ### Fork Discovery Service
 ```python
 class ForkDiscoveryService:
-    def __init__(self, github_client: GitHubClient)
+    def __init__(self, github_client: GitHubClient, data_collection_engine: ForkDataCollectionEngine)
     async def discover_forks(self, repository_url: str, disable_cache: bool = False) -> List[Fork]
+    async def discover_and_collect_fork_data(self, repository_url: str, disable_cache: bool = False) -> ForkDataCollectionResult
     async def filter_active_forks(self, forks: List[Fork], disable_cache: bool = False) -> List[Fork]
     async def get_unique_commits(self, fork: Fork, base_repo: Repository, disable_cache: bool = False) -> List[Commit]
+
+class ForkDataCollectionEngine:
+    def __init__(self)
+    def collect_fork_data_from_list(self, forks_list_data: List[dict]) -> List[CollectedForkData]
+    def extract_fork_metrics(self, fork_data: dict) -> ForkQualificationMetrics
+    def calculate_activity_patterns(self, fork_data: dict) -> dict
+    def determine_commits_ahead_status(self, fork_data: dict) -> Tuple[str, bool]  # Returns (status, can_skip_analysis)
+    def generate_activity_summary(self, metrics: ForkQualificationMetrics) -> str
+    def exclude_archived_and_disabled(self, collected_forks: List[CollectedForkData]) -> List[CollectedForkData]
+    def exclude_no_commits_ahead(self, collected_forks: List[CollectedForkData]) -> List[CollectedForkData]
+    def organize_forks_by_status(self, collected_forks: List[CollectedForkData]) -> Tuple[List[CollectedForkData], List[CollectedForkData], List[CollectedForkData]]
+
+class ForkListProcessor:
+    def __init__(self, github_client: GitHubClient)
+    async def get_all_forks_list_data(self, owner: str, repo: str, disable_cache: bool = False) -> List[dict]
+    async def process_forks_pages(self, owner: str, repo: str, progress_callback: Callable = None, disable_cache: bool = False) -> List[dict]
+    def extract_qualification_fields(self, fork_data: dict) -> dict
+    def validate_fork_data_completeness(self, fork_data: dict) -> bool
 ```
 
 ### Repository Analyzer
@@ -350,15 +420,18 @@ class FeatureRankingEngine:
 ### CLI Command Handlers
 ```python
 class RepositoryDisplayService:
-    def __init__(self, github_client: GitHubClient, cache_manager: Optional[CacheManager] = None, ai_summary_engine: Optional[AICommitSummaryEngine] = None)
+    def __init__(self, github_client: GitHubClient, data_collection_engine: ForkDataCollectionEngine, cache_manager: Optional[CacheManager] = None, ai_summary_engine: Optional[AICommitSummaryEngine] = None)
     async def show_repository_details(self, repo_url: str, disable_cache: bool = False) -> RepositoryDetails
     async def list_forks_preview(self, repo_url: str, disable_cache: bool = False) -> ForksPreview
     async def show_forks_summary(self, repo_url: str, disable_cache: bool = False) -> ForksSummary
+    async def show_fork_data(self, repo_url: str, show_all: bool = False, disable_cache: bool = False) -> ForkDataCollectionResult
     async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter, disable_cache: bool = False) -> List[Fork]
     async def show_fork_details(self, fork_url: str, disable_cache: bool = False) -> ForkDetails
     async def show_commits(self, fork_url: str, branch: str, limit: int, disable_cache: bool = False, ai_summary: bool = False) -> List[CommitDetails]
     async def _generate_ai_summaries(self, commits: List[Commit], repository: Repository) -> Dict[str, AISummary]
     def _format_commit_with_ai_summary(self, commit: CommitDetails, ai_summary: Optional[AISummary]) -> str
+    def _format_fork_data_display(self, collection_result: ForkDataCollectionResult, show_all: bool) -> str
+    def _format_fork_metrics(self, collected_fork: CollectedForkData) -> str
 
 class InteractiveAnalyzer:
     def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, cache_manager: Optional[CacheManager] = None)
@@ -704,6 +777,73 @@ class DetailedCommitInfo:
     commit: Commit
     github_url: str
     ai_summary: Optional[AISummary]
+    commit_message: str
+    diff_content: str
+    files_changed: List[str]
+    processing_error: Optional[str] = None
+
+@dataclass
+class CollectedForkData:
+    """Fork with comprehensive collected data from GitHub API"""
+    fork_data: dict  # Raw fork data from GitHub API
+    metrics: ForkQualificationMetrics
+    is_archived: bool
+    is_disabled: bool
+    activity_summary: str  # Human-readable activity description
+
+@dataclass
+class ForkDataCollectionResult:
+    """Result of fork data collection process"""
+    total_forks_discovered: int
+    collected_forks: List[CollectedForkData]
+    active_forks: List[CollectedForkData]  # Non-archived, non-disabled
+    archived_forks: List[CollectedForkData]
+    disabled_forks: List[CollectedForkData]
+    collection_stats: ForkCollectionStats
+    api_calls_saved: int  # Estimated API calls saved by using forks list only
+
+@dataclass
+class ForkCollectionStats:
+    """Statistics from fork data collection process"""
+    total_forks: int
+    active_forks: int
+    archived_forks: int
+    disabled_forks: int
+    forks_with_stars: int
+    forks_with_recent_activity: int  # Activity within last 90 days
+    forks_with_topics: int
+    forks_with_issues: int
+    average_stars: float
+    average_size_kb: float
+    most_common_languages: List[Tuple[str, int]]  # (language, count)
+    api_efficiency_percentage: float  # Percentage of API calls saved
+
+@dataclass
+class ForkQualificationMetrics:
+    """Detailed metrics for a single fork's qualification"""
+    fork_name: str
+    owner: str
+    stars: int
+    forks: int
+    watchers: int
+    size_kb: int
+    language: Optional[str]
+    topics_count: int
+    open_issues: int
+    created_at: datetime
+    updated_at: datetime
+    pushed_at: datetime
+    is_archived: bool
+    is_disabled: bool
+    days_since_creation: int
+    days_since_last_update: int
+    days_since_last_push: int
+    has_recent_activity: bool
+    has_community_engagement: bool
+    has_development_indicators: bool
+    size_growth_from_base: int
+    commits_ahead_status: str  # "No commits ahead" or "Has commits" based on created_at vs pushed_at
+    can_skip_analysis: bool  # True if created_at >= pushed_at (no commits ahead)al[AISummary]
     commit_message_formatted: str
     diff_content: str
     diff_truncated: bool

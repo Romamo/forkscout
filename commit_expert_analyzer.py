@@ -30,18 +30,18 @@ console = Console()
 
 class CommitValue(Enum):
     """Commit value assessment levels."""
-    CRITICAL = "🔥 Critical"
-    HIGH = "⭐ High Value" 
-    MEDIUM = "📈 Medium Value"
-    LOW = "📝 Low Value"
-    NOISE = "🔇 Noise"
+    CRITICAL = "[CRIT] Critical"
+    HIGH = "[HIGH] High Value" 
+    MEDIUM = "[MED] Medium Value"
+    LOW = "[LOW] Low Value"
+    NOISE = "[NOISE] Noise"
 
 
 class RiskLevel(Enum):
     """Risk assessment levels."""
-    HIGH = "🚨 High Risk"
-    MEDIUM = "⚠️ Medium Risk"
-    LOW = "✅ Low Risk"
+    HIGH = "[HIGH RISK] High Risk"
+    MEDIUM = "[MED RISK] Medium Risk"
+    LOW = "[LOW RISK] Low Risk"
 
 
 @dataclass
@@ -452,7 +452,7 @@ async def analyze_commits_expert(repo_url: str, limit: int = 10):
     analyzer = CommitExpertAnalyzer()
     
     async with GitHubClient(config.github) as client:
-        console.print(f"[blue]🔍 Performing expert analysis of {owner}/{repo_name}...[/blue]")
+        console.print(f"[blue]ANALYZING - Performing expert analysis of {owner}/{repo_name}...[/blue]")
         
         with Progress(
             SpinnerColumn(),
@@ -495,7 +495,7 @@ def _display_expert_analysis(analyses: List[CommitAnalysis], owner: str, repo_na
         console.print("[yellow]No commits analyzed.[/yellow]")
         return
     
-    console.print(f"\n[bold blue]🎯 Expert Commit Analysis: {owner}/{repo_name}[/bold blue]")
+    console.print(f"\n[bold blue]ANALYSIS - Expert Commit Analysis: {owner}/{repo_name}[/bold blue]")
     console.print("=" * 80)
     
     # Summary table
@@ -537,7 +537,7 @@ def _display_expert_analysis(analyses: List[CommitAnalysis], owner: str, repo_na
     console.print(summary_table)
     
     # Detailed analysis for top commits
-    console.print(f"\n[bold blue]📋 Detailed Analysis (Top {min(3, len(sorted_analyses))} commits)[/bold blue]")
+    console.print(f"\n[bold blue]DETAILS - Detailed Analysis (Top {min(3, len(sorted_analyses))} commits)[/bold blue]")
     
     for i, analysis in enumerate(sorted_analyses[:3], 1):
         _display_commit_expert_details(analysis, i)
@@ -598,7 +598,7 @@ def _display_commit_expert_details(analysis: CommitAnalysis, rank: int):
     
     # Recommendations
     if analysis.recommendations:
-        details.append(f"[bold]💡 Recommendations:[/bold]")
+        details.append(f"[bold]RECOMMENDATIONS:[/bold]")
         for rec in analysis.recommendations[:2]:
             details.append(f"  • {rec}")
     
@@ -673,27 +673,27 @@ def _display_overall_insights(analyses: List[CommitAnalysis]):
     recommendations = []
     
     if avg_score >= 70:
-        recommendations.append("🎯 High-impact repository with significant ongoing development")
+        recommendations.append("[HIGH IMPACT] High-impact repository with significant ongoing development")
     elif avg_score >= 40:
-        recommendations.append("📈 Moderate development activity with some valuable changes")
+        recommendations.append("[MODERATE] Moderate development activity with some valuable changes")
     else:
-        recommendations.append("📝 Maintenance-focused with incremental improvements")
+        recommendations.append("[MAINTENANCE] Maintenance-focused with incremental improvements")
     
     if core_changes > len(analyses) // 3:
         recommendations.append("⚠️  Frequent core changes suggest architectural evolution")
     
     if security_changes > 0:
-        recommendations.append("🔒 Security-conscious development practices observed")
+        recommendations.append("[SECURITY] Security-conscious development practices observed")
     
     if user_facing > len(analyses) // 2:
-        recommendations.append("👥 Strong focus on user experience improvements")
+        recommendations.append("[UX] Strong focus on user experience improvements")
     
     high_risk = sum(1 for a in analyses if a.risk_level == RiskLevel.HIGH)
     if high_risk > len(analyses) // 4:
-        recommendations.append("🚨 Consider additional review processes for high-risk changes")
+        recommendations.append("[WARNING] Consider additional review processes for high-risk changes")
     
     if recommendations:
-        console.print(f"\n[bold blue]🎯 Expert Recommendations:[/bold blue]")
+        console.print(f"\n[bold blue]RECOMMENDATIONS - Expert Recommendations:[/bold blue]")
         for rec in recommendations:
             console.print(f"  {rec}")
 

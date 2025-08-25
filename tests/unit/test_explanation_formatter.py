@@ -434,3 +434,203 @@ class TestExplanationFormatter:
         for value in MainRepoValue:
             result = formatter._format_value_indicator(value)
             assert "[" in result and "]" in result, f"Value {value} should have ASCII label"
+
+    def test_no_problematic_emojis_in_output(self, formatter, sample_commit, sample_explanation):
+        """Test that specific problematic emojis mentioned in requirements are not present."""
+        github_url = "https://github.com/owner/repo/commit/abc123def456789012345678901234567890abcd"
+
+        # Get all possible output from the formatter
+        result = formatter.format_commit_explanation(sample_commit, sample_explanation, github_url)
+        
+        # Create table output
+        commit_with_explanation = CommitWithExplanation(
+            commit=sample_commit,
+            explanation=sample_explanation
+        )
+        table = formatter.format_explanation_table([commit_with_explanation])
+        
+        # Test all category types
+        category_outputs = []
+        for category_type in CategoryType:
+            category_outputs.append(formatter.format_category_with_icon(category_type))
+        
+        # Test all impact levels
+        impact_outputs = []
+        for impact_level in ImpactLevel:
+            impact_outputs.append(formatter.format_impact_indicator(impact_level))
+        
+        # Test all value types
+        value_outputs = []
+        for value in MainRepoValue:
+            value_outputs.append(formatter._format_value_indicator(value))
+
+        # Combine all outputs to test
+        all_outputs = [result] + category_outputs + impact_outputs + value_outputs
+        
+        # Specific emojis mentioned in requirements that should NOT be present
+        problematic_emojis = ["📝", "❓", "🟢", "❔"]
+        
+        for output in all_outputs:
+            output_str = str(output)  # Convert to string in case it's a Rich object
+            for emoji in problematic_emojis:
+                assert emoji not in output_str, f"Found problematic emoji {emoji} in output: {output_str[:100]}..."
+
+    def test_simple_table_formatter_integration(self):
+        """Test that simple table formatter uses ASCII characters only."""
+        formatter = ExplanationFormatter(use_simple_tables=True)
+        
+        # Create sample data
+        from forklift.models.github import User
+
+        author = User(
+            login="testuser",
+            html_url="https://github.com/testuser"
+        )
+
+        commit = Commit(
+            sha="abc123def456789012345678901234567890abcd",
+            message="Test commit",
+            author=author,
+            date=datetime.now(),
+            files_changed=["test.py"],
+            additions=10,
+            deletions=5
+        )
+
+        category = CommitCategory(
+            category_type=CategoryType.FEATURE,
+            confidence=0.9,
+            reasoning="Test reasoning"
+        )
+
+        impact = ImpactAssessment(
+            impact_level=ImpactLevel.HIGH,
+            change_magnitude=60.0,
+            file_criticality=0.8,
+            quality_factors={"test_coverage": 0.7},
+            reasoning="Test impact"
+        )
+
+        explanation = CommitExplanation(
+            commit_sha="abc123def456789012345678901234567890abcd",
+            category=category,
+            impact_assessment=impact,
+            what_changed="Test change",
+            main_repo_value=MainRepoValue.YES,
+            explanation="Test explanation",
+            is_complex=False,
+            github_url="https://github.com/owner/repo/commit/abc123def456789012345678901234567890abcd"
+        )
+
+        commit_with_explanation = CommitWithExplanation(
+            commit=commit,
+            explanation=explanation
+        )
+
+        # Get table output
+        table_output = formatter.format_explanation_table([commit_with_explanation])
+        
+        # Should be a string (simple ASCII table), not a Rich Table object
+        assert isinstance(table_output, str)
+        
+        # Should use ASCII table characters
+        assert "+" in table_output  # Corner/junction characters
+        assert "-" in table_output  # Horizontal lines
+        assert "|" in table_output  # Vertical lines
+        
+        # Should not contain Unicode box drawing characters
+        unicode_chars = ["┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼", "─", "│"]
+        for char in unicode_chars:
+            assert char not in table_output, f"Found Unicode character {char} in simple table output"
+
+    def test_all_category_icons_are_ascii_text_labels(self, formatter):
+        """Test that all category icons are ASCII text labels, not emojis."""
+        for category_type in CategoryType:
+            icon = formatter.CATEGORY_ICONS[category_type]
+            
+            # Should be wrapped in brackets
+            assert icon.startswith("[") and icon.endswith("]"), f"Category icon {icon} should be wrapped in brackets"
+            
+            # Should not contain any emojis
+            emoji_chars = ["📝", "❓", "🟢", "❔", "🚀", "🐛", "♻️", "🧪", "🔧", "⚡", "🔒"]
+            for emoji in emoji_chars:
+                assert emoji not in icon, f"Category icon {icon} contains emoji {emoji}"
+            
+            # Should be uppercase ASCII letters/numbers only (inside brackets)
+            inner_text = icon[1:-1]  # Remove brackets
+            assert inner_text.isupper() or inner_text.isalnum(), f"Category icon inner text {inner_text} should be uppercase ASCII"
+
+    def test_all_impact_indicators_are_ascii_text_labels(self, formatter):
+        """Test that all impact indicators are ASCII text labels, not emojis."""
+        for impact_level in ImpactLevel:
+            indicator = formatter.IMPACT_INDICATORS[impact_level]
+            
+            # Should be wrapped in brackets
+            assert indicator.startswith("[") and indicator.endswith("]"), f"Impact indicator {indicator} should be wrapped in brackets"
+            
+            # Should not contain any emojis
+            emoji_chars = ["🟢", "🟡", "🟠", "🔴", "❓", "❔"]
+            for emoji in emoji_chars:
+                assert emoji not in indicator, f"Impact indicator {indicator} contains emoji {emoji}"
+            
+            # Should be uppercase ASCII letters only (inside brackets)
+            inner_text = indicator[1:-1]  # Remove brackets
+            assert inner_text.isupper(), f"Impact indicator inner text {inner_text} should be uppercase ASCII"
+
+    def test_all_value_indicators_are_ascii_text_labels(self, formatter):
+        """Test that all value indicators are ASCII text labels, not emojis."""
+        for value in MainRepoValue:
+            indicator = formatter.VALUE_INDICATORS[value]
+            
+            # Should be wrapped in brackets
+            assert indicator.startswith("[") and indicator.endswith("]"), f"Value indicator {indicator} should be wrapped in brackets"
+            
+            # Should not contain any emojis
+            emoji_chars = ["✅", "❌", "❓", "❔", "🟢", "🔴"]
+            for emoji in emoji_chars:
+                assert emoji not in indicator, f"Value indicator {indicator} contains emoji {emoji}"
+            
+            # Should be uppercase ASCII letters only (inside brackets)
+            inner_text = indicator[1:-1]  # Remove brackets
+            assert inner_text.isupper(), f"Value indicator inner text {inner_text} should be uppercase ASCII"
+
+    def test_strip_rich_formatting_removes_markup(self, formatter):
+        """Test that _strip_rich_formatting removes Rich markup codes."""
+        # Test various Rich markup patterns
+        test_cases = [
+            ("[bold]Test[/bold]", "Test"),
+            ("[red]Error[/red]", "Error"),
+            ("[bright_green]Success[/bright_green]", "Success"),
+            ("[cyan][FEAT] Feature[/cyan]", "[FEAT] Feature"),
+            ("Normal text", "Normal text"),
+            ("[link=url]Link text[/link]", "Link text"),
+            ("[bold red]Bold Red[/bold red]", "Bold Red"),
+        ]
+        
+        for input_text, expected_output in test_cases:
+            result = formatter._strip_rich_formatting(input_text)
+            assert result == expected_output, f"Failed to strip formatting from '{input_text}', got '{result}', expected '{expected_output}'"
+
+    def test_commit_explanation_uses_ascii_borders_only(self, formatter_no_colors, sample_commit, sample_explanation):
+        """Test that commit explanation formatting uses only ASCII border characters."""
+        github_url = "https://github.com/owner/repo/commit/abc123def456789012345678901234567890abcd"
+        
+        result = formatter_no_colors.format_commit_explanation(sample_commit, sample_explanation, github_url)
+        
+        # Should use ASCII characters for borders
+        assert "+- Commit:" in result
+        assert "| Link:" in result
+        assert "| Description:" in result
+        assert "| Assessment:" in result
+        assert "|    Category:" in result
+        assert "|    Impact:" in result
+        
+        # Should end with ASCII border
+        lines = result.split('\n')
+        last_line = lines[-1]
+        assert last_line.startswith("+") and "-" in last_line
+        
+        # Should not contain Unicode box drawing characters
+        unicode_box_chars = ["┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼", "─", "│", "╭", "╮", "╯", "╰"]
+        for char in unicode_box_chars:
+            assert char not in result, f"Found Unicode box drawing character '{char}' in commit explanation output"

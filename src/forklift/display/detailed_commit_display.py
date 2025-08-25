@@ -241,7 +241,7 @@ class DetailedCommitDisplay:
         """
         return Panel(
             Text(github_url, style="link"),
-            title="[bold blue]🔗 GitHub URL[/bold blue]",
+            title="[bold blue]GitHub URL[/bold blue]",
             border_style="blue",
             padding=(0, 1)
         )
@@ -256,7 +256,7 @@ class DetailedCommitDisplay:
             Panel with AI summary content
         """
         if ai_summary.error:
-            content = Text(f"❌ {ai_summary.error}", style="red")
+            content = Text(f"ERROR - {ai_summary.error}", style="red")
         else:
             if ai_summary.summary_text:
                 content = Text(ai_summary.summary_text, style="white")
@@ -331,7 +331,7 @@ class DetailedCommitDisplay:
         
         return Panel(
             content,
-            title="[bold cyan]📊 Diff Content[/bold cyan]",
+            title="[bold cyan]Diff Content[/bold cyan]",
             border_style="cyan",
             padding=(0, 1)
         )

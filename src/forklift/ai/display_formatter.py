@@ -246,9 +246,9 @@ class AISummaryDisplayFormatter:
         if summary and not summary.error:
             self._display_ai_analysis_sections(summary)
         elif summary and summary.error:
-            self.console.print(f"\n[bold red]❌ AI Analysis Error:[/bold red] {summary.error}")
+            self.console.print(f"\n[bold red]ERROR - AI Analysis Error:[/bold red] {summary.error}")
         else:
-            self.console.print("\n[dim]⏳ No AI analysis available[/dim]")
+            self.console.print("\n[dim]INFO - No AI analysis available[/dim]")
 
         # Separator between commits
         if index < total:
@@ -306,7 +306,7 @@ class AISummaryDisplayFormatter:
             message = message[:77] + "..."
 
         # Changes summary
-        changes_text = f"🔄 +{commit.additions}/-{commit.deletions} changes"
+        changes_text = f"CHANGES: +{commit.additions}/-{commit.deletions} changes"
         if commit.files_changed:
             changes_text += f" in {len(commit.files_changed)} files"
 
@@ -330,12 +330,12 @@ class AISummaryDisplayFormatter:
             Group containing AI summary content
         """
         if not summary:
-            return Group(Text("⏳ No AI analysis available", style="dim"))
+            return Group(Text("INFO - No AI analysis available", style="dim"))
 
         if summary.error:
             return Group(
                 Panel(
-                    Text(f"❌ {summary.error}", style="red"),
+                    Text(f"ERROR - {summary.error}", style="red"),
                     title="[bold red]AI Analysis Error[/bold red]",
                     border_style="red",
                     padding=(0, 1)
@@ -546,7 +546,7 @@ class AISummaryDisplayFormatter:
         usage_table.add_column("Value", style="green")
 
         usage_table.add_row(
-            "✅ Successful requests:",
+            "SUCCESS - Successful requests:",
             f"{usage_stats.successful_requests}/{usage_stats.total_requests} ({success_rate:.1f}%)"
         )
         usage_table.add_row("Tokens used:", f"{usage_stats.total_tokens_used:,}")

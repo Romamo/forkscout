@@ -85,13 +85,13 @@ class RepositoryDiscoveryStep(InteractiveStep):
     def display_results(self, results: StepResult) -> str:
         """Display repository discovery results."""
         if not results.success:
-            return f"❌ Repository discovery failed: {results.summary}"
+            return f"ERROR - Repository discovery failed: {results.summary}"
         
         repository = results.data
         if not repository:
-            return "❌ No repository data available"
+            return "ERROR - No repository data available"
         
-        display_text = f"""✅ **Repository Found**
+        display_text = f"""SUCCESS - **Repository Found**
 
 **Name:** {repository.full_name}
 **Description:** {repository.description or 'No description'}
@@ -176,16 +176,16 @@ class ForkDiscoveryStep(InteractiveStep):
     def display_results(self, results: StepResult) -> str:
         """Display fork discovery results."""
         if not results.success:
-            return f"❌ Fork discovery failed: {results.summary}"
+            return f"ERROR - Fork discovery failed: {results.summary}"
         
         forks = results.data or []
         metrics = results.metrics or {}
         
         if not forks:
-            return "📭 **No Forks Found**\n\nThis repository has no public forks to analyze."
+            return "NO FORKS - **No Forks Found**\n\nThis repository has no public forks to analyze."
         
         # Create detailed summary with filtering criteria preview
-        table_text = f"""✅ **Fork Discovery Complete**
+        table_text = f"""SUCCESS - **Fork Discovery Complete**
 
 **Discovery Summary:**
 - Total Forks Found: {metrics.get('total_forks', 0):,}
@@ -213,11 +213,11 @@ class ForkDiscoveryStep(InteractiveStep):
         # Sort forks by commits ahead and show top 5
         sorted_forks = sorted(forks, key=lambda f: f.commits_ahead, reverse=True)[:5]
         for i, fork in enumerate(sorted_forks, 1):
-            activity_level = "🔥" if fork.commits_ahead >= 10 else "⚡" if fork.commits_ahead >= 3 else "💫"
+            activity_level = "[HIGH]" if fork.commits_ahead >= 10 else "[MED]" if fork.commits_ahead >= 3 else "[LOW]"
             table_text += f"\n{i}. {activity_level} {fork.repository.full_name}"
-            table_text += f"\n   📊 {fork.commits_ahead} commits ahead, ⭐ {fork.repository.stars} stars"
+            table_text += f"\n   {fork.commits_ahead} commits ahead, {fork.repository.stars} stars"
             if fork.last_activity:
-                table_text += f", 🕒 Last active: {fork.last_activity.strftime('%Y-%m-%d')}"
+                table_text += f", Last active: {fork.last_activity.strftime('%Y-%m-%d')}"
         
         return table_text
     
@@ -301,29 +301,29 @@ class ForkFilteringStep(InteractiveStep):
     def display_results(self, results: StepResult) -> str:
         """Display fork filtering results."""
         if not results.success:
-            return f"❌ Fork filtering failed: {results.summary}"
+            return f"ERROR - Fork filtering failed: {results.summary}"
         
         filtered_forks = results.data or []
         metrics = results.metrics or {}
         
-        display_text = f"""🔍 **Fork Filtering Complete**
+        display_text = f"""FILTERING - **Fork Filtering Complete**
 
 **Applied Filtering Criteria:**
-- ✅ Minimum commits ahead: {self.min_commits_ahead}
-- ✅ Minimum stars: {self.min_stars}
-- ✅ Must be active (not archived/disabled)
+- Minimum commits ahead: {self.min_commits_ahead}
+- Minimum stars: {self.min_stars}
+- Must be active (not archived/disabled)
 
 **Filtering Results:**
-- 📊 Original forks discovered: {metrics.get('total_forks', 0):,}
-- 🎯 Forks passing filters: {metrics.get('filtered_forks', 0):,}
-- 📈 Selection ratio: {metrics.get('filter_ratio', 0):.1%}"""
+- Original forks discovered: {metrics.get('total_forks', 0):,}
+- Forks passing filters: {metrics.get('filtered_forks', 0):,}
+- Selection ratio: {metrics.get('filter_ratio', 0):.1%}"""
         
         if filtered_forks:
             display_text += f"""
-- ⭐ Average stars (selected): {metrics.get('avg_stars_filtered', 0):.1f}
+- Average stars (selected): {metrics.get('avg_stars_filtered', 0):.1f}
 - Average commits ahead (selected): {metrics.get('avg_commits_ahead_filtered', 0):.1f}
 
-**🎯 Selected Forks for Detailed Analysis:**"""
+**Selected Forks for Detailed Analysis:**"""
             
             # Group forks by activity level for better display
             high_value = [f for f in filtered_forks if f.repository.stars >= 10 or f.commits_ahead >= 10]
@@ -331,22 +331,22 @@ class ForkFilteringStep(InteractiveStep):
             other_forks = [f for f in filtered_forks if f not in high_value and f not in medium_value]
             
             if high_value:
-                display_text += f"\n\n🔥 **High-Value Forks ({len(high_value)}):**"
+                display_text += f"\n\n**High-Value Forks ({len(high_value)}):**"
                 for i, fork in enumerate(high_value[:5], 1):
                     display_text += f"\n{i}. {fork.repository.full_name}"
-                    display_text += f"\n   📊 {fork.commits_ahead} commits ahead, ⭐ {fork.repository.stars} stars"
+                    display_text += f"\n   {fork.commits_ahead} commits ahead, {fork.repository.stars} stars"
                 if len(high_value) > 5:
                     display_text += f"\n   ... and {len(high_value) - 5} more high-value forks"
             
             if medium_value:
-                display_text += f"\n\n⚡ **Medium-Value Forks ({len(medium_value)}):**"
+                display_text += f"\n\n**Medium-Value Forks ({len(medium_value)}):**"
                 for i, fork in enumerate(medium_value[:3], 1):
                     display_text += f"\n{i}. {fork.repository.full_name} ({fork.commits_ahead} commits, {fork.repository.stars} stars)"
                 if len(medium_value) > 3:
                     display_text += f"\n   ... and {len(medium_value) - 3} more medium-value forks"
             
             if other_forks:
-                display_text += f"\n\n💫 **Other Selected Forks:** {len(other_forks)} additional forks"
+                display_text += f"\n\n**Other Selected Forks:** {len(other_forks)} additional forks"
                 
         else:
             display_text += f"""
@@ -468,22 +468,22 @@ class ForkAnalysisStep(InteractiveStep):
     def display_results(self, results: StepResult) -> str:
         """Display fork analysis results."""
         if not results.success:
-            return f"❌ Fork analysis failed: {results.summary}"
+            return f"ERROR - Fork analysis failed: {results.summary}"
         
         fork_analyses = results.data or []
         metrics = results.metrics or {}
         
-        display_text = f"""🔬 **Fork Analysis Complete**
+        display_text = f"""ANALYSIS - **Fork Analysis Complete**
 
 **Analysis Performance:**
-- 🎯 Forks targeted for analysis: {metrics.get('total_forks_to_analyze', 0)}
-- ✅ Successfully analyzed: {metrics.get('successfully_analyzed', 0)}
-- ❌ Failed analyses: {metrics.get('failed_analyses', 0)}
-- 📊 Success rate: {metrics.get('analysis_success_rate', 0):.1%}
+- Forks targeted for analysis: {metrics.get('total_forks_to_analyze', 0)}
+- Successfully analyzed: {metrics.get('successfully_analyzed', 0)}
+- Failed analyses: {metrics.get('failed_analyses', 0)}
+- Success rate: {metrics.get('analysis_success_rate', 0):.1%}
 
 **Feature Discovery Results:**
-- 🔍 Total features discovered: {metrics.get('total_features', 0)}
-- 📈 Average features per fork: {metrics.get('avg_features_per_fork', 0):.1f}"""
+- Total features discovered: {metrics.get('total_features', 0)}
+- Average features per fork: {metrics.get('avg_features_per_fork', 0):.1f}"""
         
         if fork_analyses:
             # Categorize analyses by feature count
@@ -495,20 +495,20 @@ class ForkAnalysisStep(InteractiveStep):
             display_text += f"""
 
 **Feature Distribution:**
-- 🔥 Feature-rich forks (≥5 features): {len(rich_forks)}
-- ⚡ Moderate forks (2-4 features): {len(moderate_forks)}
-- 💫 Sparse forks (1 feature): {len(sparse_forks)}
-- 📭 Empty forks (0 features): {len(empty_forks)}"""
+- Feature-rich forks (≥5 features): {len(rich_forks)}
+- Moderate forks (2-4 features): {len(moderate_forks)}
+- Sparse forks (1 feature): {len(sparse_forks)}
+- Empty forks (0 features): {len(empty_forks)}"""
             
             if rich_forks:
-                display_text += f"\n\n🔥 **Top Feature-Rich Forks:**"
+                display_text += f"\n\n**Top Feature-Rich Forks:**"
                 sorted_rich = sorted(rich_forks, key=lambda a: len(a.features), reverse=True)
                 for i, analysis in enumerate(sorted_rich[:5], 1):
                     fork_name = analysis.fork.repository.full_name
                     feature_count = len(analysis.features)
                     stars = analysis.fork.repository.stars
                     display_text += f"\n{i}. {fork_name}"
-                    display_text += f"\n   🎯 {feature_count} features discovered, ⭐ {stars} stars"
+                    display_text += f"\n   {feature_count} features discovered, {stars} stars"
                     
                     # Show feature categories if available
                     if analysis.features:
@@ -518,16 +518,16 @@ class ForkAnalysisStep(InteractiveStep):
                             categories[cat] = categories.get(cat, 0) + 1
                         
                         cat_summary = ", ".join([f"{count} {cat}" for cat, count in categories.items()])
-                        display_text += f"\n   📋 Categories: {cat_summary}"
+                        display_text += f"\n   CATEGORIES: {cat_summary}"
             
             if moderate_forks and not rich_forks:
-                display_text += f"\n\n⚡ **Moderate Forks with Features:**"
+                display_text += f"\n\n**Moderate Forks with Features:**"
                 for i, analysis in enumerate(moderate_forks[:3], 1):
                     fork_name = analysis.fork.repository.full_name
                     feature_count = len(analysis.features)
                     display_text += f"\n{i}. {fork_name} ({feature_count} features)"
         else:
-            display_text += "\n\n📭 No fork analyses were completed successfully."
+            display_text += "\n\nNO RESULTS - No fork analyses were completed successfully."
         
         return display_text
     
@@ -656,13 +656,13 @@ class FeatureRankingStep(InteractiveStep):
     def display_results(self, results: StepResult) -> str:
         """Display feature ranking results."""
         if not results.success:
-            return f"❌ Feature ranking failed: {results.summary}"
+            return f"ERROR - Feature ranking failed: {results.summary}"
         
         ranked_features = results.data or []
         metrics = results.metrics or {}
         
         if not ranked_features:
-            return "📊 **Feature Ranking Complete**\n\nNo features were found to rank."
+            return "**Feature Ranking Complete**\n\nNo features were found to rank."
         
         # Categorize features by score ranges
         excellent_features = [f for f in ranked_features if f.score >= 90]
@@ -671,31 +671,31 @@ class FeatureRankingStep(InteractiveStep):
         medium_features = [f for f in ranked_features if 60 <= f.score < 70]
         low_features = [f for f in ranked_features if f.score < 60]
         
-        display_text = f"""📊 **Feature Ranking Complete**
+        display_text = f"""**Feature Ranking Complete**
 
 **Quality Distribution:**
-- 🏆 Excellent features (≥90): {len(excellent_features)}
-- 🔥 High-value features (80-89): {len(high_value_features)}
-- ✅ Good features (70-79): {len(good_features)}
-- ⚡ Medium features (60-69): {len(medium_features)}
-- 💫 Lower-scored features (<60): {len(low_features)}
+- Excellent features (≥90): {len(excellent_features)}
+- High-value features (80-89): {len(high_value_features)}
+- Good features (70-79): {len(good_features)}
+- Medium features (60-69): {len(medium_features)}
+- Lower-scored features (<60): {len(low_features)}
 
 **Overall Statistics:**
-- 📊 Total features ranked: {metrics.get('total_features', 0)}
-- 📈 Average score: {metrics.get('avg_score', 0):.1f}/100
-- 🎯 Highest score achieved: {metrics.get('top_score', 0):.1f}/100"""
+- Total features ranked: {metrics.get('total_features', 0)}
+- Average score: {metrics.get('avg_score', 0):.1f}/100
+- Highest score achieved: {metrics.get('top_score', 0):.1f}/100"""
         
         # Show top features with detailed information
         if excellent_features or high_value_features:
             top_features = excellent_features + high_value_features
-            display_text += f"\n\n🏆 **Top-Tier Features (Score ≥80):**"
+            display_text += f"\n\n**Top-Tier Features (Score ≥80):**"
             
             for i, feature in enumerate(top_features[:5], 1):
-                score_emoji = "🏆" if feature.score >= 90 else "🔥"
-                display_text += f"\n{i}. {score_emoji} **{feature.feature.title}**"
-                display_text += f"\n   📊 Score: {feature.score:.1f}/100"
-                display_text += f"\n   🏠 Source: {feature.feature.source_fork.repository.full_name}"
-                display_text += f"\n   🏷️  Category: {feature.feature.category.value.replace('_', ' ').title()}"
+                score_label = "[EXCELLENT]" if feature.score >= 90 else "[HIGH]"
+                display_text += f"\n{i}. {score_label} **{feature.feature.title}**"
+                display_text += f"\n   Score: {feature.score:.1f}/100"
+                display_text += f"\n   SOURCE: {feature.feature.source_fork.repository.full_name}"
+                display_text += f"\n   CATEGORY: {feature.feature.category.value.replace('_', ' ').title()}"
                 
                 # Show key ranking factors if available
                 if hasattr(feature, 'ranking_factors') and feature.ranking_factors:
@@ -723,13 +723,13 @@ class FeatureRankingStep(InteractiveStep):
         
         # Add recommendation based on results
         if excellent_features:
-            display_text += f"\n\n💡 **Recommendation:** You have {len(excellent_features)} excellent features that are highly recommended for integration!"
+            display_text += f"\n\n**Recommendation:** You have {len(excellent_features)} excellent features that are highly recommended for integration!"
         elif high_value_features:
-            display_text += f"\n\n💡 **Recommendation:** {len(high_value_features)} high-value features identified - these are strong candidates for your project."
+            display_text += f"\n\n**Recommendation:** {len(high_value_features)} high-value features identified - these are strong candidates for your project."
         elif good_features:
-            display_text += f"\n\n💡 **Recommendation:** {len(good_features)} good features found - consider reviewing these for potential value."
+            display_text += f"\n\n**Recommendation:** {len(good_features)} good features found - consider reviewing these for potential value."
         else:
-            display_text += f"\n\n💡 **Recommendation:** Consider reviewing the analysis criteria or exploring different forks for higher-value features."
+            display_text += f"\n\n**Recommendation:** Consider reviewing the analysis criteria or exploring different forks for higher-value features."
         
         return display_text
     
@@ -742,7 +742,7 @@ class FeatureRankingStep(InteractiveStep):
                 high_value_features = sum(1 for f in ranked_features if 80 <= f.score < 90)
                 
                 if excellent_features > 0:
-                    return f"🎉 Outstanding results! Found {excellent_features} excellent features (≥90 score) and {high_value_features} high-value features. Ready to generate your comprehensive analysis report?"
+                    return f"EXCELLENT - Outstanding results! Found {excellent_features} excellent features (≥90 score) and {high_value_features} high-value features. Ready to generate your comprehensive analysis report?"
                 elif high_value_features > 0:
                     return f"Great results! Identified {high_value_features} high-value features (≥80 score). Generate detailed report with recommendations?"
                 else:

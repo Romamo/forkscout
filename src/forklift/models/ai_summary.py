@@ -33,6 +33,7 @@ class AISummaryConfig(BaseModel):
     cost_tracking: bool = Field(default=True, description="Enable cost tracking and reporting")
     batch_size: int = Field(default=5, ge=1, le=20, description="Number of commits to process in batches")
     compact_mode: bool = Field(default=False, description="Use compact summary style with minimal formatting")
+    max_sentences: int = Field(default=5, ge=1, le=10, description="Maximum number of sentences in summary (was 3, increased to 5)")
     
     # Cost monitoring configuration
     max_cost_per_session_usd: float = Field(default=5.0, ge=0.0, description="Maximum cost per session in USD")

@@ -107,7 +107,7 @@ class TestAISummaryDisplayFormatter:
         assert "feat: add user authentication system" in output
         assert "AI Summary" in output
         assert "1250ms" in output  # Processing time
-        assert "245 tokens" in output
+        assert "Tokens: 245" in output
 
     def test_format_ai_summaries_detailed_with_error(
         self, mock_console, sample_commit, sample_ai_summary_with_error
@@ -141,7 +141,7 @@ class TestAISummaryDisplayFormatter:
         formatter.format_ai_summaries_compact([sample_commit], [sample_ai_summary])
         
         output = mock_console.file.getvalue()
-        assert "🤖 AI Commit Summaries" in output
+        assert "AI Commit Summaries" in output
         assert "abc123de" in output  # Short SHA
         assert "testuser" in output
         assert "feat: add user authentication system" in output  # Full message
@@ -424,7 +424,7 @@ class TestAISummaryDisplayFormatter:
             assert "[yellow]" not in output
             
             # Verify content is present
-            assert "🤖 AI Commit Summaries" in output
+            assert "AI Commit Summaries" in output
             assert "abc123de" in output
             assert "testuser" in output
             assert "Added comprehensive user authentication system" in output
@@ -505,3 +505,80 @@ class TestAISummaryDisplayFormatter:
         assert any(keyword in detailed_output for keyword in ["AI Summary", "AI"])
         assert any(keyword in compact_output for keyword in ["AI", "Summary"])
         assert any(keyword in structured_output for keyword in ["AI Summary", "AI"])
+
+    def test_no_problematic_emojis_in_ai_display(self, mock_console, sample_commit, sample_ai_summary, sample_usage_stats):
+        """Test that AI display formatter doesn't use problematic emojis mentioned in requirements."""
+        formatter = AISummaryDisplayFormatter(mock_console)
+        
+        # Test all formatting methods
+        formatter.format_ai_summaries_detailed([sample_commit], [sample_ai_summary])
+        detailed_output = mock_console.file.getvalue()
+        
+        # Reset console
+        mock_console.file = StringIO()
+        formatter.format_ai_summaries_compact([sample_commit], [sample_ai_summary])
+        compact_output = mock_console.file.getvalue()
+        
+        # Reset console
+        mock_console.file = StringIO()
+        formatter.format_ai_summaries_structured([sample_commit], [sample_ai_summary])
+        structured_output = mock_console.file.getvalue()
+        
+        # Reset console
+        mock_console.file = StringIO()
+        formatter.format_ai_summaries_compact_table([sample_commit], [sample_ai_summary])
+        table_output = mock_console.file.getvalue()
+        
+        # Reset console
+        mock_console.file = StringIO()
+        formatter.display_usage_statistics(sample_usage_stats)
+        stats_output = mock_console.file.getvalue()
+        
+        # Combine all outputs
+        all_outputs = [detailed_output, compact_output, structured_output, table_output, stats_output]
+        
+        # Specific emojis mentioned in requirements that should NOT be present
+        problematic_emojis = ["📝", "❓", "🟢", "❔"]
+        
+        for output in all_outputs:
+            for emoji in problematic_emojis:
+                assert emoji not in output, f"Found problematic emoji {emoji} in AI display output"
+        
+        # Also check that we use text labels instead
+        # The AI formatter should use "SUCCESS", "ERROR", "INFO" etc. instead of emojis
+        combined_output = "".join(all_outputs)
+        
+        # Should use text-based status indicators
+        assert any(indicator in combined_output for indicator in ["SUCCESS", "ERROR", "INFO", "Processing"])
+
+    def test_plain_text_mode_no_rich_formatting(self, sample_commit, sample_ai_summary):
+        """Test that plain text mode produces clean output without Rich formatting codes."""
+        from io import StringIO
+        import sys
+        
+        # Capture stdout for plain text output
+        captured_output = StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured_output
+        
+        try:
+            formatter = AISummaryDisplayFormatter()
+            formatter.format_ai_summaries_compact([sample_commit], [sample_ai_summary], plain_text=True)
+            
+            output = captured_output.getvalue()
+            
+            # Should not contain Rich markup
+            rich_codes = ["[bold]", "[/bold]", "[cyan]", "[/cyan]", "[green]", "[/green]", 
+                         "[yellow]", "[/yellow]", "[red]", "[/red]", "[dim]", "[/dim]",
+                         "[blue]", "[/blue]", "[white]", "[/white]"]
+            
+            for code in rich_codes:
+                assert code not in output, f"Found Rich formatting code {code} in plain text output"
+            
+            # Should not contain problematic emojis
+            problematic_emojis = ["📝", "❓", "🟢", "❔"]
+            for emoji in problematic_emojis:
+                assert emoji not in output, f"Found problematic emoji {emoji} in plain text output"
+                
+        finally:
+            sys.stdout = old_stdout
