@@ -981,7 +981,18 @@
   - Write unit tests for integration between detail mode and fork data collection
   - _Requirements: 21.1, 21.7, 21.8, 21.12_
 
-- [ ] 19.5 Add comprehensive testing for show-forks --detail functionality
+- [-] 19.5 Optimize show-forks --detail to skip API calls for forks with no commits ahead (HIGH PRIORITY)
+  - Update show_fork_data_detailed method to use smart fork filtering based on commits_ahead_status
+  - Skip compare API calls for forks already identified as "No commits ahead" using created_at >= pushed_at logic
+  - Set exact_commits_ahead = 0 for skipped forks instead of making unnecessary API calls
+  - Add filtering logic to only make compare API calls for forks with "Has commits" status
+  - Update progress tracking to reflect actual API calls made vs skipped
+  - Add logging to show API call savings (e.g., "Skipped 2 forks with no commits ahead, saved 2 API calls")
+  - Write unit tests for optimized filtering logic covering various fork scenarios
+  - Write integration tests to verify API call reduction with real repository data
+  - _Requirements: 1.6, 21.1, 21.4, 21.5_
+
+- [ ] 19.6 Add comprehensive testing for show-forks --detail functionality
   - Write integration tests for show-forks --detail with real repository data
   - Create tests for commits ahead API calls with various fork scenarios
   - Add tests for detailed table display and column formatting
@@ -1014,7 +1025,7 @@
   - Write integration tests for --detail flag with fork filtering enabled
   - _Requirements: 21.4, 21.6, 21.7, 21.9_
 
-- [-] 20.4 Add fork filtering configuration and logging
+- [x] 20.4 Add fork filtering configuration and logging
   - Create ForkFilteringConfig model with settings for filtering behavior
   - Add configuration options for enabling/disabling automatic fork filtering
   - Implement detailed logging for fork filtering decisions with fork names and reasons
@@ -1030,7 +1041,7 @@
   - Write unit tests for qualification data integration and fallback scenarios
   - _Requirements: 21.3, 21.5, 21.9_
 
-- [ ] 20.6 Add comprehensive testing for smart fork filtering
+- [x] 20.6 Add comprehensive testing for smart fork filtering
   - Write integration tests for fork filtering with real GitHub repositories
   - Create tests for --detail flag with various fork commit status scenarios
   - Add performance tests to verify filtering reduces unnecessary API calls

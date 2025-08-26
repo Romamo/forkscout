@@ -1185,55 +1185,85 @@ class RepositoryDisplayService:
                 if not fork.metrics.archived and not fork.metrics.disabled
             ]
 
-            # Fetch exact commit counts with progress indicator
+            # Separate forks that can be skipped from those needing API calls
+            forks_to_skip = []
+            forks_needing_api = []
+            
+            for fork_data in active_forks:
+                if fork_data.metrics.can_skip_analysis:
+                    # Fork has no commits ahead based on created_at >= pushed_at logic
+                    fork_data.exact_commits_ahead = 0
+                    forks_to_skip.append(fork_data)
+                else:
+                    # Fork needs API call to determine exact commits ahead
+                    forks_needing_api.append(fork_data)
+
+            # Log API call savings
+            skipped_count = len(forks_to_skip)
+            api_needed_count = len(forks_needing_api)
+            
+            if skipped_count > 0:
+                logger.info(f"Skipped {skipped_count} forks with no commits ahead, saved {skipped_count} API calls")
+                self.console.print(f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]")
+
+            # Fetch exact commit counts with progress indicator for remaining forks
             api_calls_made = 0
-            detailed_forks = []
+            detailed_forks = list(forks_to_skip)  # Start with skipped forks
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TaskProgressColumn(),
-                console=self.console
-            ) as progress:
-                task = progress.add_task(
-                    "Fetching exact commit counts...",
-                    total=len(active_forks)
-                )
+            if forks_needing_api:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    console=self.console
+                ) as progress:
+                    task = progress.add_task(
+                        "Fetching exact commit counts...",
+                        total=len(forks_needing_api)
+                    )
 
-                for fork_data in active_forks:
-                    try:
-                        # Get exact commits ahead count using compare API
-                        commits_ahead = await self._get_exact_commits_ahead(
-                            owner, repo_name, fork_data.metrics.owner, fork_data.metrics.name
-                        )
-                        api_calls_made += 1
+                    for fork_data in forks_needing_api:
+                        try:
+                            # Get exact commits ahead count using compare API
+                            commits_ahead = await self._get_exact_commits_ahead(
+                                owner, repo_name, fork_data.metrics.owner, fork_data.metrics.name
+                            )
+                            
+                            # Count successful API calls (including those that return "Unknown" due to data issues)
+                            api_calls_made += 1
 
-                        # Update fork data with exact commit count
-                        fork_data.exact_commits_ahead = commits_ahead
-                        detailed_forks.append(fork_data)
+                            # Update fork data with exact commit count
+                            fork_data.exact_commits_ahead = commits_ahead
+                            detailed_forks.append(fork_data)
 
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"Fetching commits for {fork_data.metrics.owner}/{fork_data.metrics.name}"
-                        )
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"Fetching commits for {fork_data.metrics.owner}/{fork_data.metrics.name}"
+                            )
 
-                    except Exception as e:
-                        logger.warning(f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {e}")
-                        # Set to unknown and continue
-                        fork_data.exact_commits_ahead = "Unknown"
-                        detailed_forks.append(fork_data)
-                        progress.update(task, advance=1)
+                        except Exception as e:
+                            logger.warning(f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {e}")
+                            # Don't count failed API calls
+                            # Set to unknown and continue
+                            fork_data.exact_commits_ahead = "Unknown"
+                            detailed_forks.append(fork_data)
+                            progress.update(task, advance=1)
+            else:
+                self.console.print("[dim]No forks require API calls for commit count analysis[/dim]")
 
             # Display detailed fork data table
-            self._display_detailed_fork_table(detailed_forks, owner, repo_name)
+            self._display_detailed_fork_table(detailed_forks, owner, repo_name, api_calls_made, skipped_count)
 
             return {
                 "total_forks": len(forks_list_data),
                 "displayed_forks": len(detailed_forks),
                 "collected_forks": detailed_forks,
                 "api_calls_made": api_calls_made,
+                "api_calls_saved": skipped_count,
+                "forks_skipped": skipped_count,
+                "forks_analyzed": api_needed_count,
             }
 
         except Exception as e:
@@ -1258,6 +1288,9 @@ class RepositoryDisplayService:
 
         Returns:
             Number of commits ahead or "Unknown" if cannot be determined
+            
+        Raises:
+            Exception: If API call fails (for proper error handling by caller)
         """
         try:
             # Use GitHub's compare API to get exact commit count
@@ -1272,13 +1305,16 @@ class RepositoryDisplayService:
 
         except Exception as e:
             logger.debug(f"Failed to compare {fork_owner}/{fork_repo} with {base_owner}/{base_repo}: {e}")
-            return "Unknown"
+            # Re-raise the exception so caller can handle it properly
+            raise
 
     def _display_detailed_fork_table(
         self,
         detailed_forks: list,
         base_owner: str,
-        base_repo: str
+        base_repo: str,
+        api_calls_made: int = 0,
+        api_calls_saved: int = 0
     ) -> None:
         """Display detailed fork information table with exact commit counts.
 
@@ -1355,6 +1391,11 @@ class RepositoryDisplayService:
         self.console.print("\n[bold]Summary:[/bold]")
         self.console.print(f"• {forks_with_commits} forks have commits ahead")
         self.console.print(f"• {total_commits_ahead} total commits ahead across all forks")
+        self.console.print(f"• {api_calls_made} API calls made for exact commit counts")
+        if api_calls_saved > 0:
+            self.console.print(f"• {api_calls_saved} API calls saved by smart filtering")
+            efficiency_percent = (api_calls_saved / (api_calls_made + api_calls_saved)) * 100
+            self.console.print(f"• {efficiency_percent:.1f}% API efficiency improvement")
         self.console.print("• Exact commit counts fetched using GitHub compare API")
 
     async def show_promising_forks(

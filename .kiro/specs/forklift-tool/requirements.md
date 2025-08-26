@@ -10,6 +10,7 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 https://github.com/aarigs/pandas-ta
 https://github.com/xgboosted/pandas-ta-classic
 https://github.com/NoMore201/googleplay-api
+https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources with free ones)
 
 ## Requirements
 
@@ -405,3 +406,6 @@ https://github.com/NoMore201/googleplay-api
 10. WHEN --detail is not provided THEN the system SHALL use the existing behavior with the current table structure and no additional API requests
 11. WHEN displaying the detailed table THEN the system SHALL maintain clear formatting and readability with the reduced column set
 12. WHEN --detail flag is used THEN the system SHALL log the additional API calls made and their impact on rate limiting for monitoring purposes
+13. WHEN using --detail flag THEN the system SHALL skip compare API calls for forks already identified as having no commits ahead using created_at >= pushed_at logic to minimize unnecessary API requests
+14. WHEN skipping forks with no commits ahead THEN the system SHALL set their exact commits ahead count to 0 without making compare API calls
+15. WHEN optimizing API usage THEN the system SHALL log the number of API calls saved by skipping forks with no commits ahead
