@@ -1111,7 +1111,7 @@
   - Write unit tests for CLI parameter parsing and validation
   - _Requirements: 23.1, 23.4_
 
-- [-] 21.2 Implement recent commits fetching functionality
+- [x] 21.2 Implement recent commits fetching functionality
   - Create get_recent_commits method in GitHubClient to fetch last N commits from fork's default branch
   - Add commit data models for storing short SHA and commit message
   - Implement commit message truncation logic (50 characters with "..." indicator)
@@ -1119,7 +1119,7 @@
   - Write unit tests for commit fetching with various scenarios (normal, empty repo, API errors)
   - _Requirements: 23.2, 23.5, 23.6, 23.7, 23.8_
 
-- [ ] 21.3 Update fork display table structure for recent commits column
+- [-] 21.3 Update fork display table structure for recent commits column
   - Modify RepositoryDisplayService to conditionally add "Recent Commits" column when --show-commits > 0
   - Implement format_recent_commits method to format commits with each commit on a separate line
   - Update table width calculations to accommodate the new variable-width column

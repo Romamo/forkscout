@@ -300,7 +300,8 @@ class TestRepositoryDisplayService:
         result = self.service._format_fork_url("test-owner", "test.repo")
         assert result == "https://github.com/test-owner/test.repo"
 
-    def test_display_fork_data_table_simplified_columns(self):
+    @pytest.mark.asyncio
+    async def test_display_fork_data_table_simplified_columns(self):
         """Test that fork data table uses simplified column structure without #, Size, Language."""
         from datetime import UTC, datetime
 
@@ -353,7 +354,7 @@ class TestRepositoryDisplayService:
         )
 
         # Call method
-        self.service._display_fork_data_table(qualification_result)
+        await self.service._display_fork_data_table(qualification_result)
 
         # Verify console.print was called multiple times
         assert self.mock_console.print.call_count >= 3  # Summary table + fork table + insights
@@ -1266,3 +1267,62 @@ class TestRepositoryDisplayService:
 
         within_minute_item = next(item for item in fork_items if item["owner"] == "within_minute")
         assert within_minute_item["activity_status"] == "No commits"
+
+    def test_format_recent_commits_empty_list(self):
+        """Test formatting empty commits list."""
+        result = self.service.format_recent_commits([])
+        assert result == "[dim]No commits[/dim]"
+
+    def test_format_recent_commits_single_commit(self):
+        """Test formatting single commit."""
+        from forklift.models.github import RecentCommit
+        
+        commit = RecentCommit(short_sha="abc1234", message="Fix bug in parser")
+        result = self.service.format_recent_commits([commit])
+        assert result == "abc1234: Fix bug in parser"
+
+    def test_format_recent_commits_multiple_commits(self):
+        """Test formatting multiple commits."""
+        from forklift.models.github import RecentCommit
+        
+        commits = [
+            RecentCommit(short_sha="abc1234", message="Fix bug in parser"),
+            RecentCommit(short_sha="def5678", message="Add new feature"),
+            RecentCommit(short_sha="9012abc", message="Update documentation")
+        ]
+        result = self.service.format_recent_commits(commits)
+        expected = "abc1234: Fix bug in parser\ndef5678: Add new feature\n9012abc: Update documentation"
+        assert result == expected
+
+    @pytest.mark.asyncio
+    async def test_get_and_format_recent_commits_success(self):
+        """Test successful recent commits fetching and formatting."""
+        from forklift.models.github import RecentCommit
+        
+        # Setup mock commits
+        mock_commits = [
+            RecentCommit(short_sha="abc1234", message="Fix bug"),
+            RecentCommit(short_sha="def5678", message="Add feature")
+        ]
+        
+        self.mock_github_client.get_recent_commits = AsyncMock(return_value=mock_commits)
+        
+        result = await self.service._get_and_format_recent_commits("owner", "repo", 2)
+        
+        expected = "abc1234: Fix bug\ndef5678: Add feature"
+        assert result == expected
+        self.mock_github_client.get_recent_commits.assert_called_once_with("owner", "repo", count=2)
+
+    @pytest.mark.asyncio
+    async def test_get_and_format_recent_commits_api_error(self):
+        """Test recent commits fetching with API error."""
+        from forklift.github.client import GitHubAPIError
+        
+        self.mock_github_client.get_recent_commits = AsyncMock(
+            side_effect=GitHubAPIError("API error")
+        )
+        
+        result = await self.service._get_and_format_recent_commits("owner", "repo", 2)
+        
+        assert result == "[dim]No commits available[/dim]"
+        self.mock_github_client.get_recent_commits.assert_called_once_with("owner", "repo", count=2)

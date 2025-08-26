@@ -1391,7 +1391,8 @@ async def _show_forks_summary(
                 fork_data_result = await display_service.show_fork_data_detailed(
                     repository_url,
                     max_forks=max_forks,
-                    disable_cache=False
+                    disable_cache=False,
+                    show_commits=show_commits
                 )
 
                 if verbose:
@@ -1408,7 +1409,8 @@ async def _show_forks_summary(
                     exclude_disabled=False,
                     sort_by="stars",
                     show_all=True,
-                    disable_cache=False
+                    disable_cache=False,
+                    show_commits=show_commits
                 )
 
                 if verbose:
