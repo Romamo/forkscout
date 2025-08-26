@@ -25,7 +25,7 @@ class RepositoryDisplayService:
         self,
         github_client: GitHubClient,
         console: Console | None = None,
-        cache_manager: AnalysisCacheManager | None = None
+        cache_manager: AnalysisCacheManager | None = None,
     ):
         """Initialize the repository display service.
 
@@ -60,11 +60,10 @@ class RepositoryDisplayService:
             forks = await self.github_client.get_repository_forks(owner, repo_name)
 
             if not forks:
-                self.console.print("[yellow]No forks found for this repository.[/yellow]")
-                preview_data = ForksPreview(
-                    total_forks=0,
-                    forks=[]
+                self.console.print(
+                    "[yellow]No forks found for this repository.[/yellow]"
                 )
+                preview_data = ForksPreview(total_forks=0, forks=[])
                 return preview_data.dict()
 
             # Create lightweight fork preview items
@@ -79,14 +78,13 @@ class RepositoryDisplayService:
                     last_push_date=fork.pushed_at,
                     fork_url=fork.html_url,
                     activity_status=activity_status,
-                    commits_ahead=commits_ahead
+                    commits_ahead=commits_ahead,
                 )
                 fork_items.append(fork_item)
 
             # Sort by stars and last push date
             fork_items.sort(
-                key=lambda x: (x.stars, x.last_push_date or datetime.min),
-                reverse=True
+                key=lambda x: (x.stars, x.last_push_date or datetime.min), reverse=True
             )
 
             # Convert to dict format for display
@@ -98,7 +96,7 @@ class RepositoryDisplayService:
                     "last_push_date": item.last_push_date,
                     "fork_url": item.fork_url,
                     "activity_status": item.activity_status,
-                    "commits_ahead": item.commits_ahead
+                    "commits_ahead": item.commits_ahead,
                 }
                 for item in fork_items
             ]
@@ -107,10 +105,7 @@ class RepositoryDisplayService:
             self._display_forks_preview_table(fork_items_dict)
 
             # Create ForksPreview object
-            preview_data = ForksPreview(
-                total_forks=len(forks),
-                forks=fork_items
-            )
+            preview_data = ForksPreview(total_forks=len(forks), forks=fork_items)
 
             return preview_data.dict()
 
@@ -141,15 +136,23 @@ class RepositoryDisplayService:
             cached_details = None
             if self.cache_manager:
                 try:
-                    cached_data = await self.cache_manager.get_repository_metadata(owner, repo_name)
+                    cached_data = await self.cache_manager.get_repository_metadata(
+                        owner, repo_name
+                    )
                     if cached_data:
-                        logger.info(f"Using cached repository details for {owner}/{repo_name}")
+                        logger.info(
+                            f"Using cached repository details for {owner}/{repo_name}"
+                        )
 
                         # Validate cached data before reconstruction
                         try:
-                            CacheValidator.validate_repository_reconstruction(cached_data["repository_data"])
+                            CacheValidator.validate_repository_reconstruction(
+                                cached_data["repository_data"]
+                            )
                         except CacheValidationError as e:
-                            logger.warning(f"Cache validation failed for {owner}/{repo_name}: {e}")
+                            logger.warning(
+                                f"Cache validation failed for {owner}/{repo_name}: {e}"
+                            )
                             # Fall through to fetch from API
                             cached_data = None
 
@@ -161,9 +164,18 @@ class RepositoryDisplayService:
                                 name=repo_data["name"],
                                 owner=repo_data["owner"],
                                 full_name=repo_data["full_name"],
-                                url=repo_data.get("url", f"https://github.com/{repo_data['full_name']}"),
-                                html_url=repo_data.get("html_url", f"https://github.com/{repo_data['full_name']}"),
-                                clone_url=repo_data.get("clone_url", f"https://github.com/{repo_data['full_name']}.git"),
+                                url=repo_data.get(
+                                    "url",
+                                    f"https://github.com/{repo_data['full_name']}",
+                                ),
+                                html_url=repo_data.get(
+                                    "html_url",
+                                    f"https://github.com/{repo_data['full_name']}",
+                                ),
+                                clone_url=repo_data.get(
+                                    "clone_url",
+                                    f"https://github.com/{repo_data['full_name']}.git",
+                                ),
                                 description=repo_data.get("description"),
                                 language=repo_data.get("language"),
                                 stars=repo_data.get("stars", 0),
@@ -171,15 +183,29 @@ class RepositoryDisplayService:
                                 watchers_count=repo_data.get("watchers_count", 0),
                                 open_issues_count=repo_data.get("open_issues_count", 0),
                                 size=repo_data.get("size", 0),
-                                topics=cached_data.get("topics", []),  # Add topics from cache
+                                topics=cached_data.get(
+                                    "topics", []
+                                ),  # Add topics from cache
                                 license_name=repo_data.get("license_name"),
                                 default_branch=repo_data.get("default_branch", "main"),
                                 is_private=repo_data.get("is_private", False),
                                 is_fork=repo_data.get("is_fork", False),
                                 is_archived=repo_data.get("is_archived", False),
-                                created_at=datetime.fromisoformat(repo_data["created_at"]) if repo_data.get("created_at") else None,
-                                updated_at=datetime.fromisoformat(repo_data["updated_at"]) if repo_data.get("updated_at") else None,
-                                pushed_at=datetime.fromisoformat(repo_data["pushed_at"]) if repo_data.get("pushed_at") else None,
+                                created_at=(
+                                    datetime.fromisoformat(repo_data["created_at"])
+                                    if repo_data.get("created_at")
+                                    else None
+                                ),
+                                updated_at=(
+                                    datetime.fromisoformat(repo_data["updated_at"])
+                                    if repo_data.get("updated_at")
+                                    else None
+                                ),
+                                pushed_at=(
+                                    datetime.fromisoformat(repo_data["pushed_at"])
+                                    if repo_data.get("pushed_at")
+                                    else None
+                                ),
                             )
 
                             # Reconstruct the full repo_details structure
@@ -191,7 +217,7 @@ class RepositoryDisplayService:
                                 "license": cached_data["license"],
                                 "last_activity": cached_data["last_activity"],
                                 "created": cached_data["created"],
-                                "updated": cached_data["updated"]
+                                "updated": cached_data["updated"],
                             }
 
                             # Display the cached information
@@ -205,7 +231,9 @@ class RepositoryDisplayService:
             repository = await self.github_client.get_repository(owner, repo_name)
 
             # Get additional information
-            languages = await self.github_client.get_repository_languages(owner, repo_name)
+            languages = await self.github_client.get_repository_languages(
+                owner, repo_name
+            )
             topics = await self.github_client.get_repository_topics(owner, repo_name)
 
             # Create repository details dictionary
@@ -217,7 +245,7 @@ class RepositoryDisplayService:
                 "license": repository.license_name or "No license",
                 "last_activity": self._format_datetime(repository.pushed_at),
                 "created": self._format_datetime(repository.created_at),
-                "updated": self._format_datetime(repository.updated_at)
+                "updated": self._format_datetime(repository.updated_at),
             }
 
             # Cache the results if cache manager is available
@@ -245,9 +273,21 @@ class RepositoryDisplayService:
                             "is_private": repository.is_private,
                             "is_fork": repository.is_fork,
                             "is_archived": repository.is_archived,
-                            "created_at": repository.created_at.isoformat() if repository.created_at else None,
-                            "updated_at": repository.updated_at.isoformat() if repository.updated_at else None,
-                            "pushed_at": repository.pushed_at.isoformat() if repository.pushed_at else None,
+                            "created_at": (
+                                repository.created_at.isoformat()
+                                if repository.created_at
+                                else None
+                            ),
+                            "updated_at": (
+                                repository.updated_at.isoformat()
+                                if repository.updated_at
+                                else None
+                            ),
+                            "pushed_at": (
+                                repository.pushed_at.isoformat()
+                                if repository.pushed_at
+                                else None
+                            ),
                         },
                         "languages": languages,
                         "topics": topics,
@@ -255,14 +295,14 @@ class RepositoryDisplayService:
                         "license": repository.license_name or "No license",
                         "last_activity": self._format_datetime(repository.pushed_at),
                         "created": self._format_datetime(repository.created_at),
-                        "updated": self._format_datetime(repository.updated_at)
+                        "updated": self._format_datetime(repository.updated_at),
                     }
 
                     await self.cache_manager.cache_repository_metadata(
                         owner,
                         repo_name,
                         cacheable_details,
-                        ttl_hours=24  # Cache for 24 hours
+                        ttl_hours=24,  # Cache for 24 hours
                     )
                     logger.info(f"Cached repository details for {owner}/{repo_name}")
                 except Exception as e:
@@ -275,10 +315,10 @@ class RepositoryDisplayService:
 
         except Exception as e:
             logger.error(f"Failed to fetch repository details: {e}")
-            self.console.print(f"[red]Error: Failed to fetch repository details: {e}[/red]")
+            self.console.print(
+                f"[red]Error: Failed to fetch repository details: {e}[/red]"
+            )
             raise
-
-
 
     def _parse_repository_url(self, repo_url: str) -> tuple[str, str]:
         """Parse repository URL to extract owner and repo name.
@@ -298,7 +338,7 @@ class RepositoryDisplayService:
         patterns = [
             r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$",
             r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$",
-            r"^([^/]+)/([^/]+)$"  # Simple owner/repo format
+            r"^([^/]+)/([^/]+)$",  # Simple owner/repo format
         ]
 
         for pattern in patterns:
@@ -352,7 +392,9 @@ class RepositoryDisplayService:
         if not fork.pushed_at:
             return "inactive"
 
-        days_since_activity = (datetime.utcnow() - fork.pushed_at.replace(tzinfo=None)).days
+        days_since_activity = (
+            datetime.utcnow() - fork.pushed_at.replace(tzinfo=None)
+        ).days
 
         if days_since_activity <= 30:
             return "active"
@@ -449,9 +491,13 @@ class RepositoryDisplayService:
         table.add_row("Created", repo_details["created"])
         table.add_row("Last Updated", repo_details["updated"])
         table.add_row("Last Activity", repo_details["last_activity"])
-        table.add_row("Private", "PRIVATE: Yes" if repository.is_private else "PUBLIC: Yes")
+        table.add_row(
+            "Private", "PRIVATE: Yes" if repository.is_private else "PUBLIC: Yes"
+        )
         table.add_row("Fork", "FORK: Yes" if repository.is_fork else "ORIGINAL: Yes")
-        table.add_row("Archived", "ARCHIVED: Yes" if repository.is_archived else "ACTIVE: Yes")
+        table.add_row(
+            "Archived", "ARCHIVED: Yes" if repository.is_archived else "ACTIVE: Yes"
+        )
 
         self.console.print(table)
 
@@ -475,7 +521,9 @@ class RepositoryDisplayService:
             return
 
         language_info = []
-        for lang, bytes_count in sorted(languages.items(), key=lambda x: x[1], reverse=True):
+        for lang, bytes_count in sorted(
+            languages.items(), key=lambda x: x[1], reverse=True
+        ):
             percentage = (bytes_count / total_bytes) * 100
             language_info.append(f"{lang}: {percentage:.1f}%")
 
@@ -484,9 +532,7 @@ class RepositoryDisplayService:
             languages_text += f" • +{len(languages) - 5} more"
 
         panel = Panel(
-            languages_text,
-            title="Programming Languages",
-            border_style="blue"
+            languages_text, title="Programming Languages", border_style="blue"
         )
         self.console.print(panel)
 
@@ -503,14 +549,12 @@ class RepositoryDisplayService:
         if len(topics) > 10:
             topics_text += f" • +{len(topics) - 10} more"
 
-        panel = Panel(
-            topics_text,
-            title="Topics",
-            border_style="green"
-        )
+        panel = Panel(topics_text, title="Topics", border_style="green")
         self.console.print(panel)
 
-    def _display_forks_table(self, enhanced_forks: list[dict[str, Any]], max_display: int = 50) -> None:
+    def _display_forks_table(
+        self, enhanced_forks: list[dict[str, Any]], max_display: int = 50
+    ) -> None:
         """Display forks in a formatted table.
 
         Args:
@@ -557,13 +601,15 @@ class RepositoryDisplayService:
                 behind_text,
                 fork_data["last_activity"],
                 status_styled,
-                fork.language or "N/A"
+                fork.language or "N/A",
             )
 
         self.console.print(table)
 
         if len(enhanced_forks) > max_display:
-            self.console.print(f"[dim]... and {len(enhanced_forks) - max_display} more forks[/dim]")
+            self.console.print(
+                f"[dim]... and {len(enhanced_forks) - max_display} more forks[/dim]"
+            )
 
     def _style_activity_status(self, status: str) -> str:
         """Apply color styling to activity status.
@@ -579,7 +625,7 @@ class RepositoryDisplayService:
             "moderate": "[yellow]Moderate[/yellow]",
             "stale": "[orange3]Stale[/orange3]",
             "inactive": "[red]Inactive[/red]",
-            "unknown": "[dim]Unknown[/dim]"
+            "unknown": "[dim]Unknown[/dim]",
         }
 
         return status_colors.get(status, status)
@@ -596,7 +642,7 @@ class RepositoryDisplayService:
         status_colors = {
             "Active": "[green]Active[/green]",
             "Stale": "[orange3]Stale[/orange3]",
-            "No commits": "[red]No commits[/red]"
+            "No commits": "[red]No commits[/red]",
         }
 
         return status_colors.get(status, status)
@@ -613,10 +659,7 @@ class RepositoryDisplayService:
         # Convert to simple format first
         simple_status = self._format_commits_ahead_simple(status)
 
-        status_colors = {
-            "No": "[red]No[/red]",
-            "Yes": "[green]Yes[/green]"
-        }
+        status_colors = {"No": "[red]No[/red]", "Yes": "[green]Yes[/green]"}
 
         return status_colors.get(simple_status, simple_status)
 
@@ -642,7 +685,7 @@ class RepositoryDisplayService:
         sort_by: str = "stars",
         show_all: bool = False,
         exclude_archived: bool = False,
-        exclude_disabled: bool = False
+        exclude_disabled: bool = False,
     ) -> None:
         """Display comprehensive fork data in a formatted table.
 
@@ -656,20 +699,40 @@ class RepositoryDisplayService:
 
         # Display summary statistics
         stats = qualification_result.stats
-        self.console.print(f"\n[bold blue]Fork Data Summary for {qualification_result.repository_owner}/{qualification_result.repository_name}[/bold blue]")
+        self.console.print(
+            f"\n[bold blue]Fork Data Summary for {qualification_result.repository_owner}/{qualification_result.repository_name}[/bold blue]"
+        )
         self.console.print("=" * 80)
 
         summary_table = Table(title="Collection Summary")
         summary_table.add_column("Metric", style="cyan", width=25)
         summary_table.add_column("Count", style="green", justify="right", width=10)
-        summary_table.add_column("Percentage", style="yellow", justify="right", width=12)
+        summary_table.add_column(
+            "Percentage", style="yellow", justify="right", width=12
+        )
 
         total = stats.total_forks_discovered
         summary_table.add_row("Total Forks", str(total), "100.0%")
-        summary_table.add_row("Need Analysis", str(stats.forks_with_commits), f"{stats.analysis_candidate_percentage:.1f}%")
-        summary_table.add_row("Can Skip", str(stats.forks_with_no_commits), f"{stats.skip_rate_percentage:.1f}%")
-        summary_table.add_row("Archived", str(stats.archived_forks), f"{(stats.archived_forks/total*100) if total > 0 else 0:.1f}%")
-        summary_table.add_row("Disabled", str(stats.disabled_forks), f"{(stats.disabled_forks/total*100) if total > 0 else 0:.1f}%")
+        summary_table.add_row(
+            "Need Analysis",
+            str(stats.forks_with_commits),
+            f"{stats.analysis_candidate_percentage:.1f}%",
+        )
+        summary_table.add_row(
+            "Can Skip",
+            str(stats.forks_with_no_commits),
+            f"{stats.skip_rate_percentage:.1f}%",
+        )
+        summary_table.add_row(
+            "Archived",
+            str(stats.archived_forks),
+            f"{(stats.archived_forks/total*100) if total > 0 else 0:.1f}%",
+        )
+        summary_table.add_row(
+            "Disabled",
+            str(stats.disabled_forks),
+            f"{(stats.disabled_forks/total*100) if total > 0 else 0:.1f}%",
+        )
 
         self.console.print(summary_table)
 
@@ -679,26 +742,30 @@ class RepositoryDisplayService:
             self.console.print("=" * 80)
 
             # Sort forks using enhanced multi-level sorting
-            sorted_forks = self._sort_forks_enhanced(qualification_result.collected_forks)
+            sorted_forks = self._sort_forks_enhanced(
+                qualification_result.collected_forks
+            )
 
             # Create main fork data table
-            fork_table = Table(title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity)")
-            fork_table.add_column("#", style="dim", width=4)
+            fork_table = Table(
+                title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity)"
+            )
             fork_table.add_column("Fork Name", style="cyan", min_width=20)
             fork_table.add_column("Owner", style="blue", min_width=15)
             fork_table.add_column("Stars", style="yellow", justify="right", width=6)
             fork_table.add_column("Forks", style="green", justify="right", width=6)
-            fork_table.add_column("Size (KB)", style="white", justify="right", width=8)
-            fork_table.add_column("Language", style="white", width=12)
+            fork_table.add_column("URL", style="white", min_width=30)
             fork_table.add_column("Commits Ahead", style="magenta", width=15)
             fork_table.add_column("Activity", style="orange3", width=20)
             fork_table.add_column("Last Push", style="blue", width=12)
             fork_table.add_column("Status", style="red", width=12)
 
             # Determine display limit
-            display_limit = len(sorted_forks) if show_all else min(50, len(sorted_forks))
+            display_limit = (
+                len(sorted_forks) if show_all else min(50, len(sorted_forks))
+            )
 
-            for i, fork_data in enumerate(sorted_forks[:display_limit], 1):
+            for _i, fork_data in enumerate(sorted_forks[:display_limit], 1):
                 metrics = fork_data.metrics
 
                 # Style status indicators
@@ -713,30 +780,35 @@ class RepositoryDisplayService:
                 status_display = " ".join(status_parts)
 
                 # Style commits ahead status
-                commits_status = self._style_commits_ahead_display(metrics.commits_ahead_status)
+                commits_status = self._style_commits_ahead_display(
+                    metrics.commits_ahead_status
+                )
 
                 # Format last push date
                 last_push = self._format_datetime(metrics.pushed_at)
 
+                # Generate fork URL
+                fork_url = self._format_fork_url(metrics.owner, metrics.name)
+
                 fork_table.add_row(
-                    str(i),
                     metrics.name,
                     metrics.owner,
                     str(metrics.stargazers_count),
                     str(metrics.forks_count),
-                    f"{metrics.size:,}",
-                    metrics.language or "N/A",
+                    fork_url,
                     commits_status,
                     fork_data.activity_summary,
                     last_push,
-                    status_display
+                    status_display,
                 )
 
             self.console.print(fork_table)
 
             if len(sorted_forks) > display_limit:
                 remaining = len(sorted_forks) - display_limit
-                self.console.print(f"[dim]... and {remaining} more forks (use --show-all to see all)[/dim]")
+                self.console.print(
+                    f"[dim]... and {remaining} more forks (use --show-all to see all)[/dim]"
+                )
 
             # Show filtering information
             self._display_filtering_info(exclude_archived, exclude_disabled, stats)
@@ -762,14 +834,21 @@ class RepositoryDisplayService:
             "forks": lambda x: x.metrics.forks_count,
             "size": lambda x: x.metrics.size,
             "activity": lambda x: -x.metrics.days_since_last_push,  # Negative for recent first
-            "commits_status": lambda x: (x.metrics.commits_ahead_status == "Has commits", x.metrics.stargazers_count),
+            "commits_status": lambda x: (
+                x.metrics.commits_ahead_status == "Has commits",
+                x.metrics.stargazers_count,
+            ),
             "name": lambda x: x.metrics.name.lower(),
             "owner": lambda x: x.metrics.owner.lower(),
-            "language": lambda x: x.metrics.language or "zzz"  # Put None at end
+            "language": lambda x: x.metrics.language or "zzz",  # Put None at end
         }
 
         sort_func = sort_functions.get(sort_by, sort_functions["stars"])
-        reverse = sort_by not in ["name", "owner", "language"]  # These should be ascending
+        reverse = sort_by not in [
+            "name",
+            "owner",
+            "language",
+        ]  # These should be ascending
 
         return sorted(collected_forks, key=sort_func, reverse=reverse)
 
@@ -788,6 +867,7 @@ class RepositoryDisplayService:
         Returns:
             Sorted list of forks with enhanced sorting criteria
         """
+
         def sort_key(fork_data):
             """Multi-level sort key for enhanced fork sorting."""
             metrics = fork_data.metrics
@@ -814,9 +894,9 @@ class RepositoryDisplayService:
             # numeric values for descending order
             return (
                 not has_commits,  # False (has commits) sorts before True (no commits)
-                -forks_count,     # Negative for descending order
-                -stars_count,     # Negative for descending order
-                push_timestamp    # Already negative for descending order
+                -forks_count,  # Negative for descending order
+                -stars_count,  # Negative for descending order
+                push_timestamp,  # Already negative for descending order
             )
 
         return sorted(collected_forks, key=sort_key)
@@ -833,14 +913,25 @@ class RepositoryDisplayService:
         # Convert to simple format first
         simple_status = self._format_commits_ahead_simple(status)
 
-        status_colors = {
-            "No": "[red]No[/red]",
-            "Yes": "[green]Yes[/green]"
-        }
+        status_colors = {"No": "[red]No[/red]", "Yes": "[green]Yes[/green]"}
 
         return status_colors.get(simple_status, simple_status)
 
-    def _display_filtering_info(self, exclude_archived: bool, exclude_disabled: bool, stats) -> None:
+    def _format_fork_url(self, owner: str, repo_name: str) -> str:
+        """Generate proper GitHub URL for a fork repository.
+
+        Args:
+            owner: Repository owner
+            repo_name: Repository name
+
+        Returns:
+            Formatted GitHub URL
+        """
+        return f"https://github.com/{owner}/{repo_name}"
+
+    def _display_filtering_info(
+        self, exclude_archived: bool, exclude_disabled: bool, stats
+    ) -> None:
         """Display information about applied filters.
 
         Args:
@@ -856,9 +947,13 @@ class RepositoryDisplayService:
             filter_table.add_column("Excluded Count", style="red", justify="right")
 
             if exclude_archived:
-                filter_table.add_row("Archived Forks", "Excluded", str(stats.archived_forks))
+                filter_table.add_row(
+                    "Archived Forks", "Excluded", str(stats.archived_forks)
+                )
             if exclude_disabled:
-                filter_table.add_row("Disabled Forks", "Excluded", str(stats.disabled_forks))
+                filter_table.add_row(
+                    "Disabled Forks", "Excluded", str(stats.disabled_forks)
+                )
 
             self.console.print(filter_table)
 
@@ -883,22 +978,18 @@ class RepositoryDisplayService:
         insights_table.add_row(
             "Active Forks",
             str(len(active_forks)),
-            "Forks with activity in last 90 days"
+            "Forks with activity in last 90 days",
         )
         insights_table.add_row(
-            "Popular Forks",
-            str(len(popular_forks)),
-            "Forks with 5+ stars"
+            "Popular Forks", str(len(popular_forks)), "Forks with 5+ stars"
         )
         insights_table.add_row(
             "Analysis Candidates",
             str(len(analysis_candidates)),
-            "Forks that need detailed analysis"
+            "Forks that need detailed analysis",
         )
         insights_table.add_row(
-            "Skip Candidates",
-            str(len(skip_candidates)),
-            "Forks with no commits ahead"
+            "Skip Candidates", str(len(skip_candidates)), "Forks with no commits ahead"
         )
 
         self.console.print(insights_table)
@@ -917,7 +1008,9 @@ class RepositoryDisplayService:
             lang_table.add_column("Percentage", style="yellow", justify="right")
 
             total_forks = len(qualification_result.collected_forks)
-            for lang, count in sorted(languages.items(), key=lambda x: x[1], reverse=True)[:10]:
+            for lang, count in sorted(
+                languages.items(), key=lambda x: x[1], reverse=True
+            )[:10]:
                 percentage = (count / total_forks) * 100
                 lang_table.add_row(lang, str(count), f"{percentage:.1f}%")
 
@@ -930,7 +1023,7 @@ class RepositoryDisplayService:
         exclude_disabled: bool = False,
         sort_by: str = "stars",
         show_all: bool = False,
-        disable_cache: bool = False
+        disable_cache: bool = False,
     ) -> dict[str, Any]:
         """Display comprehensive fork data with all collected metrics.
 
@@ -964,15 +1057,15 @@ class RepositoryDisplayService:
             data_engine = ForkDataCollectionEngine()
 
             # Get all forks data from GitHub API
-            forks_list_data = await fork_processor.get_all_forks_list_data(owner, repo_name)
+            forks_list_data = await fork_processor.get_all_forks_list_data(
+                owner, repo_name
+            )
 
             if not forks_list_data:
-                self.console.print("[yellow]No forks found for this repository.[/yellow]")
-                return {
-                    "total_forks": 0,
-                    "collected_forks": [],
-                    "stats": None
-                }
+                self.console.print(
+                    "[yellow]No forks found for this repository.[/yellow]"
+                )
+                return {"total_forks": 0, "collected_forks": [], "stats": None}
 
             # Collect comprehensive fork data
             collected_forks = data_engine.collect_fork_data_from_list(forks_list_data)
@@ -982,12 +1075,13 @@ class RepositoryDisplayService:
             filtered_forks = collected_forks.copy()
 
             if exclude_archived:
-                filtered_forks = data_engine.exclude_archived_and_disabled(filtered_forks)
+                filtered_forks = data_engine.exclude_archived_and_disabled(
+                    filtered_forks
+                )
 
             if exclude_disabled:
                 filtered_forks = [
-                    fork for fork in filtered_forks
-                    if not fork.metrics.disabled
+                    fork for fork in filtered_forks if not fork.metrics.disabled
                 ]
 
             # Create qualification result
@@ -997,18 +1091,24 @@ class RepositoryDisplayService:
                 collected_forks=filtered_forks,
                 processing_time_seconds=0.0,
                 api_calls_made=len(forks_list_data),
-                api_calls_saved=0
+                api_calls_saved=0,
             )
 
             # Display comprehensive fork data
-            self._display_fork_data_table(qualification_result, sort_by, show_all, exclude_archived, exclude_disabled)
+            self._display_fork_data_table(
+                qualification_result,
+                sort_by,
+                show_all,
+                exclude_archived,
+                exclude_disabled,
+            )
 
             return {
                 "total_forks": original_count,
                 "displayed_forks": len(filtered_forks),
                 "collected_forks": filtered_forks,
                 "stats": qualification_result.stats,
-                "qualification_result": qualification_result
+                "qualification_result": qualification_result,
             }
 
         except Exception as e:
@@ -1020,7 +1120,7 @@ class RepositoryDisplayService:
         self,
         repo_url: str,
         filters: PromisingForksFilter | None = None,
-        max_forks: int | None = None
+        max_forks: int | None = None,
     ) -> dict[str, Any]:
         """Display promising forks based on filter criteria.
 
@@ -1045,12 +1145,10 @@ class RepositoryDisplayService:
             # TODO: Update this method to use show_fork_data instead of removed show_forks_summary
             # For now, return empty result to avoid breaking the system
             # This method needs to be refactored to work with the new pagination-only approach
-            self.console.print("[yellow]show_promising_forks temporarily disabled - needs refactoring for pagination-only approach[/yellow]")
-            return {
-                "total_forks": 0,
-                "promising_forks": 0,
-                "forks": []
-            }
+            self.console.print(
+                "[yellow]show_promising_forks temporarily disabled - needs refactoring for pagination-only approach[/yellow]"
+            )
+            return {"total_forks": 0, "promising_forks": 0, "forks": []}
 
         except Exception as e:
             logger.error(f"Failed to find promising forks: {e}")
@@ -1058,9 +1156,7 @@ class RepositoryDisplayService:
             raise
 
     def _display_promising_forks_table(
-        self,
-        promising_forks: list[dict[str, Any]],
-        filters: PromisingForksFilter
+        self, promising_forks: list[dict[str, Any]], filters: PromisingForksFilter
     ) -> None:
         """Display promising forks in a formatted table.
 
@@ -1090,8 +1186,7 @@ class RepositoryDisplayService:
 
             # Calculate activity score
             activity_score = filters._calculate_activity_score(
-                fork_data["activity_status"],
-                fork.pushed_at
+                fork_data["activity_status"], fork.pushed_at
             )
 
             # Format activity score with color
@@ -1110,7 +1205,7 @@ class RepositoryDisplayService:
                 f"+{fork_data['commits_ahead']}",
                 score_text,
                 fork_data["last_activity"],
-                fork.language or "N/A"
+                fork.language or "N/A",
             )
 
         self.console.print(table)
@@ -1138,9 +1233,7 @@ class RepositoryDisplayService:
             criteria_text += f"\n• Maximum Fork Age: {filters.max_fork_age_days} days"
 
         panel = Panel(
-            criteria_text,
-            title="Promising Forks Analysis",
-            border_style="blue"
+            criteria_text, title="Promising Forks Analysis", border_style="blue"
         )
         self.console.print(panel)
 
@@ -1176,7 +1269,7 @@ class RepositoryDisplayService:
                 fork_item["owner"],
                 f"⭐{fork_item['stars']}",
                 last_push,
-                commits_ahead_styled
+                commits_ahead_styled,
             )
 
         self.console.print(table)

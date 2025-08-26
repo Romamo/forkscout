@@ -901,7 +901,7 @@
   - Write unit tests for enhanced sorting logic with various fork combinations
   - _Requirements: 21.1_
 
-- [ ] 18.2 Simplify fork data table columns
+- [-] 18.2 Simplify fork data table columns
   - Remove "#", "Size (KB)", and "Language" columns from Detailed Fork Information table
   - Add "URL" column containing clickable GitHub URLs for each fork repository
   - Update _display_enhanced_fork_data_table method to use simplified column structure
@@ -909,7 +909,7 @@
   - Write unit tests for simplified table display and column validation
   - _Requirements: 21.2, 21.3_
 
-- [-] 18.3 Update commits ahead display format
+- [x] 18.3 Update commits ahead display format
   - Change "Commits Status" header to "Commits Ahead" in fork data table
   - Implement _format_commits_ahead_simple method to show "Yes"/"No" instead of technical terms
   - Update commits ahead status formatting throughout the display system

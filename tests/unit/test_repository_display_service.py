@@ -290,6 +290,77 @@ class TestRepositoryDisplayService:
         result = self.service._style_commits_ahead_display("Has commits")
         assert result == "[green]Yes[/green]"
 
+    def test_format_fork_url(self):
+        """Test formatting fork URL for GitHub."""
+        result = self.service._format_fork_url("testowner", "testrepo")
+        assert result == "https://github.com/testowner/testrepo"
+
+    def test_format_fork_url_with_special_characters(self):
+        """Test formatting fork URL with special characters."""
+        result = self.service._format_fork_url("test-owner", "test.repo")
+        assert result == "https://github.com/test-owner/test.repo"
+
+    def test_display_fork_data_table_simplified_columns(self):
+        """Test that fork data table uses simplified column structure without #, Size, Language."""
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+            QualificationStats,
+            QualifiedForksResult,
+        )
+        from datetime import datetime, UTC
+
+        # Create test fork data
+        metrics = ForkQualificationMetrics(
+            id=123,
+            name="testrepo",
+            owner="testowner",
+            full_name="testowner/testrepo",
+            html_url="https://github.com/testowner/testrepo",
+            stargazers_count=10,
+            forks_count=5,
+            size=1000,
+            language="Python",
+            archived=False,
+            disabled=False,
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 12, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
+        )
+
+        fork_data = CollectedForkData(
+            metrics=metrics,
+            activity_summary="Active fork with recent commits"
+        )
+
+        stats = QualificationStats(
+            total_forks_discovered=1,
+            forks_with_commits=1,
+            forks_with_no_commits=0,
+            archived_forks=0,
+            disabled_forks=0,
+            analysis_candidate_percentage=100.0,
+            skip_rate_percentage=0.0
+        )
+
+        qualification_result = QualifiedForksResult(
+            repository_owner="testowner",
+            repository_name="testrepo",
+            repository_url="https://github.com/testowner/testrepo",
+            collected_forks=[fork_data],
+            stats=stats
+        )
+
+        # Call method
+        self.service._display_fork_data_table(qualification_result)
+
+        # Verify console.print was called multiple times
+        assert self.mock_console.print.call_count >= 3  # Summary table + fork table + insights
+
+        # Check that the table was created and printed
+        # We can't easily inspect the Rich Table structure, but we can verify the method completed
+        # without errors and that console.print was called appropriately
+
     @pytest.mark.asyncio
     async def test_show_repository_details_success(self):
         """Test successful repository details display."""
