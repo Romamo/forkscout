@@ -1111,7 +1111,7 @@
   - Write unit tests for CLI parameter parsing and validation
   - _Requirements: 23.1, 23.4_
 
-- [x] 21.2 Implement recent commits fetching functionality
+- [-] 21.2 Implement recent commits fetching functionality
   - Create get_recent_commits method in GitHubClient to fetch last N commits from fork's default branch
   - Add commit data models for storing short SHA and commit message
   - Implement commit message truncation logic (50 characters with "..." indicator)

@@ -355,6 +355,7 @@ class Commit(BaseModel):
         return not (self.get_commit_type() == "docs" and self.total_changes < 20)
 
 
+
 class RecentCommit(BaseModel):
     """Represents a recent commit with minimal information for display."""
 

@@ -809,3 +809,65 @@ class GitHubClient:
         except GitHubAPIError as e:
             logger.warning(f"Failed to compare {base_owner}/{base_repo} with {fork_owner}/{fork_repo}: {e}")
             raise
+
+    async def get_recent_commits(
+        self,
+        owner: str,
+        repo: str,
+        count: int = 5,
+        branch: str | None = None
+    ) -> list[RecentCommit]:
+        """Get recent commits from a repository's default branch.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            count: Number of recent commits to fetch (default: 5)
+            branch: Branch to fetch commits from (default: repository's default branch)
+
+        Returns:
+            List of RecentCommit objects with short SHA and truncated messages
+
+        Raises:
+            ValueError: If count is not between 1 and 10
+            GitHubAPIError: If commits cannot be fetched
+        """
+        # Validate input parameters
+        if not (1 <= count <= 10):
+            raise ValueError("Count must be between 1 and 10")
+
+        logger.debug(f"Fetching {count} recent commits from {owner}/{repo}")
+
+        try:
+            # If no branch specified, get repository info to determine default branch
+            if branch is None:
+                repo_info = await self.get_repository(owner, repo)
+                branch = repo_info.default_branch
+
+            # Fetch commits from the specified branch
+            params = {
+                "sha": branch,
+                "per_page": min(count, 100),  # GitHub max is 100
+                "page": 1,
+            }
+
+            commits_data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
+
+            # Process commits using the RecentCommit model
+            recent_commits = []
+            for commit_data in commits_data[:count]:  # Ensure we don't exceed requested count
+                recent_commit = RecentCommit.from_github_api(commit_data, max_message_length=50)
+                recent_commits.append(recent_commit)
+
+            logger.debug(f"Successfully fetched {len(recent_commits)} recent commits from {owner}/{repo}")
+            return recent_commits
+
+        except GitHubNotFoundError:
+            logger.warning(f"Repository {owner}/{repo} not found or branch {branch} does not exist")
+            raise GitHubAPIError(f"Repository {owner}/{repo} not found or branch {branch} does not exist")
+        except GitHubAPIError as e:
+            logger.warning(f"Failed to fetch recent commits from {owner}/{repo}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error fetching recent commits from {owner}/{repo}: {e}")
+            raise GitHubAPIError(f"Failed to fetch recent commits: {e}") from e

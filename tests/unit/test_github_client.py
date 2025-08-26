@@ -773,6 +773,303 @@ class TestGitHubClientUtilityOperations:
             assert result[0]["login"] == "contributor1"
 
 
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_success(self, client):
+        """Test successful recent commits fetching."""
+        mock_repo_response = {
+            "default_branch": "main",
+            "owner": {"login": "testowner"},
+            "name": "testrepo",
+            "full_name": "testowner/testrepo",
+            "url": "https://api.github.com/repos/testowner/testrepo",
+            "html_url": "https://github.com/testowner/testrepo",
+            "clone_url": "https://github.com/testowner/testrepo.git",
+        }
+
+        mock_commits_response = [
+            {
+                "sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+                "commit": {
+                    "message": "Add user authentication system",
+                    "author": {
+                        "name": "John Doe",
+                        "date": "2024-01-15T10:30:00Z"
+                    }
+                }
+            },
+            {
+                "sha": "b2c3d4e5f6789012345678901234567890abcdef",
+                "commit": {
+                    "message": "Fix bug in login validation that was causing issues",
+                    "author": {
+                        "name": "Jane Smith",
+                        "date": "2024-01-14T15:45:00Z"
+                    }
+                }
+            }
+        ]
+
+        respx.get("https://api.github.com/repos/testowner/testrepo").mock(
+            return_value=httpx.Response(200, json=mock_repo_response)
+        )
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(200, json=mock_commits_response)
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "testrepo", count=2)
+
+            assert len(commits) == 2
+            assert commits[0].short_sha == "a1b2c3d"
+            assert commits[0].message == "Add user authentication system"
+
+            assert commits[1].short_sha == "b2c3d4e"
+            assert commits[1].message == "Fix bug in login validation that was causing is..."
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_with_branch(self, client):
+        """Test recent commits fetching with specific branch."""
+        mock_commits_response = [
+            {
+                "sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+                "commit": {
+                    "message": "Feature branch commit",
+                    "author": {
+                        "name": "Developer",
+                        "date": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
+        ]
+
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(200, json=mock_commits_response)
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "testrepo", count=1, branch="feature-branch")
+
+            assert len(commits) == 1
+            assert commits[0].short_sha == "a1b2c3d"
+            assert commits[0].message == "Feature branch commit"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_empty_repository(self, client):
+        """Test recent commits fetching from empty repository."""
+        mock_repo_response = {
+            "default_branch": "main",
+            "owner": {"login": "testowner"},
+            "name": "testrepo",
+            "full_name": "testowner/testrepo",
+            "url": "https://api.github.com/repos/testowner/testrepo",
+            "html_url": "https://github.com/testowner/testrepo",
+            "clone_url": "https://github.com/testowner/testrepo.git",
+        }
+
+        respx.get("https://api.github.com/repos/testowner/testrepo").mock(
+            return_value=httpx.Response(200, json=mock_repo_response)
+        )
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "testrepo", count=5)
+
+            assert len(commits) == 0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_fewer_than_requested(self, client):
+        """Test recent commits when repository has fewer commits than requested."""
+        mock_repo_response = {
+            "default_branch": "main",
+            "owner": {"login": "testowner"},
+            "name": "testrepo",
+            "full_name": "testowner/testrepo",
+            "url": "https://api.github.com/repos/testowner/testrepo",
+            "html_url": "https://github.com/testowner/testrepo",
+            "clone_url": "https://github.com/testowner/testrepo.git",
+        }
+
+        mock_commits_response = [
+            {
+                "sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+                "commit": {
+                    "message": "Initial commit",
+                    "author": {
+                        "name": "Developer",
+                        "date": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
+        ]
+
+        respx.get("https://api.github.com/repos/testowner/testrepo").mock(
+            return_value=httpx.Response(200, json=mock_repo_response)
+        )
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(200, json=mock_commits_response)
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "testrepo", count=5)
+
+            assert len(commits) == 1
+            assert commits[0].message == "Initial commit"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_message_truncation(self, client):
+        """Test commit message truncation for long messages."""
+        mock_repo_response = {
+            "default_branch": "main",
+            "owner": {"login": "testowner"},
+            "name": "testrepo",
+            "full_name": "testowner/testrepo",
+            "url": "https://api.github.com/repos/testowner/testrepo",
+            "html_url": "https://github.com/testowner/testrepo",
+            "clone_url": "https://github.com/testowner/testrepo.git",
+        }
+
+        mock_commits_response = [
+            {
+                "sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+                "commit": {
+                    "message": "This is a very long commit message that exceeds the 50 character limit and should be truncated",
+                    "author": {
+                        "name": "Developer",
+                        "date": "2024-01-15T10:30:00Z"
+                    }
+                }
+            },
+            {
+                "sha": "b2c3d4e5f6789012345678901234567890abcdef",
+                "commit": {
+                    "message": "Short message",
+                    "author": {
+                        "name": "Developer",
+                        "date": "2024-01-14T15:45:00Z"
+                    }
+                }
+            }
+        ]
+
+        respx.get("https://api.github.com/repos/testowner/testrepo").mock(
+            return_value=httpx.Response(200, json=mock_repo_response)
+        )
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(200, json=mock_commits_response)
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "testrepo", count=2)
+
+            assert len(commits) == 2
+            assert commits[0].message == "This is a very long commit message that exceeds..."
+            assert len(commits[0].message) == 50
+            assert commits[1].message == "Short message"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_multiline_message(self, client):
+        """Test commit message handling for multiline messages."""
+        mock_repo_response = {
+            "default_branch": "main",
+            "owner": {"login": "testowner"},
+            "name": "testrepo",
+            "full_name": "testowner/testrepo",
+            "url": "https://api.github.com/repos/testowner/testrepo",
+            "html_url": "https://github.com/testowner/testrepo",
+            "clone_url": "https://github.com/testowner/testrepo.git",
+        }
+
+        mock_commits_response = [
+            {
+                "sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+                "commit": {
+                    "message": "Add user authentication\n\nThis commit adds a complete user authentication system\nwith login, logout, and session management.",
+                    "author": {
+                        "name": "Developer",
+                        "date": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
+        ]
+
+        respx.get("https://api.github.com/repos/testowner/testrepo").mock(
+            return_value=httpx.Response(200, json=mock_repo_response)
+        )
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(200, json=mock_commits_response)
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "testrepo", count=1)
+
+            assert len(commits) == 1
+            assert commits[0].message == "Add user authentication This commit adds a com..."
+            # Should handle multiline by joining with spaces and truncating
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_repository_not_found(self, client):
+        """Test recent commits fetching when repository is not found."""
+        respx.get("https://api.github.com/repos/nonexistent/repo").mock(
+            return_value=httpx.Response(404, json={"message": "Not Found"})
+        )
+
+        async with client:
+            with pytest.raises(GitHubAPIError) as exc_info:
+                await client.get_recent_commits("nonexistent", "repo", count=5)
+
+            assert "not found" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_branch_not_found(self, client):
+        """Test recent commits fetching when branch is not found."""
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(404, json={"message": "Not Found"})
+        )
+
+        async with client:
+            with pytest.raises(GitHubAPIError) as exc_info:
+                await client.get_recent_commits("testowner", "testrepo", count=5, branch="nonexistent-branch")
+
+            assert "not found" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_api_error(self, client):
+        """Test recent commits fetching with API error."""
+        mock_repo_response = {
+            "default_branch": "main",
+            "owner": {"login": "testowner"},
+            "name": "testrepo",
+            "full_name": "testowner/testrepo",
+            "url": "https://api.github.com/repos/testowner/testrepo",
+            "html_url": "https://github.com/testowner/testrepo",
+            "clone_url": "https://github.com/testowner/testrepo.git",
+        }
+
+        respx.get("https://api.github.com/repos/testowner/testrepo").mock(
+            return_value=httpx.Response(200, json=mock_repo_response)
+        )
+        respx.get("https://api.github.com/repos/testowner/testrepo/commits").mock(
+            return_value=httpx.Response(500, json={"message": "Internal Server Error"})
+        )
+
+        async with client:
+            with pytest.raises(GitHubAPIError) as exc_info:
+                await client.get_recent_commits("testowner", "testrepo", count=5)
+
+            assert exc_info.value.status_code == 500
+
+
 class TestRecentCommit:
     """Test cases for RecentCommit model."""
 
