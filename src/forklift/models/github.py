@@ -353,3 +353,38 @@ class Commit(BaseModel):
 
         # Skip documentation-only changes for significance
         return not (self.get_commit_type() == "docs" and self.total_changes < 20)
+
+
+class RecentCommit(BaseModel):
+    """Represents a recent commit with minimal information for display."""
+
+    short_sha: str = Field(..., min_length=7, max_length=7, description="Short commit SHA (7 characters)")
+    message: str = Field(..., min_length=1, description="Commit message (truncated if needed)")
+
+    @field_validator("short_sha")
+    @classmethod
+    def validate_short_sha(cls, v: str) -> str:
+        """Validate short SHA format."""
+        if not re.match(r"^[a-f0-9]{7}$", v):
+            raise ValueError("Invalid short SHA format - must be 7 character hex string")
+        return v
+
+    @classmethod
+    def from_github_api(cls, data: dict[str, Any], max_message_length: int = 50) -> "RecentCommit":
+        """Create RecentCommit from GitHub API response."""
+        commit_data = data.get("commit", data)
+        full_sha = data["sha"]
+        short_sha = full_sha[:7]
+        
+        message = commit_data["message"]
+        # Truncate message if needed
+        if len(message) > max_message_length:
+            message = message[:max_message_length - 3] + "..."
+        
+        # Remove newlines and extra whitespace
+        message = " ".join(message.split())
+        
+        return cls(
+            short_sha=short_sha,
+            message=message
+        )

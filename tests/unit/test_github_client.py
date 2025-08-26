@@ -13,7 +13,7 @@ from forklift.github import (
     GitHubNotFoundError,
     GitHubRateLimitError,
 )
-from forklift.models.github import Commit, Repository, User
+from forklift.models.github import Commit, RecentCommit, Repository, User
 
 
 class TestGitHubClient:
@@ -461,6 +461,133 @@ class TestGitHubClientRepositoryOperations:
             assert result["behind_by"] == 0
             assert result["status"] == "ahead"
 
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_default_branch(self, client, mock_commit_data, mock_repository_data):
+        """Test getting recent commits from default branch."""
+        # Mock repository info to get default branch
+        respx.get("https://api.github.com/repos/testowner/test-repo").mock(
+            return_value=httpx.Response(200, json=mock_repository_data)
+        )
+        
+        # Mock commits endpoint
+        respx.get("https://api.github.com/repos/testowner/test-repo/commits").mock(
+            return_value=httpx.Response(200, json=[mock_commit_data, mock_commit_data])
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "test-repo", count=2)
+
+            assert len(commits) == 2
+            assert isinstance(commits[0], RecentCommit)
+            assert commits[0].short_sha == "aaaaaaa"  # First 7 chars of "a" * 40
+            assert commits[0].message == "Test commit"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_specific_branch(self, client, mock_commit_data):
+        """Test getting recent commits from specific branch."""
+        respx.get("https://api.github.com/repos/testowner/test-repo/commits").mock(
+            return_value=httpx.Response(200, json=[mock_commit_data])
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "test-repo", branch="feature", count=1)
+
+            assert len(commits) == 1
+            assert isinstance(commits[0], RecentCommit)
+            assert commits[0].short_sha == "aaaaaaa"
+            assert commits[0].message == "Test commit"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_empty_repository(self, client, mock_repository_data):
+        """Test getting recent commits from empty repository."""
+        # Mock repository info
+        respx.get("https://api.github.com/repos/testowner/test-repo").mock(
+            return_value=httpx.Response(200, json=mock_repository_data)
+        )
+        
+        # Mock empty commits response
+        respx.get("https://api.github.com/repos/testowner/test-repo/commits").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "test-repo")
+
+            assert len(commits) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_recent_commits_invalid_count(self, client):
+        """Test get_recent_commits with invalid count values."""
+        async with client:
+            # Test count too low
+            with pytest.raises(ValueError, match="Count must be between 1 and 10"):
+                await client.get_recent_commits("testowner", "test-repo", count=0)
+            
+            # Test count too high
+            with pytest.raises(ValueError, match="Count must be between 1 and 10"):
+                await client.get_recent_commits("testowner", "test-repo", count=11)
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_api_error(self, client, mock_repository_data):
+        """Test get_recent_commits with API error."""
+        # Mock repository info
+        respx.get("https://api.github.com/repos/testowner/test-repo").mock(
+            return_value=httpx.Response(200, json=mock_repository_data)
+        )
+        
+        # Mock API error
+        respx.get("https://api.github.com/repos/testowner/test-repo/commits").mock(
+            return_value=httpx.Response(404, json={"message": "Not Found"})
+        )
+
+        async with client:
+            with pytest.raises(GitHubAPIError):
+                await client.get_recent_commits("testowner", "test-repo")
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_with_long_message(self, client, mock_repository_data):
+        """Test getting recent commits with long commit message."""
+        long_message_commit = {
+            "sha": "a" * 40,
+            "commit": {
+                "message": "This is a very long commit message that should be truncated because it exceeds the maximum length limit",
+                "author": {
+                    "name": "Test User",
+                    "email": "test@example.com",
+                    "date": "2023-01-01T00:00:00Z",
+                },
+                "committer": {
+                    "name": "Test User",
+                    "email": "test@example.com",
+                    "date": "2023-01-01T00:00:00Z",
+                },
+            },
+        }
+        
+        # Mock repository info
+        respx.get("https://api.github.com/repos/testowner/test-repo").mock(
+            return_value=httpx.Response(200, json=mock_repository_data)
+        )
+        
+        # Mock commits endpoint
+        respx.get("https://api.github.com/repos/testowner/test-repo/commits").mock(
+            return_value=httpx.Response(200, json=[long_message_commit])
+        )
+
+        async with client:
+            commits = await client.get_recent_commits("testowner", "test-repo", count=1)
+
+            assert len(commits) == 1
+            assert isinstance(commits[0], RecentCommit)
+            assert commits[0].short_sha == "aaaaaaa"
+            assert len(commits[0].message) <= 50
+            assert commits[0].message.endswith("...")
+
 
 class TestGitHubClientUserOperations:
     """Test user-related operations."""
@@ -644,3 +771,69 @@ class TestGitHubClientUtilityOperations:
             assert len(result) == 1
             assert isinstance(result[0], dict)
             assert result[0]["login"] == "contributor1"
+
+
+class TestRecentCommit:
+    """Test cases for RecentCommit model."""
+
+    def test_recent_commit_creation(self):
+        """Test RecentCommit creation with valid data."""
+        commit = RecentCommit(
+            short_sha="abcdef1",
+            message="Test commit message"
+        )
+        
+        assert commit.short_sha == "abcdef1"
+        assert commit.message == "Test commit message"
+
+    def test_recent_commit_invalid_short_sha(self):
+        """Test RecentCommit creation with invalid short SHA."""
+        with pytest.raises(ValueError, match="Invalid short SHA format"):
+            RecentCommit(
+                short_sha="invalid",
+                message="Test commit message"
+            )
+
+    def test_recent_commit_from_github_api(self):
+        """Test creating RecentCommit from GitHub API data."""
+        api_data = {
+            "sha": "abcdef1234567890abcdef1234567890abcdef12",
+            "commit": {
+                "message": "Test commit message"
+            }
+        }
+        
+        commit = RecentCommit.from_github_api(api_data)
+        
+        assert commit.short_sha == "abcdef1"
+        assert commit.message == "Test commit message"
+
+    def test_recent_commit_from_github_api_long_message(self):
+        """Test creating RecentCommit from GitHub API data with long message."""
+        api_data = {
+            "sha": "abcdef1234567890abcdef1234567890abcdef12",
+            "commit": {
+                "message": "This is a very long commit message that should be truncated because it exceeds the maximum length limit"
+            }
+        }
+        
+        commit = RecentCommit.from_github_api(api_data, max_message_length=50)
+        
+        assert commit.short_sha == "abcdef1"
+        assert len(commit.message) == 50
+        assert commit.message.endswith("...")
+
+    def test_recent_commit_from_github_api_multiline_message(self):
+        """Test creating RecentCommit from GitHub API data with multiline message."""
+        api_data = {
+            "sha": "abcdef1234567890abcdef1234567890abcdef12",
+            "commit": {
+                "message": "First line\n\nSecond line\nThird line"
+            }
+        }
+        
+        commit = RecentCommit.from_github_api(api_data, max_message_length=100)
+        
+        assert commit.short_sha == "abcdef1"
+        assert "\n" not in commit.message
+        assert commit.message == "First line Second line Third line"

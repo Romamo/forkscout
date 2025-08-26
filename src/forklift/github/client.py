@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 
 from forklift.config import GitHubConfig
-from forklift.models.github import Commit, Fork, Repository, User
+from forklift.models.github import Commit, Fork, RecentCommit, Repository, User
 
 from .rate_limiter import CircuitBreaker, RateLimitHandler
 
@@ -612,6 +612,63 @@ class GitHubClient:
             page += 1
 
         return all_commits
+
+    async def get_recent_commits(
+        self, owner: str, repo: str, branch: str | None = None, count: int = 5
+    ) -> list[RecentCommit]:
+        """Get recent commits from a repository's default branch or specified branch.
+        
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            branch: Branch name (defaults to repository's default branch)
+            count: Number of recent commits to fetch (1-10)
+            
+        Returns:
+            List of RecentCommit objects with short SHA and truncated message
+            
+        Raises:
+            GitHubAPIError: If API request fails
+            ValueError: If count is not between 1 and 10
+        """
+        if not (1 <= count <= 10):
+            raise ValueError("Count must be between 1 and 10")
+            
+        logger.debug(f"Fetching {count} recent commits from {owner}/{repo} branch {branch or 'default'}")
+        
+        try:
+            # If no branch specified, get repository info to find default branch
+            if branch is None:
+                repo_info = await self.get_repository(owner, repo)
+                branch = repo_info.default_branch
+            
+            # Fetch recent commits
+            params = {"sha": branch, "per_page": min(count, 100)}
+            data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
+            
+            if not data:
+                logger.warning(f"No commits found for {owner}/{repo} branch {branch}")
+                return []
+            
+            # Convert to RecentCommit objects
+            recent_commits = []
+            for commit_data in data[:count]:
+                try:
+                    recent_commit = RecentCommit.from_github_api(commit_data)
+                    recent_commits.append(recent_commit)
+                except Exception as e:
+                    logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
+                    continue
+            
+            logger.debug(f"Successfully fetched {len(recent_commits)} recent commits from {owner}/{repo}")
+            return recent_commits
+            
+        except GitHubAPIError:
+            # Re-raise GitHub API errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to fetch recent commits from {owner}/{repo}: {e}")
+            raise GitHubAPIError(f"Failed to fetch recent commits: {e}")
 
     async def get_branch_comparison(
         self, owner: str, repo: str, base: str, head: str

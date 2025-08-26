@@ -1102,7 +1102,7 @@
   - _Requirements: 22.10, 22.8, 22.11_
 
 - [-] 21. Implement --show-commits feature for show-forks command
-- [-] 21.1 Add --show-commits CLI option and parameter handling
+- [x] 21.1 Add --show-commits CLI option and parameter handling
   - Add --show-commits=N option to show-forks command with integer validation
   - Update CLI argument parsing to handle the new parameter
   - Set default value to 0 (no commits shown) when option not specified
@@ -1111,7 +1111,7 @@
   - Write unit tests for CLI parameter parsing and validation
   - _Requirements: 23.1, 23.4_
 
-- [ ] 21.2 Implement recent commits fetching functionality
+- [x] 21.2 Implement recent commits fetching functionality
   - Create get_recent_commits method in GitHubClient to fetch last N commits from fork's default branch
   - Add commit data models for storing short SHA and commit message
   - Implement commit message truncation logic (50 characters with "..." indicator)
