@@ -322,7 +322,29 @@ https://github.com/xgboosted/pandas-ta-classic
 2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, topics, watchers_count, archived, and disabled status
 3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
 4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since last push, and activity ratios
-4.1. WHEN identifying forks with no commits ahead THEN the system SHALL use created_at >= pushed_at comparison
+5. WHEN identifying forks with no commits ahead THEN the system SHALL use created_at >= pushed_at comparison to detect forks that have never been modified after creation
+6. WHEN displaying fork qualification data THEN the system SHALL present comprehensive metrics in organized tables with clear column headers and proper data formatting
+7. WHEN processing large numbers of forks THEN the system SHALL handle pagination efficiently and provide progress indicators for data collection operations
+8. WHEN fork data collection encounters errors THEN the system SHALL log issues and continue processing remaining forks without failing the entire operation
+9. WHEN users need to understand fork characteristics THEN the system SHALL provide summary statistics including total forks, active forks, archived forks, and forks by primary language
+10. WHEN collecting fork data THEN the system SHALL respect GitHub API rate limits and implement appropriate backoff strategies during paginated requests
+
+### Requirement 21
+
+**User Story:** As a repository maintainer, I want to automatically ignore forks with no commits ahead when using the --detail flag, so that I can focus detailed analysis only on forks that have actual changes without wasting time on unchanged forks.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-commits <fork-url> --detail` THEN the system SHALL check if the fork has no commits ahead using already downloaded fork qualification data
+2. WHEN using --detail flag on a fork with no commits ahead THEN the system SHALL display a clear message stating "Fork has no commits ahead of upstream - skipping detailed analysis" and exit gracefully
+3. WHEN determining if a fork has commits ahead THEN the system SHALL use the created_at >= pushed_at comparison from previously collected fork data without making additional API calls
+4. WHEN --detail flag is used on forks with commits ahead THEN the system SHALL proceed with normal detailed analysis including AI summaries, commit messages, and diffs
+5. WHEN fork qualification data is not available THEN the system SHALL fall back to making a GitHub API call to determine commits ahead status before proceeding
+6. WHEN --detail flag is combined with other filtering options THEN the system SHALL apply the no-commits-ahead check first before applying other filters like --limit, --since, --until
+7. WHEN using --detail on multiple forks in batch operations THEN the system SHALL skip forks with no commits ahead and continue processing forks that have changes
+8. WHEN a fork is skipped due to no commits ahead THEN the system SHALL log the decision with fork name and reason for transparency
+9. WHEN --detail flag encounters forks with ambiguous commit status THEN the system SHALL err on the side of inclusion and proceed with detailed analysis
+10. WHEN users want to override the no-commits-ahead filtering THEN the system SHALL provide a --force flag to analyze all forks regardless of commit statusn
 
 ### Requirement 21
 

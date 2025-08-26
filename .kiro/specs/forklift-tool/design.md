@@ -99,6 +99,68 @@ The fork data collection system is designed to dramatically reduce GitHub API us
 - **Graceful Degradation**: Handle missing or incomplete fork data without failing the entire collection process
 - **Performance Optimization**: Process large numbers of forks efficiently with minimal memory usage
 
+## Smart Fork Filtering System Design Philosophy
+
+The smart fork filtering system is designed to automatically skip forks with no commits ahead when using detailed analysis commands, leveraging already collected fork qualification data to avoid unnecessary expensive operations like AI summaries and diff generation.
+
+### Smart Fork Filtering Design Principles
+
+- **Efficiency Through Intelligence**: Use previously collected fork data to make smart filtering decisions without additional API calls
+- **User Time Optimization**: Automatically skip forks that have no changes to analyze, focusing user attention on meaningful content
+- **Transparent Decision Making**: Clearly communicate when and why forks are being skipped from detailed analysis
+- **Override Capability**: Provide --force flag for users who want to analyze all forks regardless of commit status
+- **Graceful Fallback**: When fork status cannot be determined from cached data, fall back to API calls or err on the side of inclusion
+- **Consistent Logic**: Use the same created_at >= pushed_at comparison logic across all fork filtering operations
+
+### Smart Fork Filtering Architecture
+
+The smart fork filtering system integrates with existing components to provide intelligent pre-filtering:
+
+```mermaid
+graph TD
+    A[show-commits --detail] --> B[ForkCommitStatusChecker]
+    B --> C{Fork Qualification Data Available?}
+    C -->|Yes| D[Check created_at >= pushed_at]
+    C -->|No| E[Fallback to GitHub API]
+    D --> F{Has Commits Ahead?}
+    E --> F
+    F -->|No| G[Display Skip Message & Exit]
+    F -->|Yes| H[Proceed with Detailed Analysis]
+    F -->|Unknown| H
+    
+    I[--force flag] --> J[Override Filter]
+    J --> H
+    
+    K[Fork Qualification Data] --> B
+    L[Configuration] --> B
+    M[Logging System] --> G
+    M --> H
+```
+
+#### Component Integration
+
+1. **ForkCommitStatusChecker**: New component that determines fork commit status using qualification data
+2. **Enhanced show-commits Command**: Updated to check fork status before expensive operations
+3. **Fork Qualification Data Integration**: Leverages existing fork data collection to avoid redundant API calls
+4. **Configuration System**: Allows users to enable/disable automatic filtering
+5. **Logging and Statistics**: Tracks filtering decisions for transparency and performance monitoring
+
+#### Data Flow
+
+1. User runs `forklift show-commits <fork-url> --detail`
+2. System checks if fork qualification data is available
+3. If available, uses created_at >= pushed_at comparison to determine commit status
+4. If fork has no commits ahead, displays clear message and exits gracefully
+5. If fork has commits ahead or status is unclear, proceeds with detailed analysis
+6. --force flag bypasses all filtering and forces detailed analysis
+
+#### Error Handling Strategy
+
+- **Missing Qualification Data**: Fall back to GitHub API call to determine status
+- **API Failures**: Err on the side of inclusion and proceed with analysis
+- **Ambiguous Status**: Proceed with analysis rather than skip potentially valuable forks
+- **Configuration Errors**: Use safe defaults that favor inclusion over exclusion
+
 ### Fork Data Collection Workflow
 
 1. **Paginated Discovery**: Fetch all forks using paginated `/repos/{owner}/{repo}/forks` endpoint with maximum per_page=100
@@ -229,6 +291,79 @@ The detailed commit view (`--detail` flag) is designed to provide comprehensive 
 5. **Handle Errors**: Log failures and continue with remaining commits
 6. **Display Results**: Format AI summaries with clear visual distinction from standard explanations
 7. **Track Usage**: Monitor API usage and costs for transparency
+
+## Components and Interfaces
+
+### Smart Fork Filtering Components
+
+#### ForkCommitStatusChecker
+
+```python
+class ForkCommitStatusChecker:
+    """Determines if forks have commits ahead using qualification data."""
+    
+    def __init__(self, github_client: GitHubClient, config: ForkFilteringConfig):
+        self.github_client = github_client
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+    
+    async def has_commits_ahead(self, fork_url: str) -> Optional[bool]:
+        """
+        Determine if fork has commits ahead of upstream.
+        
+        Returns:
+            True: Fork has commits ahead
+            False: Fork has no commits ahead
+            None: Status cannot be determined
+        """
+        pass
+    
+    async def check_using_qualification_data(self, fork_url: str) -> Optional[bool]:
+        """Check commit status using cached qualification data."""
+        pass
+    
+    async def check_using_github_api(self, fork_url: str) -> Optional[bool]:
+        """Fallback to GitHub API when qualification data unavailable."""
+        pass
+```
+
+#### Enhanced show-commits Command
+
+```python
+@cli.command("show-commits")
+@click.argument("fork_url")
+@click.option("--detail", is_flag=True, help="Show detailed commit analysis with AI summaries")
+@click.option("--force", is_flag=True, help="Force analysis even for forks with no commits ahead")
+async def show_commits(fork_url: str, detail: bool, force: bool):
+    """Show commits for a specific fork with optional detailed analysis."""
+    
+    if detail and not force:
+        # Check if fork has commits ahead before expensive operations
+        status_checker = ForkCommitStatusChecker(github_client, config.fork_filtering)
+        has_commits = await status_checker.has_commits_ahead(fork_url)
+        
+        if has_commits is False:
+            click.echo(f"Fork has no commits ahead of upstream - skipping detailed analysis")
+            click.echo(f"Use --force flag to analyze anyway")
+            return
+    
+    # Proceed with normal detailed analysis
+    await perform_detailed_commit_analysis(fork_url, detail)
+```
+
+#### ForkFilteringConfig
+
+```python
+class ForkFilteringConfig(BaseModel):
+    """Configuration for smart fork filtering behavior."""
+    
+    enabled: bool = True
+    log_filtering_decisions: bool = True
+    fallback_to_api: bool = True
+    prefer_inclusion_on_uncertainty: bool = True
+    cache_status_results: bool = True
+    status_cache_ttl_hours: int = 24
+```
 
 ## Components and Interfaces
 

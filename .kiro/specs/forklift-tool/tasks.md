@@ -949,7 +949,7 @@
   - _Requirements: 21.1, 21.2, 21.3, 21.4, 21.5, 21.6_
 
 - [ ] 19. Implement show-forks --detail functionality with commits ahead API calls
-- [-] 19.1 Add --detail flag to show-forks CLI command
+- [x] 19.1 Add --detail flag to show-forks CLI command
   - Add --detail click option to show-forks command in src/forklift/cli.py
   - Update _show_forks_summary function to accept and pass detail parameter
   - Modify command help text to document --detail flag functionality
@@ -988,3 +988,52 @@
   - Test error handling when commits ahead cannot be fetched
   - Write performance tests for additional API calls impact
   - _Requirements: 21.1, 21.4, 21.6, 21.8, 21.9, 21.11, 21.12_
+
+- [ ] 20. Implement smart fork filtering for --detail flag using qualification data
+- [-] 20.1 Create fork commit status detection system
+  - Implement ForkCommitStatusChecker class to determine if forks have commits ahead using qualification data
+  - Add has_commits_ahead method using created_at >= pushed_at comparison logic
+  - Create fallback mechanism to GitHub API when qualification data is unavailable
+  - Add logging and statistics tracking for fork filtering decisions
+  - Write unit tests for commit status detection with various fork scenarios
+  - _Requirements: 21.1, 21.2, 21.3, 21.5_
+
+- [ ] 20.2 Enhance show-commits command with smart fork filtering
+  - Add pre-analysis check in show-commits command to detect forks with no commits ahead
+  - Implement graceful exit with clear messaging when fork has no commits ahead
+  - Add --force flag to override no-commits-ahead filtering when needed
+  - Update command help text to document the automatic filtering behavior
+  - Write unit tests for show-commits command with fork filtering logic
+  - _Requirements: 21.1, 21.2, 21.4, 21.10_
+
+- [ ] 20.3 Integrate fork filtering with existing --detail functionality
+  - Update detailed commit analysis workflow to check fork status before expensive operations
+  - Ensure fork filtering is applied before AI summary generation and diff retrieval
+  - Add fork filtering support to batch operations and multiple fork processing
+  - Implement proper error handling when fork status cannot be determined
+  - Write integration tests for --detail flag with fork filtering enabled
+  - _Requirements: 21.4, 21.6, 21.7, 21.9_
+
+- [ ] 20.4 Add fork filtering configuration and logging
+  - Create ForkFilteringConfig model with settings for filtering behavior
+  - Add configuration options for enabling/disabling automatic fork filtering
+  - Implement detailed logging for fork filtering decisions with fork names and reasons
+  - Add statistics collection for filtered vs analyzed forks
+  - Write unit tests for fork filtering configuration and logging
+  - _Requirements: 21.8, 21.9_
+
+- [ ] 20.5 Implement fork qualification data integration
+  - Update show-commits command to use existing fork qualification data when available
+  - Add qualification data lookup methods to avoid redundant API calls
+  - Implement data freshness checks to ensure qualification data is current
+  - Add fallback logic for missing or stale qualification data
+  - Write unit tests for qualification data integration and fallback scenarios
+  - _Requirements: 21.3, 21.5, 21.9_
+
+- [ ] 20.6 Add comprehensive testing for smart fork filtering
+  - Write integration tests for fork filtering with real GitHub repositories
+  - Create tests for --detail flag with various fork commit status scenarios
+  - Add performance tests to verify filtering reduces unnecessary API calls
+  - Implement error handling tests for edge cases and API failures
+  - Write end-to-end tests for complete fork filtering workflow
+  - _Requirements: 21.1, 21.2, 21.4, 21.6, 21.7, 21.10_
