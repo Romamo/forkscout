@@ -5,9 +5,17 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
 from forklift.analysis.fork_discovery import ForkDiscoveryError, ForkDiscoveryService
 from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
+from forklift.github.fork_list_processor import ForkListProcessor
 from forklift.models.analysis import ForkMetrics
+from forklift.models.fork_qualification import (
+    CollectedForkData,
+    ForkQualificationMetrics,
+    QualificationStats,
+    QualifiedForksResult,
+)
 from forklift.models.github import Commit, Fork, Repository, User
 
 
@@ -23,6 +31,7 @@ def mock_github_client():
     client.get_fork_comparison = AsyncMock()
     client.get_user = AsyncMock()
     client.get_repository_contributors = AsyncMock()
+    client.get = AsyncMock()  # Add the get method for ForkListProcessor
 
     return client
 
@@ -107,6 +116,80 @@ def sample_commit():
 
 
 @pytest.fixture
+def mock_data_collection_engine():
+    """Create a mock fork data collection engine."""
+    engine = Mock(spec=ForkDataCollectionEngine)
+    engine.collect_fork_data_from_list = Mock()
+    engine.exclude_no_commits_ahead = Mock()
+    engine.create_qualification_result = Mock()
+    return engine
+
+
+@pytest.fixture
+def mock_fork_list_processor():
+    """Create a mock fork list processor."""
+    processor = Mock(spec=ForkListProcessor)
+    processor.get_all_forks_list_data = AsyncMock()
+    return processor
+
+
+@pytest.fixture
+def sample_collected_fork_data():
+    """Create sample collected fork data."""
+    metrics = ForkQualificationMetrics(
+        id=456,
+        owner="fork-owner",
+        name="test-repo",
+        full_name="fork-owner/test-repo",
+        html_url="https://github.com/fork-owner/test-repo",
+        clone_url="https://github.com/fork-owner/test-repo.git",
+        default_branch="main",
+        stargazers_count=5,
+        forks_count=1,
+        size=100,
+        language="Python",
+        topics=["test"],
+        open_issues_count=2,
+        watchers_count=5,
+        archived=False,
+        disabled=False,
+        created_at=datetime.utcnow() - timedelta(days=30),
+        updated_at=datetime.utcnow() - timedelta(days=5),
+        pushed_at=datetime.utcnow() - timedelta(days=5),
+        days_since_creation=30,
+        days_since_last_update=5,
+        days_since_last_push=5,
+        activity_ratio=0.8,
+        commits_ahead_status="Has commits",
+        can_skip_analysis=False,
+    )
+    return CollectedForkData(metrics=metrics)
+
+
+@pytest.fixture
+def sample_qualified_forks_result(sample_collected_fork_data):
+    """Create sample qualified forks result."""
+    stats = QualificationStats(
+        total_forks_discovered=2,
+        forks_with_no_commits=1,
+        forks_with_commits=1,
+        archived_forks=0,
+        disabled_forks=0,
+        api_calls_made=10,
+        api_calls_saved=3,
+        processing_time_seconds=1.5,
+    )
+    
+    return QualifiedForksResult(
+        repository_owner="test-owner",
+        repository_name="test-repo",
+        repository_url="https://github.com/test-owner/test-repo",
+        collected_forks=[sample_collected_fork_data],
+        stats=stats,
+    )
+
+
+@pytest.fixture
 def fork_discovery_service(mock_github_client):
     """Create a fork discovery service with mocked client."""
     return ForkDiscoveryService(
@@ -115,6 +198,22 @@ def fork_discovery_service(mock_github_client):
         min_commits_ahead=1,
         max_forks_to_analyze=100,
     )
+
+
+@pytest.fixture
+def fork_discovery_service_with_mocks(mock_github_client, mock_data_collection_engine):
+    """Create a fork discovery service with mocked dependencies."""
+    service = ForkDiscoveryService(
+        github_client=mock_github_client,
+        data_collection_engine=mock_data_collection_engine,
+        min_activity_days=365,
+        min_commits_ahead=1,
+        max_forks_to_analyze=100,
+    )
+    # Mock the fork list processor
+    service.fork_list_processor = Mock(spec=ForkListProcessor)
+    service.fork_list_processor.get_all_forks_list_data = AsyncMock()
+    return service
 
 
 class TestForkDiscoveryService:
@@ -144,11 +243,37 @@ class TestForkDiscoveryService:
         sample_user,
     ):
         """Test successful fork discovery."""
-        # Setup mocks
+        # Setup mocks for new data collection method
         mock_github_client.get_repository.return_value = sample_repository
-        mock_github_client.get_all_repository_forks.return_value = [
-            sample_fork_repository
-        ]
+        
+        # Mock the get method for ForkListProcessor
+        fork_data = {
+            "id": sample_fork_repository.id,
+            "name": sample_fork_repository.name,
+            "full_name": sample_fork_repository.full_name,
+            "owner": {"login": sample_fork_repository.owner},
+            "html_url": sample_fork_repository.html_url,
+            "stargazers_count": sample_fork_repository.stars,
+            "forks_count": sample_fork_repository.forks_count,
+            "watchers_count": sample_fork_repository.stars,
+            "size": sample_fork_repository.size or 100,
+            "language": sample_fork_repository.language,
+            "topics": sample_fork_repository.topics or [],
+            "open_issues_count": 0,
+            "created_at": sample_fork_repository.created_at.isoformat() + "Z",
+            "updated_at": sample_fork_repository.updated_at.isoformat() + "Z",
+            "pushed_at": sample_fork_repository.pushed_at.isoformat() + "Z",
+            "archived": False,
+            "disabled": False,
+            "fork": True,
+            "license": None,
+            "description": None,
+            "homepage": None,
+            "default_branch": "main",
+        }
+        mock_github_client.get.return_value = [fork_data]
+        
+        # Setup mocks for fork analysis
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
             "behind_by": 2,
@@ -172,10 +297,7 @@ class TestForkDiscoveryService:
 
         # Verify API calls
         mock_github_client.get_repository.assert_called_once_with(
-            "test-owner", "test-repo"
-        )
-        mock_github_client.get_all_repository_forks.assert_called_once_with(
-            "test-owner", "test-repo", max_forks=100
+            "test-owner", "test-repo", disable_cache=False
         )
 
     @pytest.mark.asyncio
@@ -530,11 +652,37 @@ class TestForkDiscoveryService:
         sample_user,
     ):
         """Test the integrated discover and filter operation."""
-        # Setup mocks
+        # Setup mocks for new data collection method
         mock_github_client.get_repository.return_value = sample_repository
-        mock_github_client.get_all_repository_forks.return_value = [
-            sample_fork_repository
-        ]
+        
+        # Mock the get method for ForkListProcessor
+        fork_data = {
+            "id": sample_fork_repository.id,
+            "name": sample_fork_repository.name,
+            "full_name": sample_fork_repository.full_name,
+            "owner": {"login": sample_fork_repository.owner},
+            "html_url": sample_fork_repository.html_url,
+            "stargazers_count": sample_fork_repository.stars,
+            "forks_count": sample_fork_repository.forks_count,
+            "watchers_count": sample_fork_repository.stars,
+            "size": sample_fork_repository.size or 100,
+            "language": sample_fork_repository.language,
+            "topics": sample_fork_repository.topics or [],
+            "open_issues_count": 0,
+            "created_at": sample_fork_repository.created_at.isoformat() + "Z",
+            "updated_at": sample_fork_repository.updated_at.isoformat() + "Z",
+            "pushed_at": sample_fork_repository.pushed_at.isoformat() + "Z",
+            "archived": False,
+            "disabled": False,
+            "fork": True,
+            "license": None,
+            "description": None,
+            "homepage": None,
+            "default_branch": "main",
+        }
+        mock_github_client.get.return_value = [fork_data]
+        
+        # Setup mocks for fork analysis
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
             "behind_by": 2,
@@ -726,11 +874,11 @@ class TestForkFilteringLogic:
         # Check logs
         log_messages = [record.message for record in caplog.records]
         assert any(
-            "Pre-filtering: 1 forks skipped, 1 forks proceeding to full analysis" in msg
+            "Automatic filtering: 1 forks skipped, 1 forks proceeding to analysis" in msg
             for msg in log_messages
         )
         assert any(
-            "Full analysis: Found 1 active forks from 1 analyzed" in msg
+            "Analysis completed: Found 1 active forks from 1 analyzed" in msg
             for msg in log_messages
         )
 
@@ -799,6 +947,373 @@ class TestForkFilteringLogic:
         # Assertions - old fork with no stars should still be included if it has commits ahead
         assert len(result) == 1
         assert result[0] == old_fork
+
+
+class TestForkDiscoveryDataCollectionIntegration:
+    """Test the integration with fork data collection engine."""
+
+    def test_init_with_data_collection_engine(self, mock_github_client, mock_data_collection_engine):
+        """Test service initialization with data collection engine."""
+        service = ForkDiscoveryService(
+            github_client=mock_github_client,
+            data_collection_engine=mock_data_collection_engine,
+        )
+
+        assert service.github_client == mock_github_client
+        assert service.data_collection_engine == mock_data_collection_engine
+        assert isinstance(service.fork_list_processor, ForkListProcessor)
+
+    def test_init_without_data_collection_engine(self, mock_github_client):
+        """Test service initialization without data collection engine creates default."""
+        service = ForkDiscoveryService(github_client=mock_github_client)
+
+        assert service.github_client == mock_github_client
+        assert isinstance(service.data_collection_engine, ForkDataCollectionEngine)
+        assert isinstance(service.fork_list_processor, ForkListProcessor)
+
+    @pytest.mark.asyncio
+    async def test_discover_and_collect_fork_data_success(
+        self,
+        fork_discovery_service_with_mocks,
+        mock_data_collection_engine,
+        sample_collected_fork_data,
+        sample_qualified_forks_result,
+    ):
+        """Test successful fork data collection."""
+        # Setup mocks
+        fork_discovery_service_with_mocks.fork_list_processor.get_all_forks_list_data.return_value = [
+            {"full_name": "fork-owner/test-repo", "id": 456}
+        ]
+        mock_data_collection_engine.collect_fork_data_from_list.return_value = [
+            sample_collected_fork_data
+        ]
+        mock_data_collection_engine.create_qualification_result.return_value = (
+            sample_qualified_forks_result
+        )
+
+        # Test
+        result = await fork_discovery_service_with_mocks.discover_and_collect_fork_data(
+            "https://github.com/test-owner/test-repo"
+        )
+
+        # Assertions
+        assert isinstance(result, QualifiedForksResult)
+        assert result.repository_owner == "test-owner"
+        assert result.repository_name == "test-repo"
+        assert len(result.collected_forks) == 1
+
+        # Verify method calls
+        fork_discovery_service_with_mocks.fork_list_processor.get_all_forks_list_data.assert_called_once_with(
+            "test-owner", "test-repo"
+        )
+        mock_data_collection_engine.collect_fork_data_from_list.assert_called_once()
+        mock_data_collection_engine.create_qualification_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_discover_and_collect_fork_data_with_disable_cache(
+        self,
+        fork_discovery_service_with_mocks,
+        mock_data_collection_engine,
+        sample_collected_fork_data,
+        sample_qualified_forks_result,
+    ):
+        """Test fork data collection with cache disabled."""
+        # Setup mocks
+        fork_discovery_service_with_mocks.fork_list_processor.get_all_forks_list_data.return_value = [
+            {"full_name": "fork-owner/test-repo", "id": 456}
+        ]
+        mock_data_collection_engine.collect_fork_data_from_list.return_value = [
+            sample_collected_fork_data
+        ]
+        mock_data_collection_engine.create_qualification_result.return_value = (
+            sample_qualified_forks_result
+        )
+
+        # Test
+        result = await fork_discovery_service_with_mocks.discover_and_collect_fork_data(
+            "https://github.com/test-owner/test-repo", disable_cache=True
+        )
+
+        # Assertions
+        assert isinstance(result, QualifiedForksResult)
+
+        # Verify method was called (disable_cache not supported by ForkListProcessor)
+        fork_discovery_service_with_mocks.fork_list_processor.get_all_forks_list_data.assert_called_once_with(
+            "test-owner", "test-repo"
+        )
+
+    @pytest.mark.asyncio
+    async def test_discover_and_collect_fork_data_error_handling(
+        self, fork_discovery_service_with_mocks
+    ):
+        """Test error handling in fork data collection."""
+        # Setup mock to raise error
+        fork_discovery_service_with_mocks.fork_list_processor.get_all_forks_list_data.side_effect = (
+            Exception("API Error")
+        )
+
+        # Test
+        with pytest.raises(ForkDiscoveryError, match="Failed to collect fork data"):
+            await fork_discovery_service_with_mocks.discover_and_collect_fork_data(
+                "https://github.com/test-owner/test-repo"
+            )
+
+    def test_create_repository_from_collected_data(
+        self, fork_discovery_service, sample_collected_fork_data
+    ):
+        """Test creating Repository object from collected fork data."""
+        result = fork_discovery_service._create_repository_from_collected_data(
+            sample_collected_fork_data
+        )
+
+        assert isinstance(result, Repository)
+        assert result.id == sample_collected_fork_data.metrics.id
+        assert result.owner == sample_collected_fork_data.metrics.owner
+        assert result.name == sample_collected_fork_data.metrics.name
+        assert result.full_name == sample_collected_fork_data.metrics.full_name
+        assert result.html_url == sample_collected_fork_data.metrics.html_url
+        assert result.clone_url == f"https://github.com/{sample_collected_fork_data.metrics.full_name}.git"
+        assert result.stars == sample_collected_fork_data.metrics.stargazers_count
+        assert result.forks_count == sample_collected_fork_data.metrics.forks_count
+        assert result.is_fork is True
+        assert result.created_at == sample_collected_fork_data.metrics.created_at
+        assert result.updated_at == sample_collected_fork_data.metrics.updated_at
+        assert result.pushed_at == sample_collected_fork_data.metrics.pushed_at
+
+    @pytest.mark.asyncio
+    async def test_discover_forks_with_data_collection_integration(
+        self,
+        fork_discovery_service_with_mocks,
+        mock_github_client,
+        mock_data_collection_engine,
+        sample_repository,
+        sample_collected_fork_data,
+        sample_qualified_forks_result,
+        sample_user,
+    ):
+        """Test discover_forks method with data collection integration."""
+        # Setup mocks
+        mock_github_client.get_repository.return_value = sample_repository
+        
+        # Mock the discover_and_collect_fork_data method
+        fork_discovery_service_with_mocks.discover_and_collect_fork_data = AsyncMock(
+            return_value=sample_qualified_forks_result
+        )
+        
+        mock_data_collection_engine.exclude_no_commits_ahead.return_value = [
+            sample_collected_fork_data
+        ]
+        
+        mock_github_client.get_commits_ahead_behind.return_value = {
+            "ahead_by": 5,
+            "behind_by": 2,
+            "total_commits": 7,
+        }
+        mock_github_client.get_user.return_value = sample_user
+
+        # Test
+        result = await fork_discovery_service_with_mocks.discover_forks(
+            "https://github.com/test-owner/test-repo"
+        )
+
+        # Assertions
+        assert len(result) == 1
+        fork = result[0]
+        assert isinstance(fork, Fork)
+        assert fork.commits_ahead == 5
+        assert fork.commits_behind == 2
+
+        # Verify integration calls
+        fork_discovery_service_with_mocks.discover_and_collect_fork_data.assert_called_once_with(
+            "https://github.com/test-owner/test-repo", disable_cache=False
+        )
+        mock_data_collection_engine.exclude_no_commits_ahead.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_discover_forks_automatic_filtering_statistics(
+        self,
+        fork_discovery_service_with_mocks,
+        mock_github_client,
+        mock_data_collection_engine,
+        sample_repository,
+        sample_collected_fork_data,
+        sample_user,
+        caplog,
+    ):
+        """Test that automatic filtering statistics are logged correctly."""
+        import logging
+
+        caplog.set_level(logging.INFO)
+
+        # Create qualified result with statistics
+        stats = QualificationStats(
+            total_forks_discovered=10,
+            forks_with_no_commits=7,
+            forks_with_commits=3,
+            archived_forks=0,
+            disabled_forks=0,
+            api_calls_made=10,
+            api_calls_saved=21,  # 7 forks * 3 calls each
+            processing_time_seconds=1.5,
+        )
+        
+        qualified_result = QualifiedForksResult(
+            repository_owner="test-owner",
+            repository_name="test-repo",
+            repository_url="https://github.com/test-owner/test-repo",
+            collected_forks=[sample_collected_fork_data] * 3,  # 3 forks needing analysis
+            stats=stats,
+        )
+
+        # Setup mocks
+        mock_github_client.get_repository.return_value = sample_repository
+        fork_discovery_service_with_mocks.discover_and_collect_fork_data = AsyncMock(
+            return_value=qualified_result
+        )
+        mock_data_collection_engine.exclude_no_commits_ahead.return_value = [
+            sample_collected_fork_data
+        ]
+        mock_github_client.get_commits_ahead_behind.return_value = {
+            "ahead_by": 5,
+            "behind_by": 2,
+            "total_commits": 7,
+        }
+        mock_github_client.get_user.return_value = sample_user
+
+        # Test
+        await fork_discovery_service_with_mocks.discover_forks(
+            "https://github.com/test-owner/test-repo"
+        )
+
+        # Check logs for statistics
+        log_messages = [record.message for record in caplog.records]
+        assert any("7 forks skipped" in msg for msg in log_messages)
+        assert any("API calls saved by automatic filtering: 21" in msg for msg in log_messages)
+
+    @pytest.mark.asyncio
+    async def test_discover_and_filter_forks_with_disable_cache(
+        self,
+        fork_discovery_service_with_mocks,
+        mock_github_client,
+        mock_data_collection_engine,
+        sample_repository,
+        sample_collected_fork_data,
+        sample_qualified_forks_result,
+        sample_user,
+    ):
+        """Test discover_and_filter_forks with disable_cache parameter."""
+        # Setup mocks
+        mock_github_client.get_repository.return_value = sample_repository
+        fork_discovery_service_with_mocks.discover_and_collect_fork_data = AsyncMock(
+            return_value=sample_qualified_forks_result
+        )
+        mock_data_collection_engine.exclude_no_commits_ahead.return_value = [
+            sample_collected_fork_data
+        ]
+        mock_github_client.get_commits_ahead_behind.return_value = {
+            "ahead_by": 5,
+            "behind_by": 2,
+            "total_commits": 7,
+        }
+        mock_github_client.get_user.return_value = sample_user
+
+        # Test
+        result = await fork_discovery_service_with_mocks.discover_and_filter_forks(
+            "https://github.com/test-owner/test-repo", disable_cache=True
+        )
+
+        # Assertions
+        assert len(result) == 1
+        assert isinstance(result[0], Fork)
+
+        # Verify disable_cache was passed through
+        fork_discovery_service_with_mocks.discover_and_collect_fork_data.assert_called_once_with(
+            "https://github.com/test-owner/test-repo", disable_cache=True
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_unique_commits_with_disable_cache(
+        self,
+        fork_discovery_service,
+        mock_github_client,
+        sample_fork,
+        sample_repository,
+    ):
+        """Test get_unique_commits with disable_cache parameter."""
+        # Setup mock comparison data
+        comparison_data = {
+            "commits": [
+                {
+                    "sha": "a" * 40,
+                    "commit": {
+                        "message": "feat: add new feature",
+                        "author": {"date": datetime.utcnow().isoformat() + "Z"},
+                        "committer": {"date": datetime.utcnow().isoformat() + "Z"},
+                    },
+                    "author": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
+                    "committer": {
+                        "login": "author",
+                        "html_url": "https://github.com/author",
+                    },
+                    "stats": {"additions": 50, "deletions": 10},
+                    "files": [{"filename": "src/main.py"}],
+                    "parents": [{"sha": "b" * 40}],
+                }
+            ]
+        }
+
+        mock_github_client.get_fork_comparison.return_value = comparison_data
+
+        # Test
+        result = await fork_discovery_service.get_unique_commits(
+            sample_fork, sample_repository, disable_cache=True
+        )
+
+        # Assertions
+        assert len(result) == 1
+        assert isinstance(result[0], Commit)
+
+        # Verify disable_cache was passed through
+        mock_github_client.get_fork_comparison.assert_called_once_with(
+            sample_fork.repository.owner,
+            sample_fork.repository.name,
+            sample_repository.owner,
+            sample_repository.name,
+            disable_cache=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_fork_metrics_with_disable_cache(
+        self,
+        fork_discovery_service,
+        mock_github_client,
+        sample_fork,
+        sample_user,
+    ):
+        """Test get_fork_metrics with disable_cache parameter."""
+        # Setup mock contributors
+        contributors = [sample_user, sample_user]  # 2 contributors
+        mock_github_client.get_repository_contributors.return_value = contributors
+
+        # Test
+        result = await fork_discovery_service.get_fork_metrics(
+            sample_fork, disable_cache=True
+        )
+
+        # Assertions
+        assert isinstance(result, ForkMetrics)
+        assert result.contributors == 2
+
+        # Verify disable_cache was passed through
+        mock_github_client.get_repository_contributors.assert_called_once_with(
+            sample_fork.repository.owner,
+            sample_fork.repository.name,
+            per_page=100,
+            disable_cache=True,
+        )
 
 
 class TestForkDiscoveryOptimization:

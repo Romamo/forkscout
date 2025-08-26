@@ -544,7 +544,7 @@
   - Write unit tests for fork list processing and comprehensive data extraction
   - _Requirements: 20.1, 20.2, 20.9_
 
-- [-] 17.3 Create ForkDataCollectionEngine for data collection and commits-ahead detection
+- [x] 17.3 Create ForkDataCollectionEngine for data collection and commits-ahead detection
   - Implement ForkDataCollectionEngine class with collect_fork_data_from_list method
   - Extract and organize all qualification metrics without scoring or filtering
   - Add determine_commits_ahead_status method using created_at >= pushed_at comparison logic
@@ -553,7 +553,7 @@
   - Write unit tests for data collection, commits-ahead detection, and organization logic
   - _Requirements: 20.2, 20.3, 20.4.1, 20.4.2, 20.4.3, 20.6, 20.7_
 
-- [ ] 17.4 Enhance ForkDiscoveryService with data collection and automatic filtering
+- [-] 17.4 Enhance ForkDiscoveryService with data collection and automatic filtering
   - Add ForkDataCollectionEngine to ForkDiscoveryService constructor
   - Implement discover_and_collect_fork_data method that gathers comprehensive fork information
   - Add automatic exclusion of forks with no commits ahead (created_at >= pushed_at) from expensive analysis
