@@ -553,7 +553,7 @@
   - Write unit tests for data collection, commits-ahead detection, and organization logic
   - _Requirements: 20.2, 20.3, 20.4.1, 20.4.2, 20.4.3, 20.6, 20.7_
 
-- [-] 17.4 Enhance ForkDiscoveryService with data collection and automatic filtering
+- [x] 17.4 Enhance ForkDiscoveryService with data collection and automatic filtering
   - Add ForkDataCollectionEngine to ForkDiscoveryService constructor
   - Implement discover_and_collect_fork_data method that gathers comprehensive fork information
   - Add automatic exclusion of forks with no commits ahead (created_at >= pushed_at) from expensive analysis
@@ -571,7 +571,7 @@
   - Write integration tests for fork data display CLI commands including commits-ahead detection
   - _Requirements: 20.4.1, 20.4.2, 20.4.3, 20.9, 20.10, 20.13_
 
-- [ ] 17.6 Let users choose forks for analysis based on displayed data
+- [-] 17.6 Let users choose forks for analysis based on displayed data
   - Update CLI to display comprehensive fork data and let users decide which forks to analyze
   - Remove automatic filtering and scoring - present all data for user decision
   - Add optional basic filters (exclude archived/disabled) but no quality scoring
