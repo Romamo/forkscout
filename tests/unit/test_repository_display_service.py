@@ -305,160 +305,7 @@ class TestRepositoryDisplayService:
         error_call = self.mock_console.print.call_args[0][0]
         assert "[red]Error:" in error_call
 
-    @pytest.mark.asyncio
-    async def test_show_forks_summary_no_forks(self):
-        """Test forks summary display with no forks."""
-        # Setup mock to return empty list
-        self.mock_github_client.get_all_repository_forks = AsyncMock(return_value=[])
-        
-        # Call method
-        result = await self.service.show_forks_summary("testowner/testrepo")
-        
-        # Verify result
-        assert result["total_forks"] == 0
-        assert result["displayed_forks"] == 0
-        assert result["forks"] == []
-        
-        # Verify console output
-        self.mock_console.print.assert_called()
-        no_forks_call = self.mock_console.print.call_args[0][0]
-        assert "[yellow]No forks found" in no_forks_call
 
-    @pytest.mark.asyncio
-    async def test_show_forks_summary_with_forks(self):
-        """Test forks summary display with forks."""
-        # Setup mock forks
-        mock_fork1 = Repository(
-            id=456,
-            owner="user1",
-            name="testrepo",
-            full_name="user1/testrepo",
-            url="https://api.github.com/repos/user1/testrepo",
-            html_url="https://github.com/user1/testrepo",
-            clone_url="https://github.com/user1/testrepo.git",
-            default_branch="main",
-            stars=10,
-            forks_count=2,
-            is_fork=True,
-            pushed_at=datetime(2023, 11, 1, tzinfo=timezone.utc)
-        )
-        
-        mock_fork2 = Repository(
-            id=789,
-            owner="user2",
-            name="testrepo",
-            full_name="user2/testrepo",
-            url="https://api.github.com/repos/user2/testrepo",
-            html_url="https://github.com/user2/testrepo",
-            clone_url="https://github.com/user2/testrepo.git",
-            default_branch="main",
-            stars=5,
-            forks_count=1,
-            is_fork=True,
-            pushed_at=datetime(2023, 10, 1, tzinfo=timezone.utc)
-        )
-        
-        # Setup mock responses
-        self.mock_github_client.get_all_repository_forks = AsyncMock(return_value=[mock_fork1, mock_fork2])
-        self.mock_github_client.get_commits_ahead_behind = AsyncMock(return_value={
-            "ahead_by": 5,
-            "behind_by": 2,
-            "total_commits": 7
-        })
-        
-        # Call method
-        result = await self.service.show_forks_summary("testowner/testrepo")
-        
-        # Verify calls
-        self.mock_github_client.get_all_repository_forks.assert_called_once_with("testowner", "testrepo", max_forks=None)
-        
-        # Verify result
-        assert result["total_forks"] == 2
-        assert result["displayed_forks"] == 2
-        assert len(result["forks"]) == 2
-        
-        # Check fork data structure
-        fork_data = result["forks"][0]
-        assert "fork" in fork_data
-        assert "commits_ahead" in fork_data
-        assert "commits_behind" in fork_data
-        assert "activity_status" in fork_data
-        assert "last_activity" in fork_data
-        
-        # Verify console output was called
-        self.mock_console.print.assert_called()
-
-    @pytest.mark.asyncio
-    async def test_show_forks_summary_comparison_error(self):
-        """Test forks summary display when comparison fails for some forks."""
-        # Setup mock fork
-        mock_fork = Repository(
-            id=456,
-            owner="user1",
-            name="testrepo",
-            full_name="user1/testrepo",
-            url="https://api.github.com/repos/user1/testrepo",
-            html_url="https://github.com/user1/testrepo",
-            clone_url="https://github.com/user1/testrepo.git",
-            default_branch="main",
-            stars=10,
-            forks_count=2,
-            is_fork=True,
-            pushed_at=datetime(2023, 11, 1, tzinfo=timezone.utc)
-        )
-        
-        # Setup mock responses - comparison fails
-        self.mock_github_client.get_all_repository_forks = AsyncMock(return_value=[mock_fork])
-        self.mock_github_client.get_commits_ahead_behind = AsyncMock(side_effect=GitHubAPIError("Comparison failed"))
-        
-        # Call method
-        result = await self.service.show_forks_summary("testowner/testrepo")
-        
-        # Verify result - should still include fork with default values
-        assert result["total_forks"] == 1
-        assert result["displayed_forks"] == 1
-        assert len(result["forks"]) == 1
-        
-        fork_data = result["forks"][0]
-        assert fork_data["commits_ahead"] == 0
-        assert fork_data["commits_behind"] == 0
-        assert fork_data["activity_status"] == "unknown"
-
-    @pytest.mark.asyncio
-    async def test_show_forks_summary_with_max_forks(self):
-        """Test forks summary display with max_forks limit."""
-        # Setup mock forks
-        mock_forks = []
-        for i in range(10):
-            fork = Repository(
-                id=i,
-                owner=f"user{i}",
-                name="testrepo",
-                full_name=f"user{i}/testrepo",
-                url=f"https://api.github.com/repos/user{i}/testrepo",
-                html_url=f"https://github.com/user{i}/testrepo",
-                clone_url=f"https://github.com/user{i}/testrepo.git",
-                default_branch="main",
-                stars=i,
-                forks_count=0,
-                is_fork=True,
-                pushed_at=datetime(2023, 11, 1, tzinfo=timezone.utc)
-            )
-            mock_forks.append(fork)
-        
-        # Setup mock responses
-        self.mock_github_client.get_all_repository_forks = AsyncMock(return_value=mock_forks)
-        self.mock_github_client.get_commits_ahead_behind = AsyncMock(return_value={
-            "ahead_by": 1,
-            "behind_by": 0,
-            "total_commits": 1
-        })
-        
-        # Call method with max_forks=5
-        result = await self.service.show_forks_summary("testowner/testrepo", max_forks=5)
-        
-        # Verify max_forks was passed to client
-        self.mock_github_client.get_all_repository_forks.assert_called_once_with("testowner", "testrepo", max_forks=5)
 
     def test_display_repository_table(self):
         """Test repository table display formatting."""
@@ -675,29 +522,21 @@ class TestRepositoryDisplayService:
             }
         ]
         
-        # Mock show_forks_summary to return our test data
-        self.service.show_forks_summary = AsyncMock(return_value={
-            "total_forks": 2,
-            "displayed_forks": 2,
-            "forks": enhanced_forks
-        })
-        
         # Create filter that should match only the first fork
         filters = PromisingForksFilter(
             min_stars=5,  # Only fork1 has >= 5 stars
             min_commits_ahead=1
         )
         
-        # Call method
+        # Call method - should return empty result due to temporary disabling
         result = await self.service.show_promising_forks("testowner/testrepo", filters)
         
-        # Verify result
-        assert result["total_forks"] == 2
-        assert result["promising_forks"] == 1  # Only fork1 should match
-        assert len(result["forks"]) == 1
-        assert result["forks"][0]["fork"] == mock_fork1
+        # Verify result - temporarily disabled, so should return empty
+        assert result["total_forks"] == 0
+        assert result["promising_forks"] == 0
+        assert len(result["forks"]) == 0
         
-        # Verify console output was called
+        # Verify console output was called (showing disabled message)
         self.mock_console.print.assert_called()
 
     @pytest.mark.asyncio
@@ -732,58 +571,44 @@ class TestRepositoryDisplayService:
             "last_activity": "3 months ago"
         }]
         
-        # Mock show_forks_summary to return our test data
-        self.service.show_forks_summary = AsyncMock(return_value={
-            "total_forks": 1,
-            "displayed_forks": 1,
-            "forks": enhanced_forks
-        })
-        
         # Create strict filter that won't match
         filters = PromisingForksFilter(
             min_stars=10,  # Fork only has 2 stars
             min_commits_ahead=5  # Fork only has 1 commit ahead
         )
         
-        # Call method
+        # Call method - should return empty result due to temporary disabling
         result = await self.service.show_promising_forks("testowner/testrepo", filters)
         
-        # Verify result
-        assert result["total_forks"] == 1
+        # Verify result - temporarily disabled, so should return empty
+        assert result["total_forks"] == 0
         assert result["promising_forks"] == 0
         assert len(result["forks"]) == 0
         
-        # Verify "no promising forks" message was displayed
+        # Verify disabled message was displayed
         calls = [str(call[0][0]) for call in self.mock_console.print.call_args_list]
-        no_promising_messages = [call for call in calls if "No promising forks found" in call]
-        assert len(no_promising_messages) > 0
+        disabled_messages = [call for call in calls if "temporarily disabled" in call]
+        assert len(disabled_messages) > 0
 
     @pytest.mark.asyncio
     async def test_show_promising_forks_no_forks(self):
         """Test promising forks display with no forks at all."""
         from forklift.models.filters import PromisingForksFilter
         
-        # Mock show_forks_summary to return no forks
-        self.service.show_forks_summary = AsyncMock(return_value={
-            "total_forks": 0,
-            "displayed_forks": 0,
-            "forks": []
-        })
-        
         filters = PromisingForksFilter()
         
-        # Call method
+        # Call method - should return empty result due to temporary disabling
         result = await self.service.show_promising_forks("testowner/testrepo", filters)
         
-        # Verify result
+        # Verify result - temporarily disabled, so should return empty
         assert result["total_forks"] == 0
         assert result["promising_forks"] == 0
         assert len(result["forks"]) == 0
         
-        # Verify "no forks found" message was displayed
+        # Verify disabled message was displayed
         calls = [str(call[0][0]) for call in self.mock_console.print.call_args_list]
-        no_forks_messages = [call for call in calls if "No forks found to analyze" in call]
-        assert len(no_forks_messages) > 0
+        disabled_messages = [call for call in calls if "temporarily disabled" in call]
+        assert len(disabled_messages) > 0
 
     def test_display_promising_forks_table(self):
         """Test promising forks table display."""

@@ -368,10 +368,11 @@ class TestShowCommandHelpers:
         mock_github_client_class.return_value = mock_client_instance
         
         mock_display_service = Mock()
-        mock_display_service.show_forks_summary = AsyncMock(return_value={
+        mock_display_service.show_fork_data = AsyncMock(return_value={
             "total_forks": 10,
             "displayed_forks": 10,
-            "forks": []
+            "collected_forks": [],
+            "stats": None
         })
         mock_display_service_class.return_value = mock_display_service
         
@@ -381,7 +382,14 @@ class TestShowCommandHelpers:
         # Verify calls
         mock_github_client_class.assert_called_once_with(config.github)
         mock_display_service_class.assert_called_once()
-        mock_display_service.show_forks_summary.assert_called_once_with("owner/repo", 25)
+        mock_display_service.show_fork_data.assert_called_once_with(
+            "owner/repo",
+            exclude_archived=False,
+            exclude_disabled=False,
+            sort_by="stars",
+            show_all=True,
+            disable_cache=False
+        )
 
     @pytest.mark.asyncio
     @patch('forklift.cli.GitHubClient')
@@ -402,11 +410,11 @@ class TestShowCommandHelpers:
         mock_github_client_class.return_value = mock_client_instance
         
         mock_display_service = Mock()
-        mock_display_service.show_forks_summary = AsyncMock(side_effect=Exception("Forks error"))
+        mock_display_service.show_fork_data = AsyncMock(side_effect=Exception("Forks error"))
         mock_display_service_class.return_value = mock_display_service
         
         # Call function and expect error
-        with pytest.raises(CLIError, match="Failed to display forks summary"):
+        with pytest.raises(CLIError, match="Failed to display forks data"):
             await _show_forks_summary(config, "owner/repo", max_forks=None, verbose=False)
 
 

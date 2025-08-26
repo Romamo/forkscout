@@ -18,7 +18,7 @@ from rich.progress import (
     TaskProgressColumn,
     TextColumn,
 )
-from rich.prompt import Confirm, Prompt, IntPrompt
+from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 
 from forklift.ai.display_formatter import AISummaryDisplayFormatter
@@ -885,9 +885,9 @@ def list_forks(ctx: click.Context, repository_url: str) -> None:
 @click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection")
 @click.pass_context
 def show_fork_data(
-    ctx: click.Context, 
-    repository_url: str, 
-    exclude_archived: bool, 
+    ctx: click.Context,
+    repository_url: str,
+    exclude_archived: bool,
     exclude_disabled: bool,
     sort_by: str,
     show_all: bool,
@@ -1321,10 +1321,10 @@ async def _show_comprehensive_fork_data(
         try:
             # Use RepositoryDisplayService for consistent display
             display_service = RepositoryDisplayService(github_client, console)
-            
+
             if verbose:
                 console.print(f"[blue]Collecting comprehensive fork data for: {repository_url}[/blue]")
-            
+
             # Show comprehensive fork data using the service
             result = await display_service.show_fork_data(
                 repo_url=repository_url,
@@ -1334,19 +1334,19 @@ async def _show_comprehensive_fork_data(
                 show_all=show_all,
                 disable_cache=disable_cache
             )
-            
+
             if verbose:
                 stats = result.get("stats")
                 if stats:
                     console.print(f"\n[green]✓ Data collection completed in {stats.processing_time_seconds:.2f} seconds[/green]")
                     console.print(f"[blue]API Efficiency: {stats.efficiency_percentage:.1f}% calls saved[/blue]")
-            
+
             # Enter interactive mode if requested
             if interactive:
                 qualification_result = result.get("qualification_result")
                 if qualification_result:
                     await _interactive_fork_selection(qualification_result, config, verbose)
-            
+
         except Exception as e:
             logger.error(f"Failed to show comprehensive fork data: {e}")
             raise CLIError(f"Failed to show comprehensive fork data: {e}")
@@ -1358,28 +1358,36 @@ async def _show_forks_summary(
     max_forks: int | None,
     verbose: bool
 ) -> None:
-    """Show forks summary using the display service.
+    """Show forks summary using pagination-only fork data collection.
 
     Args:
         config: Forklift configuration
         repository_url: Repository URL to get forks for
-        max_forks: Maximum number of forks to display
+        max_forks: Maximum number of forks to display (ignored - shows all)
         verbose: Whether to show verbose output
     """
     async with GitHubClient(config.github) as github_client:
         display_service = RepositoryDisplayService(github_client, console)
 
         try:
-            forks_summary = await display_service.show_forks_summary(repository_url, max_forks)
+            # Use show_fork_data which only uses pagination-only requests
+            fork_data_result = await display_service.show_fork_data(
+                repository_url,
+                exclude_archived=False,
+                exclude_disabled=False,
+                sort_by="stars",
+                show_all=True,
+                disable_cache=False
+            )
 
             if verbose:
-                total_forks = forks_summary["total_forks"]
-                displayed_forks = forks_summary["displayed_forks"]
-                console.print(f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks[/green]")
+                total_forks = fork_data_result["total_forks"]
+                displayed_forks = fork_data_result["displayed_forks"]
+                console.print(f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks using pagination-only requests[/green]")
 
         except Exception as e:
-            logger.error(f"Failed to display forks summary: {e}")
-            raise CLIError(f"Failed to display forks summary: {e}")
+            logger.error(f"Failed to display forks data: {e}")
+            raise CLIError(f"Failed to display forks data: {e}")
 
 
 async def _run_analysis(
@@ -2787,32 +2795,31 @@ def _display_comprehensive_fork_data(qualification_result, verbose: bool) -> Non
         qualification_result: QualifiedForksResult containing all fork data
         verbose: Whether to show verbose output
     """
-    from forklift.models.fork_qualification import QualifiedForksResult
-    
+
     # Display summary statistics
     stats = qualification_result.stats
     console.print(f"\n[bold blue]Fork Data Summary for {qualification_result.repository_owner}/{qualification_result.repository_name}[/bold blue]")
     console.print("=" * 80)
-    
+
     summary_table = Table(title="Collection Summary")
     summary_table.add_column("Metric", style="cyan", width=25)
     summary_table.add_column("Count", style="green", justify="right", width=10)
     summary_table.add_column("Percentage", style="yellow", justify="right", width=12)
-    
+
     total = stats.total_forks_discovered
     summary_table.add_row("Total Forks", str(total), "100.0%")
     summary_table.add_row("Need Analysis", str(stats.forks_with_commits), f"{stats.analysis_candidate_percentage:.1f}%")
     summary_table.add_row("Can Skip", str(stats.forks_with_no_commits), f"{stats.skip_rate_percentage:.1f}%")
     summary_table.add_row("Archived", str(stats.archived_forks), f"{(stats.archived_forks/total*100) if total > 0 else 0:.1f}%")
     summary_table.add_row("Disabled", str(stats.disabled_forks), f"{(stats.disabled_forks/total*100) if total > 0 else 0:.1f}%")
-    
+
     console.print(summary_table)
-    
+
     # Display detailed fork data table
     if qualification_result.collected_forks:
-        console.print(f"\n[bold blue]Detailed Fork Information[/bold blue]")
+        console.print("\n[bold blue]Detailed Fork Information[/bold blue]")
         console.print("=" * 80)
-        
+
         fork_table = Table(title=f"All Forks ({len(qualification_result.collected_forks)} total)")
         fork_table.add_column("#", style="dim", width=4)
         fork_table.add_column("Fork Name", style="cyan", min_width=20)
@@ -2823,17 +2830,17 @@ def _display_comprehensive_fork_data(qualification_result, verbose: bool) -> Non
         fork_table.add_column("Commits Status", style="magenta", width=15)
         fork_table.add_column("Activity", style="orange3", width=20)
         fork_table.add_column("Status", style="red", width=10)
-        
+
         # Sort forks by stars and activity
         sorted_forks = sorted(
             qualification_result.collected_forks,
             key=lambda x: (x.metrics.stargazers_count, -x.metrics.days_since_last_push),
             reverse=True
         )
-        
+
         for i, fork_data in enumerate(sorted_forks[:50], 1):  # Show first 50
             metrics = fork_data.metrics
-            
+
             # Style status indicators
             status_parts = []
             if metrics.archived:
@@ -2842,9 +2849,9 @@ def _display_comprehensive_fork_data(qualification_result, verbose: bool) -> Non
                 status_parts.append("[red]Disabled[/red]")
             if not status_parts:
                 status_parts.append("[green]Active[/green]")
-            
+
             status_display = " ".join(status_parts)
-            
+
             fork_table.add_row(
                 str(i),
                 metrics.name,
@@ -2856,13 +2863,13 @@ def _display_comprehensive_fork_data(qualification_result, verbose: bool) -> Non
                 fork_data.activity_summary,
                 status_display
             )
-        
+
         console.print(fork_table)
-        
+
         if len(qualification_result.collected_forks) > 50:
             remaining = len(qualification_result.collected_forks) - 50
             console.print(f"[dim]... and {remaining} more forks (use --interactive to explore all)[/dim]")
-    
+
     # Show efficiency metrics if verbose
     if verbose:
         console.print(f"\n[green]✓ Data collection completed in {stats.processing_time_seconds:.2f} seconds[/green]")
@@ -2877,23 +2884,22 @@ async def _interactive_fork_selection(qualification_result, config: ForkliftConf
         config: Forklift configuration
         verbose: Whether to show verbose output
     """
-    from rich.prompt import Confirm, Prompt, IntPrompt
-    from forklift.analysis.repository_analyzer import RepositoryAnalyzer
-    from forklift.storage.analysis_cache import AnalysisCacheManager
-    
-    console.print(f"\n[bold green]Interactive Fork Selection Mode[/bold green]")
+    from rich.prompt import Confirm
+
+
+    console.print("\n[bold green]Interactive Fork Selection Mode[/bold green]")
     console.print("=" * 60)
-    
+
     # Get forks that need analysis (exclude those with no commits)
     analysis_candidates = qualification_result.forks_needing_analysis
-    
+
     if not analysis_candidates:
         console.print("[yellow]No forks need detailed analysis (all have no commits ahead).[/yellow]")
         return
-    
+
     console.print(f"Found {len(analysis_candidates)} forks that could benefit from detailed analysis.")
     console.print("These forks have commits ahead of the main repository.\n")
-    
+
     while True:
         console.print("[bold]Available Actions:[/bold]")
         console.print("1. View analysis candidates")
@@ -2901,7 +2907,7 @@ async def _interactive_fork_selection(qualification_result, config: ForkliftConf
         console.print("3. View fork details")
         console.print("4. Analyze selected forks")
         console.print("5. Exit interactive mode")
-        
+
         try:
             choice = IntPrompt.ask(
                 "\n[cyan]Choose an action (1-5)[/cyan]",
@@ -2911,35 +2917,35 @@ async def _interactive_fork_selection(qualification_result, config: ForkliftConf
         except KeyboardInterrupt:
             console.print("\n[yellow]Exiting interactive mode...[/yellow]")
             break
-        
+
         if choice == 1:
             # View analysis candidates
             _display_analysis_candidates(analysis_candidates)
-            
+
         elif choice == 2:
             # Select forks for analysis
             selected_forks = _select_forks_for_analysis(analysis_candidates)
             if selected_forks:
                 console.print(f"\n[green]Selected {len(selected_forks)} forks for analysis.[/green]")
-                
+
                 # Ask if user wants to proceed with analysis
                 if Confirm.ask("Proceed with analysis of selected forks?", default=True):
                     await _analyze_selected_forks(selected_forks, config, verbose)
-            
+
         elif choice == 3:
             # View fork details
             _view_fork_details(analysis_candidates)
-            
+
         elif choice == 4:
             # Analyze all candidates
             if Confirm.ask(f"Analyze all {len(analysis_candidates)} candidate forks?", default=False):
                 await _analyze_selected_forks(analysis_candidates, config, verbose)
-            
+
         elif choice == 5:
             # Exit
             console.print("\n[yellow]Exiting interactive mode...[/yellow]")
             break
-        
+
         # Ask if user wants to continue
         if choice != 5:
             console.print()  # Add spacing
@@ -2950,7 +2956,7 @@ async def _interactive_fork_selection(qualification_result, config: ForkliftConf
 def _display_analysis_candidates(candidates) -> None:
     """Display analysis candidate forks in a table."""
     console.print(f"\n[bold blue]Analysis Candidates ({len(candidates)} forks)[/bold blue]")
-    
+
     table = Table(title="Forks with Commits Ahead")
     table.add_column("#", style="dim", width=4)
     table.add_column("Fork Name", style="cyan", min_width=20)
@@ -2959,13 +2965,13 @@ def _display_analysis_candidates(candidates) -> None:
     table.add_column("Language", style="white", width=12)
     table.add_column("Activity", style="green", width=20)
     table.add_column("Description", style="dim", width=30)
-    
+
     for i, fork_data in enumerate(candidates, 1):
         metrics = fork_data.metrics
         description = metrics.description or "No description"
         if len(description) > 27:
             description = description[:27] + "..."
-        
+
         table.add_row(
             str(i),
             metrics.name,
@@ -2975,28 +2981,28 @@ def _display_analysis_candidates(candidates) -> None:
             fork_data.activity_summary,
             description
         )
-    
+
     console.print(table)
 
 
 def _select_forks_for_analysis(candidates) -> list:
     """Allow user to select specific forks for analysis."""
     from rich.prompt import Prompt
-    
+
     console.print(f"\n[cyan]Select forks for analysis (1-{len(candidates)})[/cyan]")
     console.print("Enter fork numbers separated by commas (e.g., '1,3,5') or ranges (e.g., '1-5')")
     console.print("Enter 'all' to select all candidates, or 'none' to cancel")
-    
+
     try:
         selection = Prompt.ask("Selection", default="none")
-        
+
         if selection.lower() == "none":
             return []
         elif selection.lower() == "all":
             return candidates
-        
+
         selected_indices = []
-        
+
         # Parse selection
         for part in selection.split(","):
             part = part.strip()
@@ -3007,15 +3013,15 @@ def _select_forks_for_analysis(candidates) -> list:
             else:
                 # Individual selection
                 selected_indices.append(int(part))
-        
+
         # Convert to fork objects
         selected_forks = []
         for idx in selected_indices:
             if 1 <= idx <= len(candidates):
                 selected_forks.append(candidates[idx - 1])
-        
+
         return selected_forks
-        
+
     except (ValueError, IndexError) as e:
         console.print(f"[red]Invalid selection: {e}[/red]")
         return []
@@ -3023,25 +3029,24 @@ def _select_forks_for_analysis(candidates) -> list:
 
 def _view_fork_details(candidates) -> None:
     """Display detailed information about a specific fork."""
-    from rich.prompt import IntPrompt
-    
+
     try:
         fork_num = IntPrompt.ask(
             f"Enter fork number to view details (1-{len(candidates)})",
             default=1
         )
-        
+
         if 1 <= fork_num <= len(candidates):
             fork_data = candidates[fork_num - 1]
             metrics = fork_data.metrics
-            
+
             # Display detailed fork information
             console.print(f"\n[bold blue]Fork Details: {metrics.full_name}[/bold blue]")
-            
+
             details_table = Table(title=f"Details for {metrics.name}")
             details_table.add_column("Property", style="cyan", width=20)
             details_table.add_column("Value", style="green")
-            
+
             details_table.add_row("Full Name", metrics.full_name)
             details_table.add_row("Owner", metrics.owner)
             details_table.add_row("Description", metrics.description or "No description")
@@ -3063,11 +3068,11 @@ def _view_fork_details(candidates) -> None:
             details_table.add_row("Disabled", "Yes" if metrics.disabled else "No")
             details_table.add_row("Homepage", metrics.homepage or "None")
             details_table.add_row("URL", metrics.html_url)
-            
+
             console.print(details_table)
         else:
             console.print("[red]Invalid fork number![/red]")
-            
+
     except KeyboardInterrupt:
         console.print("\n[yellow]Cancelled[/yellow]")
 
@@ -3075,7 +3080,7 @@ def _view_fork_details(candidates) -> None:
 async def _analyze_selected_forks(selected_forks, config: ForkliftConfig, verbose: bool) -> None:
     """Analyze the selected forks."""
     console.print(f"\n[bold green]Analyzing {len(selected_forks)} selected forks...[/bold green]")
-    
+
     # This is a placeholder for actual fork analysis
     # In a real implementation, this would use the RepositoryAnalyzer
     with Progress(
@@ -3086,19 +3091,19 @@ async def _analyze_selected_forks(selected_forks, config: ForkliftConfig, verbos
         console=console
     ) as progress:
         task = progress.add_task("Analyzing forks...", total=len(selected_forks))
-        
+
         for i, fork_data in enumerate(selected_forks):
             metrics = fork_data.metrics
             progress.update(
-                task, 
-                advance=1, 
+                task,
+                advance=1,
                 description=f"Analyzing {metrics.name} ({i+1}/{len(selected_forks)})"
             )
-            
+
             # Simulate analysis time
             import asyncio
             await asyncio.sleep(0.5)
-    
+
     console.print(f"\n[green]✓ Analysis completed for {len(selected_forks)} forks![/green]")
     console.print("[dim]Note: This is a demonstration. Full analysis integration coming soon.[/dim]")
 

@@ -423,7 +423,6 @@ class RepositoryDisplayService:
     def __init__(self, github_client: GitHubClient, data_collection_engine: ForkDataCollectionEngine, cache_manager: Optional[CacheManager] = None, ai_summary_engine: Optional[AICommitSummaryEngine] = None)
     async def show_repository_details(self, repo_url: str, disable_cache: bool = False) -> RepositoryDetails
     async def list_forks_preview(self, repo_url: str, disable_cache: bool = False) -> ForksPreview
-    async def show_forks_summary(self, repo_url: str, disable_cache: bool = False) -> ForksSummary
     async def show_fork_data(self, repo_url: str, show_all: bool = False, disable_cache: bool = False) -> ForkDataCollectionResult
     async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter, disable_cache: bool = False) -> List[Fork]
     async def show_fork_details(self, fork_url: str, disable_cache: bool = False) -> ForkDetails

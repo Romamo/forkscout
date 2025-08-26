@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -13,7 +13,7 @@ from forklift.models.analysis import ForkPreviewItem, ForksPreview
 from forklift.models.filters import PromisingForksFilter
 from forklift.models.github import Repository
 from forklift.storage.analysis_cache import AnalysisCacheManager
-from forklift.storage.cache_validation import CacheValidator, CacheValidationError
+from forklift.storage.cache_validation import CacheValidationError, CacheValidator
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ class RepositoryDisplayService:
     """Service for displaying repository information in a structured format."""
 
     def __init__(
-        self, 
-        github_client: GitHubClient, 
+        self,
+        github_client: GitHubClient,
         console: Console | None = None,
-        cache_manager: Optional[AnalysisCacheManager] = None
+        cache_manager: AnalysisCacheManager | None = None
     ):
         """Initialize the repository display service.
 
@@ -144,7 +144,7 @@ class RepositoryDisplayService:
                     cached_data = await self.cache_manager.get_repository_metadata(owner, repo_name)
                     if cached_data:
                         logger.info(f"Using cached repository details for {owner}/{repo_name}")
-                        
+
                         # Validate cached data before reconstruction
                         try:
                             CacheValidator.validate_repository_reconstruction(cached_data["repository_data"])
@@ -152,7 +152,7 @@ class RepositoryDisplayService:
                             logger.warning(f"Cache validation failed for {owner}/{repo_name}: {e}")
                             # Fall through to fetch from API
                             cached_data = None
-                        
+
                         if cached_data:
                             # Reconstruct Repository object from cached data
                             repo_data = cached_data["repository_data"]
@@ -181,7 +181,7 @@ class RepositoryDisplayService:
                                 updated_at=datetime.fromisoformat(repo_data["updated_at"]) if repo_data.get("updated_at") else None,
                                 pushed_at=datetime.fromisoformat(repo_data["pushed_at"]) if repo_data.get("pushed_at") else None,
                             )
-                            
+
                             # Reconstruct the full repo_details structure
                             cached_details = {
                                 "repository": repository,
@@ -193,7 +193,7 @@ class RepositoryDisplayService:
                                 "created": cached_data["created"],
                                 "updated": cached_data["updated"]
                             }
-                            
+
                             # Display the cached information
                             self._display_repository_table(cached_details)
                             return cached_details
@@ -257,10 +257,10 @@ class RepositoryDisplayService:
                         "created": self._format_datetime(repository.created_at),
                         "updated": self._format_datetime(repository.updated_at)
                     }
-                    
+
                     await self.cache_manager.cache_repository_metadata(
-                        owner, 
-                        repo_name, 
+                        owner,
+                        repo_name,
                         cacheable_details,
                         ttl_hours=24  # Cache for 24 hours
                     )
@@ -278,93 +278,7 @@ class RepositoryDisplayService:
             self.console.print(f"[red]Error: Failed to fetch repository details: {e}[/red]")
             raise
 
-    async def show_forks_summary(self, repo_url: str, max_forks: int | None = None) -> dict[str, Any]:
-        """Display a summary table of repository forks.
 
-        Args:
-            repo_url: Repository URL in format owner/repo or full GitHub URL
-            max_forks: Maximum number of forks to display (None for all)
-
-        Returns:
-            Dictionary containing forks summary data
-
-        Raises:
-            ValueError: If repository URL format is invalid
-            GitHubAPIError: If forks cannot be fetched
-        """
-        owner, repo_name = self._parse_repository_url(repo_url)
-
-        logger.info(f"Fetching forks for {owner}/{repo_name}")
-
-        try:
-            # Get all forks
-            forks = await self.github_client.get_all_repository_forks(
-                owner, repo_name, max_forks=max_forks
-            )
-
-            if not forks:
-                self.console.print("[yellow]No forks found for this repository.[/yellow]")
-                return {
-                    "total_forks": 0,
-                    "displayed_forks": 0,
-                    "forks": []
-                }
-
-            # Enhance fork data with activity metrics
-            enhanced_forks = []
-            for fork in forks:
-                try:
-                    # Get commits ahead/behind information
-                    comparison = await self.github_client.get_commits_ahead_behind(
-                        fork.owner, fork.name, owner, repo_name
-                    )
-
-                    fork_data = {
-                        "fork": fork,
-                        "commits_ahead": comparison.get("ahead_by", 0),
-                        "commits_behind": comparison.get("behind_by", 0),
-                        "activity_status": self._calculate_activity_status(fork),
-                        "last_activity": self._format_datetime(fork.pushed_at)
-                    }
-                    enhanced_forks.append(fork_data)
-
-                except Exception as e:
-                    logger.warning(f"Failed to get comparison data for fork {fork.full_name}: {e}")
-                    # Add fork with default values
-                    fork_data = {
-                        "fork": fork,
-                        "commits_ahead": 0,
-                        "commits_behind": 0,
-                        "activity_status": "unknown",
-                        "last_activity": self._format_datetime(fork.pushed_at)
-                    }
-                    enhanced_forks.append(fork_data)
-
-            # Sort forks by activity and stars
-            enhanced_forks.sort(
-                key=lambda x: (
-                    x["commits_ahead"],
-                    x["fork"].stars,
-                    x["fork"].pushed_at or datetime.min
-                ),
-                reverse=True
-            )
-
-            # Display the forks table
-            self._display_forks_table(enhanced_forks, max_display=50)
-
-            summary = {
-                "total_forks": len(forks),
-                "displayed_forks": min(len(enhanced_forks), 50),
-                "forks": enhanced_forks
-            }
-
-            return summary
-
-        except Exception as e:
-            logger.error(f"Failed to fetch forks: {e}")
-            self.console.print(f"[red]Error: Failed to fetch forks: {e}[/red]")
-            raise
 
     def _parse_repository_url(self, repo_url: str) -> tuple[str, str]:
         """Parse repository URL to extract owner and repo name.
@@ -720,7 +634,6 @@ class RepositoryDisplayService:
             exclude_archived: Whether archived forks were excluded
             exclude_disabled: Whether disabled forks were excluded
         """
-        from forklift.models.fork_qualification import QualifiedForksResult
 
         # Display summary statistics
         stats = qualification_result.stats
@@ -743,7 +656,7 @@ class RepositoryDisplayService:
 
         # Display detailed fork data table
         if qualification_result.collected_forks:
-            self.console.print(f"\n[bold blue]Detailed Fork Information[/bold blue]")
+            self.console.print("\n[bold blue]Detailed Fork Information[/bold blue]")
             self.console.print("=" * 80)
 
             # Sort forks based on criteria
@@ -866,7 +779,7 @@ class RepositoryDisplayService:
             stats: QualificationStats object
         """
         if exclude_archived or exclude_disabled:
-            self.console.print(f"\n[bold yellow]Applied Filters:[/bold yellow]")
+            self.console.print("\n[bold yellow]Applied Filters:[/bold yellow]")
             filter_table = Table()
             filter_table.add_column("Filter", style="cyan")
             filter_table.add_column("Status", style="green")
@@ -891,7 +804,7 @@ class RepositoryDisplayService:
         analysis_candidates = qualification_result.forks_needing_analysis
         skip_candidates = qualification_result.forks_to_skip
 
-        self.console.print(f"\n[bold green]Fork Insights:[/bold green]")
+        self.console.print("\n[bold green]Fork Insights:[/bold green]")
         insights_table = Table()
         insights_table.add_column("Category", style="cyan", width=25)
         insights_table.add_column("Count", style="green", justify="right", width=8)
@@ -927,7 +840,7 @@ class RepositoryDisplayService:
             languages[lang] = languages.get(lang, 0) + 1
 
         if languages:
-            self.console.print(f"\n[bold blue]Language Distribution:[/bold blue]")
+            self.console.print("\n[bold blue]Language Distribution:[/bold blue]")
             lang_table = Table()
             lang_table.add_column("Language", style="cyan")
             lang_table.add_column("Fork Count", style="green", justify="right")
@@ -966,7 +879,9 @@ class RepositoryDisplayService:
             ValueError: If repository URL format is invalid
             GitHubAPIError: If fork data cannot be fetched
         """
-        from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+        from forklift.analysis.fork_data_collection_engine import (
+            ForkDataCollectionEngine,
+        )
         from forklift.github.fork_list_processor import ForkListProcessor
 
         owner, repo_name = self._parse_repository_url(repo_url)
@@ -1001,7 +916,7 @@ class RepositoryDisplayService:
 
             if exclude_disabled:
                 filtered_forks = [
-                    fork for fork in filtered_forks 
+                    fork for fork in filtered_forks
                     if not fork.metrics.disabled
                 ]
 
@@ -1057,54 +972,14 @@ class RepositoryDisplayService:
         logger.info(f"Finding promising forks for {owner}/{repo_name}")
 
         try:
-            # Get all forks first
-            forks_summary = await self.show_forks_summary(repo_url, max_forks)
-            all_forks = forks_summary["forks"]
-
-            if not all_forks:
-                self.console.print("[yellow]No forks found to analyze.[/yellow]")
-                return {
-                    "total_forks": 0,
-                    "promising_forks": 0,
-                    "forks": []
-                }
-
-            # Filter for promising forks
-            promising_forks = [
-                fork_data for fork_data in all_forks
-                if filters.matches_fork(fork_data)
-            ]
-
-            if not promising_forks:
-                self.console.print("[yellow]No promising forks found matching the criteria.[/yellow]")
-                self._display_filter_criteria(filters)
-                return {
-                    "total_forks": len(all_forks),
-                    "promising_forks": 0,
-                    "forks": []
-                }
-
-            # Sort promising forks by relevance score
-            promising_forks.sort(
-                key=lambda x: (
-                    x["commits_ahead"],
-                    x["fork"].stars,
-                    filters._calculate_activity_score(
-                        x["activity_status"],
-                        x["fork"].pushed_at
-                    )
-                ),
-                reverse=True
-            )
-
-            # Display results
-            self._display_promising_forks_table(promising_forks, filters)
-
+            # TODO: Update this method to use show_fork_data instead of removed show_forks_summary
+            # For now, return empty result to avoid breaking the system
+            # This method needs to be refactored to work with the new pagination-only approach
+            self.console.print("[yellow]show_promising_forks temporarily disabled - needs refactoring for pagination-only approach[/yellow]")
             return {
-                "total_forks": len(all_forks),
-                "promising_forks": len(promising_forks),
-                "forks": promising_forks,
-                "filter_criteria": filters
+                "total_forks": 0,
+                "promising_forks": 0,
+                "forks": []
             }
 
         except Exception as e:
@@ -1220,7 +1095,7 @@ class RepositoryDisplayService:
         for i, fork_item in enumerate(fork_items, 1):
             # Format last push date
             last_push = self._format_datetime(fork_item["last_push_date"])
-            
+
             # Style commits ahead status with colors
             commits_ahead = fork_item["commits_ahead"]
             commits_ahead_styled = self._style_commits_ahead_status(commits_ahead)

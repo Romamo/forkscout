@@ -562,7 +562,7 @@
   - Write unit tests for integrated fork discovery, data collection, and automatic filtering workflow
   - _Requirements: 20.4.2, 20.4.3, 20.9, 20.10, 20.12, 20.13_
 
-- [-] 17.5 Add fork data display CLI commands with commits-ahead status
+- [x] 17.5 Add fork data display CLI commands with commits-ahead status
   - Create show_fork_data method in RepositoryDisplayService to display all collected fork metrics
   - Implement comprehensive fork data display showing stars, forks, size, language, activity dates, topics, commits-ahead status
   - Add clear indication of forks with "No commits ahead" vs "Has commits" based on date comparison
@@ -586,6 +586,15 @@
   - Implement contract tests for GitHub API fork list response handling
   - Write end-to-end tests for complete data collection workflow with real data
   - _Requirements: 20.1, 20.2, 20.12, 20.13_
+
+- [-] 19. Fix show-forks command to use pagination-only requests (CRITICAL)
+- [-] 19.1 Update CLI to use pagination-only fork data collection
+  - Change _show_forks_summary function in src/forklift/cli.py to call show_fork_data instead of show_forks_summary
+  - Remove the old show_forks_summary method from RepositoryDisplayService that makes expensive API calls
+  - Ensure show-forks command uses only `/repos/{owner}/{repo}/forks?per_page=100&page=N` endpoint
+  - Test that no individual repository API calls or comparison API calls are made
+  - Verify the command displays comprehensive fork data using only paginated forks list data
+  - _Requirements: 20.1, 20.2, 20.10, 20.11_
 
 - [ ] 18. Fix immediate console formatting issues and implement simple, compatible formatting as default
 - [ ] 18.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
