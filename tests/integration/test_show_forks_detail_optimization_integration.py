@@ -1,12 +1,16 @@
 """Integration tests for show-forks --detail optimization with real repository data."""
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import ForkQualificationMetrics, CollectedForkData
+from forklift.models.fork_qualification import (
+    CollectedForkData,
+    ForkQualificationMetrics,
+)
 
 
 class TestShowForksDetailOptimizationIntegration:
@@ -65,7 +69,7 @@ class TestShowForksDetailOptimizationIntegration:
             homepage=f"https://{owner}.github.io/{name}" if stars > 20 else None,
             default_branch="main"
         )
-        
+
         return CollectedForkData(
             metrics=metrics,
             activity_summary=f"Active fork with {stars} stars",
@@ -81,9 +85,9 @@ class TestShowForksDetailOptimizationIntegration:
         # - Most forks have no commits ahead (created and never touched)
         # - Some forks have commits ahead
         # - Few forks are archived/disabled
-        
+
         forks_data = []
-        
+
         # 70% of forks have no commits ahead (realistic pattern)
         for i in range(7):
             fork = self.create_realistic_fork_data(
@@ -93,7 +97,7 @@ class TestShowForksDetailOptimizationIntegration:
                 stars=i
             )
             forks_data.append(fork)
-        
+
         # 20% of forks have commits ahead
         for i in range(7, 9):
             fork = self.create_realistic_fork_data(
@@ -103,7 +107,7 @@ class TestShowForksDetailOptimizationIntegration:
                 stars=i*2
             )
             forks_data.append(fork)
-        
+
         # 10% of forks are archived (should be filtered out)
         archived_fork = self.create_realistic_fork_data(
             "archived_user", "archived_repo",
@@ -119,14 +123,14 @@ class TestShowForksDetailOptimizationIntegration:
             {"full_name": fork.metrics.full_name} for fork in forks_data
         ]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = forks_data
             mock_engine_class.return_value = mock_engine
@@ -165,7 +169,7 @@ class TestShowForksDetailOptimizationIntegration:
         """Test optimization performance with large number of forks."""
         # Simulate a large repository with many forks (like popular open source projects)
         forks_data = []
-        
+
         # Create 100 forks with realistic distribution
         for i in range(100):
             if i < 80:  # 80% have no commits ahead
@@ -176,7 +180,7 @@ class TestShowForksDetailOptimizationIntegration:
                 created_time = base_time - timedelta(days=i)
                 pushed_time = created_time + timedelta(hours=1)  # Has commits
                 has_commits = True
-            
+
             fork = self.create_realistic_fork_data(
                 f"user{i}", f"repo{i}",
                 created_at=created_time,
@@ -189,14 +193,14 @@ class TestShowForksDetailOptimizationIntegration:
             {"full_name": fork.metrics.full_name} for fork in forks_data
         ]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = forks_data
             mock_engine_class.return_value = mock_engine
@@ -211,18 +215,18 @@ class TestShowForksDetailOptimizationIntegration:
             # Measure performance
             import time
             start_time = time.time()
-            
+
             result = await repository_display_service.show_fork_data_detailed(
                 "owner/repo", max_forks=None, disable_cache=False
             )
-            
+
             end_time = time.time()
             execution_time = end_time - start_time
 
             # Verify significant API call reduction
             assert result["api_calls_saved"] == 80  # 80 forks skipped
             assert result["api_calls_made"] == 20   # 20 forks analyzed
-            
+
             # Verify high efficiency
             efficiency = (result["api_calls_saved"] / 100) * 100
             assert efficiency == 80.0  # Exactly 80% efficiency
@@ -240,7 +244,7 @@ class TestShowForksDetailOptimizationIntegration:
         """Test edge cases in timestamp comparison logic."""
         # Test various timestamp edge cases
         edge_case_forks = []
-        
+
         # Case 1: Exact same timestamps (microsecond precision)
         exact_same_time = base_time
         fork1 = self.create_realistic_fork_data(
@@ -250,7 +254,7 @@ class TestShowForksDetailOptimizationIntegration:
             stars=5
         )
         edge_case_forks.append(fork1)
-        
+
         # Case 2: Very small time difference (1 second)
         fork2 = self.create_realistic_fork_data(
             "user2", "repo2",
@@ -259,7 +263,7 @@ class TestShowForksDetailOptimizationIntegration:
             stars=3
         )
         edge_case_forks.append(fork2)
-        
+
         # Case 3: Created after pushed (unusual but possible)
         fork3 = self.create_realistic_fork_data(
             "user3", "repo3",
@@ -273,14 +277,14 @@ class TestShowForksDetailOptimizationIntegration:
             {"full_name": fork.metrics.full_name} for fork in edge_case_forks
         ]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = edge_case_forks
             mock_engine_class.return_value = mock_engine
@@ -301,7 +305,7 @@ class TestShowForksDetailOptimizationIntegration:
             # fork1: created_at == pushed_at -> should be skipped
             # fork2: pushed_at > created_at -> should need API call
             # fork3: created_at > pushed_at -> should be skipped
-            
+
             assert result["api_calls_saved"] == 2  # fork1 and fork3 skipped
             assert result["api_calls_made"] == 1   # only fork2 needs API call
             assert result["forks_skipped"] == 2
@@ -316,7 +320,7 @@ class TestShowForksDetailOptimizationIntegration:
     ):
         """Test comprehensive scenario with all possible fork states."""
         forks_data = []
-        
+
         # Active fork with commits ahead
         active_with_commits = self.create_realistic_fork_data(
             "active", "with_commits",
@@ -325,7 +329,7 @@ class TestShowForksDetailOptimizationIntegration:
             stars=15
         )
         forks_data.append(active_with_commits)
-        
+
         # Active fork with no commits ahead
         active_no_commits = self.create_realistic_fork_data(
             "active", "no_commits",
@@ -334,7 +338,7 @@ class TestShowForksDetailOptimizationIntegration:
             stars=8
         )
         forks_data.append(active_no_commits)
-        
+
         # Archived fork with commits (should be filtered out)
         archived_with_commits = self.create_realistic_fork_data(
             "archived", "with_commits",
@@ -344,7 +348,7 @@ class TestShowForksDetailOptimizationIntegration:
             archived=True
         )
         forks_data.append(archived_with_commits)
-        
+
         # Disabled fork with no commits (should be filtered out)
         disabled_no_commits = self.create_realistic_fork_data(
             "disabled", "no_commits",
@@ -359,14 +363,14 @@ class TestShowForksDetailOptimizationIntegration:
             {"full_name": fork.metrics.full_name} for fork in forks_data
         ]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = forks_data
             mock_engine_class.return_value = mock_engine
@@ -386,7 +390,7 @@ class TestShowForksDetailOptimizationIntegration:
             # Verify comprehensive filtering and optimization
             # Expected: 2 active forks processed, 2 archived/disabled filtered out
             # Of the 2 active: 1 skipped (no commits), 1 analyzed (has commits)
-            
+
             assert result["total_forks"] == 4  # All forks in input
             assert result["displayed_forks"] == 2  # Only active forks displayed
             assert result["api_calls_saved"] == 1  # 1 active fork skipped
@@ -403,7 +407,7 @@ class TestShowForksDetailOptimizationIntegration:
             # Verify final fork data
             collected_forks = result["collected_forks"]
             assert len(collected_forks) == 2  # Only active forks
-            
+
             # Find forks in results
             active_with_commits_result = next(
                 f for f in collected_forks if f.metrics.owner == "active" and f.metrics.name == "with_commits"
@@ -411,7 +415,7 @@ class TestShowForksDetailOptimizationIntegration:
             active_no_commits_result = next(
                 f for f in collected_forks if f.metrics.owner == "active" and f.metrics.name == "no_commits"
             )
-            
+
             # Verify exact_commits_ahead values
             assert active_with_commits_result.exact_commits_ahead == 4  # From API call
             assert active_no_commits_result.exact_commits_ahead == 0    # Skipped, set to 0

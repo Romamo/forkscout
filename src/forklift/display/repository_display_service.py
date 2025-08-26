@@ -1188,7 +1188,7 @@ class RepositoryDisplayService:
             # Separate forks that can be skipped from those needing API calls
             forks_to_skip = []
             forks_needing_api = []
-            
+
             for fork_data in active_forks:
                 if fork_data.metrics.can_skip_analysis:
                     # Fork has no commits ahead based on created_at >= pushed_at logic
@@ -1201,7 +1201,7 @@ class RepositoryDisplayService:
             # Log API call savings
             skipped_count = len(forks_to_skip)
             api_needed_count = len(forks_needing_api)
-            
+
             if skipped_count > 0:
                 logger.info(f"Skipped {skipped_count} forks with no commits ahead, saved {skipped_count} API calls")
                 self.console.print(f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]")
@@ -1229,7 +1229,7 @@ class RepositoryDisplayService:
                             commits_ahead = await self._get_exact_commits_ahead(
                                 owner, repo_name, fork_data.metrics.owner, fork_data.metrics.name
                             )
-                            
+
                             # Count successful API calls (including those that return "Unknown" due to data issues)
                             api_calls_made += 1
 

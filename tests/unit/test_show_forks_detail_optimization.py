@@ -1,12 +1,16 @@
 """Unit tests for show-forks --detail optimization to skip API calls for forks with no commits ahead."""
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import ForkQualificationMetrics, CollectedForkData
+from forklift.models.fork_qualification import (
+    CollectedForkData,
+    ForkQualificationMetrics,
+)
 
 
 class TestShowForksDetailOptimization:
@@ -64,7 +68,7 @@ class TestShowForksDetailOptimization:
             homepage=None,
             default_branch="main"
         )
-        
+
         return CollectedForkData(
             metrics=metrics,
             activity_summary="Test activity",
@@ -78,19 +82,19 @@ class TestShowForksDetailOptimization:
         """Test that forks with no commits ahead are skipped from API calls."""
         # Create test forks - some with commits ahead, some without
         fork_with_commits = self.create_fork_data(
-            "user1", "repo1", 
+            "user1", "repo1",
             created_at=base_time,
             pushed_at=base_time + timedelta(hours=1),  # pushed_at > created_at
             stars=5
         )
-        
+
         fork_no_commits_1 = self.create_fork_data(
             "user2", "repo2",
             created_at=base_time,
             pushed_at=base_time,  # pushed_at == created_at
             stars=2
         )
-        
+
         fork_no_commits_2 = self.create_fork_data(
             "user3", "repo3",
             created_at=base_time + timedelta(hours=1),
@@ -107,14 +111,14 @@ class TestShowForksDetailOptimization:
 
         collected_forks = [fork_with_commits, fork_no_commits_1, fork_no_commits_2]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = collected_forks
             mock_engine_class.return_value = mock_engine
@@ -144,7 +148,7 @@ class TestShowForksDetailOptimization:
 
             # Verify fork data was set correctly
             collected_forks_result = result["collected_forks"]
-            
+
             # Find each fork in results
             fork_with_commits_result = next(f for f in collected_forks_result if f.metrics.owner == "user1")
             fork_no_commits_1_result = next(f for f in collected_forks_result if f.metrics.owner == "user2")
@@ -167,7 +171,7 @@ class TestShowForksDetailOptimization:
             pushed_at=base_time + timedelta(hours=1),
             stars=5
         )
-        
+
         archived_fork = self.create_fork_data(
             "user2", "repo2",
             created_at=base_time,
@@ -175,7 +179,7 @@ class TestShowForksDetailOptimization:
             stars=3,
             archived=True
         )
-        
+
         disabled_fork = self.create_fork_data(
             "user3", "repo3",
             created_at=base_time,
@@ -192,14 +196,14 @@ class TestShowForksDetailOptimization:
 
         collected_forks = [active_fork, archived_fork, disabled_fork]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = collected_forks
             mock_engine_class.return_value = mock_engine
@@ -237,7 +241,7 @@ class TestShowForksDetailOptimization:
             pushed_at=base_time,  # Same time = no commits
             stars=3
         )
-        
+
         fork_no_commits_2 = self.create_fork_data(
             "user2", "repo2",
             created_at=base_time + timedelta(hours=1),
@@ -252,14 +256,14 @@ class TestShowForksDetailOptimization:
 
         collected_forks = [fork_no_commits_1, fork_no_commits_2]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = collected_forks
             mock_engine_class.return_value = mock_engine
@@ -304,14 +308,14 @@ class TestShowForksDetailOptimization:
         mock_forks_list_data = [{"full_name": "user1/repo1"}]
         collected_forks = [fork_with_commits]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = collected_forks
             mock_engine_class.return_value = mock_engine
@@ -341,7 +345,7 @@ class TestShowForksDetailOptimization:
     ):
         """Test that API savings are properly logged."""
         import logging
-        
+
         # Create mix of forks
         fork_with_commits = self.create_fork_data(
             "user1", "repo1",
@@ -349,7 +353,7 @@ class TestShowForksDetailOptimization:
             pushed_at=base_time + timedelta(hours=1),
             stars=5
         )
-        
+
         fork_no_commits = self.create_fork_data(
             "user2", "repo2",
             created_at=base_time,
@@ -364,14 +368,14 @@ class TestShowForksDetailOptimization:
 
         collected_forks = [fork_with_commits, fork_no_commits]
 
-        with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class, \
-             patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine_class:
-            
+        with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor_class, \
+             patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine_class:
+
             # Setup mocks
             mock_processor = AsyncMock()
             mock_processor.get_all_forks_list_data.return_value = mock_forks_list_data
             mock_processor_class.return_value = mock_processor
-            
+
             mock_engine = MagicMock()
             mock_engine.collect_fork_data_from_list.return_value = collected_forks
             mock_engine_class.return_value = mock_engine
