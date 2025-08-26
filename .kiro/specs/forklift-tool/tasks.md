@@ -549,6 +549,54 @@
 - [ ] 16.2 Integrate Hishel with GitHub client
   - Update GitHubClient to use Hishel-wrapped httpx client for automatic HTTP caching
   - Configure Hishel with SQLite storage backend and appropriate cache settings
+
+- [ ] 17. Rename --max-forks argument to --limit for improved CLI consistency
+- [ ] 17.1 Update CLI argument definitions and validation
+  - Replace --max-forks with --limit in all CLI command definitions
+  - Update click.IntRange validation to use --limit argument name
+  - Modify help text to describe --limit functionality clearly
+  - Write unit tests for new --limit argument validation and help text
+  - _Requirements: 21.1, 21.2, 21.7, 21.8_
+
+- [ ] 17.2 Update all CLI commands with --limit argument
+  - Replace --max-forks with --limit in analyze command
+  - Update show-forks command to use --limit argument
+  - Modify show-promising command to use --limit argument
+  - Update configuration commands to accept --limit for default settings
+  - Write integration tests for all updated CLI commands with --limit argument
+  - _Requirements: 21.3, 21.4, 21.5, 21.6_
+
+- [ ] 17.3 Update error messages and user-facing text
+  - Replace all references to --max-forks with --limit in error messages
+  - Update validation error messages to reference --limit argument
+  - Modify help documentation to use --limit terminology
+  - Update CLI output messages to use consistent --limit naming
+  - Write unit tests for updated error messages and user-facing text
+  - _Requirements: 21.8, 21.9_
+
+- [ ] 17.4 Update documentation and examples
+  - Update README documentation to use --limit instead of --max-forks
+  - Modify CLI help examples to demonstrate --limit usage
+  - Update configuration file examples to use limit terminology
+  - Update SHOW_COMMITS_GUIDE.md and other documentation files
+  - Write integration tests to verify documentation examples work correctly
+  - _Requirements: 21.8, 21.9_
+
+- [ ] 17.5 Update all test files to use --limit
+  - Replace --max-forks with --limit in all unit test files
+  - Update integration test files to use --limit argument
+  - Modify end-to-end test files to use --limit argument
+  - Update performance test files to use --limit argument
+  - Write comprehensive tests for --limit argument functionality
+  - _Requirements: 21.1, 21.2, 21.10_
+
+- [ ] 17.6 Comprehensive validation and cleanup
+  - Search and replace all remaining --max-forks references in codebase
+  - Verify all CLI commands work correctly with --limit argument
+  - Test error handling and validation with new --limit argument
+  - Ensure all help text and documentation is consistent
+  - Write end-to-end tests for complete workflows using --limit
+  - _Requirements: 21.1, 21.2, 21.7, 21.8, 21.9, 21.10_
   - Set default TTL of 30 minutes for GitHub API responses
   - Remove all custom cache integration code from GitHub client
   - Write unit tests for Hishel integration with mocked HTTP responses
@@ -967,7 +1015,7 @@
   - Write unit tests for enhanced sorting logic with various fork combinations
   - _Requirements: 21.1_
 
-- [-] 18.2 Simplify fork data table columns
+- [ ] 18.2 Simplify fork data table columns
   - Remove "#", "Size (KB)", and "Language" columns from Detailed Fork Information table
   - Add "URL" column containing clickable GitHub URLs for each fork repository
   - Update _display_enhanced_fork_data_table method to use simplified column structure
@@ -1136,7 +1184,7 @@
   - Write integration tests for the complete workflow with real GitHub API calls
   - _Requirements: 23.9, 23.10, 23.12_
 
-- [-] 21.5 Add comprehensive error handling and edge cases
+- [x] 21.5 Add comprehensive error handling and edge cases
   - Handle forks with no commits (empty repositories)
   - Handle private forks where commits cannot be accessed
   - Implement graceful degradation when API rate limits are hit
@@ -1145,7 +1193,7 @@
   - Write unit tests for all error conditions and edge cases
   - _Requirements: 23.6, 23.8, 23.9_
 
-- [ ] 21.6 Add comprehensive testing and documentation
+- [x] 21.6 Add comprehensive testing and documentation
   - Write integration tests for --show-commits with various N values
   - Test performance impact of fetching commits for large numbers of forks
   - Add tests for combination with other flags (--max-forks, --exclude-archived, etc.)
@@ -1210,3 +1258,14 @@
   - Implement error handling tests for edge cases and API failures
   - Write end-to-end tests for complete fork filtering workflow
   - _Requirements: 21.1, 21.2, 21.4, 21.6, 21.7, 21.10_
+
+- [-] 20.7 Optimize show-forks --show-commits to skip downloading commits for forks with no commits ahead
+  - Enhance show_fork_data and show_fork_data_detailed methods to check fork commit status before downloading commits
+  - Implement commit status checking using already collected fork qualification data (created_at >= pushed_at comparison)
+  - Add logic to skip commit downloads for forks with no commits ahead and display "No commits ahead" in Recent Commits column
+  - Update progress indicators to show which forks are being skipped vs processed for commit downloads
+  - Add --force-all-commits flag to bypass optimization and download commits for all forks when needed
+  - Implement API call tracking and display summary statistics showing API calls saved and performance improvement
+  - Write unit tests for commit download optimization logic and fork status determination
+  - Add integration tests to verify optimization works correctly with various fork scenarios
+  - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.6, 24.7, 24.8, 24.10, 24.12_

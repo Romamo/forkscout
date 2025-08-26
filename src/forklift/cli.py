@@ -811,8 +811,9 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to display")
 @click.option("--detail", is_flag=True, help="Fetch exact commit counts ahead for each fork using additional API requests")
 @click.option("--show-commits", type=click.IntRange(0, 10), default=0, help="Show last N commits for each fork (0-10, default: 0)")
+@click.option("--force-all-commits", is_flag=True, help="Bypass optimization and download commits for all forks when using --show-commits")
 @click.pass_context
-def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool, show_commits: int) -> None:
+def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool, show_commits: int, force_all_commits: bool) -> None:
     """Display a summary table of repository forks with key metrics.
 
     Use --detail flag to fetch exact commit counts ahead for each fork.
@@ -820,6 +821,9 @@ def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, d
 
     Use --show-commits N to display the last N commits for each fork.
     This adds a "Recent Commits" column showing commit messages (max 10 commits).
+    
+    Use --force-all-commits to bypass optimization and download commits for all forks,
+    even those with no commits ahead (normally skipped to save API calls).
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
@@ -838,7 +842,7 @@ def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, d
             console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Run forks summary display
-        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose, detail, show_commits))
+        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose, detail, show_commits, force_all_commits))
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1389,7 +1393,8 @@ async def _show_forks_summary(
     max_forks: int | None,
     verbose: bool,
     detail: bool = False,
-    show_commits: int = 0
+    show_commits: int = 0,
+    force_all_commits: bool = False
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -1400,6 +1405,7 @@ async def _show_forks_summary(
         verbose: Whether to show verbose output
         detail: Whether to fetch exact commit counts ahead using additional API requests
         show_commits: Number of recent commits to show for each fork (0-10)
+        force_all_commits: If True, bypass optimization and download commits for all forks
     """
     async with GitHubClient(config.github) as github_client:
         display_service = RepositoryDisplayService(github_client, console)
@@ -1411,7 +1417,8 @@ async def _show_forks_summary(
                     repository_url,
                     max_forks=max_forks,
                     disable_cache=False,
-                    show_commits=show_commits
+                    show_commits=show_commits,
+                    force_all_commits=force_all_commits
                 )
 
                 if verbose:
@@ -1429,7 +1436,8 @@ async def _show_forks_summary(
                     sort_by="stars",
                     show_all=True,
                     disable_cache=False,
-                    show_commits=show_commits
+                    show_commits=show_commits,
+                    force_all_commits=force_all_commits
                 )
 
                 if verbose:

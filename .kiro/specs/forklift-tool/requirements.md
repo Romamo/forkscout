@@ -318,12 +318,33 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 
 **User Story:** As a repository maintainer, I want comprehensive fork data collection using GitHub API paginated forks list to see all available fork information with minimal API requests, so that I can make informed decisions about which forks to analyze in detail.
 
+### Requirement 21
+
+**User Story:** As a repository maintainer, I want optimized show-forks --show-commits functionality that skips downloading commits for forks with no commits ahead, so that I can get faster results and use fewer API calls when viewing fork commit information.
+
 #### Acceptance Criteria
 
 1. WHEN discovering forks THEN the system SHALL use only the paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) to collect all available fork data without making individual repository API calls
 2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, topics, watchers_count, archived, and disabled status
 3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
-4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since last push, and activity ratios for comprehensive fork assessment
+4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since
+
+### Requirement 21
+
+**User Story:** As a repository maintainer, I want a more intuitive CLI argument name for limiting the number of forks, so that the interface is clearer and more consistent with standard command-line conventions.
+
+#### Acceptance Criteria
+
+1. WHEN using CLI commands that limit fork processing THEN the system SHALL accept `--limit` as the argument name instead of `--max-forks`
+2. WHEN `--limit` is provided THEN the system SHALL apply the same functionality as the current `--max-forks` argument
+3. WHEN using the analyze command THEN the system SHALL accept `--limit` to specify maximum number of forks to analyze
+4. WHEN using the show-forks command THEN the system SHALL accept `--limit` to specify maximum number of forks to display
+5. WHEN using the show-promising command THEN the system SHALL accept `--limit` to specify maximum number of promising forks to show
+6. WHEN using configuration commands THEN the system SHALL accept `--limit` for setting default fork limits
+7. WHEN `--limit` is used THEN the system SHALL maintain the same validation rules (1-1000 range) as the current `--max-forks` argument
+8. WHEN help documentation is displayed THEN the system SHALL show `--limit` as the argument name with clear description
+9. WHEN error messages reference the argument THEN the system SHALL use `--limit` in all user-facing messages
+10. WHEN the CLI is updated THEN the system SHALL completely replace `--max-forks` with `--limit` without backward compatibility last push, and activity ratios for comprehensive fork assessment
 
 ### Requirement 21
 
@@ -468,3 +489,23 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 10. WHEN --show-commits is combined with other flags THEN the system SHALL work with existing options like --max-forks, --exclude-archived, and sorting
 11. WHEN displaying recent commits THEN the system SHALL adjust table layout to accommodate the new column while maintaining readability
 12. WHEN --show-commits is used THEN the system SHALL provide progress indicators showing commit fetching status for each fork
+13. WHEN using --show-commits THEN the system SHALL skip downloading commits for forks that have no commits ahead of upstream to optimize performance and reduce unnecessary API calls
+
+### Requirement 24
+
+**User Story:** As a repository maintainer, I want optimized show-forks --show-commits functionality that intelligently skips downloading commits for forks with no commits ahead, so that I can get faster results and use fewer API calls when viewing fork commit information.
+
+#### Acceptance Criteria
+
+1. WHEN using `forklift show-forks <repo-url> --show-commits=N` THEN the system SHALL check each fork's commits ahead status before attempting to download commit information
+2. WHEN a fork has no commits ahead (created_at >= pushed_at) THEN the system SHALL skip downloading commits for that fork and display "No commits ahead" in the Recent Commits column
+3. WHEN a fork has commits ahead (pushed_at > created_at) THEN the system SHALL proceed with downloading the requested number of recent commits
+4. WHEN fork commit status is determined from already collected fork data THEN the system SHALL not make additional API calls to check commits ahead status
+5. WHEN fork commit status cannot be determined from existing data THEN the system SHALL make a minimal API call to check status before deciding whether to download commits
+6. WHEN skipping commit downloads THEN the system SHALL log the number of API calls saved and forks skipped for performance transparency
+7. WHEN --show-commits optimization is active THEN the system SHALL provide progress indicators showing which forks are being skipped vs processed
+8. WHEN optimization reduces API calls THEN the system SHALL display summary statistics showing API calls saved and performance improvement
+9. WHEN using --show-commits with --detail flag THEN the system SHALL apply the same optimization logic to avoid redundant commit downloads
+10. WHEN users want to force commit downloads for all forks THEN the system SHALL provide a --force-all-commits flag to bypass the optimization
+11. WHEN the optimization encounters errors determining commit status THEN the system SHALL err on the side of inclusion and download commits rather than skip potentially valuable information
+12. WHEN --show-commits optimization is complete THEN the system SHALL maintain the same table format and user experience while significantly reducing API usage for repositories with many unchanged forks

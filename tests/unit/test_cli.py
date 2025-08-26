@@ -718,7 +718,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 0
+            mock_config, "owner/repo", None, False, False, 0, False
         )
 
     @patch("forklift.cli.load_config")
@@ -734,7 +734,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, True, 0
+            mock_config, "owner/repo", None, False, True, 0, False
         )
 
     @patch("forklift.cli.load_config")
@@ -750,7 +750,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", 50, False, True, 0
+            mock_config, "owner/repo", 50, False, True, 0, False
         )
 
     @patch("forklift.cli.load_config")
@@ -766,7 +766,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, True, True, 0
+            mock_config, "owner/repo", None, True, True, 0, False
         )
 
     def test_show_forks_help_includes_detail_flag(self):
@@ -834,7 +834,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 0
+            mock_config, "owner/repo", None, False, False, 0, False
         )
 
     @patch("forklift.cli.load_config")
@@ -850,7 +850,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 5
+            mock_config, "owner/repo", None, False, False, 5, False
         )
 
     @patch("forklift.cli.load_config")
@@ -866,7 +866,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 10
+            mock_config, "owner/repo", None, False, False, 10, False
         )
 
     @patch("forklift.cli.load_config")
@@ -882,7 +882,23 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", 25, False, True, 3
+            mock_config, "owner/repo", 25, False, True, 3, False
+        )
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_forks_summary")
+    def test_show_forks_with_force_all_commits_flag(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --force-all-commits flag."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--show-commits", "3", "--force-all-commits"])
+
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, False, False, 3, True
         )
 
     @patch("forklift.cli.load_config")

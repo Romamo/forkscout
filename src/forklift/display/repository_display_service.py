@@ -689,6 +689,7 @@ class RepositoryDisplayService:
         exclude_archived: bool = False,
         exclude_disabled: bool = False,
         show_commits: int = 0,
+        force_all_commits: bool = False,
     ) -> None:
         """Display comprehensive fork data in a formatted table.
 
@@ -787,7 +788,7 @@ class RepositoryDisplayService:
             if show_commits > 0:
                 forks_to_display = sorted_forks[:display_limit]
                 commits_cache = await self._fetch_commits_concurrently(
-                    forks_to_display, show_commits
+                    forks_to_display, show_commits, force_all_commits
                 )
 
             for _i, fork_data in enumerate(sorted_forks[:display_limit], 1):
@@ -1061,6 +1062,7 @@ class RepositoryDisplayService:
         show_all: bool = False,
         disable_cache: bool = False,
         show_commits: int = 0,
+        force_all_commits: bool = False,
     ) -> dict[str, Any]:
         """Display comprehensive fork data with all collected metrics.
 
@@ -1072,6 +1074,7 @@ class RepositoryDisplayService:
             show_all: Whether to show all forks or limit display
             disable_cache: Whether to bypass cache for fresh data
             show_commits: Number of recent commits to show for each fork (0-10)
+            force_all_commits: If True, bypass optimization and download commits for all forks
 
         Returns:
             Dictionary containing comprehensive fork data
@@ -1140,6 +1143,7 @@ class RepositoryDisplayService:
                 exclude_archived,
                 exclude_disabled,
                 show_commits,
+                force_all_commits,
             )
 
             return {
@@ -1161,6 +1165,7 @@ class RepositoryDisplayService:
         max_forks: int | None = None,
         disable_cache: bool = False,
         show_commits: int = 0,
+        force_all_commits: bool = False,
     ) -> dict[str, Any]:
         """Display detailed fork data with exact commit counts ahead.
 
@@ -1172,6 +1177,7 @@ class RepositoryDisplayService:
             max_forks: Maximum number of forks to display (None for all)
             disable_cache: Whether to bypass cache for fresh data
             show_commits: Number of recent commits to show for each fork (0-10)
+            force_all_commits: If True, bypass optimization and download commits for all forks
 
         Returns:
             Dictionary containing detailed fork data with exact commit counts
@@ -1320,6 +1326,7 @@ class RepositoryDisplayService:
                 api_calls_made,
                 skipped_count,
                 show_commits,
+                force_all_commits,
             )
 
             return {
@@ -1382,6 +1389,7 @@ class RepositoryDisplayService:
         api_calls_made: int = 0,
         api_calls_saved: int = 0,
         show_commits: int = 0,
+        force_all_commits: bool = False,
     ) -> None:
         """Display detailed fork information table with exact commit counts.
 
@@ -1392,6 +1400,7 @@ class RepositoryDisplayService:
             api_calls_made: Number of API calls made for commit counts
             api_calls_saved: Number of API calls saved by filtering
             show_commits: Number of recent commits to show for each fork (0-10)
+            force_all_commits: If True, commits were fetched for all forks (no optimization)
         """
         if not detailed_forks:
             self.console.print(
@@ -1437,6 +1446,13 @@ class RepositoryDisplayService:
             )  # 15 chars per commit, min 20, max 50
             fork_table.add_column("Recent Commits", style="dim", width=commits_width)
 
+        # Fetch commits concurrently if requested, with optimization
+        commits_cache = {}
+        if show_commits > 0:
+            commits_cache = await self._fetch_commits_concurrently(
+                sorted_forks, show_commits, force_all_commits
+            )
+
         for fork_data in sorted_forks:
             metrics = fork_data.metrics
 
@@ -1466,10 +1482,11 @@ class RepositoryDisplayService:
                 last_push,
             ]
 
-            # Conditionally add recent commits data
+            # Add recent commits data from cache
             if show_commits > 0:
-                recent_commits_text = await self._get_and_format_recent_commits(
-                    metrics.owner, metrics.name, show_commits
+                fork_key = f"{metrics.owner}/{metrics.name}"
+                recent_commits_text = commits_cache.get(
+                    fork_key, "[dim]No commits available[/dim]"
                 )
                 row_data.append(recent_commits_text)
 
@@ -1632,13 +1649,14 @@ class RepositoryDisplayService:
         self.console.print(panel)
 
     async def _fetch_commits_concurrently(
-        self, forks_data: list, show_commits: int
+        self, forks_data: list, show_commits: int, force_all_commits: bool = False
     ) -> dict[str, str]:
-        """Fetch recent commits for multiple forks concurrently with progress tracking.
+        """Fetch recent commits for multiple forks concurrently with progress tracking and optimization.
 
         Args:
             forks_data: List of fork data objects
             show_commits: Number of recent commits to fetch for each fork
+            force_all_commits: If True, bypass optimization and fetch commits for all forks
 
         Returns:
             Dictionary mapping fork keys (owner/name) to formatted commit strings
@@ -1646,14 +1664,45 @@ class RepositoryDisplayService:
         if show_commits <= 0 or not forks_data:
             return {}
 
-        # Create semaphore to limit concurrent requests (respect rate limits)
-        semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
-        commits_cache = {}
-
-        async def fetch_fork_commits(fork_data) -> tuple[str, str]:
-            """Fetch commits for a single fork with rate limiting."""
+        # Separate forks that can be skipped from those needing commit downloads
+        forks_to_skip = []
+        forks_needing_commits = []
+        
+        for fork_data in forks_data:
             fork_key = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
             
+            # Check if fork can be skipped (no commits ahead) unless force_all_commits is True
+            if not force_all_commits and hasattr(fork_data.metrics, 'can_skip_analysis') and fork_data.metrics.can_skip_analysis:
+                forks_to_skip.append((fork_key, fork_data))
+            else:
+                forks_needing_commits.append((fork_key, fork_data))
+
+        # Initialize commits cache with skipped forks
+        commits_cache = {}
+        
+        # Add "No commits ahead" message for skipped forks
+        for fork_key, fork_data in forks_to_skip:
+            commits_cache[fork_key] = "[dim]No commits ahead[/dim]"
+
+        # Log optimization statistics
+        skipped_count = len(forks_to_skip)
+        processing_count = len(forks_needing_commits)
+        total_forks = len(forks_data)
+        
+        if skipped_count > 0:
+            logger.info(f"Commit download optimization: Skipped {skipped_count}/{total_forks} forks with no commits ahead")
+            self.console.print(f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]")
+
+        # If no forks need commit downloads, return early
+        if not forks_needing_commits:
+            self.console.print("[dim]No forks require commit downloads[/dim]")
+            return commits_cache
+
+        # Create semaphore to limit concurrent requests (respect rate limits)
+        semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
+
+        async def fetch_fork_commits(fork_key: str, fork_data) -> tuple[str, str]:
+            """Fetch commits for a single fork with rate limiting."""
             async with semaphore:
                 try:
                     # Add small delay to respect rate limits
@@ -1677,14 +1726,14 @@ class RepositoryDisplayService:
             console=self.console,
         ) as progress:
             task = progress.add_task(
-                f"Fetching recent commits for {len(forks_data)} forks...", 
-                total=len(forks_data)
+                f"Fetching recent commits for {processing_count} forks (skipped {skipped_count})...", 
+                total=processing_count
             )
 
             # Create tasks for concurrent execution
             tasks = []
-            for fork_data in forks_data:
-                task_coro = fetch_fork_commits(fork_data)
+            for fork_key, fork_data in forks_needing_commits:
+                task_coro = fetch_fork_commits(fork_key, fork_data)
                 tasks.append(task_coro)
 
             # Execute tasks concurrently with progress updates
@@ -1699,12 +1748,21 @@ class RepositoryDisplayService:
                     progress.update(
                         task,
                         advance=1,
-                        description=f"Fetched commits for {completed_count}/{len(forks_data)} forks"
+                        description=f"Fetched commits for {completed_count}/{processing_count} forks (skipped {skipped_count})"
                     )
                 except Exception as e:
                     logger.warning(f"Failed to fetch commits for fork: {e}")
                     completed_count += 1
                     progress.update(task, advance=1)
+
+        # Log final statistics
+        api_calls_saved = skipped_count
+        api_calls_made = processing_count
+        total_potential_calls = total_forks
+        
+        if api_calls_saved > 0:
+            savings_percentage = (api_calls_saved / total_potential_calls) * 100
+            self.console.print(f"[green]✓ Commit download optimization saved {api_calls_saved} API calls ({savings_percentage:.1f}% reduction)[/green]")
 
         return commits_cache
 

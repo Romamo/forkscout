@@ -1747,6 +1747,146 @@ class RepositoryDisplayService:
                                     exclude_disabled: bool = False, sort_by: str = "stars",
                                     show_all: bool = False, disable_cache: bool = False) -> dict[str, Any]:
         """Display comprehensive fork data with exact commits ahead information."""
+
+## Show-Forks --Show-Commits Optimization Design
+
+### Overview
+
+The show-forks --show-commits optimization intelligently skips downloading commit information for forks that have no commits ahead of upstream. This design significantly reduces API usage and improves performance when displaying recent commits for large numbers of forks.
+
+### Optimization Strategy
+
+The optimization leverages already collected fork qualification data to determine which forks have commits ahead before attempting to download commit information:
+
+1. **Pre-filtering**: Use created_at >= pushed_at comparison to identify forks with no commits ahead
+2. **Selective Downloads**: Only download commits for forks that have actual changes
+3. **Performance Tracking**: Monitor and report API calls saved and performance improvements
+
+### Architecture
+
+```mermaid
+graph TD
+    A[show-forks --show-commits=N] --> B[Collect Fork Qualification Data]
+    B --> C[Check Each Fork's Commit Status]
+    C --> D{Has Commits Ahead?}
+    D -->|No| E[Skip Commit Download]
+    D -->|Yes| F[Download Recent Commits]
+    D -->|Unknown| G[Fallback API Check]
+    G --> D
+    E --> H[Display "No commits ahead"]
+    F --> I[Display Recent Commits]
+    H --> J[Performance Summary]
+    I --> J
+```
+
+### Components
+
+#### Enhanced Fork Commit Status Checker
+```python
+class ForkCommitStatusChecker:
+    """Determines fork commit status using qualification data."""
+    
+    def __init__(self, github_client: GitHubClient):
+        self.github_client = github_client
+        self.logger = logging.getLogger(__name__)
+    
+    async def has_commits_ahead(self, fork_data: dict) -> bool | None:
+        """
+        Determine if fork has commits ahead using qualification data.
+        
+        Args:
+            fork_data: Fork data from GitHub API response
+            
+        Returns:
+            True: Fork has commits ahead
+            False: Fork has no commits ahead  
+            None: Status cannot be determined
+        """
+        created_at = fork_data.get('created_at')
+        pushed_at = fork_data.get('pushed_at')
+        
+        if created_at and pushed_at:
+            # Parse timestamps and compare
+            created = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            pushed = datetime.fromisoformat(pushed_at.replace('Z', '+00:00'))
+            
+            # If created_at >= pushed_at, fork has no commits ahead
+            return pushed > created
+        
+        return None  # Cannot determine from available data
+```
+
+#### Optimized Repository Display Service
+```python
+class RepositoryDisplayService:
+    async def show_fork_data(self, repo_url: str, show_commits: int = 0, 
+                           force_all_commits: bool = False, **kwargs) -> dict[str, Any]:
+        """Display fork data with optimized commit downloading."""
+        
+        # Collect basic fork data
+        fork_data_result = await self._collect_fork_data(repo_url, **kwargs)
+        
+        if show_commits > 0:
+            # Initialize optimization tracking
+            total_forks = len(fork_data_result['collected_forks'])
+            skipped_forks = 0
+            api_calls_saved = 0
+            
+            status_checker = ForkCommitStatusChecker(self.github_client)
+            
+            for fork_data in fork_data_result['collected_forks']:
+                if not force_all_commits:
+                    # Check if fork has commits ahead
+                    has_commits = await status_checker.has_commits_ahead(fork_data.raw_data)
+                    
+                    if has_commits is False:
+                        # Skip commit download for forks with no commits ahead
+                        fork_data.recent_commits = ["No commits ahead"]
+                        skipped_forks += 1
+                        api_calls_saved += 1
+                        continue
+                
+                # Download commits for forks with changes
+                try:
+                    commits = await self._fetch_recent_commits(fork_data, show_commits)
+                    fork_data.recent_commits = commits
+                except Exception as e:
+                    fork_data.recent_commits = ["Unable to fetch commits"]
+                    self.logger.warning(f"Failed to fetch commits for {fork_data.name}: {e}")
+            
+            # Display optimization results
+            if not force_all_commits and skipped_forks > 0:
+                self.console.print(f"\n[green]Optimization: Skipped {skipped_forks}/{total_forks} forks with no commits ahead[/green]")
+                self.console.print(f"[blue]API calls saved: {api_calls_saved}[/blue]")
+        
+        return fork_data_result
+```
+
+### Performance Benefits
+
+The optimization provides significant performance improvements:
+
+1. **API Call Reduction**: Eliminates unnecessary commit API calls for forks with no changes
+2. **Faster Execution**: Reduces total execution time by skipping expensive operations
+3. **Rate Limit Conservation**: Preserves GitHub API rate limits for meaningful operations
+4. **Scalability**: Enables efficient processing of repositories with hundreds of forks
+
+### User Experience
+
+The optimization maintains the same user interface while providing performance benefits:
+
+- **Transparent Operation**: Users see the same table format with optimization happening behind the scenes
+- **Clear Indicators**: Forks with no commits ahead show "No commits ahead" in the Recent Commits column
+- **Performance Feedback**: Summary statistics show API calls saved and forks skipped
+- **Override Option**: --force-all-commits flag allows bypassing optimization when needed
+
+### Error Handling
+
+The optimization includes robust error handling:
+
+- **Graceful Degradation**: Falls back to downloading commits if status cannot be determined
+- **Inclusion Bias**: Errs on the side of inclusion rather than missing potentially valuable commits
+- **Logging**: Comprehensive logging of optimization decisions for debugging and monitoring
         
     def _display_detailed_fork_table(self, qualification_result: QualifiedForksResult,
                                    commits_ahead_data: dict[str, int | None],
@@ -1848,4 +1988,172 @@ class DetailModeConfig:
 ```
 
 This design ensures that the --detail functionality provides valuable exact commit information while maintaining system performance and respecting GitHub API constraints.
+
+## CLI Argument Standardization: --max-forks to --limit Rename
+
+### Design Philosophy
+
+The CLI argument rename from `--max-forks` to `--limit` is designed to improve the user experience by adopting more standard and intuitive command-line conventions. The `--limit` argument name is more generic and aligns with common CLI patterns used across many tools, making it more discoverable and memorable for users.
+
+### Design Principles
+
+- **Consistency**: Use standard CLI argument naming conventions
+- **Clarity**: Make the argument purpose immediately clear from its name
+- **Simplicity**: Maintain existing functionality while improving the interface
+- **Clean Migration**: Complete replacement without backward compatibility complexity
+
+### Implementation Design
+
+#### CLI Command Updates
+
+All commands that currently use `--max-forks` will be updated to use `--limit`:
+
+```python
+# Before: --max-forks
+@cli.command("analyze")
+@click.argument("repository_url")
+@click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to analyze")
+def analyze(repository_url: str, max_forks: int):
+    pass
+
+# After: --limit
+@cli.command("analyze")
+@click.argument("repository_url")
+@click.option("--limit", type=click.IntRange(1, 1000), help="Maximum number of forks to analyze")
+def analyze(repository_url: str, limit: int):
+    pass
+```
+
+#### Affected Commands
+
+1. **analyze**: Main analysis command with fork limiting
+2. **show-forks**: Fork display command with result limiting
+3. **show-promising**: Promising forks command with result limiting
+4. **configure**: Configuration command for setting default limits
+
+#### Parameter Mapping
+
+```python
+# Internal parameter name changes
+# Old: max_forks -> New: limit
+
+class AnalysisConfig:
+    # Before
+    max_forks: Optional[int] = None
+    
+    # After
+    limit: Optional[int] = None
+
+# CLI parameter handling
+def analyze(repository_url: str, limit: int):
+    config = AnalysisConfig(limit=limit)
+    # Pass limit to analysis services
+```
+
+### Validation and Error Handling
+
+#### Argument Validation
+- Maintain existing validation rules: `click.IntRange(1, 1000)`
+- Keep same error messages but reference `--limit` instead of `--max-forks`
+- Preserve all existing boundary checks and validation logic
+
+#### Error Message Updates
+```python
+# Before
+"Invalid value for '--max-forks': 0 is not in the valid range 1 to 1000."
+
+# After  
+"Invalid value for '--limit': 0 is not in the valid range 1 to 1000."
+```
+
+### Help Text and Documentation
+
+#### CLI Help Updates
+```bash
+# Before
+forklift analyze --help
+  --max-forks INTEGER RANGE  Maximum number of forks to analyze  [1<=x<=1000]
+
+# After
+forklift analyze --help
+  --limit INTEGER RANGE      Maximum number of forks to analyze  [1<=x<=1000]
+```
+
+#### Configuration Documentation
+```python
+# Configuration file examples
+# Before
+analyze:
+  max_forks: 50
+
+# After
+analyze:
+  limit: 50
+```
+
+### Implementation Strategy
+
+#### Phase 1: Core CLI Updates
+1. Update all `@click.option` decorators to use `--limit`
+2. Rename function parameters from `max_forks` to `limit`
+3. Update internal variable names and parameter passing
+
+#### Phase 2: Configuration and Models
+1. Update Pydantic models to use `limit` field names
+2. Modify configuration file parsing to expect `limit` keys
+3. Update default configuration examples
+
+#### Phase 3: Error Messages and Help
+1. Replace all error message references to use `--limit`
+2. Update help text and command descriptions
+3. Modify CLI usage examples in documentation
+
+#### Phase 4: Testing and Documentation
+1. Update all test files to use `--limit` argument
+2. Modify documentation files and examples
+3. Update README and user guides
+
+### Data Flow Impact
+
+The argument rename has minimal impact on data flow since it's purely a CLI interface change:
+
+```python
+# Data flow remains the same, only parameter names change
+CLI Input (--limit=50) 
+  -> Click Parameter (limit=50)
+  -> Config Object (limit=50)
+  -> Service Methods (limit=50)
+  -> GitHub API calls (respecting limit)
+```
+
+### Testing Strategy
+
+#### Unit Tests
+- Update all CLI command tests to use `--limit`
+- Test argument validation with new parameter name
+- Verify error messages reference correct argument name
+
+#### Integration Tests
+- Update end-to-end tests to use `--limit` argument
+- Test configuration file parsing with new field names
+- Verify help text displays correctly
+
+#### Validation Tests
+- Ensure all boundary conditions work with `--limit`
+- Test error handling with invalid `--limit` values
+- Verify parameter passing through service layers
+
+### Migration Considerations
+
+#### User Impact
+- **Breaking Change**: Users must update scripts and commands to use `--limit`
+- **Documentation**: All examples and guides need updating
+- **Training**: Users need to learn new argument name
+
+#### Benefits
+- **Improved UX**: More intuitive and standard argument naming
+- **Consistency**: Aligns with common CLI conventions
+- **Clarity**: Purpose is immediately clear from argument name
+
+This design provides a clean, straightforward rename that improves the CLI interface while maintaining all existing functionality and validation rules.
 ```
