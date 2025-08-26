@@ -571,7 +571,7 @@
   - Write integration tests for fork data display CLI commands including commits-ahead detection
   - _Requirements: 20.4.1, 20.4.2, 20.4.3, 20.9, 20.10, 20.13_
 
-- [-] 17.6 Let users choose forks for analysis based on displayed data
+- [x] 17.6 Let users choose forks for analysis based on displayed data
   - Update CLI to display comprehensive fork data and let users decide which forks to analyze
   - Remove automatic filtering and scoring - present all data for user decision
   - Add optional basic filters (exclude archived/disabled) but no quality scoring
@@ -579,7 +579,7 @@
   - Write integration tests for user-driven fork selection workflow
   - _Requirements: 20.8, 20.10, 20.11, 20.13_
 
-- [ ] 17.7 Add comprehensive testing for fork data collection system
+- [x] 17.7 Add comprehensive testing for fork data collection system
   - Write unit tests for all data collection components with realistic fork data
   - Create integration tests using test repositories with various fork patterns
   - Add performance tests measuring API call reduction and processing efficiency
