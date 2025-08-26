@@ -7,6 +7,7 @@ from .client import (
     GitHubNotFoundError,
     GitHubRateLimitError,
 )
+from .fork_list_processor import ForkListProcessor, ForkListProcessingError
 
 __all__ = [
     "GitHubAPIError",
@@ -14,4 +15,6 @@ __all__ = [
     "GitHubClient",
     "GitHubNotFoundError",
     "GitHubRateLimitError",
+    "ForkListProcessor",
+    "ForkListProcessingError",
 ]

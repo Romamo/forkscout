@@ -54,19 +54,22 @@ class ForkQualificationMetrics(BaseModel):
     @property
     def days_since_creation(self) -> int:
         """Calculate days since repository creation."""
-        return (datetime.utcnow() - self.created_at).days
+        now = datetime.now(self.created_at.tzinfo) if self.created_at.tzinfo else datetime.utcnow()
+        return (now - self.created_at).days
 
     @computed_field
     @property
     def days_since_last_update(self) -> int:
         """Calculate days since last update."""
-        return (datetime.utcnow() - self.updated_at).days
+        now = datetime.now(self.updated_at.tzinfo) if self.updated_at.tzinfo else datetime.utcnow()
+        return (now - self.updated_at).days
 
     @computed_field
     @property
     def days_since_last_push(self) -> int:
         """Calculate days since last push."""
-        return (datetime.utcnow() - self.pushed_at).days
+        now = datetime.now(self.pushed_at.tzinfo) if self.pushed_at.tzinfo else datetime.utcnow()
+        return (now - self.pushed_at).days
 
     @computed_field
     @property

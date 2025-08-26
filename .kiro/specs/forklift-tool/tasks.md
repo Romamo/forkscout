@@ -529,14 +529,14 @@
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
 - [ ] 17. Implement fork qualification data collection for user decision-making
-- [-] 17.1 Create fork qualification data models
+- [x] 17.1 Create fork qualification data models
   - Implement ForkQualificationMetrics data model with all GitHub API fields (stars, forks, size, language, activity dates, topics, etc.)
   - Create QualifiedForksResult to hold collection of fork metrics and statistics
   - Add QualificationStats for summary information (total forks, API calls saved, etc.)
   - Write unit tests for all qualification data models and validation
   - _Requirements: 20.1, 20.2_
 
-- [ ] 17.2 Build ForkListProcessor for efficient API usage
+- [-] 17.2 Build ForkListProcessor for efficient API usage
   - Implement ForkListProcessor class to handle paginated forks list endpoint calls
   - Add get_all_forks_list_data method using only `/repos/{owner}/{repo}/forks?per_page=100&page=N`
   - Create extract_qualification_fields method to extract all available metrics from fork list response
