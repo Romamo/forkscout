@@ -1083,6 +1083,7 @@ def analyze_fork(
 @click.option("--ai-summary", is_flag=True, help="Generate AI-powered summaries for each commit (requires OpenAI API key)")
 @click.option("--ai-summary-compact", is_flag=True, help="Generate compact AI summaries with minimal formatting (requires OpenAI API key)")
 @click.option("--detail", is_flag=True, help="Display comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs")
+@click.option("--force", is_flag=True, help="Force analysis even for forks with no commits ahead (only applies with --detail flag)")
 @click.option("--disable-cache", is_flag=True, help="Disable caching and fetch fresh data from GitHub API")
 @click.pass_context
 def show_commits(
@@ -1100,6 +1101,7 @@ def show_commits(
     ai_summary: bool,
     ai_summary_compact: bool,
     detail: bool,
+    force: bool,
     disable_cache: bool
 ) -> None:
     """Display detailed commit information for a repository or specific branch.
@@ -1149,7 +1151,7 @@ def show_commits(
         # Run commit display
         asyncio.run(_show_commits(
             config, fork_url, branch, limit, since_date, until_date,
-            author, include_merge, show_files, show_stats, verbose, explain, ai_summary, ai_summary_compact, detail, disable_cache
+            author, include_merge, show_files, show_stats, verbose, explain, ai_summary, ai_summary_compact, detail, force, disable_cache
         ))
 
     except CLIError as e:
@@ -1855,6 +1857,7 @@ async def _show_commits(
     ai_summary: bool = False,
     ai_summary_compact: bool = False,
     detail: bool = False,
+    force: bool = False,
     disable_cache: bool = False
 ) -> None:
     """Show detailed commit information for a repository or branch.
@@ -1875,12 +1878,38 @@ async def _show_commits(
         ai_summary: Whether to generate AI-powered summaries
         ai_summary_compact: Whether to generate compact AI summaries
         detail: Whether to display comprehensive commit information
+        force: Whether to force analysis even for forks with no commits ahead
         disable_cache: Whether to disable caching and fetch fresh data
     """
     async with GitHubClient(config.github) as github_client:
         try:
             # Parse repository URL
             owner, repo_name = validate_repository_url(fork_url)
+
+            # Check fork status before expensive operations if using --detail flag
+            if detail and not force:
+                from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+                
+                status_checker = ForkCommitStatusChecker(github_client)
+                
+                try:
+                    has_commits = await status_checker.has_commits_ahead(fork_url)
+                    
+                    if has_commits is False:
+                        console.print(f"[yellow]Fork has no commits ahead of upstream - skipping detailed analysis[/yellow]")
+                        console.print(f"[dim]Use --force flag to analyze anyway[/dim]")
+                        return
+                    elif has_commits is None:
+                        if verbose:
+                            console.print(f"[yellow]Could not determine fork commit status - proceeding with analysis[/yellow]")
+                    else:
+                        if verbose:
+                            console.print(f"[green]Fork has commits ahead - proceeding with detailed analysis[/green]")
+                            
+                except Exception as e:
+                    logger.warning(f"Fork status check failed: {e}")
+                    if verbose:
+                        console.print(f"[yellow]Fork status check failed - proceeding with analysis: {e}[/yellow]")
 
             with Progress(
                 SpinnerColumn(),
@@ -2377,11 +2406,16 @@ async def _display_detailed_commits(
                         error_handler=error_handler
                     )
 
+                    # Create fork status checker for batch operations
+                    from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+                    fork_status_checker = ForkCommitStatusChecker(github_client)
+
                     # Create detailed commit display
                     detailed_display = DetailedCommitDisplay(
                         github_client=github_client,
                         ai_engine=ai_engine,
-                        console=console
+                        console=console,
+                        fork_status_checker=fork_status_checker
                     )
 
                     # Generate detailed view for all commits
@@ -2398,7 +2432,7 @@ async def _display_detailed_commits(
                             progress.update(task, completed=completed)
 
                         detailed_commits = await detailed_display.generate_detailed_view(
-                            commits, repo_obj, progress_callback
+                            commits, repo_obj, progress_callback, force=force
                         )
 
                     # Display each detailed commit
@@ -2428,10 +2462,15 @@ async def _display_detailed_commits(
 
         # If no AI engine available, create detailed display without AI
         if not ai_engine:
+            # Create fork status checker for batch operations
+            from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+            fork_status_checker = ForkCommitStatusChecker(github_client)
+            
             detailed_display = DetailedCommitDisplay(
                 github_client=github_client,
                 ai_engine=None,
-                console=console
+                console=console,
+                fork_status_checker=fork_status_checker
             )
 
             # Generate detailed view without AI summaries
@@ -2448,7 +2487,7 @@ async def _display_detailed_commits(
                     progress.update(task, completed=completed)
 
                 detailed_commits = await detailed_display.generate_detailed_view(
-                    commits, repo_obj, progress_callback
+                    commits, repo_obj, progress_callback, force=force
                 )
 
             # Display each detailed commit

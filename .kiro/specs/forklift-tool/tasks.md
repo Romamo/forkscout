@@ -990,7 +990,7 @@
   - _Requirements: 21.1, 21.4, 21.6, 21.8, 21.9, 21.11, 21.12_
 
 - [ ] 20. Implement smart fork filtering for --detail flag using qualification data
-- [-] 20.1 Create fork commit status detection system
+- [x] 20.1 Create fork commit status detection system
   - Implement ForkCommitStatusChecker class to determine if forks have commits ahead using qualification data
   - Add has_commits_ahead method using created_at >= pushed_at comparison logic
   - Create fallback mechanism to GitHub API when qualification data is unavailable
@@ -1006,7 +1006,7 @@
   - Write unit tests for show-commits command with fork filtering logic
   - _Requirements: 21.1, 21.2, 21.4, 21.10_
 
-- [ ] 20.3 Integrate fork filtering with existing --detail functionality
+- [-] 20.3 Integrate fork filtering with existing --detail functionality
   - Update detailed commit analysis workflow to check fork status before expensive operations
   - Ensure fork filtering is applied before AI summary generation and diff retrieval
   - Add fork filtering support to batch operations and multiple fork processing

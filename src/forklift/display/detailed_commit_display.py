@@ -1,7 +1,7 @@
 """Detailed commit display with comprehensive information including AI summaries."""
 
 import logging
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, TYPE_CHECKING
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -16,6 +16,9 @@ from forklift.ai.error_handler import OpenAIErrorHandler
 from forklift.github.client import GitHubClient
 from forklift.models.ai_summary import AISummary, AISummaryConfig
 from forklift.models.github import Commit, Repository
+
+if TYPE_CHECKING:
+    from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,8 @@ class DetailedCommitDisplay:
         self,
         github_client: GitHubClient,
         ai_engine: Optional[AICommitSummaryEngine] = None,
-        console: Optional[Console] = None
+        console: Optional[Console] = None,
+        fork_status_checker: Optional['ForkCommitStatusChecker'] = None
     ):
         """Initialize the detailed commit display.
         
@@ -53,16 +57,55 @@ class DetailedCommitDisplay:
             github_client: GitHub API client
             ai_engine: AI summary engine (optional)
             console: Rich console for output (optional)
+            fork_status_checker: Fork commit status checker (optional)
         """
         self.github_client = github_client
         self.ai_engine = ai_engine
         self.console = console or Console()
+        self.fork_status_checker = fork_status_checker
     
+    async def should_process_repository(
+        self,
+        repository: Repository,
+        force: bool = False
+    ) -> bool:
+        """Check if repository should be processed based on fork status.
+        
+        Args:
+            repository: Repository object
+            force: Whether to force processing regardless of fork status
+            
+        Returns:
+            True if repository should be processed, False otherwise
+        """
+        if force or not self.fork_status_checker:
+            logger.debug(f"Processing repository {repository.full_name} - force={force}, checker={self.fork_status_checker is not None}")
+            return True
+            
+        try:
+            fork_url = repository.html_url
+            has_commits = await self.fork_status_checker.has_commits_ahead(fork_url)
+            
+            if has_commits is False:
+                logger.info(f"Fork filtering: Skipping repository {repository.full_name} - no commits ahead")
+                return False
+            elif has_commits is None:
+                logger.warning(f"Fork filtering: Could not determine commit status for {repository.full_name} - proceeding with analysis")
+                return True
+            else:
+                logger.debug(f"Fork filtering: Repository {repository.full_name} has commits ahead - proceeding")
+                return True
+                
+        except Exception as e:
+            logger.warning(f"Fork filtering: Status check failed for {repository.full_name}: {e} - proceeding with analysis")
+            return True
+
     async def generate_detailed_view(
         self,
         commits: List[Commit],
         repository: Repository,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        force: bool = False
     ) -> List[DetailedCommitInfo]:
         """Generate detailed view for a list of commits.
         
@@ -70,14 +113,22 @@ class DetailedCommitDisplay:
             commits: List of Commit objects
             repository: Repository object
             progress_callback: Optional progress callback function
+            force: Whether to force processing regardless of fork status
             
         Returns:
             List of DetailedCommitInfo objects
         """
+        # Check if repository should be processed based on fork status
+        if not await self.should_process_repository(repository, force):
+            logger.info(f"Skipping detailed analysis for {repository.full_name} - no commits ahead")
+            return []
+        
         detailed_commits = []
         
+        # Process commits with proper error handling
         for i, commit in enumerate(commits):
             try:
+                # Apply fork filtering before expensive operations (AI summary, diff retrieval)
                 detailed_info = await self._fetch_commit_details(commit, repository)
                 detailed_commits.append(detailed_info)
                 
@@ -95,6 +146,61 @@ class DetailedCommitDisplay:
                 detailed_commits.append(detailed_info)
         
         return detailed_commits
+    
+    async def process_multiple_repositories(
+        self,
+        repositories_with_commits: List[tuple[Repository, List[Commit]]],
+        progress_callback: Optional[Callable] = None,
+        force: bool = False
+    ) -> List[tuple[Repository, List[DetailedCommitInfo]]]:
+        """Process multiple repositories with fork filtering support.
+        
+        Args:
+            repositories_with_commits: List of (Repository, commits) tuples
+            progress_callback: Optional progress callback function
+            force: Whether to force processing regardless of fork status
+            
+        Returns:
+            List of (Repository, DetailedCommitInfo list) tuples for processed repositories
+        """
+        results = []
+        processed_count = 0
+        skipped_count = 0
+        
+        logger.info(f"Processing {len(repositories_with_commits)} repositories with fork filtering")
+        
+        for repository, commits in repositories_with_commits:
+            try:
+                # Apply fork filtering before expensive operations
+                if not await self.should_process_repository(repository, force):
+                    logger.info(f"Skipping repository {repository.full_name} - no commits ahead")
+                    skipped_count += 1
+                    if progress_callback:
+                        processed_count += 1
+                        progress_callback(processed_count, len(repositories_with_commits))
+                    continue
+                
+                # Process commits for this repository (skip fork status check since already done)
+                detailed_commits = await self.generate_detailed_view(
+                    commits, repository, force=True  # Already checked fork status above
+                )
+                
+                if detailed_commits:  # Only add if we have results
+                    results.append((repository, detailed_commits))
+                    logger.debug(f"Processed repository {repository.full_name} with {len(detailed_commits)} commits")
+                
+                if progress_callback:
+                    processed_count += 1
+                    progress_callback(processed_count, len(repositories_with_commits))
+                    
+            except Exception as e:
+                logger.error(f"Failed to process repository {repository.full_name}: {e}")
+                if progress_callback:
+                    processed_count += 1
+                    progress_callback(processed_count, len(repositories_with_commits))
+        
+        logger.info(f"Batch processing complete: {len(results)} processed, {skipped_count} skipped")
+        return results
     
     async def _fetch_commit_details(
         self,
@@ -241,7 +347,7 @@ class DetailedCommitDisplay:
         """
         return Panel(
             Text(github_url, style="link"),
-            title="[bold blue]GitHub URL[/bold blue]",
+            title="[bold blue]🔗 GitHub URL[/bold blue]",
             border_style="blue",
             padding=(0, 1)
         )
@@ -265,7 +371,7 @@ class DetailedCommitDisplay:
         
         return Panel(
             content,
-            title="[bold green]AI Summary[/bold green]",
+            title="[bold green]🤖 AI Summary[/bold green]",
             border_style="green",
             padding=(0, 1)
         )
@@ -292,7 +398,7 @@ class DetailedCommitDisplay:
         
         return Panel(
             Group(*content_parts),
-            title="[bold yellow]Commit Message[/bold yellow]",
+            title="[bold yellow]📝 Commit Message[/bold yellow]",
             border_style="yellow",
             padding=(0, 1)
         )
@@ -331,9 +437,41 @@ class DetailedCommitDisplay:
         
         return Panel(
             content,
-            title="[bold cyan]Diff Content[/bold cyan]",
+            title="[bold cyan]📊 Diff Content[/bold cyan]",
             border_style="cyan",
             padding=(0, 1)
+        )
+    
+    async def process_commits_with_filtering(
+        self,
+        commits: List[Commit],
+        repository: Repository,
+        progress_callback: Optional[Callable] = None,
+        force: bool = False
+    ) -> List[DetailedCommitInfo]:
+        """Process commits with integrated fork filtering for batch operations.
+        
+        This method combines fork filtering with commit processing to ensure
+        expensive operations (AI summaries, diff retrieval) are only performed
+        on repositories that have commits ahead.
+        
+        Args:
+            commits: List of Commit objects
+            repository: Repository object
+            progress_callback: Optional progress callback function
+            force: Whether to force processing regardless of fork status
+            
+        Returns:
+            List of DetailedCommitInfo objects, empty if filtered out
+        """
+        # Apply fork filtering before any expensive operations
+        if not await self.should_process_repository(repository, force):
+            logger.info(f"Fork filtering: Skipping {repository.full_name} - no commits ahead")
+            return []
+        
+        # Process commits since repository passed filtering
+        return await self.generate_detailed_view(
+            commits, repository, progress_callback, force=True  # Skip re-checking
         )
 
 
@@ -343,35 +481,58 @@ class DetailedCommitProcessor:
     def __init__(
         self,
         github_client: GitHubClient,
-        ai_engine: Optional[AICommitSummaryEngine] = None
+        ai_engine: Optional[AICommitSummaryEngine] = None,
+        fork_status_checker: Optional['ForkCommitStatusChecker'] = None
     ):
         """Initialize the detailed commit processor.
         
         Args:
             github_client: GitHub API client
             ai_engine: AI summary engine (optional)
+            fork_status_checker: Fork commit status checker (optional)
         """
         self.github_client = github_client
         self.ai_engine = ai_engine
+        self.fork_status_checker = fork_status_checker
     
     async def process_commits_for_detail_view(
         self,
         commits: List[Commit],
         repository: Repository,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        force: bool = False
     ) -> List[DetailedCommitInfo]:
-        """Process commits for detailed view with proper error handling.
+        """Process commits for detailed view with proper error handling and fork filtering.
         
         Args:
             commits: List of Commit objects
             repository: Repository object
             progress_callback: Optional progress callback function
+            force: Whether to force processing regardless of fork status
             
         Returns:
             List of DetailedCommitInfo objects
         """
+        # Apply fork filtering before expensive operations (AI summaries, diff retrieval)
+        if not force and self.fork_status_checker:
+            try:
+                fork_url = repository.html_url
+                has_commits = await self.fork_status_checker.has_commits_ahead(fork_url)
+                
+                if has_commits is False:
+                    logger.info(f"Fork filtering: Skipping detailed processing for {repository.full_name} - no commits ahead")
+                    return []
+                elif has_commits is None:
+                    logger.warning(f"Fork filtering: Could not determine commit status for {repository.full_name} - proceeding with processing")
+                else:
+                    logger.debug(f"Fork filtering: Repository {repository.full_name} has commits ahead - proceeding with processing")
+                    
+            except Exception as e:
+                logger.warning(f"Fork filtering: Status check failed for {repository.full_name}: {e} - proceeding with processing")
+        
         detailed_commits = []
         
+        # Process each commit with proper error handling
         for i, commit in enumerate(commits):
             try:
                 detailed_info = await self._process_single_commit(commit, repository)
@@ -381,11 +542,12 @@ class DetailedCommitProcessor:
                     progress_callback(i + 1, len(commits))
                     
             except Exception as e:
-                logger.error(f"Failed to process commit {commit.sha[:8]}: {e}")
+                logger.error(f"Failed to process commit {commit.sha[:8]} for {repository.full_name}: {e}")
                 # Create error detailed info
                 error_info = self._handle_processing_error(commit, repository, e)
                 detailed_commits.append(error_info)
         
+        logger.debug(f"Processed {len(detailed_commits)} commits for repository {repository.full_name}")
         return detailed_commits
     
     async def _process_single_commit(
