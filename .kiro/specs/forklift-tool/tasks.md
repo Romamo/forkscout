@@ -597,7 +597,7 @@
   - _Requirements: 20.1, 20.2, 20.10, 20.11_
 
 - [ ] 18. Fix immediate console formatting issues and implement simple, compatible formatting as default
-- [-] 18.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
+- [x] 18.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
   - Replace all emoji characters (📝, ❓, 🟢, ❔) with simple text labels in commit explanations
   - Fix Unicode table borders that display as literal characters in some terminals
   - Update ExplanationFormatter to use ASCII characters instead of Unicode box drawing
@@ -893,8 +893,8 @@
   - Update documentation to reflect simple formatting as default
   - _Requirements: 18.1, 18.11, 18.12_
 
-- [-] 18. Enhance show-forks display with improved sorting and simplified columns
-- [ ] 18.1 Implement enhanced fork sorting logic
+- [ ] 18. Enhance show-forks display with improved sorting and simplified columns
+- [-] 18.1 Implement enhanced fork sorting logic
   - Create _sort_forks_enhanced method in RepositoryDisplayService with commits-first sorting
   - Implement multi-level sorting: commits status (has commits first), forks count desc, stars desc, last push desc
   - Update fork data collection to support enhanced sorting criteria

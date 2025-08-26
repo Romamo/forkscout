@@ -659,11 +659,11 @@ class RepositoryDisplayService:
             self.console.print("\n[bold blue]Detailed Fork Information[/bold blue]")
             self.console.print("=" * 80)
 
-            # Sort forks based on criteria
-            sorted_forks = self._sort_forks(qualification_result.collected_forks, sort_by)
+            # Sort forks using enhanced multi-level sorting
+            sorted_forks = self._sort_forks_enhanced(qualification_result.collected_forks)
 
             # Create main fork data table
-            fork_table = Table(title=f"All Forks ({len(sorted_forks)} displayed, sorted by {sort_by})")
+            fork_table = Table(title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity)")
             fork_table.add_column("#", style="dim", width=4)
             fork_table.add_column("Fork Name", style="cyan", min_width=20)
             fork_table.add_column("Owner", style="blue", min_width=15)
@@ -753,6 +753,54 @@ class RepositoryDisplayService:
         reverse = sort_by not in ["name", "owner", "language"]  # These should be ascending
 
         return sorted(collected_forks, key=sort_func, reverse=reverse)
+
+    def _sort_forks_enhanced(self, collected_forks: list) -> list:
+        """Sort forks with enhanced multi-level sorting logic.
+
+        Implements commits-first sorting with multi-level criteria:
+        1. Commits status (has commits first)
+        2. Forks count (descending)
+        3. Stars count (descending)
+        4. Last push date (descending - most recent first)
+
+        Args:
+            collected_forks: List of CollectedForkData objects
+
+        Returns:
+            Sorted list of forks with enhanced sorting criteria
+        """
+        def sort_key(fork_data):
+            """Multi-level sort key for enhanced fork sorting."""
+            metrics = fork_data.metrics
+
+            # 1. Commits status - has commits first (True sorts before False)
+            has_commits = metrics.commits_ahead_status == "Has commits"
+
+            # 2. Forks count (descending)
+            forks_count = metrics.forks_count
+
+            # 3. Stars count (descending)
+            stars_count = metrics.stargazers_count
+
+            # 4. Last push date (descending - most recent first)
+            # Use negative timestamp for descending order
+            # Handle potential None values defensively
+            if metrics.pushed_at:
+                push_timestamp = -metrics.pushed_at.timestamp()
+            else:
+                push_timestamp = float("inf")  # Sort None values last
+
+            # Return tuple for multi-level sorting
+            # Note: Python sorts tuples lexicographically, so we need to negate
+            # numeric values for descending order
+            return (
+                not has_commits,  # False (has commits) sorts before True (no commits)
+                -forks_count,     # Negative for descending order
+                -stars_count,     # Negative for descending order
+                push_timestamp    # Already negative for descending order
+            )
+
+        return sorted(collected_forks, key=sort_key)
 
     def _style_commits_ahead_display(self, status: str) -> str:
         """Apply color styling to commits ahead status for display.

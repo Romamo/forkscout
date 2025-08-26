@@ -565,6 +565,81 @@ def test_repository_display_service_sort_forks():
     assert sorted_by_activity[0].metrics.days_since_last_push < sorted_by_activity[1].metrics.days_since_last_push
 
 
+def test_repository_display_service_enhanced_sort_forks():
+    """Test enhanced fork sorting functionality."""
+    from forklift.display.repository_display_service import RepositoryDisplayService
+    from datetime import datetime, timedelta
+    
+    base_time = datetime.utcnow()
+    
+    # Fork with commits, high forks count
+    metrics_has_commits_high = ForkQualificationMetrics(
+        id=1, name="fork-has-commits-high", full_name="user/fork-has-commits-high", 
+        owner="user", html_url="https://github.com/user/fork-has-commits-high",
+        stargazers_count=50, forks_count=20, watchers_count=40,
+        size=1000, language="Python",
+        created_at=base_time - timedelta(days=60),
+        updated_at=base_time - timedelta(days=1),
+        pushed_at=base_time - timedelta(days=1)  # Push after creation = has commits
+    )
+    
+    # Fork with commits, low forks count
+    metrics_has_commits_low = ForkQualificationMetrics(
+        id=2, name="fork-has-commits-low", full_name="user/fork-has-commits-low",
+        owner="user", html_url="https://github.com/user/fork-has-commits-low",
+        stargazers_count=100, forks_count=5, watchers_count=80,
+        size=2000, language="JavaScript",
+        created_at=base_time - timedelta(days=90),
+        updated_at=base_time - timedelta(days=5),
+        pushed_at=base_time - timedelta(days=5)  # Push after creation = has commits
+    )
+    
+    # Fork without commits, high stats
+    metrics_no_commits = ForkQualificationMetrics(
+        id=3, name="fork-no-commits", full_name="user/fork-no-commits",
+        owner="user", html_url="https://github.com/user/fork-no-commits",
+        stargazers_count=200, forks_count=50, watchers_count=150,
+        size=500, language="Go",
+        created_at=base_time - timedelta(days=30),
+        updated_at=base_time - timedelta(days=30),
+        pushed_at=base_time - timedelta(days=30)  # Same as created = no commits
+    )
+    
+    fork_data = [
+        CollectedForkData(metrics=metrics_no_commits),      # Should be last despite high stats
+        CollectedForkData(metrics=metrics_has_commits_low), # Should be second (lower forks)
+        CollectedForkData(metrics=metrics_has_commits_high) # Should be first (higher forks)
+    ]
+    
+    service = RepositoryDisplayService(AsyncMock(), MagicMock())
+    
+    # Test enhanced sorting
+    sorted_enhanced = service._sort_forks_enhanced(fork_data)
+    
+    # Verify commits-first sorting
+    assert sorted_enhanced[0].metrics.name == "fork-has-commits-high", \
+        "Fork with commits and high forks should be first"
+    assert sorted_enhanced[1].metrics.name == "fork-has-commits-low", \
+        "Fork with commits and low forks should be second"
+    assert sorted_enhanced[2].metrics.name == "fork-no-commits", \
+        "Fork without commits should be last despite high stats"
+    
+    # Verify all forks with commits come before forks without commits
+    has_commits_count = sum(1 for fork in sorted_enhanced 
+                           if fork.metrics.commits_ahead_status == "Has commits")
+    no_commits_count = len(sorted_enhanced) - has_commits_count
+    
+    # First has_commits_count forks should have commits
+    for i in range(has_commits_count):
+        assert sorted_enhanced[i].metrics.commits_ahead_status == "Has commits", \
+            f"Fork at position {i} should have commits"
+    
+    # Remaining forks should not have commits
+    for i in range(has_commits_count, len(sorted_enhanced)):
+        assert sorted_enhanced[i].metrics.commits_ahead_status == "No commits ahead", \
+            f"Fork at position {i} should not have commits"
+
+
 def test_commits_ahead_status_detection():
     """Test commits ahead status detection logic."""
     from datetime import datetime
