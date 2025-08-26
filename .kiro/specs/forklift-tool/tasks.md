@@ -894,7 +894,7 @@
   - _Requirements: 18.1, 18.11, 18.12_
 
 - [ ] 18. Enhance show-forks display with improved sorting and simplified columns
-- [-] 18.1 Implement enhanced fork sorting logic
+- [x] 18.1 Implement enhanced fork sorting logic
   - Create _sort_forks_enhanced method in RepositoryDisplayService with commits-first sorting
   - Implement multi-level sorting: commits status (has commits first), forks count desc, stars desc, last push desc
   - Update fork data collection to support enhanced sorting criteria
@@ -909,7 +909,7 @@
   - Write unit tests for simplified table display and column validation
   - _Requirements: 21.2, 21.3_
 
-- [ ] 18.3 Update commits ahead display format
+- [-] 18.3 Update commits ahead display format
   - Change "Commits Status" header to "Commits Ahead" in fork data table
   - Implement _format_commits_ahead_simple method to show "Yes"/"No" instead of technical terms
   - Update commits ahead status formatting throughout the display system

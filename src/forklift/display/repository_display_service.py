@@ -608,14 +608,33 @@ class RepositoryDisplayService:
             status: Commits ahead status string
 
         Returns:
-            Styled status string
+            Styled status string with simple Yes/No format
         """
+        # Convert to simple format first
+        simple_status = self._format_commits_ahead_simple(status)
+
         status_colors = {
-            "None": "[red]None[/red]",
-            "Unknown": "[green]Unknown[/green]"
+            "No": "[red]No[/red]",
+            "Yes": "[green]Yes[/green]"
         }
 
-        return status_colors.get(status, status)
+        return status_colors.get(simple_status, simple_status)
+
+    def _format_commits_ahead_simple(self, status: str) -> str:
+        """Format commits ahead status as simple Yes/No.
+
+        Args:
+            status: Commits ahead status string
+
+        Returns:
+            Simple Yes/No formatted string
+        """
+        if status in ["None", "No commits ahead"]:
+            return "No"
+        elif status in ["Unknown", "Has commits"]:
+            return "Yes"
+        else:
+            return "Unknown"
 
     def _display_fork_data_table(
         self,
@@ -671,7 +690,7 @@ class RepositoryDisplayService:
             fork_table.add_column("Forks", style="green", justify="right", width=6)
             fork_table.add_column("Size (KB)", style="white", justify="right", width=8)
             fork_table.add_column("Language", style="white", width=12)
-            fork_table.add_column("Commits Status", style="magenta", width=15)
+            fork_table.add_column("Commits Ahead", style="magenta", width=15)
             fork_table.add_column("Activity", style="orange3", width=20)
             fork_table.add_column("Last Push", style="blue", width=12)
             fork_table.add_column("Status", style="red", width=12)
@@ -809,14 +828,17 @@ class RepositoryDisplayService:
             status: Commits ahead status string
 
         Returns:
-            Styled status string
+            Styled status string with simple Yes/No format
         """
+        # Convert to simple format first
+        simple_status = self._format_commits_ahead_simple(status)
+
         status_colors = {
-            "No commits ahead": "[red]No commits ahead[/red]",
-            "Has commits": "[green]Has commits[/green]"
+            "No": "[red]No[/red]",
+            "Yes": "[green]Yes[/green]"
         }
 
-        return status_colors.get(status, status)
+        return status_colors.get(simple_status, simple_status)
 
     def _display_filtering_info(self, exclude_archived: bool, exclude_disabled: bool, stats) -> None:
         """Display information about applied filters.
