@@ -536,7 +536,7 @@
   - Write unit tests for all qualification data models and validation
   - _Requirements: 20.1, 20.2_
 
-- [-] 17.2 Build ForkListProcessor for efficient API usage
+- [x] 17.2 Build ForkListProcessor for efficient API usage
   - Implement ForkListProcessor class to handle paginated forks list endpoint calls
   - Add get_all_forks_list_data method using only `/repos/{owner}/{repo}/forks?per_page=100&page=N`
   - Create extract_qualification_fields method to extract all available metrics from fork list response
@@ -544,7 +544,7 @@
   - Write unit tests for fork list processing and comprehensive data extraction
   - _Requirements: 20.1, 20.2, 20.9_
 
-- [ ] 17.3 Create ForkDataCollectionEngine for data collection and commits-ahead detection
+- [-] 17.3 Create ForkDataCollectionEngine for data collection and commits-ahead detection
   - Implement ForkDataCollectionEngine class with collect_fork_data_from_list method
   - Extract and organize all qualification metrics without scoring or filtering
   - Add determine_commits_ahead_status method using created_at >= pushed_at comparison logic
