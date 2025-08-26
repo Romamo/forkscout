@@ -703,6 +703,334 @@ class RepositoryDisplayService:
 
         return status_colors.get(status, status)
 
+    def _display_fork_data_table(
+        self,
+        qualification_result,
+        sort_by: str = "stars",
+        show_all: bool = False,
+        exclude_archived: bool = False,
+        exclude_disabled: bool = False
+    ) -> None:
+        """Display comprehensive fork data in a formatted table.
+
+        Args:
+            qualification_result: QualifiedForksResult containing all fork data
+            sort_by: Sort criteria for the table
+            show_all: Whether to show all forks or limit display
+            exclude_archived: Whether archived forks were excluded
+            exclude_disabled: Whether disabled forks were excluded
+        """
+        from forklift.models.fork_qualification import QualifiedForksResult
+
+        # Display summary statistics
+        stats = qualification_result.stats
+        self.console.print(f"\n[bold blue]Fork Data Summary for {qualification_result.repository_owner}/{qualification_result.repository_name}[/bold blue]")
+        self.console.print("=" * 80)
+
+        summary_table = Table(title="Collection Summary")
+        summary_table.add_column("Metric", style="cyan", width=25)
+        summary_table.add_column("Count", style="green", justify="right", width=10)
+        summary_table.add_column("Percentage", style="yellow", justify="right", width=12)
+
+        total = stats.total_forks_discovered
+        summary_table.add_row("Total Forks", str(total), "100.0%")
+        summary_table.add_row("Need Analysis", str(stats.forks_with_commits), f"{stats.analysis_candidate_percentage:.1f}%")
+        summary_table.add_row("Can Skip", str(stats.forks_with_no_commits), f"{stats.skip_rate_percentage:.1f}%")
+        summary_table.add_row("Archived", str(stats.archived_forks), f"{(stats.archived_forks/total*100) if total > 0 else 0:.1f}%")
+        summary_table.add_row("Disabled", str(stats.disabled_forks), f"{(stats.disabled_forks/total*100) if total > 0 else 0:.1f}%")
+
+        self.console.print(summary_table)
+
+        # Display detailed fork data table
+        if qualification_result.collected_forks:
+            self.console.print(f"\n[bold blue]Detailed Fork Information[/bold blue]")
+            self.console.print("=" * 80)
+
+            # Sort forks based on criteria
+            sorted_forks = self._sort_forks(qualification_result.collected_forks, sort_by)
+
+            # Create main fork data table
+            fork_table = Table(title=f"All Forks ({len(sorted_forks)} displayed, sorted by {sort_by})")
+            fork_table.add_column("#", style="dim", width=4)
+            fork_table.add_column("Fork Name", style="cyan", min_width=20)
+            fork_table.add_column("Owner", style="blue", min_width=15)
+            fork_table.add_column("Stars", style="yellow", justify="right", width=6)
+            fork_table.add_column("Forks", style="green", justify="right", width=6)
+            fork_table.add_column("Size (KB)", style="white", justify="right", width=8)
+            fork_table.add_column("Language", style="white", width=12)
+            fork_table.add_column("Commits Status", style="magenta", width=15)
+            fork_table.add_column("Activity", style="orange3", width=20)
+            fork_table.add_column("Last Push", style="blue", width=12)
+            fork_table.add_column("Status", style="red", width=12)
+
+            # Determine display limit
+            display_limit = len(sorted_forks) if show_all else min(50, len(sorted_forks))
+
+            for i, fork_data in enumerate(sorted_forks[:display_limit], 1):
+                metrics = fork_data.metrics
+
+                # Style status indicators
+                status_parts = []
+                if metrics.archived:
+                    status_parts.append("[red]Archived[/red]")
+                if metrics.disabled:
+                    status_parts.append("[red]Disabled[/red]")
+                if not status_parts:
+                    status_parts.append("[green]Active[/green]")
+
+                status_display = " ".join(status_parts)
+
+                # Style commits ahead status
+                commits_status = self._style_commits_ahead_display(metrics.commits_ahead_status)
+
+                # Format last push date
+                last_push = self._format_datetime(metrics.pushed_at)
+
+                fork_table.add_row(
+                    str(i),
+                    metrics.name,
+                    metrics.owner,
+                    str(metrics.stargazers_count),
+                    str(metrics.forks_count),
+                    f"{metrics.size:,}",
+                    metrics.language or "N/A",
+                    commits_status,
+                    fork_data.activity_summary,
+                    last_push,
+                    status_display
+                )
+
+            self.console.print(fork_table)
+
+            if len(sorted_forks) > display_limit:
+                remaining = len(sorted_forks) - display_limit
+                self.console.print(f"[dim]... and {remaining} more forks (use --show-all to see all)[/dim]")
+
+            # Show filtering information
+            self._display_filtering_info(exclude_archived, exclude_disabled, stats)
+
+            # Show additional insights
+            self._display_fork_insights(qualification_result)
+
+        else:
+            self.console.print("[yellow]No forks found matching the criteria.[/yellow]")
+
+    def _sort_forks(self, collected_forks, sort_by: str):
+        """Sort forks based on the specified criteria.
+
+        Args:
+            collected_forks: List of CollectedForkData
+            sort_by: Sort criteria
+
+        Returns:
+            Sorted list of forks
+        """
+        sort_functions = {
+            "stars": lambda x: x.metrics.stargazers_count,
+            "forks": lambda x: x.metrics.forks_count,
+            "size": lambda x: x.metrics.size,
+            "activity": lambda x: -x.metrics.days_since_last_push,  # Negative for recent first
+            "commits_status": lambda x: (x.metrics.commits_ahead_status == "Has commits", x.metrics.stargazers_count),
+            "name": lambda x: x.metrics.name.lower(),
+            "owner": lambda x: x.metrics.owner.lower(),
+            "language": lambda x: x.metrics.language or "zzz"  # Put None at end
+        }
+
+        sort_func = sort_functions.get(sort_by, sort_functions["stars"])
+        reverse = sort_by not in ["name", "owner", "language"]  # These should be ascending
+
+        return sorted(collected_forks, key=sort_func, reverse=reverse)
+
+    def _style_commits_ahead_display(self, status: str) -> str:
+        """Apply color styling to commits ahead status for display.
+
+        Args:
+            status: Commits ahead status string
+
+        Returns:
+            Styled status string
+        """
+        status_colors = {
+            "No commits ahead": "[red]No commits ahead[/red]",
+            "Has commits": "[green]Has commits[/green]"
+        }
+
+        return status_colors.get(status, status)
+
+    def _display_filtering_info(self, exclude_archived: bool, exclude_disabled: bool, stats) -> None:
+        """Display information about applied filters.
+
+        Args:
+            exclude_archived: Whether archived forks were excluded
+            exclude_disabled: Whether disabled forks were excluded
+            stats: QualificationStats object
+        """
+        if exclude_archived or exclude_disabled:
+            self.console.print(f"\n[bold yellow]Applied Filters:[/bold yellow]")
+            filter_table = Table()
+            filter_table.add_column("Filter", style="cyan")
+            filter_table.add_column("Status", style="green")
+            filter_table.add_column("Excluded Count", style="red", justify="right")
+
+            if exclude_archived:
+                filter_table.add_row("Archived Forks", "Excluded", str(stats.archived_forks))
+            if exclude_disabled:
+                filter_table.add_row("Disabled Forks", "Excluded", str(stats.disabled_forks))
+
+            self.console.print(filter_table)
+
+    def _display_fork_insights(self, qualification_result) -> None:
+        """Display additional insights about the fork data.
+
+        Args:
+            qualification_result: QualifiedForksResult containing all fork data
+        """
+        # Get insights from computed properties
+        active_forks = qualification_result.active_forks
+        popular_forks = qualification_result.popular_forks
+        analysis_candidates = qualification_result.forks_needing_analysis
+        skip_candidates = qualification_result.forks_to_skip
+
+        self.console.print(f"\n[bold green]Fork Insights:[/bold green]")
+        insights_table = Table()
+        insights_table.add_column("Category", style="cyan", width=25)
+        insights_table.add_column("Count", style="green", justify="right", width=8)
+        insights_table.add_column("Description", style="white")
+
+        insights_table.add_row(
+            "Active Forks",
+            str(len(active_forks)),
+            "Forks with activity in last 90 days"
+        )
+        insights_table.add_row(
+            "Popular Forks",
+            str(len(popular_forks)),
+            "Forks with 5+ stars"
+        )
+        insights_table.add_row(
+            "Analysis Candidates",
+            str(len(analysis_candidates)),
+            "Forks that need detailed analysis"
+        )
+        insights_table.add_row(
+            "Skip Candidates",
+            str(len(skip_candidates)),
+            "Forks with no commits ahead"
+        )
+
+        self.console.print(insights_table)
+
+        # Show language distribution
+        languages = {}
+        for fork_data in qualification_result.collected_forks:
+            lang = fork_data.metrics.language or "Unknown"
+            languages[lang] = languages.get(lang, 0) + 1
+
+        if languages:
+            self.console.print(f"\n[bold blue]Language Distribution:[/bold blue]")
+            lang_table = Table()
+            lang_table.add_column("Language", style="cyan")
+            lang_table.add_column("Fork Count", style="green", justify="right")
+            lang_table.add_column("Percentage", style="yellow", justify="right")
+
+            total_forks = len(qualification_result.collected_forks)
+            for lang, count in sorted(languages.items(), key=lambda x: x[1], reverse=True)[:10]:
+                percentage = (count / total_forks) * 100
+                lang_table.add_row(lang, str(count), f"{percentage:.1f}%")
+
+            self.console.print(lang_table)
+
+    async def show_fork_data(
+        self,
+        repo_url: str,
+        exclude_archived: bool = False,
+        exclude_disabled: bool = False,
+        sort_by: str = "stars",
+        show_all: bool = False,
+        disable_cache: bool = False
+    ) -> dict[str, Any]:
+        """Display comprehensive fork data with all collected metrics.
+
+        Args:
+            repo_url: Repository URL in format owner/repo or full GitHub URL
+            exclude_archived: Whether to exclude archived forks from display
+            exclude_disabled: Whether to exclude disabled forks from display
+            sort_by: Sort criteria (stars, activity, size, commits_status, name)
+            show_all: Whether to show all forks or limit display
+            disable_cache: Whether to bypass cache for fresh data
+
+        Returns:
+            Dictionary containing comprehensive fork data
+
+        Raises:
+            ValueError: If repository URL format is invalid
+            GitHubAPIError: If fork data cannot be fetched
+        """
+        from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+        from forklift.github.fork_list_processor import ForkListProcessor
+
+        owner, repo_name = self._parse_repository_url(repo_url)
+
+        logger.info(f"Collecting comprehensive fork data for {owner}/{repo_name}")
+
+        try:
+            # Initialize components
+            fork_processor = ForkListProcessor(self.github_client)
+            data_engine = ForkDataCollectionEngine()
+
+            # Get all forks data from GitHub API
+            forks_list_data = await fork_processor.get_all_forks_list_data(owner, repo_name)
+
+            if not forks_list_data:
+                self.console.print("[yellow]No forks found for this repository.[/yellow]")
+                return {
+                    "total_forks": 0,
+                    "collected_forks": [],
+                    "stats": None
+                }
+
+            # Collect comprehensive fork data
+            collected_forks = data_engine.collect_fork_data_from_list(forks_list_data)
+
+            # Apply filters if requested
+            original_count = len(collected_forks)
+            filtered_forks = collected_forks.copy()
+
+            if exclude_archived:
+                filtered_forks = data_engine.exclude_archived_and_disabled(filtered_forks)
+
+            if exclude_disabled:
+                filtered_forks = [
+                    fork for fork in filtered_forks 
+                    if not fork.metrics.disabled
+                ]
+
+            # Create qualification result
+            qualification_result = data_engine.create_qualification_result(
+                repository_owner=owner,
+                repository_name=repo_name,
+                collected_forks=filtered_forks,
+                processing_time_seconds=0.0,
+                api_calls_made=len(forks_list_data),
+                api_calls_saved=0
+            )
+
+            # Display comprehensive fork data
+            self._display_fork_data_table(qualification_result, sort_by, show_all, exclude_archived, exclude_disabled)
+
+            return {
+                "total_forks": original_count,
+                "displayed_forks": len(filtered_forks),
+                "collected_forks": filtered_forks,
+                "stats": qualification_result.stats,
+                "qualification_result": qualification_result
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to collect fork data: {e}")
+            self.console.print(f"[red]Error: Failed to collect fork data: {e}[/red]")
+            raise
+
     async def show_promising_forks(
         self,
         repo_url: str,

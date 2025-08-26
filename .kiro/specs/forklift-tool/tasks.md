@@ -562,7 +562,7 @@
   - Write unit tests for integrated fork discovery, data collection, and automatic filtering workflow
   - _Requirements: 20.4.2, 20.4.3, 20.9, 20.10, 20.12, 20.13_
 
-- [ ] 17.5 Add fork data display CLI commands with commits-ahead status
+- [-] 17.5 Add fork data display CLI commands with commits-ahead status
   - Create show_fork_data method in RepositoryDisplayService to display all collected fork metrics
   - Implement comprehensive fork data display showing stars, forks, size, language, activity dates, topics, commits-ahead status
   - Add clear indication of forks with "No commits ahead" vs "Has commits" based on date comparison

@@ -113,28 +113,26 @@ def sample_qualification_result(sample_fork_data):
 async def test_show_comprehensive_fork_data_basic(mock_config, sample_fork_data):
     """Test basic comprehensive fork data display functionality."""
     with patch('forklift.cli.GitHubClient') as mock_github_client, \
-         patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor, \
-         patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine, \
-         patch('forklift.cli._display_comprehensive_fork_data') as mock_display, \
-         patch('forklift.cli.validate_repository_url') as mock_validate:
+         patch('forklift.cli.RepositoryDisplayService') as mock_display_service:
         
         # Setup mocks
-        mock_validate.return_value = ("testowner", "testrepo")
-        
         mock_client_instance = AsyncMock()
         mock_github_client.return_value.__aenter__.return_value = mock_client_instance
         
-        mock_processor_instance = AsyncMock()
-        mock_processor.return_value = mock_processor_instance
-        mock_processor_instance.get_all_forks_list_data.return_value = [
-            {"id": 123456, "name": "test-fork-1", "full_name": "user1/test-fork-1"},
-            {"id": 789012, "name": "test-fork-2", "full_name": "user2/test-fork-2"}
-        ]
+        mock_service_instance = AsyncMock()
+        mock_display_service.return_value = mock_service_instance
+        # Create a proper mock stats object
+        mock_stats = MagicMock()
+        mock_stats.processing_time_seconds = 1.5
+        mock_stats.efficiency_percentage = 75.0
         
-        mock_engine_instance = MagicMock()
-        mock_engine.return_value = mock_engine_instance
-        mock_engine_instance.collect_fork_data_from_list.return_value = sample_fork_data
-        mock_engine_instance.create_qualification_result.return_value = MagicMock()
+        mock_service_instance.show_fork_data.return_value = {
+            "total_forks": 2,
+            "displayed_forks": 2,
+            "collected_forks": sample_fork_data,
+            "stats": mock_stats,
+            "qualification_result": MagicMock()
+        }
         
         # Test the function
         await _show_comprehensive_fork_data(
@@ -142,41 +140,48 @@ async def test_show_comprehensive_fork_data_basic(mock_config, sample_fork_data)
             repository_url="testowner/testrepo",
             exclude_archived=False,
             exclude_disabled=False,
+            sort_by="stars",
+            show_all=False,
+            disable_cache=False,
             interactive=False,
             verbose=True
         )
         
         # Verify calls
-        mock_validate.assert_called_once_with("testowner/testrepo")
-        mock_processor_instance.get_all_forks_list_data.assert_called_once_with("testowner", "testrepo")
-        mock_engine_instance.collect_fork_data_from_list.assert_called_once()
-        mock_display.assert_called_once()
+        mock_service_instance.show_fork_data.assert_called_once_with(
+            repo_url="testowner/testrepo",
+            exclude_archived=False,
+            exclude_disabled=False,
+            sort_by="stars",
+            show_all=False,
+            disable_cache=False
+        )
 
 
 @pytest.mark.asyncio
 async def test_show_comprehensive_fork_data_with_filters(mock_config, sample_fork_data):
     """Test comprehensive fork data display with filters applied."""
     with patch('forklift.cli.GitHubClient') as mock_github_client, \
-         patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor, \
-         patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine, \
-         patch('forklift.cli._display_comprehensive_fork_data') as mock_display, \
-         patch('forklift.cli.validate_repository_url') as mock_validate:
+         patch('forklift.cli.RepositoryDisplayService') as mock_display_service:
         
         # Setup mocks
-        mock_validate.return_value = ("testowner", "testrepo")
-        
         mock_client_instance = AsyncMock()
         mock_github_client.return_value.__aenter__.return_value = mock_client_instance
         
-        mock_processor_instance = AsyncMock()
-        mock_processor.return_value = mock_processor_instance
-        mock_processor_instance.get_all_forks_list_data.return_value = []
+        mock_service_instance = AsyncMock()
+        mock_display_service.return_value = mock_service_instance
+        # Create a proper mock stats object
+        mock_stats = MagicMock()
+        mock_stats.processing_time_seconds = 2.0
+        mock_stats.efficiency_percentage = 80.0
         
-        mock_engine_instance = MagicMock()
-        mock_engine.return_value = mock_engine_instance
-        mock_engine_instance.collect_fork_data_from_list.return_value = sample_fork_data
-        mock_engine_instance.exclude_archived_and_disabled.return_value = sample_fork_data
-        mock_engine_instance.create_qualification_result.return_value = MagicMock()
+        mock_service_instance.show_fork_data.return_value = {
+            "total_forks": 2,
+            "displayed_forks": 1,
+            "collected_forks": sample_fork_data[:1],  # Filtered result
+            "stats": mock_stats,
+            "qualification_result": MagicMock()
+        }
         
         # Test with filters
         await _show_comprehensive_fork_data(
@@ -184,12 +189,22 @@ async def test_show_comprehensive_fork_data_with_filters(mock_config, sample_for
             repository_url="testowner/testrepo",
             exclude_archived=True,
             exclude_disabled=True,
+            sort_by="stars",
+            show_all=False,
+            disable_cache=False,
             interactive=False,
             verbose=False
         )
         
-        # Verify filter methods were called
-        mock_engine_instance.exclude_archived_and_disabled.assert_called_once()
+        # Verify filter parameters were passed
+        mock_service_instance.show_fork_data.assert_called_once_with(
+            repo_url="testowner/testrepo",
+            exclude_archived=True,
+            exclude_disabled=True,
+            sort_by="stars",
+            show_all=False,
+            disable_cache=False
+        )
 
 
 def test_display_comprehensive_fork_data(sample_qualification_result, capsys):
@@ -337,3 +352,255 @@ def test_collected_fork_data_activity_summary():
     
     old_fork = CollectedForkData(metrics=old_metrics)
     assert "Inactive" in old_fork.activity_summary
+
+
+@pytest.mark.asyncio
+async def test_repository_display_service_show_fork_data(mock_config, sample_fork_data):
+    """Test RepositoryDisplayService show_fork_data method."""
+    from forklift.display.repository_display_service import RepositoryDisplayService
+    from forklift.github.client import GitHubClient
+    from rich.console import Console
+    
+    with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor, \
+         patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine:
+        
+        # Setup mocks
+        mock_github_client = AsyncMock()
+        mock_console = MagicMock()
+        
+        mock_processor_instance = AsyncMock()
+        mock_processor.return_value = mock_processor_instance
+        mock_processor_instance.get_all_forks_list_data.return_value = [
+            {"id": 123456, "name": "test-fork-1", "full_name": "user1/test-fork-1"},
+            {"id": 789012, "name": "test-fork-2", "full_name": "user2/test-fork-2"}
+        ]
+        
+        mock_engine_instance = MagicMock()
+        mock_engine.return_value = mock_engine_instance
+        mock_engine_instance.collect_fork_data_from_list.return_value = sample_fork_data
+        
+        # Create a proper mock qualification result
+        mock_qualification_result = MagicMock()
+        mock_qualification_result.repository_owner = "testowner"
+        mock_qualification_result.repository_name = "testrepo"
+        mock_qualification_result.collected_forks = sample_fork_data
+        mock_qualification_result.stats = MagicMock()
+        mock_qualification_result.stats.total_forks_discovered = 2
+        mock_qualification_result.stats.forks_with_commits = 1
+        mock_qualification_result.stats.forks_with_no_commits = 1
+        mock_qualification_result.stats.archived_forks = 0
+        mock_qualification_result.stats.disabled_forks = 0
+        mock_qualification_result.stats.analysis_candidate_percentage = 50.0
+        mock_qualification_result.stats.skip_rate_percentage = 50.0
+        mock_qualification_result.stats.processing_time_seconds = 1.0
+        mock_qualification_result.stats.efficiency_percentage = 0.0
+        
+        mock_engine_instance.create_qualification_result.return_value = mock_qualification_result
+        
+        # Create service
+        service = RepositoryDisplayService(mock_github_client, mock_console)
+        
+        # Test the method
+        result = await service.show_fork_data(
+            repo_url="testowner/testrepo",
+            exclude_archived=False,
+            exclude_disabled=False,
+            sort_by="stars",
+            show_all=False,
+            disable_cache=False
+        )
+        
+        # Verify calls
+        mock_processor_instance.get_all_forks_list_data.assert_called_once_with("testowner", "testrepo")
+        mock_engine_instance.collect_fork_data_from_list.assert_called_once()
+        
+        # Verify result structure
+        assert "total_forks" in result
+        assert "displayed_forks" in result
+        assert "collected_forks" in result
+        assert "stats" in result
+        assert "qualification_result" in result
+
+
+@pytest.mark.asyncio
+async def test_repository_display_service_show_fork_data_with_filters(mock_config, sample_fork_data):
+    """Test RepositoryDisplayService show_fork_data method with filters."""
+    from forklift.display.repository_display_service import RepositoryDisplayService
+    
+    with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor, \
+         patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine:
+        
+        # Setup mocks
+        mock_github_client = AsyncMock()
+        mock_console = MagicMock()
+        
+        mock_processor_instance = AsyncMock()
+        mock_processor.return_value = mock_processor_instance
+        mock_processor_instance.get_all_forks_list_data.return_value = [
+            {"id": 123456, "name": "test-fork-1", "full_name": "user1/test-fork-1"},
+            {"id": 789012, "name": "test-fork-2", "full_name": "user2/test-fork-2"}
+        ]
+        
+        mock_engine_instance = MagicMock()
+        mock_engine.return_value = mock_engine_instance
+        mock_engine_instance.collect_fork_data_from_list.return_value = sample_fork_data
+        mock_engine_instance.exclude_archived_and_disabled.return_value = sample_fork_data
+        
+        # Create a proper mock qualification result
+        mock_qualification_result = MagicMock()
+        mock_qualification_result.repository_owner = "testowner"
+        mock_qualification_result.repository_name = "testrepo"
+        mock_qualification_result.collected_forks = sample_fork_data
+        mock_qualification_result.stats = MagicMock()
+        mock_qualification_result.stats.total_forks_discovered = 2
+        mock_qualification_result.stats.forks_with_commits = 1
+        mock_qualification_result.stats.forks_with_no_commits = 1
+        mock_qualification_result.stats.archived_forks = 0
+        mock_qualification_result.stats.disabled_forks = 0
+        mock_qualification_result.stats.analysis_candidate_percentage = 50.0
+        mock_qualification_result.stats.skip_rate_percentage = 50.0
+        mock_qualification_result.stats.processing_time_seconds = 1.0
+        mock_qualification_result.stats.efficiency_percentage = 0.0
+        
+        mock_engine_instance.create_qualification_result.return_value = mock_qualification_result
+        
+        # Create service
+        service = RepositoryDisplayService(mock_github_client, mock_console)
+        
+        # Test with filters
+        result = await service.show_fork_data(
+            repo_url="testowner/testrepo",
+            exclude_archived=True,
+            exclude_disabled=True,
+            sort_by="activity",
+            show_all=True,
+            disable_cache=False
+        )
+        
+        # Verify filter methods were called (exclude_archived_and_disabled is called when exclude_archived=True)
+        mock_engine_instance.exclude_archived_and_disabled.assert_called_once()
+        
+        # Verify result
+        assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_repository_display_service_show_fork_data_no_forks():
+    """Test RepositoryDisplayService show_fork_data method with no forks."""
+    from forklift.display.repository_display_service import RepositoryDisplayService
+    
+    with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor, \
+         patch('forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine') as mock_engine:
+        
+        # Setup mocks
+        mock_github_client = AsyncMock()
+        mock_console = MagicMock()
+        
+        mock_processor_instance = AsyncMock()
+        mock_processor.return_value = mock_processor_instance
+        mock_processor_instance.get_all_forks_list_data.return_value = []
+        
+        mock_engine_instance = MagicMock()
+        mock_engine.return_value = mock_engine_instance
+        
+        # Create service
+        service = RepositoryDisplayService(mock_github_client, mock_console)
+        
+        # Test with no forks
+        result = await service.show_fork_data(
+            repo_url="testowner/testrepo",
+            exclude_archived=False,
+            exclude_disabled=False,
+            sort_by="stars",
+            show_all=False,
+            disable_cache=False
+        )
+        
+        # Verify result for no forks
+        assert result["total_forks"] == 0
+        assert result["collected_forks"] == []
+
+
+def test_repository_display_service_sort_forks():
+    """Test fork sorting functionality."""
+    from forklift.display.repository_display_service import RepositoryDisplayService
+    from datetime import datetime, timedelta
+    
+    # Create test data with different metrics
+    metrics1 = ForkQualificationMetrics(
+        id=1, name="fork-a", full_name="user/fork-a", owner="user", html_url="https://github.com/user/fork-a",
+        stargazers_count=10, forks_count=5, size=1000, language="Python",
+        created_at=datetime.utcnow() - timedelta(days=30),
+        updated_at=datetime.utcnow() - timedelta(days=1),
+        pushed_at=datetime.utcnow() - timedelta(days=1)
+    )
+    
+    metrics2 = ForkQualificationMetrics(
+        id=2, name="fork-b", full_name="user/fork-b", owner="user", html_url="https://github.com/user/fork-b",
+        stargazers_count=5, forks_count=10, size=2000, language="JavaScript",
+        created_at=datetime.utcnow() - timedelta(days=60),
+        updated_at=datetime.utcnow() - timedelta(days=30),
+        pushed_at=datetime.utcnow() - timedelta(days=30)
+    )
+    
+    fork_data = [
+        CollectedForkData(metrics=metrics1),
+        CollectedForkData(metrics=metrics2)
+    ]
+    
+    service = RepositoryDisplayService(AsyncMock(), MagicMock())
+    
+    # Test sorting by stars (descending)
+    sorted_by_stars = service._sort_forks(fork_data, "stars")
+    assert sorted_by_stars[0].metrics.stargazers_count == 10
+    assert sorted_by_stars[1].metrics.stargazers_count == 5
+    
+    # Test sorting by name (ascending)
+    sorted_by_name = service._sort_forks(fork_data, "name")
+    assert sorted_by_name[0].metrics.name == "fork-a"
+    assert sorted_by_name[1].metrics.name == "fork-b"
+    
+    # Test sorting by activity (recent first)
+    sorted_by_activity = service._sort_forks(fork_data, "activity")
+    assert sorted_by_activity[0].metrics.days_since_last_push < sorted_by_activity[1].metrics.days_since_last_push
+
+
+def test_commits_ahead_status_detection():
+    """Test commits ahead status detection logic."""
+    from datetime import datetime
+    
+    # Test fork with commits ahead (pushed_at > created_at)
+    metrics_with_commits = ForkQualificationMetrics(
+        id=123, name="test-fork", full_name="user/test-fork", owner="user",
+        html_url="https://github.com/user/test-fork",
+        created_at=datetime(2023, 1, 1),
+        updated_at=datetime(2024, 1, 1),
+        pushed_at=datetime(2024, 1, 15)  # After created_at
+    )
+    
+    assert metrics_with_commits.commits_ahead_status == "Has commits"
+    assert not metrics_with_commits.can_skip_analysis
+    
+    # Test fork with no commits ahead (created_at >= pushed_at)
+    metrics_no_commits = ForkQualificationMetrics(
+        id=456, name="test-fork-2", full_name="user/test-fork-2", owner="user",
+        html_url="https://github.com/user/test-fork-2",
+        created_at=datetime(2024, 1, 1),
+        updated_at=datetime(2024, 1, 1),
+        pushed_at=datetime(2024, 1, 1)  # Same as created_at
+    )
+    
+    assert metrics_no_commits.commits_ahead_status == "No commits ahead"
+    assert metrics_no_commits.can_skip_analysis
+    
+    # Test edge case: created_at > pushed_at
+    metrics_edge_case = ForkQualificationMetrics(
+        id=789, name="test-fork-3", full_name="user/test-fork-3", owner="user",
+        html_url="https://github.com/user/test-fork-3",
+        created_at=datetime(2024, 1, 2),
+        updated_at=datetime(2024, 1, 1),
+        pushed_at=datetime(2024, 1, 1)  # Before created_at
+    )
+    
+    assert metrics_edge_case.commits_ahead_status == "No commits ahead"
+    assert metrics_edge_case.can_skip_analysis

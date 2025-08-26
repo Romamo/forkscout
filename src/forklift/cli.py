@@ -879,6 +879,9 @@ def list_forks(ctx: click.Context, repository_url: str) -> None:
 @click.argument("repository_url")
 @click.option("--exclude-archived", is_flag=True, help="Exclude archived forks from display")
 @click.option("--exclude-disabled", is_flag=True, help="Exclude disabled forks from display")
+@click.option("--sort-by", type=click.Choice(["stars", "forks", "size", "activity", "commits_status", "name", "owner", "language"]), default="stars", help="Sort forks by specified criteria")
+@click.option("--show-all", is_flag=True, help="Show all forks instead of limiting to 50")
+@click.option("--disable-cache", is_flag=True, help="Bypass cache and fetch fresh data")
 @click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection")
 @click.pass_context
 def show_fork_data(
@@ -886,6 +889,9 @@ def show_fork_data(
     repository_url: str, 
     exclude_archived: bool, 
     exclude_disabled: bool,
+    sort_by: str,
+    show_all: bool,
+    disable_cache: bool,
     interactive: bool
 ) -> None:
     """Display comprehensive fork data and let users choose which forks to analyze.
@@ -911,7 +917,7 @@ def show_fork_data(
 
         # Run comprehensive fork data display
         asyncio.run(_show_comprehensive_fork_data(
-            config, repository_url, exclude_archived, exclude_disabled, interactive, verbose
+            config, repository_url, exclude_archived, exclude_disabled, sort_by, show_all, disable_cache, interactive, verbose
         ))
 
     except CLIError as e:
@@ -1292,6 +1298,9 @@ async def _show_comprehensive_fork_data(
     repository_url: str,
     exclude_archived: bool,
     exclude_disabled: bool,
+    sort_by: str,
+    show_all: bool,
+    disable_cache: bool,
     interactive: bool,
     verbose: bool
 ) -> None:
@@ -1302,70 +1311,41 @@ async def _show_comprehensive_fork_data(
         repository_url: Repository URL to analyze
         exclude_archived: Whether to exclude archived forks
         exclude_disabled: Whether to exclude disabled forks
+        sort_by: Sort criteria for the display
+        show_all: Whether to show all forks or limit display
+        disable_cache: Whether to bypass cache for fresh data
         interactive: Whether to enter interactive mode
         verbose: Enable verbose output
     """
-    from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-    from forklift.github.fork_list_processor import ForkListProcessor
-    
     async with GitHubClient(config.github) as github_client:
         try:
-            # Parse repository URL
-            owner, repo_name = validate_repository_url(repository_url)
+            # Use RepositoryDisplayService for consistent display
+            display_service = RepositoryDisplayService(github_client, console)
             
             if verbose:
-                console.print(f"[blue]Collecting fork data for {owner}/{repo_name}[/blue]")
+                console.print(f"[blue]Collecting comprehensive fork data for: {repository_url}[/blue]")
             
-            # Initialize components
-            fork_processor = ForkListProcessor(github_client)
-            data_engine = ForkDataCollectionEngine()
-            
-            # Collect comprehensive fork data
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console
-            ) as progress:
-                task = progress.add_task("Fetching fork data...", total=None)
-                
-                # Get all forks data from GitHub API
-                forks_list_data = await fork_processor.get_all_forks_list_data(owner, repo_name)
-                progress.update(task, description=f"Processing {len(forks_list_data)} forks...")
-                
-                # Collect comprehensive fork data
-                collected_forks = data_engine.collect_fork_data_from_list(forks_list_data)
-                
-                # Apply basic filters if requested
-                if exclude_archived:
-                    collected_forks = data_engine.exclude_archived_and_disabled(collected_forks)
-                    progress.update(task, description="Applied archived filter...")
-                
-                if exclude_disabled:
-                    # Filter disabled forks separately if needed
-                    collected_forks = [
-                        fork for fork in collected_forks 
-                        if not fork.metrics.disabled
-                    ]
-                    progress.update(task, description="Applied disabled filter...")
-                
-                progress.update(task, description="Data collection complete!")
-            
-            # Create qualification result
-            qualification_result = data_engine.create_qualification_result(
-                repository_owner=owner,
-                repository_name=repo_name,
-                collected_forks=collected_forks,
-                processing_time_seconds=0.0,  # Will be calculated properly
-                api_calls_made=len(forks_list_data),
-                api_calls_saved=0
+            # Show comprehensive fork data using the service
+            result = await display_service.show_fork_data(
+                repo_url=repository_url,
+                exclude_archived=exclude_archived,
+                exclude_disabled=exclude_disabled,
+                sort_by=sort_by,
+                show_all=show_all,
+                disable_cache=disable_cache
             )
             
-            # Display comprehensive fork data
-            _display_comprehensive_fork_data(qualification_result, verbose)
+            if verbose:
+                stats = result.get("stats")
+                if stats:
+                    console.print(f"\n[green]✓ Data collection completed in {stats.processing_time_seconds:.2f} seconds[/green]")
+                    console.print(f"[blue]API Efficiency: {stats.efficiency_percentage:.1f}% calls saved[/blue]")
             
             # Enter interactive mode if requested
             if interactive:
-                await _interactive_fork_selection(qualification_result, config, verbose)
+                qualification_result = result.get("qualification_result")
+                if qualification_result:
+                    await _interactive_fork_selection(qualification_result, config, verbose)
             
         except Exception as e:
             logger.error(f"Failed to show comprehensive fork data: {e}")
