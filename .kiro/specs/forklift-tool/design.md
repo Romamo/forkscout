@@ -109,6 +109,18 @@ The fork data collection system is designed to dramatically reduce GitHub API us
 6. **User Selection**: Allow users to choose which forks to analyze based on displayed data
 7. **Statistics Reporting**: Provide detailed statistics on data collected and potential API savings
 
+### Enhanced Fork Display Design Philosophy
+
+The enhanced fork display system is designed to provide a cleaner, more focused view of fork information that prioritizes the most relevant data for maintainer decision-making. The design emphasizes commits status as the primary sorting criterion and removes redundant or less critical information.
+
+### Enhanced Display Design Principles
+
+- **Commits-First Sorting**: Prioritize forks with commits ahead as they are most likely to contain valuable contributions
+- **Simplified Information**: Remove less critical columns to focus on essential fork characteristics
+- **Clear Status Indicators**: Use simple Yes/No indicators for commits ahead status instead of technical terms
+- **Reduced Redundancy**: Eliminate duplicate information sections that don't add value
+- **Improved Readability**: Streamline the display to make scanning and decision-making faster
+
 ### Collected Fork Metrics
 
 The system collects and displays all available fork information:
@@ -431,6 +443,14 @@ class RepositoryDisplayService:
     def _format_commit_with_ai_summary(self, commit: CommitDetails, ai_summary: Optional[AISummary]) -> str
     def _format_fork_data_display(self, collection_result: ForkDataCollectionResult, show_all: bool) -> str
     def _format_fork_metrics(self, collected_fork: CollectedForkData) -> str
+    
+    # Enhanced display methods for improved show-forks functionality
+    def _sort_forks_enhanced(self, collected_forks: List[CollectedForkData]) -> List[CollectedForkData]
+    def _display_enhanced_fork_data_table(self, qualification_result: QualifiedForksResult, show_all: bool = False) -> None
+    def _format_commits_ahead_simple(self, commits_ahead_status: str) -> str
+    def _format_fork_url(self, owner: str, name: str) -> str
+    def _should_exclude_language_distribution(self) -> bool
+    def _should_exclude_fork_insights(self) -> bool
 
 class InteractiveAnalyzer:
     def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, cache_manager: Optional[CacheManager] = None)

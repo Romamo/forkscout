@@ -2174,7 +2174,7 @@ async def _display_ai_summaries_for_commits(
     console.print("=" * 60)
 
     if disable_cache:
-        console.print("[yellow]⚠️  Cache disabled - fetching fresh data from GitHub API[/yellow]")
+        console.print("[yellow]WARNING: Cache disabled - fetching fresh data from GitHub API[/yellow]")
 
     try:
         # Check if OpenAI API key is configured
@@ -2318,7 +2318,7 @@ async def _display_detailed_commits(
     console.print("=" * 60)
 
     if disable_cache:
-        console.print("[yellow]⚠️  Cache disabled - fetching fresh data from GitHub API[/yellow]")
+        console.print("[yellow]WARNING: Cache disabled - fetching fresh data from GitHub API[/yellow]")
 
     try:
         # Create repository object

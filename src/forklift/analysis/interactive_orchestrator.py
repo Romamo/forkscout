@@ -81,7 +81,7 @@ class InteractiveAnalysisOrchestrator:
             for i, step in enumerate(self.steps):
                 # Check if step was already completed in a previous session
                 if self._is_step_completed(step.name):
-                    self.console.print(f"[yellow]⏭️  Skipping completed step: {step.name}[/yellow]")
+                    self.console.print(f"[yellow]INFO: Skipping completed step: {step.name}[/yellow]")
                     continue
                 
                 # Execute the step
@@ -211,11 +211,11 @@ class InteractiveAnalysisOrchestrator:
             if continue_analysis:
                 return UserChoice.CONTINUE
             else:
-                self.console.print("[yellow]⏹️  Analysis aborted by user.[/yellow]")
+                self.console.print("[yellow]INFO: Analysis aborted by user.[/yellow]")
                 return UserChoice.ABORT
                 
         except KeyboardInterrupt:
-            self.console.print("\n[yellow]⏹️  Analysis interrupted by user.[/yellow]")
+            self.console.print("\n[yellow]INFO: Analysis interrupted by user.[/yellow]")
             return UserChoice.ABORT
     
     async def _handle_step_error(self, step_name: str, error: Optional[Exception]) -> UserChoice:
@@ -517,7 +517,7 @@ class InteractiveAnalysisOrchestrator:
         """Display abort completion summary."""
         summary_panel = Panel(
             self._format_abort_summary(session_duration),
-            title="⏹️  Analysis Aborted",
+            title="INFO: Analysis Aborted",
             border_style="yellow",
             padding=(1, 2)
         )
@@ -552,8 +552,8 @@ class InteractiveAnalysisOrchestrator:
         # Add step completion details
         summary_lines.append("**Step Results:**")
         for step_result in self.completed_steps:
-            status_emoji = "✅" if step_result.success else "❌"
-            summary_lines.append(f"{status_emoji} {step_result.step_name}: {step_result.summary}")
+            status_text = "SUCCESS" if step_result.success else "ERROR"
+            summary_lines.append(f"{status_text}: {step_result.step_name}: {step_result.summary}")
         
         # Add final results if available
         if final_result and isinstance(final_result, dict):
@@ -584,20 +584,20 @@ class InteractiveAnalysisOrchestrator:
     def _format_abort_summary(self, session_duration: timedelta) -> str:
         """Format abort summary content."""
         summary_lines = [
-            "⏹️  **Analysis was aborted by user**",
+            "INFO: **Analysis was aborted by user**",
             "",
             "**Session Statistics:**",
-            f"⏱️  Duration: {self._format_duration(session_duration)}",
-            f"📋 Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
-            f"🤔 User confirmations: {self.confirmation_count}",
+            f"Duration: {self._format_duration(session_duration)}",
+            f"Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
+            f"User confirmations: {self.confirmation_count}",
             ""
         ]
         
         if self.completed_steps:
             summary_lines.append("**Completed Steps:**")
             for step_result in self.completed_steps:
-                status_emoji = "✅" if step_result.success else "❌"
-                summary_lines.append(f"{status_emoji} {step_result.step_name}: {step_result.summary}")
+                status_text = "SUCCESS" if step_result.success else "ERROR"
+                summary_lines.append(f"{status_text}: {step_result.step_name}: {step_result.summary}")
             
             summary_lines.extend([
                 "",
@@ -611,23 +611,23 @@ class InteractiveAnalysisOrchestrator:
     def _format_error_summary(self, error: Exception, session_duration: timedelta) -> str:
         """Format error summary content."""
         summary_lines = [
-            "❌ **Analysis failed due to an error**",
+            "ERROR: **Analysis failed due to an error**",
             "",
             f"**Error:** {str(error)}",
             f"**Error Type:** {type(error).__name__}",
             "",
             "**Session Statistics:**",
-            f"⏱️  Duration: {self._format_duration(session_duration)}",
-            f"📋 Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
-            f"🤔 User confirmations: {self.confirmation_count}",
+            f"Duration: {self._format_duration(session_duration)}",
+            f"Steps completed: {len(self.completed_steps)}/{len(self.steps)}",
+            f"User confirmations: {self.confirmation_count}",
             ""
         ]
         
         if self.completed_steps:
             summary_lines.append("**Completed Steps Before Error:**")
             for step_result in self.completed_steps:
-                status_emoji = "✅" if step_result.success else "❌"
-                summary_lines.append(f"{status_emoji} {step_result.step_name}: {step_result.summary}")
+                status_text = "SUCCESS" if step_result.success else "ERROR"
+                summary_lines.append(f"{status_text}: {step_result.step_name}: {step_result.summary}")
         
         summary_lines.extend([
             "",

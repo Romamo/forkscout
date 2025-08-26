@@ -351,7 +351,7 @@ class ForkFilteringStep(InteractiveStep):
         else:
             display_text += f"""
 
-⚠️  **No Forks Passed Filtering**
+WARNING: **No Forks Passed Filtering**
 
 **Suggestions:**
 - Consider lowering the minimum commits ahead (currently {self.min_commits_ahead})
@@ -701,7 +701,7 @@ class FeatureRankingStep(InteractiveStep):
                 if hasattr(feature, 'ranking_factors') and feature.ranking_factors:
                     top_factors = sorted(feature.ranking_factors.items(), key=lambda x: x[1], reverse=True)[:2]
                     factors_text = ", ".join([f"{factor}: {value:.1f}" for factor, value in top_factors])
-                    display_text += f"\n   ⚖️  Key factors: {factors_text}"
+                    display_text += f"\n   FACTORS: Key factors: {factors_text}"
                 
                 display_text += ""  # Empty line for spacing
             
@@ -709,14 +709,14 @@ class FeatureRankingStep(InteractiveStep):
                 display_text += f"\n   ... and {len(top_features) - 5} more top-tier features"
         
         elif good_features:
-            display_text += f"\n\n✅ **Best Available Features (Score 70-79):**"
+            display_text += f"\n\nSUCCESS: **Best Available Features (Score 70-79):**"
             for i, feature in enumerate(good_features[:3], 1):
                 display_text += f"\n{i}. {feature.feature.title} (Score: {feature.score:.1f})"
                 display_text += f"\n   From: {feature.feature.source_fork.repository.full_name}"
                 display_text += f"\n   Category: {feature.feature.category.value.replace('_', ' ').title()}"
         
         elif medium_features:
-            display_text += f"\n\n⚡ **Available Features (Score 60-69):**"
+            display_text += f"\n\nINFO: **Available Features (Score 60-69):**"
             for i, feature in enumerate(medium_features[:3], 1):
                 display_text += f"\n{i}. {feature.feature.title} (Score: {feature.score:.1f})"
                 display_text += f"\n   From: {feature.feature.source_fork.repository.full_name}"

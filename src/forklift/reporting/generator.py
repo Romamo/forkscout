@@ -344,16 +344,16 @@ For questions about this analysis, please refer to the [Forklift documentation](
 
     def _get_category_emoji(self, category: FeatureCategory) -> str:
         """Get emoji for feature category."""
-        emoji_map = {
-            FeatureCategory.NEW_FEATURE: "✨",
-            FeatureCategory.BUG_FIX: "🐛",
-            FeatureCategory.PERFORMANCE: "⚡",
-            FeatureCategory.DOCUMENTATION: "📚",
-            FeatureCategory.REFACTOR: "♻️",
-            FeatureCategory.TEST: "🧪",
-            FeatureCategory.OTHER: "🔧",
+        text_map = {
+            FeatureCategory.NEW_FEATURE: "[FEAT]",
+            FeatureCategory.BUG_FIX: "[FIX]",
+            FeatureCategory.PERFORMANCE: "[PERF]",
+            FeatureCategory.DOCUMENTATION: "[DOCS]",
+            FeatureCategory.REFACTOR: "[REF]",
+            FeatureCategory.TEST: "[TEST]",
+            FeatureCategory.OTHER: "[OTHER]",
         }
-        return emoji_map.get(category, "🔧")
+        return text_map.get(category, "[OTHER]")
 
     def generate_summary_report(
         self,

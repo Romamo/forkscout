@@ -588,7 +588,7 @@
   - _Requirements: 20.1, 20.2, 20.12, 20.13_
 
 - [-] 19. Fix show-forks command to use pagination-only requests (CRITICAL)
-- [-] 19.1 Update CLI to use pagination-only fork data collection
+- [ ] 19.1 Update CLI to use pagination-only fork data collection
   - Change _show_forks_summary function in src/forklift/cli.py to call show_fork_data instead of show_forks_summary
   - Remove the old show_forks_summary method from RepositoryDisplayService that makes expensive API calls
   - Ensure show-forks command uses only `/repos/{owner}/{repo}/forks?per_page=100&page=N` endpoint
@@ -597,7 +597,7 @@
   - _Requirements: 20.1, 20.2, 20.10, 20.11_
 
 - [ ] 18. Fix immediate console formatting issues and implement simple, compatible formatting as default
-- [ ] 18.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
+- [-] 18.0 Fix current emoji and Unicode display issues (HIGH PRIORITY)
   - Replace all emoji characters (📝, ❓, 🟢, ❔) with simple text labels in commit explanations
   - Fix Unicode table borders that display as literal characters in some terminals
   - Update ExplanationFormatter to use ASCII characters instead of Unicode box drawing
@@ -892,3 +892,49 @@
   - Create comprehensive integration tests for simple formatting
   - Update documentation to reflect simple formatting as default
   - _Requirements: 18.1, 18.11, 18.12_
+
+- [-] 18. Enhance show-forks display with improved sorting and simplified columns
+- [ ] 18.1 Implement enhanced fork sorting logic
+  - Create _sort_forks_enhanced method in RepositoryDisplayService with commits-first sorting
+  - Implement multi-level sorting: commits status (has commits first), forks count desc, stars desc, last push desc
+  - Update fork data collection to support enhanced sorting criteria
+  - Write unit tests for enhanced sorting logic with various fork combinations
+  - _Requirements: 21.1_
+
+- [ ] 18.2 Simplify fork data table columns
+  - Remove "#", "Size (KB)", and "Language" columns from Detailed Fork Information table
+  - Add "URL" column containing clickable GitHub URLs for each fork repository
+  - Update _display_enhanced_fork_data_table method to use simplified column structure
+  - Implement _format_fork_url method to generate proper GitHub URLs
+  - Write unit tests for simplified table display and column validation
+  - _Requirements: 21.2, 21.3_
+
+- [ ] 18.3 Update commits ahead display format
+  - Change "Commits Status" header to "Commits Ahead" in fork data table
+  - Implement _format_commits_ahead_simple method to show "Yes"/"No" instead of technical terms
+  - Update commits ahead status formatting throughout the display system
+  - Write unit tests for simplified commits ahead display format
+  - _Requirements: 21.4_
+
+- [ ] 18.4 Remove redundant display sections
+  - Remove "Language Distribution" table from fork data display
+  - Remove "Fork Insights" section that duplicates Collection Summary information
+  - Update _display_fork_data_table method to exclude redundant sections
+  - Add configuration flags _should_exclude_language_distribution and _should_exclude_fork_insights
+  - Write unit tests for streamlined display without redundant sections
+  - _Requirements: 21.5, 21.6_
+
+- [ ] 18.5 Update CLI integration for enhanced show-forks display
+  - Modify show-forks CLI command to use enhanced display methods
+  - Update command help text to reflect new sorting and display behavior
+  - Ensure backward compatibility with existing show-forks functionality
+  - Write integration tests for enhanced show-forks command with real repository data
+  - _Requirements: 21.1, 21.2, 21.3, 21.4, 21.5, 21.6_
+
+- [ ] 18.6 Add comprehensive testing for enhanced show-forks functionality
+  - Write unit tests for all enhanced display methods and sorting logic
+  - Create integration tests using test repositories to validate enhanced display
+  - Add performance tests for enhanced sorting with large fork datasets
+  - Test enhanced display with various fork data scenarios and edge cases
+  - Write regression tests to ensure existing functionality remains intact
+  - _Requirements: 21.1, 21.2, 21.3, 21.4, 21.5, 21.6_

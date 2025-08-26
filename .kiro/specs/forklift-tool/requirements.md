@@ -322,7 +322,20 @@ https://github.com/xgboosted/pandas-ta-classic
 2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, topics, watchers_count, archived, and disabled status
 3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
 4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since last push, and activity ratios
-4.1. WHEN identifying forks with no commits ahead THEN the system SHALL use created_at >= pushed_at comparison to detect forks that have never had new commits
+4.1. WHEN identifying forks with no commits ahead THEN the system SHALL use created_at >= pushed_at comparison
+
+### Requirement 21
+
+**User Story:** As a repository maintainer, I want improved show-forks display with better sorting and simplified columns, so that I can quickly identify the most relevant forks for analysis.
+
+#### Acceptance Criteria
+
+1. WHEN displaying the Detailed Fork Information table THEN the system SHALL sort by commits status (has commits first), then forks count descending, then stars descending, then last push date descending
+2. WHEN showing fork information THEN the system SHALL remove the "#", "Size (KB)", and "Language" columns from the Detailed Fork Information table
+3. WHEN showing fork information THEN the system SHALL add a "URL" column containing the clickable GitHub URL for each fork repository
+4. WHEN displaying commits status THEN the system SHALL change the "Commits Status" header to "Commits Ahead" and show "Yes" for forks with commits ahead and "No" for forks without commits ahead
+5. WHEN generating fork reports THEN the system SHALL remove the "Language Distribution" table entirely
+6. WHEN displaying fork analysis results THEN the system SHALL remove the "Fork Insights" section as it duplicates information from the Collection Summary to detect forks that have never had new commits
 4.2. WHEN a fork has created_at >= pushed_at THEN the system SHALL mark it as "No commits ahead" and exclude it from expensive commit analysis
 4.3. WHEN a fork has pushed_at > created_at THEN the system SHALL mark it as "Has commits" and include it for potential detailed analysis
 5. WHEN displaying fork information THEN the system SHALL show all collected metrics in a clear, sortable format including community engagement indicators (stars, forks, watchers), development indicators (topics, issues, language), and activity patterns

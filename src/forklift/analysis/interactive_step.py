@@ -65,10 +65,10 @@ class InteractiveStep(ABC):
             Formatted completion summary
         """
         if results.success:
-            return f"✅ {self.name}: {results.summary}"
+            return f"SUCCESS: {self.name}: {results.summary}"
         else:
             error_msg = str(results.error) if results.error else "Unknown error"
-            return f"❌ {self.name}: Failed - {error_msg}"
+            return f"ERROR: {self.name}: Failed - {error_msg}"
     
     def get_metrics_display(self, results: StepResult) -> Dict[str, Any]:
         """Get metrics for display.
