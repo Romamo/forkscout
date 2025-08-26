@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from forklift.models.interactive import InteractiveConfig
 from forklift.models.ai_summary import AISummaryConfig
+from forklift.models.fork_filtering import ForkFilteringConfig
 
 
 class ScoringConfig(BaseModel):
@@ -45,9 +46,7 @@ class ScoringConfig(BaseModel):
 
         # Allow small floating point differences
         if not (0.99 <= total_weight <= 1.01):
-            raise ValueError(
-                f"Scoring weights must sum to 1.0, got {total_weight:.3f}"
-            )
+            raise ValueError(f"Scoring weights must sum to 1.0, got {total_weight:.3f}")
         return self
 
     @classmethod
@@ -60,6 +59,7 @@ class ScoringConfig(BaseModel):
         recency_weight: float = 0.15,
     ) -> "ScoringConfig":
         """Create ScoringConfig without validation for testing purposes."""
+
         # Create a simple object with the weights for testing normalization
         class UnnormalizedConfig:
             def __init__(self):
@@ -92,7 +92,8 @@ class ScoringConfig(BaseModel):
 
                 return ScoringConfig(
                     code_quality_weight=self.code_quality_weight / total,
-                    community_engagement_weight=self.community_engagement_weight / total,
+                    community_engagement_weight=self.community_engagement_weight
+                    / total,
                     test_coverage_weight=self.test_coverage_weight / total,
                     documentation_weight=self.documentation_weight / total,
                     recency_weight=self.recency_weight / total,
@@ -222,9 +223,7 @@ class RateLimitConfig(BaseModel):
     max_concurrent_requests: int = Field(
         default=10, ge=1, description="Maximum concurrent requests"
     )
-    burst_limit: int = Field(
-        default=100, ge=1, description="Burst request limit"
-    )
+    burst_limit: int = Field(default=100, ge=1, description="Burst request limit")
     backoff_factor: float = Field(
         default=2.0, ge=1.0, description="Exponential backoff factor"
     )
@@ -271,6 +270,7 @@ class ForkliftConfig(BaseSettings):
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     interactive: InteractiveConfig = Field(default_factory=InteractiveConfig)
     ai_summary: AISummaryConfig = Field(default_factory=AISummaryConfig)
+    fork_filtering: ForkFilteringConfig = Field(default_factory=ForkFilteringConfig)
 
     # Global settings
     debug: bool = Field(default=False, description="Enable debug mode")
@@ -278,7 +278,9 @@ class ForkliftConfig(BaseSettings):
     output_format: str = Field(
         default="markdown", description="Output format (markdown, json, yaml)"
     )
-    openai_api_key: Optional[str] = Field(None, description="OpenAI API key for AI summaries")
+    openai_api_key: Optional[str] = Field(
+        None, description="OpenAI API key for AI summaries"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -306,10 +308,10 @@ class ForkliftConfig(BaseSettings):
         # OpenAI API keys should start with 'sk-' and be at least 20 characters
         if not v.startswith("sk-"):
             raise ValueError("OpenAI API key must start with 'sk-'")
-        
+
         if len(v) < 20:
             raise ValueError("OpenAI API key is too short")
-        
+
         return v
 
     @classmethod
@@ -372,7 +374,9 @@ class ForkliftConfig(BaseSettings):
             elif config_path.suffix.lower() == ".json":
                 f.write(self.to_json())
             else:
-                raise ValueError(f"Unsupported config file format: {config_path.suffix}")
+                raise ValueError(
+                    f"Unsupported config file format: {config_path.suffix}"
+                )
 
     def merge_with_env(self) -> "ForkliftConfig":
         """Merge configuration with environment variables."""
@@ -418,7 +422,9 @@ class ForkliftConfig(BaseSettings):
                     "MAX_CONCURRENT_REQUESTS",
                 ]:
                     try:
-                        current[final_key] = int(value) if "." not in value else float(value)
+                        current[final_key] = (
+                            int(value) if "." not in value else float(value)
+                        )
                     except ValueError:
                         continue  # Skip invalid numeric values
                 else:
@@ -436,7 +442,11 @@ class ForkliftConfig(BaseSettings):
         result = base.copy()
 
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = ForkliftConfig._deep_merge(result[key], value)
             else:
                 result[key] = value

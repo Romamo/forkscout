@@ -2,9 +2,11 @@
 
 import logging
 from urllib.parse import urlparse
+from typing import Optional
 
 from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
 from forklift.models.fork_qualification import QualifiedForksResult
+from forklift.models.fork_filtering import ForkFilteringConfig, ForkFilteringStats
 
 logger = logging.getLogger(__name__)
 
@@ -18,22 +20,20 @@ class ForkCommitStatusError(Exception):
 class ForkCommitStatusChecker:
     """Determines if forks have commits ahead using qualification data with GitHub API fallback."""
 
-    def __init__(self, github_client: GitHubClient):
+    def __init__(
+        self, github_client: GitHubClient, config: Optional[ForkFilteringConfig] = None
+    ):
         """
         Initialize fork commit status checker.
 
         Args:
             github_client: GitHub API client for fallback operations
+            config: Fork filtering configuration
         """
         self.github_client = github_client
-        self.stats = {
-            "qualification_data_hits": 0,
-            "api_fallback_calls": 0,
-            "status_unknown": 0,
-            "no_commits_ahead": 0,
-            "has_commits_ahead": 0,
-            "errors": 0,
-        }
+        self.config = config or ForkFilteringConfig()
+        self.stats = ForkFilteringStats()
+        self._api_fallback_count = 0
 
     async def has_commits_ahead(
         self, fork_url: str, qualification_result: QualifiedForksResult | None = None
@@ -56,6 +56,7 @@ class ForkCommitStatusChecker:
         try:
             # Parse fork URL to extract owner and repo
             owner, repo = self._parse_fork_url(fork_url)
+            fork_name = f"{owner}/{repo}"
 
             # First try using qualification data if available
             if qualification_result:
@@ -63,39 +64,71 @@ class ForkCommitStatusChecker:
                     owner, repo, qualification_result
                 )
                 if status is not None:
-                    self.stats["qualification_data_hits"] += 1
-                    if status:
-                        self.stats["has_commits_ahead"] += 1
-                    else:
-                        self.stats["no_commits_ahead"] += 1
+                    self.stats.add_qualification_hit()
 
-                    logger.debug(
-                        f"Fork {owner}/{repo} commit status from qualification data: {status}"
-                    )
+                    if self.config.log_filtering_decisions:
+                        logger.info(
+                            f"Fork filtering decision: {fork_name} - "
+                            f"{'has commits ahead' if status else 'no commits ahead'} "
+                            f"(source: qualification data)"
+                        )
+
                     return status
 
+            # Check if we should use API fallback
+            if not self.config.fallback_to_api:
+                if self.config.log_filtering_decisions:
+                    logger.info(
+                        f"Fork filtering decision: {fork_name} - "
+                        f"status unknown (API fallback disabled)"
+                    )
+                self.stats.add_status_unknown()
+                return None if self.config.prefer_inclusion_on_uncertainty else False
+
+            # Check API fallback limits
+            if (
+                self.config.max_api_fallback_calls > 0
+                and self._api_fallback_count >= self.config.max_api_fallback_calls
+            ):
+                if self.config.log_filtering_decisions:
+                    logger.warning(
+                        f"Fork filtering decision: {fork_name} - "
+                        f"status unknown (API fallback limit reached: {self.config.max_api_fallback_calls})"
+                    )
+                self.stats.add_status_unknown()
+                return None if self.config.prefer_inclusion_on_uncertainty else False
+
             # Fallback to GitHub API
-            logger.debug(f"Using GitHub API fallback for fork {owner}/{repo}")
+            if self.config.log_filtering_decisions:
+                logger.debug(f"Using GitHub API fallback for fork {fork_name}")
+
             status = await self._check_using_github_api(owner, repo)
-            self.stats["api_fallback_calls"] += 1
+            self._api_fallback_count += 1
+            self.stats.add_api_fallback()
 
             if status is not None:
-                if status:
-                    self.stats["has_commits_ahead"] += 1
-                else:
-                    self.stats["no_commits_ahead"] += 1
+                if self.config.log_filtering_decisions:
+                    logger.info(
+                        f"Fork filtering decision: {fork_name} - "
+                        f"{'has commits ahead' if status else 'no commits ahead'} "
+                        f"(source: GitHub API)"
+                    )
             else:
-                self.stats["status_unknown"] += 1
+                self.stats.add_status_unknown()
+                if self.config.log_filtering_decisions:
+                    logger.warning(
+                        f"Fork filtering decision: {fork_name} - "
+                        f"status unknown (GitHub API could not determine)"
+                    )
 
-            logger.debug(f"Fork {owner}/{repo} commit status from GitHub API: {status}")
             return status
 
         except ForkCommitStatusError:
             # Re-raise our own exceptions
-            self.stats["errors"] += 1
+            self.stats.add_error()
             raise
         except Exception as e:
-            self.stats["errors"] += 1
+            self.stats.add_error()
             logger.error(f"Error checking commit status for {fork_url}: {e}")
             raise ForkCommitStatusError(
                 f"Failed to check commit status for {fork_url}: {e}"
@@ -122,15 +155,18 @@ class ForkCommitStatusChecker:
             if fork_data.metrics.full_name == full_name:
                 # Use the computed property from ForkQualificationMetrics
                 has_commits = not fork_data.metrics.can_skip_analysis
-                logger.debug(
-                    f"Found fork {full_name} in qualification data: "
-                    f"created_at={fork_data.metrics.created_at}, "
-                    f"pushed_at={fork_data.metrics.pushed_at}, "
-                    f"has_commits={has_commits}"
-                )
+
+                if self.config.log_filtering_decisions:
+                    logger.debug(
+                        f"Found fork {full_name} in qualification data: "
+                        f"created_at={fork_data.metrics.created_at}, "
+                        f"pushed_at={fork_data.metrics.pushed_at}, "
+                        f"has_commits={has_commits}"
+                    )
                 return has_commits
 
-        logger.debug(f"Fork {full_name} not found in qualification data")
+        if self.config.log_filtering_decisions:
+            logger.debug(f"Fork {full_name} not found in qualification data")
         return None
 
     async def _check_using_github_api(self, owner: str, repo: str) -> bool | None:
@@ -158,20 +194,23 @@ class ForkCommitStatusChecker:
             else:
                 has_commits = repository.pushed_at > repository.created_at
 
-            logger.debug(
-                f"GitHub API check for {owner}/{repo}: "
-                f"created_at={repository.created_at}, "
-                f"pushed_at={repository.pushed_at}, "
-                f"has_commits={has_commits}"
-            )
+            if self.config.log_filtering_decisions:
+                logger.debug(
+                    f"GitHub API check for {owner}/{repo}: "
+                    f"created_at={repository.created_at}, "
+                    f"pushed_at={repository.pushed_at}, "
+                    f"has_commits={has_commits}"
+                )
 
             return has_commits
 
         except GitHubNotFoundError:
-            logger.warning(f"Fork {owner}/{repo} not found via GitHub API")
+            if self.config.log_filtering_decisions:
+                logger.warning(f"Fork {owner}/{repo} not found via GitHub API")
             return None
         except GitHubAPIError as e:
-            logger.warning(f"GitHub API error checking {owner}/{repo}: {e}")
+            if self.config.log_filtering_decisions:
+                logger.warning(f"GitHub API error checking {owner}/{repo}: {e}")
             return None
         except Exception as e:
             logger.error(
@@ -226,34 +265,161 @@ class ForkCommitStatusChecker:
         except Exception as e:
             raise ForkCommitStatusError(f"Invalid fork URL format: {fork_url}") from e
 
-    def get_statistics(self) -> dict[str, int]:
+    def should_filter_fork(
+        self, fork_data: dict, qualification_result: QualifiedForksResult | None = None
+    ) -> tuple[bool, str]:
         """
-        Get statistics about fork commit status checking operations.
+        Determine if a fork should be filtered out based on configuration and fork data.
+
+        Args:
+            fork_data: Fork data dictionary containing metadata
+            qualification_result: Optional qualification result for commit status checking
 
         Returns:
-            Dictionary containing operation statistics
+            Tuple of (should_filter, reason) where should_filter is True if fork should be filtered
         """
-        return self.stats.copy()
+        fork_name = fork_data.get("full_name", "unknown")
+
+        # Check if filtering is enabled
+        if not self.config.enabled:
+            if self.config.log_filtering_decisions:
+                logger.debug(f"Fork filtering disabled - including {fork_name}")
+            return False, "filtering_disabled"
+
+        # Check archived status
+        if self.config.skip_archived_forks and fork_data.get("archived", False):
+            if self.config.log_filtering_decisions:
+                logger.info(
+                    f"Fork filtering decision: {fork_name} - filtered (archived)"
+                )
+            return True, "archived"
+
+        # Check disabled status
+        if self.config.skip_disabled_forks and fork_data.get("disabled", False):
+            if self.config.log_filtering_decisions:
+                logger.info(
+                    f"Fork filtering decision: {fork_name} - filtered (disabled)"
+                )
+            return True, "disabled"
+
+        return False, "not_filtered"
+
+    async def evaluate_fork_for_filtering(
+        self,
+        fork_url: str,
+        fork_data: dict = None,
+        qualification_result: QualifiedForksResult | None = None,
+    ) -> tuple[bool, str]:
+        """
+        Evaluate a fork for filtering and update statistics.
+
+        Args:
+            fork_url: URL of the fork repository
+            fork_data: Optional fork metadata
+            qualification_result: Optional qualification result
+
+        Returns:
+            Tuple of (should_filter, reason)
+        """
+        # First check basic filtering criteria
+        if fork_data:
+            should_filter, reason = self.should_filter_fork(
+                fork_data, qualification_result
+            )
+            if should_filter:
+                self.stats.add_fork_evaluated(filtered=True, reason=reason)
+                return True, reason
+
+        # Check commit status
+        try:
+            has_commits = await self.has_commits_ahead(fork_url, qualification_result)
+
+            if has_commits is False:
+                # Fork has no commits ahead - filter it out
+                self.stats.add_fork_evaluated(filtered=True, reason="no_commits_ahead")
+                return True, "no_commits_ahead"
+            elif has_commits is True:
+                # Fork has commits ahead - include it
+                self.stats.add_fork_evaluated(filtered=False)
+                return False, "has_commits_ahead"
+            else:
+                # Status unknown - use preference setting
+                should_filter = not self.config.prefer_inclusion_on_uncertainty
+                reason = (
+                    "status_unknown_excluded"
+                    if should_filter
+                    else "status_unknown_included"
+                )
+                self.stats.add_fork_evaluated(
+                    filtered=should_filter, reason=reason if should_filter else None
+                )
+                return should_filter, reason
+
+        except Exception as e:
+            logger.error(f"Error evaluating fork {fork_url} for filtering: {e}")
+            self.stats.add_error()
+            # On error, use preference setting
+            should_filter = not self.config.prefer_inclusion_on_uncertainty
+            reason = "error_excluded" if should_filter else "error_included"
+            self.stats.add_fork_evaluated(
+                filtered=should_filter, reason=reason if should_filter else None
+            )
+            return should_filter, reason
+
+    def get_statistics(self) -> ForkFilteringStats:
+        """
+        Get statistics about fork filtering operations.
+
+        Returns:
+            ForkFilteringStats object containing operation statistics
+        """
+        return self.stats
 
     def reset_statistics(self) -> None:
         """Reset all statistics counters."""
-        for key in self.stats:
-            self.stats[key] = 0
+        self.stats.reset()
+        self._api_fallback_count = 0
 
     def log_statistics(self) -> None:
         """Log current statistics for monitoring."""
-        total_checks = sum(self.stats.values())
-        if total_checks == 0:
-            logger.info("No fork commit status checks performed yet")
+        if not self.config.log_statistics:
             return
 
+        if self.stats.total_forks_evaluated == 0:
+            logger.info("No fork filtering operations performed yet")
+            return
+
+        stats_summary = self.stats.to_summary_dict()
+
         logger.info(
-            "Fork commit status checker statistics: "
-            f"total_checks={total_checks}, "
-            f"qualification_hits={self.stats['qualification_data_hits']}, "
-            f"api_fallbacks={self.stats['api_fallback_calls']}, "
-            f"has_commits={self.stats['has_commits_ahead']}, "
-            f"no_commits={self.stats['no_commits_ahead']}, "
-            f"unknown={self.stats['status_unknown']}, "
-            f"errors={self.stats['errors']}"
+            f"Fork filtering statistics: "
+            f"evaluated={stats_summary['total_evaluated']}, "
+            f"filtered_out={stats_summary['filtered_out']}, "
+            f"included={stats_summary['included']}, "
+            f"filtering_rate={stats_summary['filtering_rate_percent']}%, "
+            f"api_efficiency={stats_summary['api_efficiency_percent']}%"
         )
+
+        if stats_summary["filtered_reasons"]:
+            reasons = ", ".join(
+                [
+                    f"{reason}={count}"
+                    for reason, count in stats_summary["filtered_reasons"].items()
+                    if count > 0
+                ]
+            )
+            if reasons:
+                logger.info(f"Fork filtering reasons: {reasons}")
+
+        if stats_summary["errors"] > 0:
+            logger.warning(
+                f"Fork filtering errors encountered: {stats_summary['errors']}"
+            )
+
+    def get_config(self) -> ForkFilteringConfig:
+        """Get the current fork filtering configuration."""
+        return self.config
+
+    def update_config(self, config: ForkFilteringConfig) -> None:
+        """Update the fork filtering configuration."""
+        self.config = config

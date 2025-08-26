@@ -1006,7 +1006,7 @@
   - Write unit tests for show-commits command with fork filtering logic
   - _Requirements: 21.1, 21.2, 21.4, 21.10_
 
-- [-] 20.3 Integrate fork filtering with existing --detail functionality
+- [x] 20.3 Integrate fork filtering with existing --detail functionality
   - Update detailed commit analysis workflow to check fork status before expensive operations
   - Ensure fork filtering is applied before AI summary generation and diff retrieval
   - Add fork filtering support to batch operations and multiple fork processing
@@ -1014,7 +1014,7 @@
   - Write integration tests for --detail flag with fork filtering enabled
   - _Requirements: 21.4, 21.6, 21.7, 21.9_
 
-- [ ] 20.4 Add fork filtering configuration and logging
+- [-] 20.4 Add fork filtering configuration and logging
   - Create ForkFilteringConfig model with settings for filtering behavior
   - Add configuration options for enabling/disabling automatic fork filtering
   - Implement detailed logging for fork filtering decisions with fork names and reasons

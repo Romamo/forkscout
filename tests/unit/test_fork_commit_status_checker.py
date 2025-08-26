@@ -96,9 +96,8 @@ class TestForkCommitStatusChecker:
         result = await status_checker.has_commits_ahead(fork_url, qualification_result_with_forks)
         
         assert result is False
-        assert status_checker.stats['qualification_data_hits'] == 1
-        assert status_checker.stats['no_commits_ahead'] == 1
-        assert status_checker.stats['api_fallback_calls'] == 0
+        assert status_checker.stats.qualification_data_hits == 1
+        assert status_checker.stats.api_fallback_calls == 0
 
     @pytest.mark.asyncio
     async def test_has_commits_ahead_using_qualification_data_has_commits(
@@ -110,9 +109,8 @@ class TestForkCommitStatusChecker:
         result = await status_checker.has_commits_ahead(fork_url, qualification_result_with_forks)
         
         assert result is True
-        assert status_checker.stats['qualification_data_hits'] == 1
-        assert status_checker.stats['has_commits_ahead'] == 1
-        assert status_checker.stats['api_fallback_calls'] == 0
+        assert status_checker.stats.qualification_data_hits == 1
+        assert status_checker.stats.api_fallback_calls == 0
 
     @pytest.mark.asyncio
     async def test_has_commits_ahead_fork_not_in_qualification_data(
@@ -138,8 +136,7 @@ class TestForkCommitStatusChecker:
         result = await status_checker.has_commits_ahead(fork_url, qualification_result_with_forks)
         
         assert result is True
-        assert status_checker.stats['api_fallback_calls'] == 1
-        assert status_checker.stats['has_commits_ahead'] == 1
+        assert status_checker.stats.api_fallback_calls == 1
         mock_github_client.get_repository.assert_called_once_with("unknown", "unknown-repo")
 
     @pytest.mark.asyncio
@@ -166,8 +163,7 @@ class TestForkCommitStatusChecker:
         result = await status_checker.has_commits_ahead(fork_url, None)
         
         assert result is False
-        assert status_checker.stats['api_fallback_calls'] == 1
-        assert status_checker.stats['no_commits_ahead'] == 1
+        assert status_checker.stats.api_fallback_calls == 1
         mock_github_client.get_repository.assert_called_once_with("testuser", "test-repo")
 
     @pytest.mark.asyncio
@@ -182,8 +178,8 @@ class TestForkCommitStatusChecker:
         result = await status_checker.has_commits_ahead(fork_url, None)
         
         assert result is None
-        assert status_checker.stats['api_fallback_calls'] == 1
-        assert status_checker.stats['status_unknown'] == 1
+        assert status_checker.stats.api_fallback_calls == 1
+        assert status_checker.stats.status_unknown == 1
 
     @pytest.mark.asyncio
     async def test_has_commits_ahead_github_api_error(
@@ -197,8 +193,8 @@ class TestForkCommitStatusChecker:
         result = await status_checker.has_commits_ahead(fork_url, None)
         
         assert result is None
-        assert status_checker.stats['api_fallback_calls'] == 1
-        assert status_checker.stats['status_unknown'] == 1
+        assert status_checker.stats.api_fallback_calls == 1
+        assert status_checker.stats.status_unknown == 1
 
     @pytest.mark.asyncio
     async def test_has_commits_ahead_invalid_url_format(self, status_checker):
@@ -248,17 +244,17 @@ class TestForkCommitStatusChecker:
         """Test getting statistics in initial state."""
         stats = status_checker.get_statistics()
         
-        expected_keys = [
-            'qualification_data_hits',
-            'api_fallback_calls',
-            'status_unknown',
-            'no_commits_ahead',
-            'has_commits_ahead',
-            'errors'
-        ]
+        # Check that we get a ForkFilteringStats object
+        assert hasattr(stats, 'qualification_data_hits')
+        assert hasattr(stats, 'api_fallback_calls')
+        assert hasattr(stats, 'status_unknown')
+        assert hasattr(stats, 'errors')
         
-        assert all(key in stats for key in expected_keys)
-        assert all(value == 0 for value in stats.values())
+        # Check initial values are zero
+        assert stats.qualification_data_hits == 0
+        assert stats.api_fallback_calls == 0
+        assert stats.status_unknown == 0
+        assert stats.errors == 0
 
     @pytest.mark.asyncio
     async def test_statistics_tracking(self, status_checker, qualification_result_with_forks, mock_github_client):
@@ -290,45 +286,53 @@ class TestForkCommitStatusChecker:
         )
         
         stats = status_checker.get_statistics()
-        assert stats['qualification_data_hits'] == 1
-        assert stats['api_fallback_calls'] == 1
+        assert stats.qualification_data_hits == 1
+        assert stats.api_fallback_calls == 1
 
     def test_reset_statistics(self, status_checker):
         """Test resetting statistics."""
         # Manually set some stats
-        status_checker.stats['qualification_data_hits'] = 5
-        status_checker.stats['api_fallback_calls'] = 3
+        status_checker.stats.add_qualification_hit()
+        status_checker.stats.add_api_fallback()
+        status_checker.stats.add_error()
+        
+        # Verify stats are set
+        assert status_checker.stats.qualification_data_hits > 0
+        assert status_checker.stats.api_fallback_calls > 0
+        assert status_checker.stats.errors > 0
         
         status_checker.reset_statistics()
         
         stats = status_checker.get_statistics()
-        assert all(value == 0 for value in stats.values())
+        assert stats.qualification_data_hits == 0
+        assert stats.api_fallback_calls == 0
+        assert stats.errors == 0
 
     def test_log_statistics_no_checks(self, status_checker, caplog):
         """Test logging statistics when no checks have been performed."""
         with caplog.at_level(logging.INFO):
             status_checker.log_statistics()
         
-        assert "No fork commit status checks performed yet" in caplog.text
+        assert "No fork filtering operations performed yet" in caplog.text
 
     def test_log_statistics_with_data(self, status_checker, caplog):
         """Test logging statistics with data."""
         # Set some test data
-        status_checker.stats['qualification_data_hits'] = 5
-        status_checker.stats['api_fallback_calls'] = 3
-        status_checker.stats['has_commits_ahead'] = 4
-        status_checker.stats['no_commits_ahead'] = 3
-        status_checker.stats['errors'] = 1
+        status_checker.stats.add_qualification_hit()
+        status_checker.stats.add_qualification_hit()
+        status_checker.stats.add_api_fallback()
+        status_checker.stats.add_fork_evaluated(filtered=True, reason="no_commits_ahead")
+        status_checker.stats.add_fork_evaluated(filtered=False)
+        status_checker.stats.add_error()
         
         with caplog.at_level(logging.INFO):
             status_checker.log_statistics()
         
-        assert "total_checks=16" in caplog.text
-        assert "qualification_hits=5" in caplog.text
-        assert "api_fallbacks=3" in caplog.text
-        assert "has_commits=4" in caplog.text
-        assert "no_commits=3" in caplog.text
-        assert "errors=1" in caplog.text
+        assert "Fork filtering statistics:" in caplog.text
+        assert "evaluated=2" in caplog.text
+        assert "filtering_rate=50.0%" in caplog.text
+        assert "Fork filtering reasons:" in caplog.text
+        assert "Fork filtering errors encountered: 1" in caplog.text
 
     @pytest.mark.asyncio
     async def test_owner_repo_format_url(self, status_checker, mock_github_client):
@@ -388,7 +392,7 @@ class TestForkCommitStatusChecker:
         
         # When created_at == pushed_at, should be considered no commits ahead
         assert result is False
-        assert status_checker.stats['no_commits_ahead'] == 1
+        assert status_checker.stats.qualification_data_hits == 1
 
     @pytest.mark.asyncio
     async def test_unexpected_error_handling(self, status_checker, mock_github_client):
@@ -401,4 +405,4 @@ class TestForkCommitStatusChecker:
         with pytest.raises(ForkCommitStatusError, match="Failed to check commit status"):
             await status_checker.has_commits_ahead(fork_url, None)
         
-        assert status_checker.stats['errors'] == 1
+        assert status_checker.stats.errors == 1
