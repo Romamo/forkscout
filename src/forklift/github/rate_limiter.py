@@ -90,7 +90,7 @@ class RateLimitHandler:
         if retryable_exceptions is None:
             import httpx
 
-            from .client import GitHubAPIError, GitHubRateLimitError
+            from .exceptions import GitHubAPIError, GitHubRateLimitError
             retryable_exceptions = (
                 GitHubRateLimitError,
                 httpx.TimeoutException,
@@ -142,7 +142,7 @@ class RateLimitHandler:
 
     def _is_non_retryable_error(self, exception: Exception) -> bool:
         """Check if an exception should not be retried."""
-        from .client import (
+        from .exceptions import (
             GitHubAPIError,
             GitHubAuthenticationError,
             GitHubNotFoundError,
@@ -156,7 +156,7 @@ class RateLimitHandler:
         if isinstance(exception, GitHubAPIError):
             if exception.status_code and 400 <= exception.status_code < 500:
                 # Don't retry client errors (4xx) except rate limits
-                from .client import GitHubRateLimitError
+                from .exceptions import GitHubRateLimitError
                 if not isinstance(exception, GitHubRateLimitError):
                     return True
 
@@ -164,7 +164,7 @@ class RateLimitHandler:
 
     def _get_delay_for_exception(self, exception: Exception, attempt: int) -> float:
         """Get appropriate delay based on exception type."""
-        from .client import GitHubRateLimitError
+        from .exceptions import GitHubRateLimitError
 
         if isinstance(exception, GitHubRateLimitError):
             # For rate limit errors, use the reset time if available

@@ -1127,7 +1127,7 @@
   - Write unit tests for table structure changes and commit formatting
   - _Requirements: 23.3, 23.11_
 
-- [-] 21.4 Integrate recent commits fetching with fork display workflow
+- [x] 21.4 Integrate recent commits fetching with fork display workflow
   - Update show_fork_data method to fetch recent commits when --show-commits is specified
   - Add concurrent fetching of commits for multiple forks to improve performance
   - Implement progress indicators showing commit fetching status for each fork
@@ -1136,7 +1136,7 @@
   - Write integration tests for the complete workflow with real GitHub API calls
   - _Requirements: 23.9, 23.10, 23.12_
 
-- [ ] 21.5 Add comprehensive error handling and edge cases
+- [-] 21.5 Add comprehensive error handling and edge cases
   - Handle forks with no commits (empty repositories)
   - Handle private forks where commits cannot be accessed
   - Implement graceful degradation when API rate limits are hit

@@ -4,7 +4,15 @@ import logging
 from datetime import datetime
 
 from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
+from forklift.github.client import GitHubClient
+from forklift.github.exceptions import (
+    GitHubAPIError,
+    GitHubEmptyRepositoryError,
+    GitHubForkAccessError,
+    GitHubNotFoundError,
+    GitHubPrivateRepositoryError,
+    GitHubTimeoutError,
+)
 from forklift.github.fork_list_processor import ForkListProcessor
 from forklift.models.analysis import ForkMetrics
 from forklift.models.fork_qualification import CollectedForkData, QualifiedForksResult
@@ -108,6 +116,16 @@ class ForkDiscoveryService:
                         )
                         forks.append(fork)
                         api_calls_made += 3  # Estimate: compare, user, commits_ahead_behind
+                    except (GitHubPrivateRepositoryError, GitHubForkAccessError, GitHubEmptyRepositoryError) as e:
+                        logger.info(
+                            f"Skipping fork {collected_fork.metrics.full_name}: {self.github_client.get_user_friendly_error_message(e)}"
+                        )
+                        continue
+                    except GitHubTimeoutError as e:
+                        logger.warning(
+                            f"Timeout analyzing fork {collected_fork.metrics.full_name}: {e}"
+                        )
+                        continue
                     except Exception as e:
                         logger.warning(
                             f"Failed to analyze fork {collected_fork.metrics.full_name}: {e}"
@@ -185,6 +203,16 @@ class ForkDiscoveryService:
                 )
                 forks.append(fork)
                 api_calls_made += 3  # Estimate: compare, user, commits_ahead_behind
+            except (GitHubPrivateRepositoryError, GitHubForkAccessError, GitHubEmptyRepositoryError) as e:
+                logger.info(
+                    f"Skipping fork {fork_repo.full_name}: {self.github_client.get_user_friendly_error_message(e)}"
+                )
+                continue
+            except GitHubTimeoutError as e:
+                logger.warning(
+                    f"Timeout analyzing fork {fork_repo.full_name}: {e}"
+                )
+                continue
             except Exception as e:
                 logger.warning(f"Failed to analyze fork {fork_repo.full_name}: {e}")
                 continue
@@ -422,8 +450,8 @@ class ForkDiscoveryService:
         """
         logger.debug(f"Creating fork with comparison data for {fork_repo.full_name}")
 
-        # Get comparison data (expensive API call)
-        comparison_data = await self.github_client.get_commits_ahead_behind(
+        # Get comparison data (expensive API call) with safe error handling
+        comparison_data = await self.github_client.get_commits_ahead_behind_safe(
             fork_repo.owner, fork_repo.name, parent_repo.owner, parent_repo.name,
             disable_cache=disable_cache
         )
@@ -431,6 +459,19 @@ class ForkDiscoveryService:
         # Get the fork owner user information (expensive API call)
         try:
             owner_user = await self.github_client.get_user(fork_repo.owner, disable_cache=disable_cache)
+        except (GitHubPrivateRepositoryError, GitHubForkAccessError, GitHubEmptyRepositoryError) as e:
+            logger.debug(
+                f"Could not fetch user info for {fork_repo.owner}: {self.github_client.get_user_friendly_error_message(e)}"
+            )
+            # Create a minimal User object if we can't fetch full details
+            owner_user = User(
+                id=0,  # Unknown ID
+                login=fork_repo.owner,
+                name=None,
+                email=None,
+                avatar_url=None,
+                html_url=f"https://github.com/{fork_repo.owner}",
+            )
         except Exception as e:
             logger.warning(
                 f"Could not fetch user info for {fork_repo.owner}, creating minimal user: {e}"

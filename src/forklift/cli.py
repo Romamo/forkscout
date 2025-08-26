@@ -42,6 +42,12 @@ from forklift.display.detailed_commit_display import (
 )
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
+from forklift.github.exceptions import (
+    GitHubEmptyRepositoryError,
+    GitHubForkAccessError,
+    GitHubPrivateRepositoryError,
+    GitHubTimeoutError,
+)
 from forklift.models.github import Commit
 from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
 from forklift.storage.analysis_cache import AnalysisCacheManager
@@ -566,6 +572,11 @@ def analyze(
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except (GitHubPrivateRepositoryError, GitHubEmptyRepositoryError, GitHubForkAccessError, GitHubTimeoutError) as e:
+        # Display user-friendly error message
+        console.print(f"[yellow]Repository access issue: {e}[/yellow]")
+        console.print("[dim]Tip: Check repository URL and ensure you have access to the repository[/dim]")
         sys.exit(1)
     except KeyboardInterrupt:
         console.print("\n[yellow]Analysis interrupted by user[/yellow]")

@@ -11,52 +11,16 @@ import httpx
 from forklift.config import GitHubConfig
 from forklift.models.github import Commit, Fork, RecentCommit, Repository, User
 
+from .error_handler import EnhancedErrorHandler
+from .exceptions import (
+    GitHubAPIError,
+    GitHubAuthenticationError,
+    GitHubNotFoundError,
+    GitHubRateLimitError,
+)
 from .rate_limiter import CircuitBreaker, RateLimitHandler
 
 logger = logging.getLogger(__name__)
-
-
-class GitHubAPIError(Exception):
-    """Base exception for GitHub API errors."""
-
-    def __init__(
-        self,
-        message: str,
-        status_code: int | None = None,
-        response_data: dict[str, Any] | None = None,
-    ):
-        super().__init__(message)
-        self.status_code = status_code
-        self.response_data = response_data or {}
-
-
-class GitHubAuthenticationError(GitHubAPIError):
-    """Raised when GitHub API authentication fails."""
-
-    pass
-
-
-class GitHubRateLimitError(GitHubAPIError):
-    """Raised when GitHub API rate limit is exceeded."""
-
-    def __init__(
-        self,
-        message: str,
-        reset_time: int | None = None,
-        remaining: int | None = None,
-        limit: int | None = None,
-        status_code: int | None = None,
-    ):
-        super().__init__(message, status_code=status_code)
-        self.reset_time = reset_time
-        self.remaining = remaining
-        self.limit = limit
-
-
-class GitHubNotFoundError(GitHubAPIError):
-    """Raised when a GitHub resource is not found."""
-
-    pass
 
 
 class GitHubClient:
@@ -67,18 +31,22 @@ class GitHubClient:
         config: GitHubConfig,
         rate_limit_handler: RateLimitHandler | None = None,
         circuit_breaker: CircuitBreaker | None = None,
+        error_handler: EnhancedErrorHandler | None = None,
     ):
         """Initialize GitHub client with configuration."""
         self.config = config
         self._client: httpx.AsyncClient | None = None
         self._headers = self._build_headers()
 
-        # Initialize rate limiting and circuit breaker
+        # Initialize rate limiting, circuit breaker, and error handling
         self.rate_limit_handler = rate_limit_handler or RateLimitHandler()
         self.circuit_breaker = circuit_breaker or CircuitBreaker(
             failure_threshold=5,
             timeout=60.0,
             expected_exception=GitHubAPIError,
+        )
+        self.error_handler = error_handler or EnhancedErrorHandler(
+            timeout_seconds=config.timeout_seconds
         )
 
     def _build_headers(self) -> dict[str, str]:
@@ -286,8 +254,32 @@ class GitHubClient:
         logger.info(f"Fetching repository {owner}/{repo}")
         if disable_cache:
             logger.debug(f"Cache bypass requested for repository {owner}/{repo}")
-        data = await self.get(f"repos/{owner}/{repo}")
-        return Repository.from_github_api(data)
+        
+        try:
+            data = await self.get(f"repos/{owner}/{repo}")
+            return Repository.from_github_api(data)
+        except GitHubAPIError as e:
+            # Convert to more specific error type
+            specific_error = self.error_handler.handle_repository_access_error(e, f"{owner}/{repo}")
+            raise specific_error from e
+
+    async def get_repository_safe(self, owner: str, repo: str, disable_cache: bool = False) -> Repository | None:
+        """Get repository information with safe error handling.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            disable_cache: Whether to bypass cache (not implemented yet)
+            
+        Returns:
+            Repository object or None if repository cannot be accessed
+        """
+        return await self.error_handler.safe_repository_operation(
+            lambda: self.get_repository(owner, repo, disable_cache),
+            repository=f"{owner}/{repo}",
+            operation_name="get_repository",
+            default_value=None,
+        )
 
     async def get_repository_forks(
         self,
@@ -370,8 +362,38 @@ class GitHubClient:
         if until:
             params["until"] = until
 
-        data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
-        return [Commit.from_github_api(commit_data) for commit_data in data]
+        try:
+            data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
+            return [Commit.from_github_api(commit_data) for commit_data in data]
+        except GitHubAPIError as e:
+            # Convert to more specific error type
+            specific_error = self.error_handler.handle_commit_access_error(e, f"{owner}/{repo}")
+            raise specific_error from e
+
+    async def get_repository_commits_safe(
+        self,
+        owner: str,
+        repo: str,
+        sha: str | None = None,
+        path: str | None = None,
+        author: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        per_page: int = 100,
+        page: int = 1,
+    ) -> list[Commit]:
+        """Get repository commits with safe error handling.
+        
+        Returns empty list if repository has no commits or cannot be accessed.
+        """
+        return await self.error_handler.safe_repository_operation(
+            lambda: self.get_repository_commits(
+                owner, repo, sha, path, author, since, until, per_page, page
+            ),
+            repository=f"{owner}/{repo}",
+            operation_name="get_repository_commits",
+            default_value=[],
+        ) or []
 
     async def get_commit(self, owner: str, repo: str, sha: str) -> Commit:
         """Get detailed commit information."""
@@ -465,6 +487,28 @@ class GitHubClient:
         self.circuit_breaker.last_failure_time = None
         self.circuit_breaker.state = "closed"
         logger.info("Circuit breaker manually reset")
+
+    def get_user_friendly_error_message(self, error: Exception) -> str:
+        """Get user-friendly error message for display.
+        
+        Args:
+            error: Exception to convert to user-friendly message
+            
+        Returns:
+            User-friendly error message
+        """
+        return self.error_handler.get_user_friendly_error_message(error)
+
+    def should_continue_processing(self, error: Exception) -> bool:
+        """Determine if processing should continue after an error.
+        
+        Args:
+            error: Exception that occurred
+            
+        Returns:
+            True if processing should continue, False if it should stop
+        """
+        return self.error_handler.should_continue_processing(error)
 
     # Utility methods
 
@@ -695,19 +739,38 @@ class GitHubClient:
         if disable_cache:
             logger.debug("Cache bypass requested for fork comparison")
 
-        # Compare fork's default branch with parent's default branch
-        fork_info = await self.get_repository(fork_owner, fork_repo, disable_cache=disable_cache)
-        parent_info = await self.get_repository(parent_owner, parent_repo, disable_cache=disable_cache)
+        try:
+            # Compare fork's default branch with parent's default branch
+            fork_info = await self.get_repository(fork_owner, fork_repo, disable_cache=disable_cache)
+            parent_info = await self.get_repository(parent_owner, parent_repo, disable_cache=disable_cache)
 
-        # Compare the branches
-        comparison = await self.compare_commits(
-            parent_owner,
-            parent_repo,
-            parent_info.default_branch,
-            f"{fork_owner}:{fork_info.default_branch}",
+            # Compare the branches
+            comparison = await self.compare_commits(
+                parent_owner,
+                parent_repo,
+                parent_info.default_branch,
+                f"{fork_owner}:{fork_info.default_branch}",
+            )
+
+            return comparison
+        except GitHubAPIError as e:
+            # Convert to more specific error type for fork access
+            specific_error = self.error_handler.handle_fork_access_error(e, f"{fork_owner}/{fork_repo}")
+            raise specific_error from e
+
+    async def get_fork_comparison_safe(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, disable_cache: bool = False
+    ) -> dict[str, Any] | None:
+        """Compare a fork with its parent repository with safe error handling.
+
+        Returns None if fork cannot be accessed or compared.
+        """
+        return await self.error_handler.safe_fork_operation(
+            lambda: self.get_fork_comparison(fork_owner, fork_repo, parent_owner, parent_repo, disable_cache),
+            fork_url=f"{fork_owner}/{fork_repo}",
+            operation_name="get_fork_comparison",
+            default_value=None,
         )
-
-        return comparison
 
     async def get_commits_ahead_behind(
         self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, disable_cache: bool = False
@@ -737,6 +800,21 @@ class GitHubClient:
         except GitHubAPIError as e:
             logger.warning(f"Could not compare {fork_owner}/{fork_repo} with parent: {e}")
             return {"ahead_by": 0, "behind_by": 0, "total_commits": 0}
+
+    async def get_commits_ahead_behind_safe(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, disable_cache: bool = False
+    ) -> dict[str, int]:
+        """Get the number of commits a fork is ahead/behind its parent with safe error handling.
+        
+        Returns zero counts if fork cannot be accessed or compared.
+        """
+        result = await self.error_handler.safe_fork_operation(
+            lambda: self.get_commits_ahead_behind(fork_owner, fork_repo, parent_owner, parent_repo, disable_cache),
+            fork_url=f"{fork_owner}/{fork_repo}",
+            operation_name="get_commits_ahead_behind",
+            default_value={"ahead_by": 0, "behind_by": 0, "total_commits": 0},
+        )
+        return result or {"ahead_by": 0, "behind_by": 0, "total_commits": 0}
 
     async def create_fork_object(
         self, fork_data: dict[str, Any], parent_data: dict[str, Any]
