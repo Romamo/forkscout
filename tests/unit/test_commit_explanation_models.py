@@ -1,21 +1,22 @@
 """Unit tests for commit explanation data models."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from forklift.models import (
     AnalysisContext,
     CategoryType,
+    Commit,
     CommitCategory,
     CommitExplanation,
     CommitWithExplanation,
     FileChange,
+    Fork,
     ImpactAssessment,
     ImpactLevel,
     MainRepoValue,
-    Commit,
-    Fork,
     Repository,
     User,
 )
@@ -27,7 +28,7 @@ class TestCategoryType:
     def test_category_type_values(self):
         """Test that all expected category types are available."""
         expected_values = {
-            "feature", "bugfix", "refactor", "docs", "test", 
+            "feature", "bugfix", "refactor", "docs", "test",
             "chore", "performance", "security", "other"
         }
         actual_values = {category.value for category in CategoryType}
@@ -81,7 +82,7 @@ class TestFileChange:
             filename="test.py",
             status="modified"
         )
-        
+
         assert file_change.filename == "test.py"
         assert file_change.status == "modified"
         assert file_change.additions == 0
@@ -97,7 +98,7 @@ class TestFileChange:
             deletions=10,
             patch="@@ -1,3 +1,4 @@\n+new line\n old line"
         )
-        
+
         assert file_change.filename == "src/main.py"
         assert file_change.status == "added"
         assert file_change.additions == 50
@@ -112,7 +113,7 @@ class TestFileChange:
                 status="modified",
                 additions=-5
             )
-        
+
         assert "greater than or equal to 0" in str(exc_info.value)
 
     def test_file_change_negative_deletions_validation(self):
@@ -123,7 +124,7 @@ class TestFileChange:
                 status="modified",
                 deletions=-3
             )
-        
+
         assert "greater than or equal to 0" in str(exc_info.value)
 
     def test_file_change_serialization(self):
@@ -134,7 +135,7 @@ class TestFileChange:
             additions=10,
             deletions=5
         )
-        
+
         data = file_change.model_dump()
         expected = {
             "filename": "test.py",
@@ -156,7 +157,7 @@ class TestCommitCategory:
             confidence=0.85,
             reasoning="Contains 'add' keyword and modifies core functionality"
         )
-        
+
         assert category.category_type == CategoryType.FEATURE
         assert category.confidence == 0.85
         assert "add" in category.reasoning
@@ -169,13 +170,13 @@ class TestCommitCategory:
             confidence=0.0,
             reasoning="Test"
         )
-        
+
         CommitCategory(
             category_type=CategoryType.BUGFIX,
             confidence=1.0,
             reasoning="Test"
         )
-        
+
         # Invalid confidence scores
         with pytest.raises(ValidationError):
             CommitCategory(
@@ -183,7 +184,7 @@ class TestCommitCategory:
                 confidence=-0.1,
                 reasoning="Test"
             )
-        
+
         with pytest.raises(ValidationError):
             CommitCategory(
                 category_type=CategoryType.BUGFIX,
@@ -198,7 +199,7 @@ class TestCommitCategory:
             confidence=0.9,
             reasoning="Updates README file"
         )
-        
+
         data = category.model_dump()
         expected = {
             "category_type": "docs",
@@ -220,7 +221,7 @@ class TestImpactAssessment:
             quality_factors={"test_coverage": 0.9, "documentation": 0.7},
             reasoning="Large change to critical system component"
         )
-        
+
         assert assessment.impact_level == ImpactLevel.HIGH
         assert assessment.change_magnitude == 150.5
         assert assessment.file_criticality == 0.8
@@ -236,14 +237,14 @@ class TestImpactAssessment:
             file_criticality=0.0,
             reasoning="Test"
         )
-        
+
         ImpactAssessment(
             impact_level=ImpactLevel.LOW,
             change_magnitude=10.0,
             file_criticality=1.0,
             reasoning="Test"
         )
-        
+
         # Invalid criticality scores
         with pytest.raises(ValidationError):
             ImpactAssessment(
@@ -252,7 +253,7 @@ class TestImpactAssessment:
                 file_criticality=-0.1,
                 reasoning="Test"
             )
-        
+
         with pytest.raises(ValidationError):
             ImpactAssessment(
                 impact_level=ImpactLevel.LOW,
@@ -270,7 +271,7 @@ class TestImpactAssessment:
             file_criticality=0.5,
             reasoning="Test"
         )
-        
+
         # Invalid magnitude
         with pytest.raises(ValidationError):
             ImpactAssessment(
@@ -289,7 +290,7 @@ class TestImpactAssessment:
             quality_factors={"tests": 0.8},
             reasoning="Moderate impact"
         )
-        
+
         data = assessment.model_dump()
         expected = {
             "impact_level": "medium",
@@ -328,12 +329,12 @@ class TestAnalysisContext:
             clone_url="https://github.com/forkowner/testrepo.git",
             is_fork=True
         )
-        
+
         user = User(
             login="forkowner",
             html_url="https://github.com/forkowner"
         )
-        
+
         return Fork(
             repository=fork_repo,
             parent=sample_repository,
@@ -346,7 +347,7 @@ class TestAnalysisContext:
             repository=sample_repository,
             fork=sample_fork
         )
-        
+
         assert context.repository == sample_repository
         assert context.fork == sample_fork
         assert context.project_type is None
@@ -362,7 +363,7 @@ class TestAnalysisContext:
             main_language="python",
             critical_files=["main.py", "config.py", "requirements.txt"]
         )
-        
+
         assert context.repository == sample_repository
         assert context.fork == sample_fork
         assert context.project_type == "web"
@@ -377,7 +378,7 @@ class TestAnalysisContext:
             project_type="library",
             main_language="python"
         )
-        
+
         data = context.model_dump()
         assert data["project_type"] == "library"
         assert data["main_language"] == "python"
@@ -418,7 +419,7 @@ class TestCommitExplanation:
             is_complex=False,
             github_url="https://github.com/test/repo/commit/a1b2c3d4e5f6789012345678901234567890abcd"
         )
-        
+
         assert explanation.commit_sha == "a1b2c3d4e5f6789012345678901234567890abcd"
         assert explanation.category == sample_category
         assert explanation.impact_assessment == sample_impact_assessment
@@ -440,7 +441,7 @@ class TestCommitExplanation:
             is_complex=True,
             github_url="https://github.com/test/repo/commit/b2c3d4e5f6789012345678901234567890abcdef"
         )
-        
+
         assert explanation.is_complex is True
         assert explanation.main_repo_value == MainRepoValue.UNCLEAR
         assert "multiple things" in explanation.explanation
@@ -456,7 +457,7 @@ class TestCommitExplanation:
             explanation="This commit fixes a critical security issue in user input validation.",
             github_url="https://github.com/test/repo/commit/c3d4e5f6789012345678901234567890abcdef12"
         )
-        
+
         data = explanation.model_dump()
         assert data["commit_sha"] == "c3d4e5f6789012345678901234567890abcdef12"
         assert data["what_changed"] == "Fixed critical security vulnerability"
@@ -474,7 +475,7 @@ class TestCommitWithExplanation:
             login="testuser",
             html_url="https://github.com/testuser"
         )
-        
+
         return Commit(
             sha="d4e5f6789012345678901234567890abcdef1234",
             message="Add user authentication",
@@ -490,14 +491,14 @@ class TestCommitWithExplanation:
             confidence=0.9,
             reasoning="Adds new functionality"
         )
-        
+
         impact = ImpactAssessment(
             impact_level=ImpactLevel.HIGH,
             change_magnitude=100.0,
             file_criticality=0.8,
             reasoning="Major feature addition"
         )
-        
+
         return CommitExplanation(
             commit_sha="d4e5f6789012345678901234567890abcdef1234",
             category=category,
@@ -514,7 +515,7 @@ class TestCommitWithExplanation:
             commit=sample_commit,
             explanation=sample_explanation
         )
-        
+
         assert commit_with_explanation.commit == sample_commit
         assert commit_with_explanation.explanation == sample_explanation
         assert commit_with_explanation.explanation_error is None
@@ -524,7 +525,7 @@ class TestCommitWithExplanation:
         commit_with_explanation = CommitWithExplanation(
             commit=sample_commit
         )
-        
+
         assert commit_with_explanation.commit == sample_commit
         assert commit_with_explanation.explanation is None
         assert commit_with_explanation.explanation_error is None
@@ -535,7 +536,7 @@ class TestCommitWithExplanation:
             commit=sample_commit,
             explanation_error="Failed to generate explanation: API timeout"
         )
-        
+
         assert commit_with_explanation.commit == sample_commit
         assert commit_with_explanation.explanation is None
         assert commit_with_explanation.explanation_error == "Failed to generate explanation: API timeout"
@@ -546,7 +547,7 @@ class TestCommitWithExplanation:
             commit=sample_commit,
             explanation=sample_explanation
         )
-        
+
         data = commit_with_explanation.model_dump()
         assert "commit" in data
         assert "explanation" in data

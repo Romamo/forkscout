@@ -1,10 +1,11 @@
 """Tests for GitHub client disable_cache parameter functionality."""
 
-import pytest
 from unittest.mock import AsyncMock
 
-from forklift.github.client import GitHubClient
+import pytest
+
 from forklift.config import GitHubConfig
+from forklift.github.client import GitHubClient
 
 
 class TestGitHubClientDisableCache:
@@ -196,6 +197,6 @@ class TestGitHubClientDisableCache:
 
         # Test that disable_cache=True triggers debug logging
         await github_client.get_repository("test-owner", "test-repo", disable_cache=True)
-        
+
         # Check that cache bypass was logged
         assert any("Cache bypass requested" in record.message for record in caplog.records)

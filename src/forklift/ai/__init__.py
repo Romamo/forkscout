@@ -5,7 +5,7 @@ from .error_handler import OpenAIErrorHandler
 from .summary_engine import AICommitSummaryEngine
 
 __all__ = [
+    "AICommitSummaryEngine",
     "OpenAIClient",
     "OpenAIErrorHandler",
-    "AICommitSummaryEngine",
 ]

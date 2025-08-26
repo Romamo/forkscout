@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
 from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
@@ -26,7 +25,7 @@ class ForkDiscoveryService:
     def __init__(
         self,
         github_client: GitHubClient,
-        data_collection_engine: Optional[ForkDataCollectionEngine] = None,
+        data_collection_engine: ForkDataCollectionEngine | None = None,
         min_activity_days: int = 365,
         min_commits_ahead: int = 1,
         max_forks_to_analyze: int = 100,
@@ -103,7 +102,7 @@ class ForkDiscoveryService:
                         fork_repo = self._create_repository_from_collected_data(
                             collected_fork
                         )
-                        
+
                         fork = await self._create_fork_with_comparison(
                             fork_repo, parent_repo, disable_cache=disable_cache
                         )
@@ -134,7 +133,7 @@ class ForkDiscoveryService:
                 logger.warning(
                     f"Data collection method failed, falling back to legacy method: {data_collection_error}"
                 )
-                
+
                 # Fallback to legacy method
                 return await self._discover_forks_legacy(
                     owner, repo_name, parent_repo, disable_cache
@@ -157,7 +156,7 @@ class ForkDiscoveryService:
         This method is used as a fallback when the new data collection method fails.
         """
         logger.info(f"Using legacy fork discovery method for {owner}/{repo_name}")
-        
+
         # Get all forks (lightweight operation - only basic repository data)
         fork_repos = await self.github_client.get_all_repository_forks(
             owner, repo_name, max_forks=self.max_forks_to_analyze
@@ -349,11 +348,11 @@ class ForkDiscoveryService:
             elif "github.com/" in url:
                 # Extract the part after github.com/
                 path_part = url.split("github.com/")[-1]
-                
+
                 # Handle API URLs like https://api.github.com/repos/owner/repo
                 if path_part.startswith("repos/"):
                     path_part = path_part[6:]  # Remove "repos/" prefix
-                
+
                 parts = path_part.split("/")
                 if len(parts) >= 2:
                     return parts[0], parts[1]
@@ -383,7 +382,7 @@ class ForkDiscoveryService:
             Repository object for the fork
         """
         metrics = collected_fork.metrics
-        
+
         return Repository(
             id=metrics.id,
             owner=metrics.owner,
@@ -697,7 +696,7 @@ class ForkDiscoveryService:
             import time
 
             start_time = time.time()
-            
+
             # Parse repository URL to get owner and name
             owner, repo_name = self._parse_repository_url(repository_url)
 

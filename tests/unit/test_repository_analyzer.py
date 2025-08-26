@@ -1,24 +1,28 @@
 """Tests for repository analyzer."""
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock
 
-from forklift.analysis.repository_analyzer import RepositoryAnalyzer, RepositoryAnalysisError
-from forklift.github.client import GitHubClient, GitHubAPIError
-from forklift.models.github import Repository, Fork, User, Commit
+import pytest
+
+from forklift.analysis.repository_analyzer import (
+    RepositoryAnalysisError,
+    RepositoryAnalyzer,
+)
+from forklift.github.client import GitHubAPIError, GitHubClient
 from forklift.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
+from forklift.models.github import Commit, Fork, Repository, User
 
 
 @pytest.fixture
 def mock_github_client():
     """Create a mock GitHub client."""
     client = Mock(spec=GitHubClient)
-    
+
     # Make all methods async
     client.get_fork_comparison = AsyncMock()
     client.get_repository_contributors = AsyncMock()
-    
+
     return client
 
 
@@ -92,7 +96,7 @@ def sample_commits():
     """Create sample commits for testing."""
     base_date = datetime.utcnow() - timedelta(days=10)
     author = User(login="author", html_url="https://github.com/author")
-    
+
     return [
         Commit(
             sha="a" * 40,
@@ -162,7 +166,7 @@ class TestRepositoryAnalyzer:
             min_feature_commits=2,
             max_commits_per_feature=5,
         )
-        
+
         assert analyzer.github_client == mock_github_client
         assert analyzer.min_feature_commits == 2
         assert analyzer.max_commits_per_feature == 5
@@ -197,13 +201,13 @@ class TestRepositoryAnalyzer:
                 for commit in sample_commits
             ]
         }
-        
+
         mock_github_client.get_fork_comparison.return_value = comparison_data
         mock_github_client.get_repository_contributors.return_value = [sample_user]
-        
+
         # Test
         result = await repository_analyzer.analyze_fork(sample_fork, sample_repository)
-        
+
         # Assertions
         assert isinstance(result, ForkAnalysis)
         assert result.fork == sample_fork
@@ -224,10 +228,10 @@ class TestRepositoryAnalyzer:
         # Setup mocks - no commits
         mock_github_client.get_fork_comparison.return_value = {"commits": []}
         mock_github_client.get_repository_contributors.return_value = [sample_user]
-        
+
         # Test
         result = await repository_analyzer.analyze_fork(sample_fork, sample_repository)
-        
+
         # Assertions
         assert isinstance(result, ForkAnalysis)
         assert result.fork == sample_fork
@@ -244,7 +248,7 @@ class TestRepositoryAnalyzer:
     ):
         """Test fork analysis with API error."""
         mock_github_client.get_fork_comparison.side_effect = GitHubAPIError("API Error")
-        
+
         with pytest.raises(RepositoryAnalysisError, match="Failed to analyze fork"):
             await repository_analyzer.analyze_fork(sample_fork, sample_repository)
 
@@ -252,10 +256,10 @@ class TestRepositoryAnalyzer:
     async def test_extract_features(self, repository_analyzer, sample_commits, sample_fork):
         """Test feature extraction from commits."""
         result = await repository_analyzer.extract_features(sample_commits, sample_fork)
-        
+
         # Should extract multiple features based on different categories
         assert len(result) > 0
-        
+
         # Check that features have proper structure
         for feature in result:
             assert isinstance(feature, Feature)
@@ -275,9 +279,9 @@ class TestRepositoryAnalyzer:
             min_feature_commits=3,  # Higher threshold
             max_commits_per_feature=10,
         )
-        
+
         result = await analyzer.extract_features(sample_commits, sample_fork)
-        
+
         # Should have fewer features due to higher threshold
         for feature in result:
             assert len(feature.commits) >= 3
@@ -286,10 +290,10 @@ class TestRepositoryAnalyzer:
     async def test_categorize_changes(self, repository_analyzer, sample_commits):
         """Test commit categorization."""
         result = await repository_analyzer.categorize_changes(sample_commits)
-        
+
         # Should categorize commits by type
         assert isinstance(result, dict)
-        
+
         # Check that we have different categories
         categories_found = set(result.keys())
         expected_categories = {
@@ -299,7 +303,7 @@ class TestRepositoryAnalyzer:
             FeatureCategory.TEST.value,
             FeatureCategory.PERFORMANCE.value,
         }
-        
+
         # Should find at least some of the expected categories
         assert len(categories_found.intersection(expected_categories)) > 0
 
@@ -314,7 +318,7 @@ class TestRepositoryAnalyzer:
             additions=10,
             deletions=5,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.BUG_FIX
 
@@ -329,7 +333,7 @@ class TestRepositoryAnalyzer:
             additions=200,
             deletions=0,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.NEW_FEATURE
 
@@ -344,7 +348,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=10,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.DOCUMENTATION
 
@@ -359,7 +363,7 @@ class TestRepositoryAnalyzer:
             additions=100,
             deletions=0,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.TEST
 
@@ -374,7 +378,7 @@ class TestRepositoryAnalyzer:
             additions=30,
             deletions=40,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.PERFORMANCE
 
@@ -389,7 +393,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=60,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.REFACTOR
 
@@ -404,7 +408,7 @@ class TestRepositoryAnalyzer:
             additions=1,
             deletions=1,
         )
-        
+
         category = repository_analyzer._categorize_commit(commit)
         assert category == FeatureCategory.OTHER
 
@@ -419,9 +423,9 @@ class TestRepositoryAnalyzer:
             additions=100,
             deletions=0,
         )
-        
+
         key = repository_analyzer._generate_feature_key(commit)
-        
+
         # Should contain meaningful words from the commit message
         assert isinstance(key, str)
         assert len(key) > 0
@@ -432,7 +436,7 @@ class TestRepositoryAnalyzer:
     def test_should_separate_commits_time_difference(self, repository_analyzer):
         """Test commit separation based on time difference."""
         author = User(login="author", html_url="https://github.com/author")
-        
+
         commit1 = Commit(
             sha="a" * 40,
             message="feat: add feature A",
@@ -442,7 +446,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=0,
         )
-        
+
         commit2 = Commit(
             sha="b" * 40,
             message="feat: add feature B",
@@ -452,7 +456,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=0,
         )
-        
+
         should_separate = repository_analyzer._should_separate_commits(commit1, commit2)
         assert should_separate is True
 
@@ -460,7 +464,7 @@ class TestRepositoryAnalyzer:
         """Test commit separation based on file overlap."""
         author = User(login="author", html_url="https://github.com/author")
         base_date = datetime.utcnow()
-        
+
         commit1 = Commit(
             sha="a" * 40,
             message="feat: add auth module",
@@ -470,7 +474,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=0,
         )
-        
+
         # Commit with completely different files
         commit2 = Commit(
             sha="b" * 40,
@@ -481,7 +485,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=0,
         )
-        
+
         should_separate = repository_analyzer._should_separate_commits(commit1, commit2)
         assert should_separate is True
 
@@ -489,7 +493,7 @@ class TestRepositoryAnalyzer:
         """Test that related commits are not separated."""
         author = User(login="author", html_url="https://github.com/author")
         base_date = datetime.utcnow()
-        
+
         commit1 = Commit(
             sha="a" * 40,
             message="feat: add auth module",
@@ -499,7 +503,7 @@ class TestRepositoryAnalyzer:
             additions=50,
             deletions=0,
         )
-        
+
         # Related commit with overlapping files
         commit2 = Commit(
             sha="b" * 40,
@@ -510,7 +514,7 @@ class TestRepositoryAnalyzer:
             additions=10,
             deletions=5,
         )
-        
+
         should_separate = repository_analyzer._should_separate_commits(commit1, commit2)
         assert should_separate is False
 
@@ -525,9 +529,9 @@ class TestRepositoryAnalyzer:
             additions=200,
             deletions=0,
         )
-        
+
         title = repository_analyzer._generate_feature_title([commit], FeatureCategory.NEW_FEATURE)
-        
+
         # Should clean up the commit message
         assert "OAuth2 authentication system" in title
         assert "feat:" not in title
@@ -555,9 +559,9 @@ class TestRepositoryAnalyzer:
                 deletions=10,
             ),
         ]
-        
+
         title = repository_analyzer._generate_feature_title(commits, FeatureCategory.NEW_FEATURE)
-        
+
         # Should indicate multiple commits
         assert "related commits" in title or "+" in title
 
@@ -575,9 +579,9 @@ class TestRepositoryAnalyzer:
                 deletions=10,
             ),
         ]
-        
+
         description = repository_analyzer._generate_feature_description(commits, FeatureCategory.NEW_FEATURE)
-        
+
         # Should contain meaningful information
         assert len(description) > 0
         assert "OAuth2" in description or "authentication" in description
@@ -599,11 +603,11 @@ class TestRepositoryAnalyzer:
                 deletions=20,
             ),
         ]
-        
+
         feature = repository_analyzer._create_feature_from_commits(
             commits, FeatureCategory.NEW_FEATURE, sample_fork, 1
         )
-        
+
         # Assertions
         assert isinstance(feature, Feature)
         assert feature.id
@@ -617,16 +621,16 @@ class TestRepositoryAnalyzer:
     def test_group_commits_by_feature(self, repository_analyzer, sample_commits):
         """Test grouping commits by feature."""
         groups = repository_analyzer._group_commits_by_feature(sample_commits)
-        
+
         # Should create multiple groups
         assert len(groups) > 0
-        
+
         # Each group should have commits and category
         for group_key, (commits, category) in groups.items():
             assert isinstance(group_key, str)
             assert len(commits) > 0
             assert isinstance(category, FeatureCategory)
-            
+
             # Commits should be sorted chronologically
             for i in range(1, len(commits)):
                 assert commits[i-1].date <= commits[i].date
@@ -638,12 +642,12 @@ class TestRepositoryAnalyzer:
             min_feature_commits=1,
             max_commits_per_feature=2,  # Small limit
         )
-        
+
         # Create many similar commits
         author = User(login="author", html_url="https://github.com/author")
         base_date = datetime.utcnow()
         commits = []
-        
+
         for i in range(5):
             commits.append(Commit(
                 sha=f"{i:040d}",
@@ -654,13 +658,13 @@ class TestRepositoryAnalyzer:
                 additions=10,
                 deletions=0,
             ))
-        
+
         groups = analyzer._group_commits_by_feature(commits)
-        
+
         # Should create multiple groups due to size limit
         total_commits_in_groups = sum(len(group_commits) for group_commits, _ in groups.values())
         assert total_commits_in_groups == len(commits)
-        
+
         # Each group should respect the limit
         for group_commits, _ in groups.values():
             assert len(group_commits) <= 2
@@ -679,7 +683,7 @@ class TestRepositoryAnalyzerEdgeCases:
     ):
         """Test getting unique commits with API error."""
         mock_github_client.get_fork_comparison.side_effect = GitHubAPIError("Comparison failed")
-        
+
         # Test - should raise the API error
         with pytest.raises(GitHubAPIError, match="Comparison failed"):
             await repository_analyzer._get_unique_commits(sample_fork, sample_repository)
@@ -693,10 +697,10 @@ class TestRepositoryAnalyzerEdgeCases:
     ):
         """Test getting fork metrics with API error."""
         mock_github_client.get_repository_contributors.side_effect = GitHubAPIError("Contributors failed")
-        
+
         # Test
         result = await repository_analyzer._get_fork_metrics(sample_fork)
-        
+
         # Should return basic metrics even with error
         assert isinstance(result, ForkMetrics)
         assert result.stars == sample_fork.repository.stars
@@ -713,9 +717,9 @@ class TestRepositoryAnalyzerEdgeCases:
             additions=1,
             deletions=0,
         )
-        
+
         key = repository_analyzer._generate_feature_key(commit)
-        
+
         # Should fall back to using SHA
         assert "feature_" in key
         assert commit.sha[:8] in key
@@ -723,13 +727,13 @@ class TestRepositoryAnalyzerEdgeCases:
     def test_generate_feature_title_empty_commits(self, repository_analyzer):
         """Test feature title generation with empty commits list."""
         title = repository_analyzer._generate_feature_title([], FeatureCategory.NEW_FEATURE)
-        
+
         assert "Unknown New Feature" in title
 
     def test_generate_feature_description_empty_commits(self, repository_analyzer):
         """Test feature description generation with empty commits list."""
         description = repository_analyzer._generate_feature_description([], FeatureCategory.BUG_FIX)
-        
+
         assert "bug fix" in description.lower()
         assert "no detailed information" in description.lower()
 
@@ -737,7 +741,7 @@ class TestRepositoryAnalyzerEdgeCases:
     async def test_extract_features_empty_commits(self, repository_analyzer, sample_fork):
         """Test feature extraction with empty commits list."""
         result = await repository_analyzer.extract_features([], sample_fork)
-        
+
         assert result == []
 
     def test_should_separate_commits_none_previous(self, repository_analyzer):
@@ -751,6 +755,6 @@ class TestRepositoryAnalyzerEdgeCases:
             additions=50,
             deletions=0,
         )
-        
+
         should_separate = repository_analyzer._should_separate_commits(None, commit)
         assert should_separate is False

@@ -1,26 +1,27 @@
 """Comprehensive integration tests for smart fork filtering functionality."""
 
 import asyncio
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
 from click.testing import CliRunner
 
 from forklift.analysis.fork_commit_status_checker import (
     ForkCommitStatusChecker,
     ForkCommitStatusError,
 )
+from forklift.cli import cli
 from forklift.display.detailed_commit_display import DetailedCommitDisplay
-from forklift.github.client import GitHubClient, GitHubAPIError, GitHubNotFoundError
-from forklift.models.fork_filtering import ForkFilteringConfig, ForkFilteringStats
+from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
+from forklift.models.fork_filtering import ForkFilteringConfig
 from forklift.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
-    QualifiedForksResult,
     QualificationStats,
+    QualifiedForksResult,
 )
-from forklift.models.github import Repository, Commit, User
-from forklift.cli import cli
+from forklift.models.github import Commit, Repository, User
 
 
 class TestSmartForkFilteringIntegration:
@@ -53,8 +54,8 @@ class TestSmartForkFilteringIntegration:
             url="https://api.github.com/repos/testowner/active-repo",
             html_url="https://github.com/testowner/active-repo",
             clone_url="https://github.com/testowner/active-repo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 6, 1, tzinfo=timezone.utc),  # Later than created
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 6, 1, tzinfo=UTC),  # Later than created
             default_branch="main"
         )
 
@@ -69,8 +70,8 @@ class TestSmartForkFilteringIntegration:
             url="https://api.github.com/repos/testowner/inactive-repo",
             html_url="https://github.com/testowner/inactive-repo",
             clone_url="https://github.com/testowner/inactive-repo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Same as created
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # Same as created
             default_branch="main"
         )
     @pytest.fixture
@@ -83,13 +84,13 @@ class TestSmartForkFilteringIntegration:
             email="test@example.com",
             html_url="https://github.com/testauthor"
         )
-        
+
         return [
             Commit(
                 sha="abc1234567890abcdef1234567890abcdef12345",
                 message="feat: add new feature",
                 author=author,
-                date=datetime(2023, 6, 1, tzinfo=timezone.utc),
+                date=datetime(2023, 6, 1, tzinfo=UTC),
                 files_changed=["feature.py"],
                 additions=50,
                 deletions=5
@@ -98,7 +99,7 @@ class TestSmartForkFilteringIntegration:
                 sha="def4567890abcdef1234567890abcdef12345678",
                 message="fix: resolve bug",
                 author=author,
-                date=datetime(2023, 6, 2, tzinfo=timezone.utc),
+                date=datetime(2023, 6, 2, tzinfo=UTC),
                 files_changed=["feature.py", "tests.py"],
                 additions=10,
                 deletions=15
@@ -119,9 +120,9 @@ class TestSmartForkFilteringIntegration:
             forks_count=5,
             size=1000,
             language="Python",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2023, 6, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 6, 1, tzinfo=timezone.utc),  # Later than created
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 6, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 6, 1, tzinfo=UTC),  # Later than created
             open_issues_count=2,
             topics=["python", "test"],
             watchers_count=10,
@@ -141,9 +142,9 @@ class TestSmartForkFilteringIntegration:
             forks_count=1,
             size=500,
             language="Python",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Same as created
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # Same as created
             open_issues_count=0,
             topics=["python"],
             watchers_count=2,
@@ -163,9 +164,9 @@ class TestSmartForkFilteringIntegration:
             forks_count=2,
             size=750,
             language="Python",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2023, 3, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 3, 1, tzinfo=timezone.utc),
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 3, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 3, 1, tzinfo=UTC),
             open_issues_count=0,
             topics=["python"],
             watchers_count=5,
@@ -226,8 +227,8 @@ class TestSmartForkFilteringIntegration:
             url="https://api.github.com/repos/testowner/unknown-repo",
             html_url="https://github.com/testowner/unknown-repo",
             clone_url="https://github.com/testowner/unknown-repo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
             default_branch="main"
         )
 
@@ -245,7 +246,7 @@ class TestSmartForkFilteringIntegration:
 
     @pytest.mark.asyncio
     async def test_detailed_commit_display_with_fork_filtering(
-        self, mock_github_client, fork_filtering_config, 
+        self, mock_github_client, fork_filtering_config,
         sample_repository_with_commits, sample_repository_no_commits, sample_commits
     ):
         """Test detailed commit display integration with fork filtering."""
@@ -263,7 +264,7 @@ class TestSmartForkFilteringIntegration:
                 return False
             return None
 
-        with patch.object(checker, 'has_commits_ahead', side_effect=mock_has_commits_ahead):
+        with patch.object(checker, "has_commits_ahead", side_effect=mock_has_commits_ahead):
             # Test repository with commits - should be processed
             should_process = await display.should_process_repository(sample_repository_with_commits)
             assert should_process is True
@@ -303,8 +304,8 @@ class TestSmartForkFilteringIntegration:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
 
@@ -340,10 +341,10 @@ class TestSmartForkFilteringIntegration:
 
         # Test GitHub API not found error
         mock_github_client.get_repository.side_effect = GitHubNotFoundError("Repository not found")
-        
+
         result = await checker.has_commits_ahead("https://github.com/nonexistent/repo")
         assert result is None
-        
+
         stats = checker.get_statistics()
         assert stats.status_unknown == 1
         assert stats.api_fallback_calls == 1
@@ -353,10 +354,10 @@ class TestSmartForkFilteringIntegration:
 
         # Test GitHub API error
         mock_github_client.get_repository.side_effect = GitHubAPIError("API Error", status_code=500)
-        
+
         result = await checker.has_commits_ahead("https://github.com/error/repo")
         assert result is None
-        
+
         stats = checker.get_statistics()
         assert stats.status_unknown == 1
 
@@ -365,10 +366,10 @@ class TestSmartForkFilteringIntegration:
 
         # Test unexpected error
         mock_github_client.get_repository.side_effect = Exception("Unexpected error")
-        
+
         with pytest.raises(ForkCommitStatusError):
             await checker.has_commits_ahead("https://github.com/unexpected/error")
-        
+
         stats = checker.get_statistics()
         assert stats.errors == 1
 
@@ -381,23 +382,23 @@ class TestSmartForkFilteringIntegration:
         self, mock_github_client, qualification_result_mixed_forks
     ):
         """Test different fork filtering configuration options."""
-        
+
         # Test with API fallback disabled
         config_no_fallback = ForkFilteringConfig(
             enabled=True,
             fallback_to_api=False,
             prefer_inclusion_on_uncertainty=False
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config_no_fallback)
-        
+
         # Fork not in qualification data should return False (no fallback)
         result = await checker.has_commits_ahead(
             "https://github.com/unknown/repo",
             qualification_result_mixed_forks
         )
         assert result is False  # prefer_inclusion_on_uncertainty=False
-        
+
         # Verify no API calls were made
         assert mock_github_client.get_repository.call_count == 0
 
@@ -407,9 +408,9 @@ class TestSmartForkFilteringIntegration:
             fallback_to_api=False,
             prefer_inclusion_on_uncertainty=True
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config_include_uncertain)
-        
+
         result = await checker.has_commits_ahead(
             "https://github.com/unknown/repo",
             qualification_result_mixed_forks
@@ -422,9 +423,9 @@ class TestSmartForkFilteringIntegration:
             fallback_to_api=True,
             max_api_fallback_calls=1
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config_limited_fallback)
-        
+
         # Mock successful API response
         mock_github_client.get_repository.return_value = Repository(
             id=99999,
@@ -434,19 +435,19 @@ class TestSmartForkFilteringIntegration:
             url="https://api.github.com/repos/test/repo",
             html_url="https://github.com/test/repo",
             clone_url="https://github.com/test/repo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
             default_branch="main"
         )
-        
+
         # First call should use API
         result1 = await checker.has_commits_ahead("https://github.com/test/repo1")
         assert result1 is True
-        
+
         # Second call should hit the limit and not use API
         result2 = await checker.has_commits_ahead("https://github.com/test/repo2")
         assert result2 is False  # prefer_inclusion_on_uncertainty=True by default, but limit reached
-        
+
         # Verify only one API call was made
         assert mock_github_client.get_repository.call_count == 1
 
@@ -516,7 +517,7 @@ class TestSmartForkFilteringIntegration:
                 "fork_data": {"full_name": "testowner/active-repo", "archived": False, "disabled": False}
             },
             {
-                "fork_url": "https://github.com/testowner/inactive-repo", 
+                "fork_url": "https://github.com/testowner/inactive-repo",
                 "fork_data": {"full_name": "testowner/inactive-repo", "archived": False, "disabled": False}
             },
             {
@@ -551,10 +552,10 @@ class TestSmartForkFilteringIntegration:
     ):
         """Test fork filtering statistics collection and logging."""
         import logging
-        
+
         # Enable debug logging
         caplog.set_level(logging.DEBUG)
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, fork_filtering_config)
 
         # Process several forks to generate statistics
@@ -570,7 +571,7 @@ class TestSmartForkFilteringIntegration:
                 "archived": "archived-repo" in fork_url,
                 "disabled": False
             }
-            
+
             await checker.evaluate_fork_for_filtering(
                 fork_url, fork_data, qualification_result_mixed_forks
             )
@@ -615,8 +616,8 @@ class TestSmartForkFilteringIntegration:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
 
@@ -636,7 +637,7 @@ class TestSmartForkFilteringIntegration:
             checker.has_commits_ahead(fork_url, qualification_result_mixed_forks)
             for fork_url in fork_urls
         ]
-        
+
         results = await asyncio.gather(*tasks)
 
         # Verify results
@@ -661,26 +662,26 @@ class TestSmartForkFilteringCLIIntegration:
     def mock_config(self):
         """Create a mock configuration for CLI tests."""
         from forklift.config.settings import ForkliftConfig, GitHubConfig
-        
+
         return ForkliftConfig(
             github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
             openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef"
         )
 
     @pytest.mark.asyncio
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.DetailedCommitDisplay')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.DetailedCommitDisplay")
     async def test_show_commits_detail_with_fork_filtering(
         self, mock_display_class, mock_github_client_class, mock_load_config, mock_config
     ):
         """Test show-commits --detail command with fork filtering integration."""
         mock_load_config.return_value = mock_config
-        
+
         # Setup GitHub client mock
         mock_github_client = AsyncMock()
         mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
-        
+
         # Setup repository mock
         sample_repo = Repository(
             owner="testowner",
@@ -689,8 +690,8 @@ class TestSmartForkFilteringCLIIntegration:
             url="https://api.github.com/repos/testowner/testrepo",
             html_url="https://github.com/testowner/testrepo",
             clone_url="https://github.com/testowner/testrepo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # No commits ahead
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # No commits ahead
             default_branch="main"
         )
         mock_github_client.get_repository.return_value = sample_repo
@@ -704,34 +705,34 @@ class TestSmartForkFilteringCLIIntegration:
 
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits',
-            'testowner/testrepo',
-            '--detail'
+            "show-commits",
+            "testowner/testrepo",
+            "--detail"
         ])
 
         assert result.exit_code == 0
-        
+
         # Verify that fork filtering was applied
         mock_display.should_process_repository.assert_called_once()
-        
+
         # Since repository has no commits ahead, detailed view should be empty
         if mock_display.generate_detailed_view.called:
             mock_display.generate_detailed_view.assert_called_with([], sample_repo)
 
     @pytest.mark.asyncio
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.DetailedCommitDisplay')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.DetailedCommitDisplay")
     async def test_show_commits_detail_with_force_flag(
         self, mock_display_class, mock_github_client_class, mock_load_config, mock_config
     ):
         """Test show-commits --detail --force command bypasses filtering."""
         mock_load_config.return_value = mock_config
-        
+
         # Setup GitHub client mock
         mock_github_client = AsyncMock()
         mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
-        
+
         # Setup repository mock (no commits ahead)
         sample_repo = Repository(
             owner="testowner",
@@ -740,12 +741,12 @@ class TestSmartForkFilteringCLIIntegration:
             url="https://api.github.com/repos/testowner/testrepo",
             html_url="https://github.com/testowner/testrepo",
             clone_url="https://github.com/testowner/testrepo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # No commits ahead
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # No commits ahead
             default_branch="main"
         )
         mock_github_client.get_repository.return_value = sample_repo
-        
+
         # Mock some commits
         sample_commits = [
             {
@@ -766,31 +767,31 @@ class TestSmartForkFilteringCLIIntegration:
 
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits',
-            'testowner/testrepo',
-            '--detail',
-            '--force'
+            "show-commits",
+            "testowner/testrepo",
+            "--detail",
+            "--force"
         ])
 
         assert result.exit_code == 0
-        
+
         # Verify that force flag was respected
         mock_display.should_process_repository.assert_called()
         call_args = mock_display.should_process_repository.call_args
         if len(call_args[0]) > 1 or call_args[1]:
             # Check if force=True was passed
-            force_passed = call_args[1].get('force', False) if call_args[1] else False
+            force_passed = call_args[1].get("force", False) if call_args[1] else False
             # Note: The exact implementation may vary, so we just verify the call was made
 
     @pytest.mark.asyncio
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
     async def test_show_commits_detail_error_handling_with_filtering(
         self, mock_github_client_class, mock_load_config, mock_config
     ):
         """Test error handling in show-commits --detail with fork filtering."""
         mock_load_config.return_value = mock_config
-        
+
         # Setup GitHub client mock to raise an error
         mock_github_client = AsyncMock()
         mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
@@ -798,9 +799,9 @@ class TestSmartForkFilteringCLIIntegration:
 
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits',
-            'testowner/testrepo',
-            '--detail'
+            "show-commits",
+            "testowner/testrepo",
+            "--detail"
         ])
 
         # Should handle the error gracefully
@@ -809,13 +810,13 @@ class TestSmartForkFilteringCLIIntegration:
     def test_show_commits_detail_help_includes_filtering_info(self):
         """Test that help text includes information about fork filtering."""
         runner = CliRunner()
-        
+
         from forklift.cli import show_commits
-        result = runner.invoke(show_commits, ['--help'])
-        
+        result = runner.invoke(show_commits, ["--help"])
+
         assert result.exit_code == 0
-        assert '--detail' in result.output
-        assert '--force' in result.output
+        assert "--detail" in result.output
+        assert "--force" in result.output
 
 
 class TestSmartForkFilteringPerformance:
@@ -825,12 +826,12 @@ class TestSmartForkFilteringPerformance:
     def large_qualification_result(self):
         """Create a large qualification result for performance testing."""
         fork_data = []
-        
+
         for i in range(100):  # 100 forks
             has_commits = i % 3 != 0  # 2/3 have commits, 1/3 don't
-            created_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
-            pushed_time = datetime(2023, 6, 1, tzinfo=timezone.utc) if has_commits else created_time
-            
+            created_time = datetime(2023, 1, 1, tzinfo=UTC)
+            pushed_time = datetime(2023, 6, 1, tzinfo=UTC) if has_commits else created_time
+
             metrics = ForkQualificationMetrics(
                 id=10000 + i,
                 full_name=f"user{i}/repo{i}",
@@ -851,7 +852,7 @@ class TestSmartForkFilteringPerformance:
                 disabled=i % 25 == 0,  # 4% disabled
                 fork=True
             )
-            
+
             fork_data.append(CollectedForkData(metrics=metrics))
 
         stats = QualificationStats(
@@ -876,7 +877,7 @@ class TestSmartForkFilteringPerformance:
     ):
         """Test fork filtering performance with a large dataset."""
         import time
-        
+
         mock_github_client = AsyncMock()
         config = ForkFilteringConfig(
             enabled=True,
@@ -884,31 +885,31 @@ class TestSmartForkFilteringPerformance:
             fallback_to_api=True,
             max_api_fallback_calls=10  # Limit API calls
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config)
 
         # Test processing all forks in qualification data
         start_time = time.time()
-        
+
         results = []
         for i in range(100):
             fork_url = f"https://github.com/user{i}/repo{i}"
             result = await checker.has_commits_ahead(fork_url, large_qualification_result)
             results.append(result)
-        
+
         end_time = time.time()
         processing_time = end_time - start_time
 
         # Verify results
         assert len(results) == 100
         assert results.count(True) > results.count(False)  # More forks with commits
-        
+
         # Verify performance - should be fast since using qualification data
         assert processing_time < 1.0  # Should complete in under 1 second
-        
+
         # Verify no API calls were made (all data from qualification)
         assert mock_github_client.get_repository.call_count == 0
-        
+
         # Verify statistics
         stats = checker.get_statistics()
         assert stats.qualification_data_hits == 100
@@ -918,7 +919,7 @@ class TestSmartForkFilteringPerformance:
     async def test_api_call_reduction_effectiveness(self, large_qualification_result):
         """Test that fork filtering effectively reduces API calls."""
         mock_github_client = AsyncMock()
-        
+
         # Mock API response for fallback calls
         async def mock_get_repository(owner, repo):
             await asyncio.sleep(0.01)  # Simulate API delay
@@ -930,28 +931,28 @@ class TestSmartForkFilteringPerformance:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
-        
+
         mock_github_client.get_repository.side_effect = mock_get_repository
-        
+
         config = ForkFilteringConfig(
             enabled=True,
             fallback_to_api=True,
             max_api_fallback_calls=20  # Allow some API calls
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config)
 
         # Process mix of known and unknown forks
         fork_urls = []
-        
+
         # 80 forks from qualification data
         for i in range(80):
             fork_urls.append(f"https://github.com/user{i}/repo{i}")
-        
+
         # 20 unknown forks (will require API calls)
         for i in range(20):
             fork_urls.append(f"https://github.com/unknown{i}/repo{i}")
@@ -967,7 +968,7 @@ class TestSmartForkFilteringPerformance:
         assert stats.qualification_data_hits == 80  # 80% used qualification data
         assert stats.api_fallback_calls == 20      # 20% used API fallback
         assert stats.api_usage_efficiency == 80.0  # 80% efficiency
-        
+
         # Verify total API calls made
         assert mock_github_client.get_repository.call_count == 20
 
@@ -975,7 +976,7 @@ class TestSmartForkFilteringPerformance:
     async def test_memory_usage_with_large_datasets(self, large_qualification_result):
         """Test memory usage remains reasonable with large datasets."""
         pytest.skip("psutil not available - skipping memory test")
-        
+
         mock_github_client = AsyncMock()
         config = ForkFilteringConfig(enabled=True, log_filtering_decisions=False)
         checker = ForkCommitStatusChecker(mock_github_client, config)
@@ -992,41 +993,41 @@ class TestSmartForkFilteringPerformance:
     async def test_concurrent_processing_performance(self, large_qualification_result):
         """Test performance of concurrent fork processing."""
         import time
-        
+
         mock_github_client = AsyncMock()
         config = ForkFilteringConfig(enabled=True, log_filtering_decisions=False)
         checker = ForkCommitStatusChecker(mock_github_client, config)
 
         # Create concurrent tasks
         fork_urls = [f"https://github.com/user{i}/repo{i}" for i in range(50)]
-        
+
         start_time = time.time()
-        
+
         # Process concurrently
         tasks = [
             checker.has_commits_ahead(fork_url, large_qualification_result)
             for fork_url in fork_urls
         ]
-        
+
         results = await asyncio.gather(*tasks)
-        
+
         end_time = time.time()
         concurrent_time = end_time - start_time
 
         # Process sequentially for comparison
         start_time = time.time()
-        
+
         sequential_results = []
         for fork_url in fork_urls:
             result = await checker.has_commits_ahead(fork_url, large_qualification_result)
             sequential_results.append(result)
-        
+
         end_time = time.time()
         sequential_time = end_time - start_time
 
         # Verify results are the same
         assert results == sequential_results
-        
+
         # Concurrent processing should not be significantly slower
         # (may not be faster due to Python GIL, but shouldn't be much slower)
         assert concurrent_time <= sequential_time * 1.5
@@ -1039,51 +1040,51 @@ class TestSmartForkFilteringEndToEnd:
     async def test_complete_fork_filtering_workflow(self):
         """Test complete workflow from fork discovery to filtering to analysis."""
         # This test simulates the complete workflow that would happen in production
-        
+
         # Mock components
         mock_github_client = AsyncMock()
-        
+
         # Setup mock data for complete workflow
         sample_forks = [
             {"full_name": "user1/active-fork", "archived": False, "disabled": False},
             {"full_name": "user2/inactive-fork", "archived": False, "disabled": False},
             {"full_name": "user3/archived-fork", "archived": True, "disabled": False},
         ]
-        
+
         # Mock qualification result
         qualification_metrics = [
             ForkQualificationMetrics(
                 id=1, full_name="user1/active-fork", owner="user1", name="active-fork",
                 html_url="https://github.com/user1/active-fork",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 6, 1, tzinfo=timezone.utc),  # Has commits
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 6, 1, tzinfo=UTC),  # Has commits
                 stargazers_count=10, forks_count=2, size=1000, language="Python",
-                updated_at=datetime(2023, 6, 1, tzinfo=timezone.utc),
+                updated_at=datetime(2023, 6, 1, tzinfo=UTC),
                 open_issues_count=1, topics=["python"], watchers_count=10,
                 archived=False, disabled=False, fork=True
             ),
             ForkQualificationMetrics(
                 id=2, full_name="user2/inactive-fork", owner="user2", name="inactive-fork",
                 html_url="https://github.com/user2/inactive-fork",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # No commits
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # No commits
                 stargazers_count=5, forks_count=1, size=500, language="Python",
-                updated_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                updated_at=datetime(2023, 1, 1, tzinfo=UTC),
                 open_issues_count=0, topics=["python"], watchers_count=5,
                 archived=False, disabled=False, fork=True
             ),
             ForkQualificationMetrics(
                 id=3, full_name="user3/archived-fork", owner="user3", name="archived-fork",
                 html_url="https://github.com/user3/archived-fork",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 3, 1, tzinfo=timezone.utc),  # Has commits but archived
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 3, 1, tzinfo=UTC),  # Has commits but archived
                 stargazers_count=8, forks_count=3, size=800, language="Python",
-                updated_at=datetime(2023, 3, 1, tzinfo=timezone.utc),
+                updated_at=datetime(2023, 3, 1, tzinfo=UTC),
                 open_issues_count=0, topics=["python"], watchers_count=8,
                 archived=True, disabled=False, fork=True  # Archived
             ),
         ]
-        
+
         qualification_result = QualifiedForksResult(
             repository_owner="upstream",
             repository_name="main-repo",
@@ -1109,19 +1110,19 @@ class TestSmartForkFilteringEndToEnd:
             should_filter, reason = await checker.evaluate_fork_for_filtering(
                 fork_url, fork_data, qualification_result
             )
-            evaluation_results.append((fork_data['full_name'], should_filter, reason))
+            evaluation_results.append((fork_data["full_name"], should_filter, reason))
 
         # Step 2: Verify filtering results
         assert len(evaluation_results) == 3
-        
+
         # user1/active-fork should not be filtered (has commits)
         assert evaluation_results[0][1] is False
         assert evaluation_results[0][2] == "has_commits_ahead"
-        
+
         # user2/inactive-fork should be filtered (no commits)
         assert evaluation_results[1][1] is True
         assert evaluation_results[1][2] == "no_commits_ahead"
-        
+
         # user3/archived-fork should be filtered (archived)
         assert evaluation_results[2][1] is True
         assert evaluation_results[2][2] == "archived"
@@ -1130,7 +1131,7 @@ class TestSmartForkFilteringEndToEnd:
         forks_to_process = [
             result[0] for result in evaluation_results if not result[1]
         ]
-        
+
         assert len(forks_to_process) == 1
         assert forks_to_process[0] == "user1/active-fork"
 

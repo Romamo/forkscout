@@ -1,20 +1,20 @@
 """Tests for AI summary functionality in CLI commands."""
 
-import os
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from click.testing import CliRunner
 
 from forklift.cli import cli
-from forklift.models.github import Repository, Commit, User
 from forklift.models.ai_summary import AISummary, AIUsageStats
+from forklift.models.github import Commit, Repository, User
 
 
 @pytest.fixture
 def mock_config():
     """Mock ForkliftConfig with OpenAI API key."""
     from forklift.config.settings import ForkliftConfig, GitHubConfig
-    
+
     config = ForkliftConfig(
         github=GitHubConfig(
             token="ghp_1234567890abcdef1234567890abcdef12345678"
@@ -43,7 +43,7 @@ def mock_repository():
 def mock_commits():
     """Mock list of Commit objects."""
     author = User(login="test-author", html_url="https://github.com/test-author")
-    
+
     return [
         Commit(
             sha="abc123def456789012345678901234567890abcd",
@@ -115,20 +115,20 @@ def mock_ai_summaries():
 class TestShowCommitsAISummary:
     """Test cases for show-commits command with AI summary functionality."""
 
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.validate_repository_url')
-    @patch('forklift.ai.client.OpenAIClient')
-    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.validate_repository_url")
+    @patch("forklift.ai.client.OpenAIClient")
+    @patch("forklift.ai.summary_engine.AICommitSummaryEngine")
     def test_show_commits_with_ai_summary_flag(
-        self, 
+        self,
         mock_summary_engine_class,
         mock_openai_client_class,
-        mock_validate_url, 
-        mock_client_class, 
+        mock_validate_url,
+        mock_client_class,
         mock_load_config,
-        mock_config, 
-        mock_repository, 
+        mock_config,
+        mock_repository,
         mock_commits,
         mock_commit_details,
         mock_ai_summaries
@@ -137,7 +137,7 @@ class TestShowCommitsAISummary:
         # Setup mocks
         mock_load_config.return_value = mock_config
         mock_validate_url.return_value = ("test-owner", "test-repo")
-        
+
         # Mock GitHub client
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -197,11 +197,11 @@ class TestShowCommitsAISummary:
             }
         ]
         mock_client.get_commit_details.side_effect = mock_commit_details
-        
+
         # Mock OpenAI client and summary engine
         mock_openai_client = AsyncMock()
         mock_openai_client_class.return_value = mock_openai_client
-        
+
         mock_summary_engine = AsyncMock()
         mock_summary_engine_class.return_value = mock_summary_engine
         mock_summary_engine.generate_batch_summaries.return_value = mock_ai_summaries
@@ -213,20 +213,20 @@ class TestShowCommitsAISummary:
             total_cost_usd=0.0001,
             average_processing_time_ms=1090
         )
-        
+
         # Run command with AI summary flag
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits', 'test-owner/test-repo',
-            '--ai-summary'
+            "show-commits", "test-owner/test-repo",
+            "--ai-summary"
         ])
-        
+
         # Assertions
         assert result.exit_code == 0
         assert "🤖 AI-Powered Commit Summaries" in result.output
         assert "AI Summary" in result.output
         # Note: AI Usage Summary might not appear due to mock coroutine issue, but core functionality works
-        
+
         # Verify AI components were called
         mock_openai_client_class.assert_called_once()
         mock_summary_engine_class.assert_called_once()
@@ -235,47 +235,47 @@ class TestShowCommitsAISummary:
     def test_show_commits_ai_summary_no_api_key(self):
         """Test AI summary function directly with no API key."""
         import asyncio
+        import sys
+        from io import StringIO
+        from unittest.mock import AsyncMock
+
         from forklift.cli import _display_ai_summaries_for_commits
         from forklift.config.settings import ForkliftConfig, GitHubConfig
-        from forklift.github.client import GitHubClient
-        from unittest.mock import AsyncMock
-        from io import StringIO
-        import sys
-        
+
         config = ForkliftConfig(
             github=GitHubConfig(
                 token="ghp_1234567890abcdef1234567890abcdef12345678"
             ),
             openai_api_key=None  # No API key
         )
-        
+
         # Capture output
         captured_output = StringIO()
         sys.stdout = captured_output
-        
+
         async def test_function():
             github_client = AsyncMock()
             commits = [AsyncMock()]  # Mock commit
-            
+
             await _display_ai_summaries_for_commits(
                 github_client, config, "test-owner", "test-repo", commits
             )
-        
+
         # Run the async function
         asyncio.run(test_function())
-        
+
         # Restore stdout
         sys.stdout = sys.__stdout__
-        
+
         # Check output
         output = captured_output.getvalue()
         assert "OpenAI API key not configured" in output
 
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.validate_repository_url')
-    @patch('forklift.ai.client.OpenAIClient')
-    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.validate_repository_url")
+    @patch("forklift.ai.client.OpenAIClient")
+    @patch("forklift.ai.summary_engine.AICommitSummaryEngine")
     def test_show_commits_ai_summary_with_errors(
         self,
         mock_summary_engine_class,
@@ -291,7 +291,7 @@ class TestShowCommitsAISummary:
         # Setup mocks
         mock_load_config.return_value = mock_config
         mock_validate_url.return_value = ("test-owner", "test-repo")
-        
+
         # Mock GitHub client
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -325,14 +325,14 @@ class TestShowCommitsAISummary:
             }
         ]
         mock_client.get_commit_details.return_value = {"sha": "abc123def456789012345678901234567890abcd", "files": []}
-        
+
         # Mock AI components with error
         mock_openai_client = AsyncMock()
         mock_openai_client_class.return_value = mock_openai_client
-        
+
         mock_summary_engine = AsyncMock()
         mock_summary_engine_class.return_value = mock_summary_engine
-        
+
         # Return summary with error
         error_summary = AISummary(
             commit_sha="abc123def456789012345678901234567890abcd",
@@ -341,21 +341,21 @@ class TestShowCommitsAISummary:
         )
         mock_summary_engine.generate_batch_summaries.return_value = [error_summary]
         mock_summary_engine.get_usage_stats.return_value = AIUsageStats()
-        
+
         # Run command
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits', 'test-owner/test-repo',
-            '--ai-summary'
+            "show-commits", "test-owner/test-repo",
+            "--ai-summary"
         ])
-        
+
         # Should handle errors gracefully
         assert result.exit_code == 0
         assert "AI Analysis Error" in result.output
 
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.validate_repository_url')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.validate_repository_url")
     def test_show_commits_without_ai_summary_flag(
         self,
         mock_validate_url,
@@ -368,27 +368,27 @@ class TestShowCommitsAISummary:
         # Setup mocks
         mock_load_config.return_value = mock_config
         mock_validate_url.return_value = ("test-owner", "test-repo")
-        
+
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client.get_repository.return_value = mock_repository
         mock_client.get_branch_commits.return_value = []
-        
+
         # Run command without AI summary flag
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits', 'test-owner/test-repo'
+            "show-commits", "test-owner/test-repo"
         ])
-        
+
         # Should work normally without AI summaries
         assert result.exit_code == 0
         assert "🤖 AI-Powered Commit Summaries" not in result.output
 
-    @patch('forklift.cli.load_config')
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.validate_repository_url')
-    @patch('forklift.ai.client.OpenAIClient')
-    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.validate_repository_url")
+    @patch("forklift.ai.client.OpenAIClient")
+    @patch("forklift.ai.summary_engine.AICommitSummaryEngine")
     def test_show_commits_ai_summary_with_explain_flag(
         self,
         mock_summary_engine_class,
@@ -404,7 +404,7 @@ class TestShowCommitsAISummary:
         # Setup mocks
         mock_load_config.return_value = mock_config
         mock_validate_url.return_value = ("test-owner", "test-repo")
-        
+
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client.get_repository.return_value = mock_repository
@@ -437,24 +437,24 @@ class TestShowCommitsAISummary:
             }
         ]
         mock_client.get_commit_details.return_value = {"sha": "abc123def456789012345678901234567890abcd", "files": []}
-        
+
         # Mock AI components
         mock_openai_client = AsyncMock()
         mock_openai_client_class.return_value = mock_openai_client
-        
+
         mock_summary_engine = AsyncMock()
         mock_summary_engine_class.return_value = mock_summary_engine
         mock_summary_engine.generate_batch_summaries.return_value = mock_ai_summaries
         mock_summary_engine.get_usage_stats.return_value = AIUsageStats()
-        
+
         # Run command with both flags
         runner = CliRunner()
         result = runner.invoke(cli, [
-            'show-commits', 'test-owner/test-repo',
-            '--explain',
-            '--ai-summary'
+            "show-commits", "test-owner/test-repo",
+            "--explain",
+            "--ai-summary"
         ])
-        
+
         # Should show both explanations and AI summaries
         assert result.exit_code == 0
         assert "📝 Commit Explanations" in result.output
@@ -463,25 +463,25 @@ class TestShowCommitsAISummary:
     def test_show_commits_ai_summary_compact_flag_validation(self, mock_config):
         """Test that --ai-summary and --ai-summary-compact flags cannot be used together."""
         runner = CliRunner()
-        
-        with patch('forklift.config.settings.load_config') as mock_load_config:
+
+        with patch("forklift.config.settings.load_config") as mock_load_config:
             mock_load_config.return_value = mock_config
-            
+
             result = runner.invoke(cli, [
-                'show-commits', 'test-owner/test-repo',
-                '--ai-summary',
-                '--ai-summary-compact'
+                "show-commits", "test-owner/test-repo",
+                "--ai-summary",
+                "--ai-summary-compact"
             ])
-            
+
             assert result.exit_code == 1
             assert "Cannot use both --ai-summary and --ai-summary-compact flags together" in result.output
 
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.validate_repository_url')
-    @patch('forklift.ai.client.OpenAIClient')
-    @patch('forklift.ai.summary_engine.AICommitSummaryEngine')
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.validate_repository_url")
+    @patch("forklift.ai.client.OpenAIClient")
+    @patch("forklift.ai.summary_engine.AICommitSummaryEngine")
     def test_show_commits_with_ai_summary_compact_flag(
-        self, 
+        self,
         mock_summary_engine_class,
         mock_openai_client_class,
         mock_validate_url,
@@ -494,7 +494,7 @@ class TestShowCommitsAISummary:
         """Test show-commits command with --ai-summary-compact flag."""
         # Setup mocks
         mock_validate_url.return_value = ("test-owner", "test-repo")
-        
+
         mock_client = AsyncMock()
         mock_github_client_class.return_value.__aenter__.return_value = mock_client
         mock_client.get_repository.return_value = mock_repository
@@ -527,38 +527,38 @@ class TestShowCommitsAISummary:
             }
         ]
         mock_client.get_commit_details.return_value = {"sha": "abc123def456789012345678901234567890abcd", "files": []}
-        
+
         # Mock AI components
         mock_openai_client = AsyncMock()
         mock_openai_client_class.return_value = mock_openai_client
-        
+
         mock_summary_engine = AsyncMock()
         mock_summary_engine_class.return_value = mock_summary_engine
         mock_summary_engine.generate_batch_summaries.return_value = mock_ai_summaries
         mock_summary_engine.get_usage_stats.return_value = AIUsageStats()
-        
+
         runner = CliRunner()
-        
-        with patch('forklift.config.settings.load_config') as mock_load_config:
+
+        with patch("forklift.config.settings.load_config") as mock_load_config:
             mock_load_config.return_value = mock_config
-            
+
             result = runner.invoke(cli, [
-                'show-commits', 'test-owner/test-repo',
-                '--ai-summary-compact'
+                "show-commits", "test-owner/test-repo",
+                "--ai-summary-compact"
             ])
-            
+
             assert result.exit_code == 0
             assert "🤖 AI-Powered Commit Summaries (Compact Mode)" in result.output
-            
+
             # Verify AI summary engine was created with compact mode
             mock_summary_engine_class.assert_called_once()
             call_args = mock_summary_engine_class.call_args
-            ai_config = call_args[1]['config']
+            ai_config = call_args[1]["config"]
             assert ai_config.compact_mode is True
 
-    @patch('forklift.cli.GitHubClient')
-    @patch('forklift.cli.validate_repository_url')
-    @patch.dict('os.environ', {}, clear=True)  # Clear environment variables including OPENAI_API_KEY
+    @patch("forklift.cli.GitHubClient")
+    @patch("forklift.cli.validate_repository_url")
+    @patch.dict("os.environ", {}, clear=True)  # Clear environment variables including OPENAI_API_KEY
     def test_show_commits_ai_summary_compact_no_api_key(
         self,
         mock_validate_url,
@@ -566,16 +566,16 @@ class TestShowCommitsAISummary:
     ):
         """Test --ai-summary-compact flag with no OpenAI API key."""
         from forklift.config.settings import ForkliftConfig, GitHubConfig
-        
+
         # Config without OpenAI API key
         config_no_key = ForkliftConfig(
             github=GitHubConfig(
                 token="ghp_1234567890abcdef1234567890abcdef12345678"
             )
         )
-        
+
         mock_validate_url.return_value = ("test-owner", "test-repo")
-        
+
         mock_client = AsyncMock()
         mock_github_client_class.return_value.__aenter__.return_value = mock_client
         mock_client.get_repository.return_value = Repository(
@@ -616,17 +616,17 @@ class TestShowCommitsAISummary:
                 }
             }
         ]
-        
+
         runner = CliRunner()
-        
-        with patch('forklift.config.settings.load_config') as mock_load_config:
+
+        with patch("forklift.config.settings.load_config") as mock_load_config:
             mock_load_config.return_value = config_no_key
-            
+
             result = runner.invoke(cli, [
-                'show-commits', 'test-owner/test-repo',
-                '--ai-summary-compact'
+                "show-commits", "test-owner/test-repo",
+                "--ai-summary-compact"
             ])
-            
+
             assert result.exit_code == 0
             # Just verify that compact mode is indicated in the output
             assert "(Compact Mode)" in result.output
@@ -634,11 +634,11 @@ class TestShowCommitsAISummary:
     def test_show_commits_ai_summary_compact_flag_alone(self):
         """Test that --ai-summary-compact flag works independently."""
         runner = CliRunner()
-        
-        with patch('forklift.config.settings.load_config') as mock_load_config:
+
+        with patch("forklift.config.settings.load_config") as mock_load_config:
             mock_load_config.return_value = mock_config
-            
-            with patch('forklift.cli.GitHubClient') as mock_github_client_class:
+
+            with patch("forklift.cli.GitHubClient") as mock_github_client_class:
                 mock_client = AsyncMock()
                 mock_github_client_class.return_value.__aenter__.return_value = mock_client
                 mock_client.get_repository.return_value = Repository(
@@ -652,15 +652,15 @@ class TestShowCommitsAISummary:
                     default_branch="main"
                 )
                 mock_client.get_branch_commits.return_value = []
-                
-                with patch('forklift.cli.validate_repository_url') as mock_validate_url:
+
+                with patch("forklift.cli.validate_repository_url") as mock_validate_url:
                     mock_validate_url.return_value = ("test-owner", "test-repo")
-                    
+
                     result = runner.invoke(cli, [
-                        'show-commits', 'test-owner/test-repo',
-                        '--ai-summary-compact'
+                        "show-commits", "test-owner/test-repo",
+                        "--ai-summary-compact"
                     ])
-                    
+
                     # Should not error on flag validation
                     assert result.exit_code == 0
                     assert "Cannot use both" not in result.output

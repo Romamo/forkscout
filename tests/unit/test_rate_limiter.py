@@ -2,12 +2,12 @@
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from forklift.github.rate_limiter import RateLimitHandler, CircuitBreaker
-from forklift.github.client import GitHubRateLimitError, GitHubAPIError
+from forklift.github.client import GitHubAPIError, GitHubRateLimitError
+from forklift.github.rate_limiter import CircuitBreaker, RateLimitHandler
 
 
 class TestRateLimitHandler:
@@ -56,22 +56,22 @@ class TestRateLimitHandler:
     def test_calculate_delay_with_reset_time(self):
         """Test delay calculation with rate limit reset time."""
         handler = RateLimitHandler()
-        
+
         # Reset time 30 seconds in the future
         reset_time = int(time.time()) + 30
         delay = handler.calculate_delay(0, reset_time)
-        
+
         # Should wait until reset time (plus buffer)
         assert 30 <= delay <= 32
 
     def test_calculate_delay_with_past_reset_time(self):
         """Test delay calculation with past reset time."""
         handler = RateLimitHandler(base_delay=1.0, jitter=False)
-        
+
         # Reset time in the past
         reset_time = int(time.time()) - 10
         delay = handler.calculate_delay(1, reset_time)
-        
+
         # Should fall back to exponential backoff
         assert delay == 2.0  # base_delay * backoff_factor^1
 
@@ -90,7 +90,7 @@ class TestRateLimitHandler:
     async def test_execute_with_retry_success_after_retries(self):
         """Test successful execution after retries."""
         handler = RateLimitHandler(max_retries=3, base_delay=0.01)
-        
+
         # Mock function that fails twice then succeeds
         mock_func = AsyncMock(side_effect=[
             GitHubAPIError("Server error", status_code=500),
@@ -99,7 +99,7 @@ class TestRateLimitHandler:
         ])
 
         result = await handler.execute_with_retry(
-            mock_func, 
+            mock_func,
             "test operation",
             retryable_exceptions=(GitHubAPIError,)
         )
@@ -111,7 +111,7 @@ class TestRateLimitHandler:
     async def test_execute_with_retry_max_retries_exceeded(self):
         """Test that max retries are respected."""
         handler = RateLimitHandler(max_retries=2, base_delay=0.01)
-        
+
         # Mock function that always fails
         mock_func = AsyncMock(side_effect=GitHubAPIError("Always fails"))
 
@@ -128,7 +128,7 @@ class TestRateLimitHandler:
     async def test_execute_with_retry_non_retryable_exception(self):
         """Test that non-retryable exceptions are not retried."""
         handler = RateLimitHandler(max_retries=3)
-        
+
         # Mock function that raises non-retryable exception
         mock_func = AsyncMock(side_effect=ValueError("Non-retryable"))
 
@@ -145,7 +145,7 @@ class TestRateLimitHandler:
     async def test_execute_with_retry_rate_limit_error(self):
         """Test retry behavior with rate limit errors."""
         handler = RateLimitHandler(max_retries=2, base_delay=0.01)
-        
+
         # Mock rate limit error with reset time
         reset_time = int(time.time()) + 1
         rate_limit_error = GitHubRateLimitError(
@@ -154,10 +154,10 @@ class TestRateLimitHandler:
             remaining=0,
             limit=5000
         )
-        
+
         mock_func = AsyncMock(side_effect=[rate_limit_error, "success"])
 
-        with patch('asyncio.sleep') as mock_sleep:
+        with patch("asyncio.sleep") as mock_sleep:
             result = await handler.execute_with_retry(
                 mock_func,
                 "test operation",
@@ -285,10 +285,10 @@ class TestCircuitBreaker:
     async def test_circuit_breaker_ignores_unexpected_exceptions(self):
         """Test circuit breaker ignores exceptions not in expected_exception."""
         breaker = CircuitBreaker(failure_threshold=2, expected_exception=ValueError)
-        
+
         # RuntimeError should not trigger circuit breaker
         mock_func = AsyncMock(side_effect=RuntimeError("Unexpected error"))
-        
+
         with pytest.raises(RuntimeError):
             await breaker.call(mock_func, "test operation")
 
@@ -338,10 +338,10 @@ class TestIntegration:
             GitHubAPIError("Bad gateway", status_code=502),
             "success"
         ]
-        
+
         mock_func = AsyncMock(side_effect=errors)
 
-        with patch('asyncio.sleep'):  # Mock sleep to speed up test
+        with patch("asyncio.sleep"):  # Mock sleep to speed up test
             result = await handler.execute_with_retry(
                 mock_func,
                 "complex operation",

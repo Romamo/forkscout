@@ -1,11 +1,12 @@
 """Integration tests for feature ranking system."""
 
-import pytest
 from datetime import datetime, timedelta
 
+import pytest
+
 from src.forklift.config.settings import ScoringConfig
-from src.forklift.models.analysis import Feature, ForkMetrics, FeatureCategory
-from src.forklift.models.github import Fork, Repository, Commit, User
+from src.forklift.models.analysis import Feature, FeatureCategory, ForkMetrics
+from src.forklift.models.github import Commit, Fork, Repository, User
 from src.forklift.ranking.feature_ranking_engine import FeatureRankingEngine
 
 
@@ -221,7 +222,7 @@ class TestFeatureRankingIntegration:
         # Similar auth features should be grouped together
         auth_features = [rf for rf in ranked_features if "auth" in rf.feature.id]
         assert len(auth_features) == 2
-        
+
         # Each auth feature should have the other as a similar implementation
         for auth_rf in auth_features:
             if len(auth_rf.similar_implementations) > 0:
@@ -259,14 +260,14 @@ class TestFeatureRankingIntegration:
         # Rankings should be different or at least scores should be different
         code_quality_order = [rf.feature.id for rf in code_quality_ranking]
         community_order = [rf.feature.id for rf in community_ranking]
-        
+
         code_quality_scores = [rf.score for rf in code_quality_ranking]
         community_scores = [rf.score for rf in community_ranking]
-        
+
         # Either order should be different OR scores should be significantly different
         order_different = code_quality_order != community_order
-        scores_different = any(abs(c - m) > 5 for c, m in zip(code_quality_scores, community_scores))
-        
+        scores_different = any(abs(c - m) > 5 for c, m in zip(code_quality_scores, community_scores, strict=False))
+
         assert order_different or scores_different
 
     def test_feature_grouping_accuracy(self, ranking_engine, sample_features_and_metrics):

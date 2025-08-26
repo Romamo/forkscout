@@ -2,22 +2,19 @@
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
-from ..models.analysis import ForkAnalysis
 from ..models.cache import CacheConfig, CacheKey
-from ..models.github import Repository, Fork
 from .cache import ForkliftCache
-
 
 logger = logging.getLogger(__name__)
 
 
 class AnalysisCacheManager:
     """High-level cache manager for fork analysis results."""
-    
-    def __init__(self, cache: Optional[ForkliftCache] = None, config: Optional[CacheConfig] = None):
+
+    def __init__(self, cache: ForkliftCache | None = None, config: CacheConfig | None = None):
         """Initialize the analysis cache manager.
         
         Args:
@@ -26,26 +23,26 @@ class AnalysisCacheManager:
         """
         self.cache = cache or ForkliftCache(config)
         self._initialized = False
-    
+
     async def initialize(self) -> None:
         """Initialize the cache manager."""
         if not self.cache._initialized:
             await self.cache.initialize()
         self._initialized = True
         logger.info("Analysis cache manager initialized")
-    
+
     async def close(self) -> None:
         """Close the cache manager."""
         await self.cache.close()
         self._initialized = False
         logger.info("Analysis cache manager closed")
-    
+
     def _ensure_initialized(self) -> None:
         """Ensure the cache manager is initialized."""
         if not self._initialized:
             raise RuntimeError("Cache manager not initialized. Call initialize() first.")
-    
-    def _generate_config_hash(self, config: Dict[str, Any]) -> str:
+
+    def _generate_config_hash(self, config: dict[str, Any]) -> str:
         """Generate a hash for configuration to use in cache keys.
         
         Args:
@@ -56,8 +53,8 @@ class AnalysisCacheManager:
         """
         config_str = str(sorted(config.items()))
         return hashlib.md5(config_str.encode()).hexdigest()[:8]
-    
-    async def get_repository_metadata(self, owner: str, repo: str) -> Optional[Dict[str, Any]]:
+
+    async def get_repository_metadata(self, owner: str, repo: str) -> dict[str, Any] | None:
         """Get cached repository metadata.
         
         Args:
@@ -68,16 +65,16 @@ class AnalysisCacheManager:
             Repository metadata or None if not cached
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.repository_metadata(owner, repo)
         return await self.cache.get_json(key)
-    
+
     async def cache_repository_metadata(
-        self, 
-        owner: str, 
-        repo: str, 
-        metadata: Dict[str, Any],
-        ttl_hours: Optional[int] = None
+        self,
+        owner: str,
+        repo: str,
+        metadata: dict[str, Any],
+        ttl_hours: int | None = None
     ) -> None:
         """Cache repository metadata.
         
@@ -88,10 +85,10 @@ class AnalysisCacheManager:
             ttl_hours: Time to live in hours
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.repository_metadata(owner, repo)
         repository_url = f"https://github.com/{owner}/{repo}"
-        
+
         await self.cache.set_json(
             key=key,
             value=metadata,
@@ -100,10 +97,10 @@ class AnalysisCacheManager:
             repository_url=repository_url,
             metadata={"owner": owner, "repo": repo}
         )
-        
+
         logger.debug(f"Cached repository metadata for {owner}/{repo}")
-    
-    async def get_fork_list(self, owner: str, repo: str) -> Optional[List[Dict[str, Any]]]:
+
+    async def get_fork_list(self, owner: str, repo: str) -> list[dict[str, Any]] | None:
         """Get cached fork list.
         
         Args:
@@ -114,16 +111,16 @@ class AnalysisCacheManager:
             List of forks or None if not cached
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.fork_list(owner, repo)
         return await self.cache.get_json(key)
-    
+
     async def cache_fork_list(
-        self, 
-        owner: str, 
-        repo: str, 
-        forks: List[Dict[str, Any]],
-        ttl_hours: Optional[int] = None
+        self,
+        owner: str,
+        repo: str,
+        forks: list[dict[str, Any]],
+        ttl_hours: int | None = None
     ) -> None:
         """Cache fork list.
         
@@ -134,10 +131,10 @@ class AnalysisCacheManager:
             ttl_hours: Time to live in hours
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.fork_list(owner, repo)
         repository_url = f"https://github.com/{owner}/{repo}"
-        
+
         await self.cache.set_json(
             key=key,
             value=forks,
@@ -146,15 +143,15 @@ class AnalysisCacheManager:
             repository_url=repository_url,
             metadata={"owner": owner, "repo": repo, "fork_count": len(forks)}
         )
-        
+
         logger.debug(f"Cached {len(forks)} forks for {owner}/{repo}")
-    
+
     async def get_fork_analysis(
-        self, 
-        fork_owner: str, 
-        fork_repo: str, 
+        self,
+        fork_owner: str,
+        fork_repo: str,
         branch: str = "main"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get cached fork analysis results.
         
         Args:
@@ -166,18 +163,18 @@ class AnalysisCacheManager:
             Fork analysis results or None if not cached
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.fork_analysis(fork_owner, fork_repo, branch)
         return await self.cache.get_json(key)
-    
+
     async def cache_fork_analysis(
-        self, 
-        fork_owner: str, 
-        fork_repo: str, 
-        analysis: Dict[str, Any],
+        self,
+        fork_owner: str,
+        fork_repo: str,
+        analysis: dict[str, Any],
         branch: str = "main",
-        parent_repository_url: Optional[str] = None,
-        ttl_hours: Optional[int] = None
+        parent_repository_url: str | None = None,
+        ttl_hours: int | None = None
     ) -> None:
         """Cache fork analysis results.
         
@@ -190,23 +187,23 @@ class AnalysisCacheManager:
             ttl_hours: Time to live in hours
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.fork_analysis(fork_owner, fork_repo, branch)
         fork_url = f"https://github.com/{fork_owner}/{fork_repo}"
-        
+
         metadata = {
             "fork_owner": fork_owner,
             "fork_repo": fork_repo,
             "branch": branch,
             "parent_repository_url": parent_repository_url
         }
-        
+
         # Add analysis summary to metadata
         if "features" in analysis:
             metadata["feature_count"] = len(analysis["features"])
         if "commits" in analysis:
             metadata["commit_count"] = len(analysis["commits"])
-        
+
         await self.cache.set_json(
             key=key,
             value=analysis,
@@ -215,16 +212,16 @@ class AnalysisCacheManager:
             repository_url=parent_repository_url or fork_url,
             metadata=metadata
         )
-        
+
         logger.debug(f"Cached fork analysis for {fork_owner}/{fork_repo}:{branch}")
-    
+
     async def get_commit_list(
-        self, 
-        owner: str, 
-        repo: str, 
+        self,
+        owner: str,
+        repo: str,
         branch: str,
-        since: Optional[str] = None
-    ) -> Optional[List[Dict[str, Any]]]:
+        since: str | None = None
+    ) -> list[dict[str, Any]] | None:
         """Get cached commit list.
         
         Args:
@@ -237,18 +234,18 @@ class AnalysisCacheManager:
             List of commits or None if not cached
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.commit_list(owner, repo, branch, since)
         return await self.cache.get_json(key)
-    
+
     async def cache_commit_list(
-        self, 
-        owner: str, 
-        repo: str, 
+        self,
+        owner: str,
+        repo: str,
         branch: str,
-        commits: List[Dict[str, Any]],
-        since: Optional[str] = None,
-        ttl_hours: Optional[int] = None
+        commits: list[dict[str, Any]],
+        since: str | None = None,
+        ttl_hours: int | None = None
     ) -> None:
         """Cache commit list.
         
@@ -261,10 +258,10 @@ class AnalysisCacheManager:
             ttl_hours: Time to live in hours
         """
         self._ensure_initialized()
-        
+
         key = CacheKey.commit_list(owner, repo, branch, since)
         repository_url = f"https://github.com/{owner}/{repo}"
-        
+
         await self.cache.set_json(
             key=key,
             value=commits,
@@ -279,15 +276,15 @@ class AnalysisCacheManager:
                 "commit_count": len(commits)
             }
         )
-        
+
         logger.debug(f"Cached {len(commits)} commits for {owner}/{repo}:{branch}")
-    
+
     async def get_feature_ranking(
-        self, 
-        owner: str, 
-        repo: str, 
-        config: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self,
+        owner: str,
+        repo: str,
+        config: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Get cached feature ranking results.
         
         Args:
@@ -299,18 +296,18 @@ class AnalysisCacheManager:
             Feature ranking results or None if not cached
         """
         self._ensure_initialized()
-        
+
         config_hash = self._generate_config_hash(config)
         key = CacheKey.feature_ranking(owner, repo, config_hash)
         return await self.cache.get_json(key)
-    
+
     async def cache_feature_ranking(
-        self, 
-        owner: str, 
-        repo: str, 
-        config: Dict[str, Any],
-        ranking: Dict[str, Any],
-        ttl_hours: Optional[int] = None
+        self,
+        owner: str,
+        repo: str,
+        config: dict[str, Any],
+        ranking: dict[str, Any],
+        ttl_hours: int | None = None
     ) -> None:
         """Cache feature ranking results.
         
@@ -322,23 +319,23 @@ class AnalysisCacheManager:
             ttl_hours: Time to live in hours
         """
         self._ensure_initialized()
-        
+
         config_hash = self._generate_config_hash(config)
         key = CacheKey.feature_ranking(owner, repo, config_hash)
         repository_url = f"https://github.com/{owner}/{repo}"
-        
+
         metadata = {
             "owner": owner,
             "repo": repo,
             "config_hash": config_hash
         }
-        
+
         # Add ranking summary to metadata
         if "features" in ranking:
             metadata["feature_count"] = len(ranking["features"])
         if "top_features" in ranking:
             metadata["top_feature_count"] = len(ranking["top_features"])
-        
+
         await self.cache.set_json(
             key=key,
             value=ranking,
@@ -347,14 +344,14 @@ class AnalysisCacheManager:
             repository_url=repository_url,
             metadata=metadata
         )
-        
+
         logger.debug(f"Cached feature ranking for {owner}/{repo} (config: {config_hash})")
-    
+
     async def invalidate_repository_cache(
-        self, 
-        owner: str, 
+        self,
+        owner: str,
         repo: str,
-        last_activity: Optional[datetime] = None
+        last_activity: datetime | None = None
     ) -> int:
         """Invalidate all cache entries for a repository.
         
@@ -367,16 +364,16 @@ class AnalysisCacheManager:
             Number of entries invalidated
         """
         self._ensure_initialized()
-        
+
         repository_url = f"https://github.com/{owner}/{repo}"
         return await self.cache.invalidate_repository_cache(repository_url, last_activity)
-    
+
     async def is_repository_cache_valid(
-        self, 
-        owner: str, 
+        self,
+        owner: str,
         repo: str,
         cache_type: str,
-        repository_last_activity: Optional[datetime] = None,
+        repository_last_activity: datetime | None = None,
         **kwargs
     ) -> bool:
         """Check if repository cache is still valid.
@@ -392,7 +389,7 @@ class AnalysisCacheManager:
             True if cache is valid, False otherwise
         """
         self._ensure_initialized()
-        
+
         # Generate appropriate cache key based on type
         if cache_type == "repository_metadata":
             key = CacheKey.repository_metadata(owner, repo)
@@ -411,19 +408,19 @@ class AnalysisCacheManager:
             key = CacheKey.feature_ranking(owner, repo, config_hash)
         else:
             raise ValueError(f"Unknown cache type: {cache_type}")
-        
+
         return await self.cache.is_cache_valid(key, repository_last_activity)
-    
-    async def get_cache_stats(self) -> Dict[str, Any]:
+
+    async def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics with analysis-specific metrics.
         
         Returns:
             Cache statistics dictionary
         """
         self._ensure_initialized()
-        
+
         stats = await self.cache.get_stats()
-        
+
         # Convert to dictionary and add analysis-specific information
         stats_dict = {
             "total_entries": stats.total_entries,
@@ -435,16 +432,16 @@ class AnalysisCacheManager:
             "oldest_entry": stats.oldest_entry.isoformat() if stats.oldest_entry else None,
             "newest_entry": stats.newest_entry.isoformat() if stats.newest_entry else None,
         }
-        
+
         # Calculate hit rate
         total_requests = stats.hit_count + stats.miss_count
         if total_requests > 0:
             stats_dict["hit_rate"] = stats.hit_count / total_requests
         else:
             stats_dict["hit_rate"] = 0.0
-        
+
         return stats_dict
-    
+
     async def cleanup_expired_entries(self) -> int:
         """Clean up expired cache entries.
         
@@ -453,12 +450,12 @@ class AnalysisCacheManager:
         """
         self._ensure_initialized()
         return await self.cache.cleanup_expired()
-    
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self.initialize()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()

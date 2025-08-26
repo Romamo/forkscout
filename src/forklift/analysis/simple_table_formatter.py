@@ -1,6 +1,5 @@
 """Simple ASCII table formatter for terminal compatibility."""
 
-from typing import List, Tuple
 
 
 class SimpleTableFormatter:
@@ -12,10 +11,10 @@ class SimpleTableFormatter:
 
     def format_table(
         self,
-        headers: List[str],
-        rows: List[List[str]],
+        headers: list[str],
+        rows: list[list[str]],
         title: str = None,
-        column_widths: List[int] = None
+        column_widths: list[int] = None
     ) -> str:
         """
         Format data as a simple ASCII table.
@@ -92,7 +91,7 @@ class SimpleTableFormatter:
 
     def format_commit_explanations_table(
         self,
-        explanations_data: List[Tuple[str, str, str, str, str, str]]
+        explanations_data: list[tuple[str, str, str, str, str, str]]
     ) -> str:
         """
         Format commit explanations as a simple ASCII table.

@@ -1,16 +1,16 @@
 """Explanation generation for commits in explanation system."""
 
 import re
-from typing import Dict, List
 
 from forklift.models import (
     CategoryType,
+    Commit,
+    FileChange,
     ImpactLevel,
     MainRepoValue,
-    FileChange,
-    Commit,
     Repository,
 )
+
 from .github_link_generator import GitHubLinkGenerator
 
 
@@ -20,7 +20,7 @@ class ExplanationTemplates:
     def __init__(self):
         """Initialize explanation templates."""
         # Templates for different category types
-        self.category_templates: Dict[CategoryType, List[str]] = {
+        self.category_templates: dict[CategoryType, list[str]] = {
             CategoryType.FEATURE: [
                 "This commit adds {description}",
                 "This commit implements {description}",
@@ -69,7 +69,7 @@ class ExplanationTemplates:
         }
 
         # Value assessment templates
-        self.value_templates: Dict[MainRepoValue, List[str]] = {
+        self.value_templates: dict[MainRepoValue, list[str]] = {
             MainRepoValue.YES: [
                 "This could be useful for the main repository.",
                 "This change would benefit the main repository.",
@@ -111,7 +111,7 @@ class ExplanationGenerator:
         commit: Commit,
         category: CategoryType,
         impact_level: ImpactLevel,
-        file_changes: List[FileChange],
+        file_changes: list[FileChange],
         repository: Repository
     ) -> tuple[str, str, MainRepoValue, bool, str]:
         """Generate a complete explanation for a commit.
@@ -128,27 +128,27 @@ class ExplanationGenerator:
         """
         # Extract what changed
         what_changed = self._describe_what_changed(commit, file_changes)
-        
+
         # Assess main repository value
         main_repo_value = self._assess_main_repo_value(commit, category, file_changes)
-        
+
         # Check if commit is complex
         is_complex = self._is_complex_commit(commit, file_changes)
-        
+
         # Generate GitHub commit URL
         github_url = self._generate_github_commit_url(commit, repository)
-        
+
         # Generate full explanation
         explanation = self._generate_full_explanation(
             commit, category, what_changed, main_repo_value, is_complex
         )
-        
+
         # Ensure brevity
         explanation = self._ensure_brevity(explanation)
-        
+
         return what_changed, explanation, main_repo_value, is_complex, github_url
 
-    def _describe_what_changed(self, commit: Commit, file_changes: List[FileChange]) -> str:
+    def _describe_what_changed(self, commit: Commit, file_changes: list[FileChange]) -> str:
         """Describe what changed in the commit.
         
         Args:
@@ -160,18 +160,18 @@ class ExplanationGenerator:
         """
         # Extract key information from commit message
         message = commit.message.strip()
-        
+
         # Remove conventional commit prefix if present
-        clean_message = re.sub(r'^(feat|fix|docs|style|refactor|test|chore|perf|security)(\([^)]+\))?:\s*', '', message, flags=re.IGNORECASE)
-        
+        clean_message = re.sub(r"^(feat|fix|docs|style|refactor|test|chore|perf|security)(\([^)]+\))?:\s*", "", message, flags=re.IGNORECASE)
+
         # If message is still descriptive, use it
         if len(clean_message) > 10 and not self._is_generic_message(clean_message):
-            return clean_message.split('\n')[0]  # Use first line only
-        
+            return clean_message.split("\n")[0]  # Use first line only
+
         # Otherwise, infer from file changes
         return self._infer_changes_from_files(file_changes)
 
-    def _infer_changes_from_files(self, file_changes: List[FileChange]) -> str:
+    def _infer_changes_from_files(self, file_changes: list[FileChange]) -> str:
         """Infer what changed from file changes.
         
         Args:
@@ -182,38 +182,38 @@ class ExplanationGenerator:
         """
         if not file_changes:
             return "code changes"
-        
+
         # Categorize files
         categories = {
-            'test': [],
-            'doc': [],
-            'config': [],
-            'core': [],
-            'other': []
+            "test": [],
+            "doc": [],
+            "config": [],
+            "core": [],
+            "other": []
         }
-        
+
         for file_change in file_changes:
             filename = file_change.filename.lower()
-            
-            if 'test' in filename or filename.endswith('.test.js') or filename.endswith('.spec.js'):
-                categories['test'].append(file_change)
-            elif filename.endswith('.md') or filename.endswith('.rst') or 'readme' in filename or 'doc' in filename:
-                categories['doc'].append(file_change)
-            elif 'config' in filename or filename.endswith('.json') or filename.endswith('.yaml') or filename.endswith('.toml'):
-                categories['config'].append(file_change)
-            elif any(core in filename for core in ['main', 'index', 'app', 'server', 'client']):
-                categories['core'].append(file_change)
+
+            if "test" in filename or filename.endswith(".test.js") or filename.endswith(".spec.js"):
+                categories["test"].append(file_change)
+            elif filename.endswith(".md") or filename.endswith(".rst") or "readme" in filename or "doc" in filename:
+                categories["doc"].append(file_change)
+            elif "config" in filename or filename.endswith(".json") or filename.endswith(".yaml") or filename.endswith(".toml"):
+                categories["config"].append(file_change)
+            elif any(core in filename for core in ["main", "index", "app", "server", "client"]):
+                categories["core"].append(file_change)
             else:
-                categories['other'].append(file_change)
-        
+                categories["other"].append(file_change)
+
         # Generate description based on predominant category
-        if categories['test'] and len(categories['test']) >= len(file_changes) / 2:
+        if categories["test"] and len(categories["test"]) >= len(file_changes) / 2:
             return "test coverage and testing functionality"
-        elif categories['doc'] and len(categories['doc']) >= len(file_changes) / 2:
+        elif categories["doc"] and len(categories["doc"]) >= len(file_changes) / 2:
             return "documentation and project information"
-        elif categories['config']:
+        elif categories["config"]:
             return "configuration and project setup"
-        elif categories['core']:
+        elif categories["core"]:
             return "core application functionality"
         elif len(file_changes) == 1:
             return f"the {file_changes[0].filename} file"
@@ -230,27 +230,27 @@ class ExplanationGenerator:
             True if message is generic
         """
         generic_patterns = [
-            r'^(update|fix|change|modify|improve)s?$',
-            r'^(update|fix|change|modify|improve)\s+(stuff|things|code)$',
-            r'^(wip|work in progress)$',
-            r'^(misc|miscellaneous)$',
-            r'^(stuff|things)$',
-            r'^(code|changes)$',
+            r"^(update|fix|change|modify|improve)s?$",
+            r"^(update|fix|change|modify|improve)\s+(stuff|things|code)$",
+            r"^(wip|work in progress)$",
+            r"^(misc|miscellaneous)$",
+            r"^(stuff|things)$",
+            r"^(code|changes)$",
         ]
-        
+
         message_lower = message.lower().strip()
-        
+
         for pattern in generic_patterns:
             if re.match(pattern, message_lower):
                 return True
-        
+
         return False
 
     def _assess_main_repo_value(
         self,
         commit: Commit,
         category: CategoryType,
-        file_changes: List[FileChange]
+        file_changes: list[FileChange]
     ) -> MainRepoValue:
         """Assess whether the commit would be valuable for the main repository.
         
@@ -265,7 +265,7 @@ class ExplanationGenerator:
         # High-value categories
         if category in [CategoryType.BUGFIX, CategoryType.SECURITY, CategoryType.PERFORMANCE]:
             return MainRepoValue.YES
-        
+
         # Medium-value categories that depend on content
         if category in [CategoryType.FEATURE, CategoryType.REFACTOR]:
             # Check if it's a substantial change
@@ -274,24 +274,24 @@ class ExplanationGenerator:
                 return MainRepoValue.YES
             else:
                 return MainRepoValue.UNCLEAR
-        
+
         # Documentation and tests are usually valuable
         if category in [CategoryType.DOCS, CategoryType.TEST]:
             return MainRepoValue.YES
-        
+
         # Chore changes depend on what they are
         if category == CategoryType.CHORE:
             # Check if it's dependency updates or important maintenance
             message_lower = commit.message.lower()
-            if any(keyword in message_lower for keyword in ['dependency', 'dependencies', 'security', 'vulnerability']):
+            if any(keyword in message_lower for keyword in ["dependency", "dependencies", "security", "vulnerability"]):
                 return MainRepoValue.YES
             else:
                 return MainRepoValue.NO
-        
+
         # Default for unclear cases
         return MainRepoValue.UNCLEAR
 
-    def _is_complex_commit(self, commit: Commit, file_changes: List[FileChange]) -> bool:
+    def _is_complex_commit(self, commit: Commit, file_changes: list[FileChange]) -> bool:
         """Determine if a commit is complex (does multiple things).
         
         Args:
@@ -303,39 +303,39 @@ class ExplanationGenerator:
         """
         # Check for multiple categories in file changes
         categories = set()
-        
+
         for file_change in file_changes:
             filename = file_change.filename.lower()
-            
-            if 'test' in filename:
-                categories.add('test')
-            elif filename.endswith('.md') or 'doc' in filename:
-                categories.add('doc')
-            elif 'config' in filename:
-                categories.add('config')
+
+            if "test" in filename:
+                categories.add("test")
+            elif filename.endswith(".md") or "doc" in filename:
+                categories.add("doc")
+            elif "config" in filename:
+                categories.add("config")
             else:
-                categories.add('code')
-        
+                categories.add("code")
+
         # Complex if touches multiple categories
         if len(categories) > 2:
             return True
-        
+
         # Complex if changes many files
         if len(file_changes) > 10:
             return True
-        
+
         # Complex if commit message suggests multiple actions
         message = commit.message.lower()
-        action_words = ['add', 'fix', 'update', 'remove', 'refactor', 'improve']
+        action_words = ["add", "fix", "update", "remove", "refactor", "improve"]
         action_count = sum(1 for word in action_words if word in message)
-        
+
         if action_count > 2:
             return True
-        
+
         # Check for "and" in commit message (often indicates multiple things)
-        if ' and ' in message and len(message.split(' and ')) > 2:
+        if " and " in message and len(message.split(" and ")) > 2:
             return True
-        
+
         return False
 
     def _generate_full_explanation(
@@ -361,21 +361,21 @@ class ExplanationGenerator:
         # Get category template
         category_templates = self.templates.category_templates.get(category, self.templates.category_templates[CategoryType.OTHER])
         category_template = category_templates[0]  # Use first template for consistency
-        
+
         # Format the main description
         main_description = category_template.format(description=what_changed)
-        
+
         # Add value assessment
         value_templates = self.templates.value_templates[main_repo_value]
         value_description = value_templates[0]  # Use first template for consistency
-        
+
         # Combine descriptions
         if is_complex:
             complexity_note = self.templates.complexity_indicators[0]
             explanation = f"{complexity_note}. {value_description}"
         else:
             explanation = f"{main_description}. {value_description}"
-        
+
         return explanation
 
     def _ensure_brevity(self, explanation: str, max_sentences: int = 2) -> str:
@@ -389,18 +389,18 @@ class ExplanationGenerator:
             Shortened explanation if necessary
         """
         # Split into sentences
-        sentences = re.split(r'[.!?]+', explanation)
+        sentences = re.split(r"[.!?]+", explanation)
         sentences = [s.strip() for s in sentences if s.strip()]
-        
+
         # Keep only the first max_sentences
         if len(sentences) > max_sentences:
             sentences = sentences[:max_sentences]
-        
+
         # Rejoin and ensure proper punctuation
-        result = '. '.join(sentences)
-        if result and not result.endswith('.'):
-            result += '.'
-        
+        result = ". ".join(sentences)
+        if result and not result.endswith("."):
+            result += "."
+
         return result
 
     def _generate_github_commit_url(self, commit: Commit, repository: Repository) -> str:

@@ -4,7 +4,8 @@ import asyncio
 import logging
 import random
 import time
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class RateLimitHandler:
             # If we have a rate limit reset time, wait until then (plus a small buffer)
             current_time = time.time()
             reset_delay = max(0, reset_time - current_time + 1)  # +1 second buffer
-            
+
             # Only use reset delay if it's reasonable and in the future
             if reset_delay > 0 and reset_delay <= self.max_delay:
                 logger.info(f"Rate limit reset in {reset_delay:.1f} seconds, waiting...")
@@ -59,12 +60,12 @@ class RateLimitHandler:
 
         # Calculate exponential backoff delay
         delay = min(self.base_delay * (self.backoff_factor ** attempt), self.max_delay)
-        
+
         # Add jitter to prevent thundering herd
         if self.jitter:
             jitter_factor = 0.5 + random.random() * 0.5  # 50-100% of calculated delay
             delay *= jitter_factor
-            
+
         return delay
 
     async def execute_with_retry(
@@ -87,8 +88,9 @@ class RateLimitHandler:
             Last exception if all retries are exhausted
         """
         if retryable_exceptions is None:
-            from .client import GitHubRateLimitError, GitHubAPIError
             import httpx
+
+            from .client import GitHubAPIError, GitHubRateLimitError
             retryable_exceptions = (
                 GitHubRateLimitError,
                 httpx.TimeoutException,
@@ -97,39 +99,39 @@ class RateLimitHandler:
             )
 
         last_exception = None
-        
+
         for attempt in range(self.max_retries + 1):
             try:
                 logger.debug(f"Executing {operation_name} (attempt {attempt + 1}/{self.max_retries + 1})")
                 result = await func()
-                
+
                 if attempt > 0:
                     logger.info(f"{operation_name} succeeded after {attempt + 1} attempts")
-                    
+
                 return result
-                
+
             except retryable_exceptions as e:
                 # Check if this is a non-retryable GitHubAPIError
                 if self._is_non_retryable_error(e):
                     logger.error(f"Non-retryable error in {operation_name}: {e}")
                     raise
-                
+
                 last_exception = e
-                
+
                 if attempt == self.max_retries:
                     logger.error(f"Max retries ({self.max_retries}) exceeded for {operation_name}")
                     break
-                
+
                 # Calculate delay based on exception type
                 delay = self._get_delay_for_exception(e, attempt)
-                
+
                 logger.warning(
                     f"Attempt {attempt + 1} failed for {operation_name}, "
                     f"retrying in {delay:.2f}s: {e}"
                 )
-                
+
                 await asyncio.sleep(delay)
-                
+
             except Exception as e:
                 # Non-retryable exception, re-raise immediately
                 logger.error(f"Non-retryable error in {operation_name}: {e}")
@@ -140,12 +142,16 @@ class RateLimitHandler:
 
     def _is_non_retryable_error(self, exception: Exception) -> bool:
         """Check if an exception should not be retried."""
-        from .client import GitHubAPIError, GitHubAuthenticationError, GitHubNotFoundError
-        
+        from .client import (
+            GitHubAPIError,
+            GitHubAuthenticationError,
+            GitHubNotFoundError,
+        )
+
         # Authentication and not found errors are never retryable
         if isinstance(exception, (GitHubAuthenticationError, GitHubNotFoundError)):
             return True
-            
+
         # For GitHubAPIError, only retry server errors (5xx)
         if isinstance(exception, GitHubAPIError):
             if exception.status_code and 400 <= exception.status_code < 500:
@@ -153,13 +159,13 @@ class RateLimitHandler:
                 from .client import GitHubRateLimitError
                 if not isinstance(exception, GitHubRateLimitError):
                     return True
-                    
+
         return False
 
     def _get_delay_for_exception(self, exception: Exception, attempt: int) -> float:
         """Get appropriate delay based on exception type."""
         from .client import GitHubRateLimitError
-        
+
         if isinstance(exception, GitHubRateLimitError):
             # For rate limit errors, use the reset time if available
             return self.calculate_delay(attempt, exception.reset_time)
@@ -170,7 +176,7 @@ class RateLimitHandler:
 
 class CircuitBreaker:
     """Circuit breaker pattern implementation for API resilience."""
-    
+
     def __init__(
         self,
         failure_threshold: int = 5,
@@ -187,11 +193,11 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.timeout = timeout
         self.expected_exception = expected_exception
-        
+
         self.failure_count = 0
         self.last_failure_time: float | None = None
         self.state = "closed"  # closed, open, half_open
-        
+
     async def call(self, func: Callable[[], T], operation_name: str = "operation") -> T:
         """Execute function through circuit breaker.
         
@@ -211,34 +217,34 @@ class CircuitBreaker:
                 logger.info(f"Circuit breaker transitioning to half-open for {operation_name}")
             else:
                 raise Exception(f"Circuit breaker is open for {operation_name}")
-        
+
         try:
             result = await func()
             self._on_success(operation_name)
             return result
-            
+
         except self.expected_exception as e:
             self._on_failure(operation_name)
             raise
-            
+
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt reset."""
         if self.last_failure_time is None:
             return True
         return time.time() - self.last_failure_time > self.timeout
-        
+
     def _on_success(self, operation_name: str) -> None:
         """Handle successful operation."""
         if self.state == "half_open":
             self.state = "closed"
             logger.info(f"Circuit breaker reset to closed for {operation_name}")
         self.failure_count = 0
-        
+
     def _on_failure(self, operation_name: str) -> None:
         """Handle failed operation."""
         self.failure_count += 1
         self.last_failure_time = time.time()
-        
+
         if self.failure_count >= self.failure_threshold:
             self.state = "open"
             logger.warning(

@@ -1,26 +1,27 @@
 """Unit tests for CommitExplanationEngine."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
+import pytest
+
 from forklift.analysis.commit_categorizer import CommitCategorizer
-from forklift.analysis.impact_assessor import ImpactAssessor
+from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
 from forklift.analysis.explanation_generator import ExplanationGenerator
+from forklift.analysis.impact_assessor import ImpactAssessor
 from forklift.models import (
+    AnalysisContext,
+    CategoryType,
     Commit,
+    CommitCategory,
     CommitExplanation,
     CommitWithExplanation,
-    AnalysisContext,
     FileChange,
-    CommitCategory,
+    Fork,
     ImpactAssessment,
-    CategoryType,
     ImpactLevel,
     MainRepoValue,
     Repository,
-    Fork,
     User,
 )
 
@@ -52,12 +53,12 @@ class TestCommitExplanationEngine:
             clone_url="https://github.com/forkowner/testrepo.git",
             is_fork=True
         )
-        
+
         user = User(
             login="forkowner",
             html_url="https://github.com/forkowner"
         )
-        
+
         return Fork(
             repository=fork_repo,
             parent=sample_repository,
@@ -115,7 +116,7 @@ class TestCommitExplanationEngine:
         mock_categorizer = Mock(spec=CommitCategorizer)
         mock_assessor = Mock(spec=ImpactAssessor)
         mock_generator = Mock(spec=ExplanationGenerator)
-        
+
         return CommitExplanationEngine(
             categorizer=mock_categorizer,
             assessor=mock_assessor,
@@ -125,7 +126,7 @@ class TestCommitExplanationEngine:
     def test_engine_initialization_default_components(self):
         """Test engine initialization with default components."""
         engine = CommitExplanationEngine()
-        
+
         assert engine.categorizer is not None
         assert engine.assessor is not None
         assert engine.generator is not None
@@ -138,13 +139,13 @@ class TestCommitExplanationEngine:
         categorizer = CommitCategorizer()
         assessor = ImpactAssessor()
         generator = ExplanationGenerator()
-        
+
         engine = CommitExplanationEngine(
             categorizer=categorizer,
             assessor=assessor,
             generator=generator
         )
-        
+
         assert engine.categorizer is categorizer
         assert engine.assessor is assessor
         assert engine.generator is generator
@@ -156,7 +157,7 @@ class TestCommitExplanationEngine:
         explanation = engine.explain_commit(
             sample_commit, sample_context, sample_file_changes
         )
-        
+
         assert isinstance(explanation, CommitExplanation)
         assert explanation.commit_sha == sample_commit.sha
         assert explanation.category is not None
@@ -174,7 +175,7 @@ class TestCommitExplanationEngine:
     ):
         """Test commit explanation without explicit file changes."""
         explanation = engine.explain_commit(sample_commit, sample_context)
-        
+
         assert isinstance(explanation, CommitExplanation)
         assert explanation.commit_sha == sample_commit.sha
         # Should work by inferring file changes from commit.files_changed
@@ -190,7 +191,7 @@ class TestCommitExplanationEngine:
             reasoning="Test category"
         )
         mock_engine.categorizer.categorize_commit.return_value = mock_category
-        
+
         mock_impact = ImpactAssessment(
             impact_level=ImpactLevel.HIGH,
             change_magnitude=5.0,
@@ -198,7 +199,7 @@ class TestCommitExplanationEngine:
             reasoning="Test impact"
         )
         mock_engine.assessor.assess_impact.return_value = mock_impact
-        
+
         mock_engine.generator.generate_explanation.return_value = (
             "user authentication system",
             "This commit adds user authentication system. This could be useful for the main repository.",
@@ -206,12 +207,12 @@ class TestCommitExplanationEngine:
             False,
             "https://github.com/testowner/testrepo/commit/a1b2c3d4e5f6789012345678901234567890abcd"
         )
-        
+
         # Test explanation
         explanation = mock_engine.explain_commit(
             sample_commit, sample_context, sample_file_changes
         )
-        
+
         # Verify mocks were called
         mock_engine.categorizer.categorize_commit.assert_called_once_with(
             sample_commit, sample_file_changes
@@ -222,7 +223,7 @@ class TestCommitExplanationEngine:
         mock_engine.generator.generate_explanation.assert_called_once_with(
             sample_commit, CategoryType.FEATURE, ImpactLevel.HIGH, sample_file_changes, sample_context.repository
         )
-        
+
         # Verify result
         assert explanation.commit_sha == sample_commit.sha
         assert explanation.category == mock_category
@@ -238,7 +239,7 @@ class TestCommitExplanationEngine:
         """Test error handling in commit explanation."""
         # Make categorizer raise an exception
         mock_engine.categorizer.categorize_commit.side_effect = Exception("Categorization failed")
-        
+
         with pytest.raises(Exception, match="Categorization failed"):
             mock_engine.explain_commit(sample_commit, sample_context)
 
@@ -256,9 +257,9 @@ class TestCommitExplanationEngine:
             )
             for i in range(3)
         ]
-        
+
         results = engine.explain_commits_batch(commits, sample_context)
-        
+
         assert len(results) == 3
         for result in results:
             assert isinstance(result, CommitWithExplanation)
@@ -278,15 +279,15 @@ class TestCommitExplanationEngine:
                 files_changed=["feature1.py"]
             )
         ]
-        
+
         file_changes_map = {
             "a1b2c3d4e5f6789012345678901234567890abc1": [
                 FileChange(filename="feature1.py", status="added", additions=50, deletions=0)
             ]
         }
-        
+
         results = engine.explain_commits_batch(commits, sample_context, file_changes_map)
-        
+
         assert len(results) == 1
         assert results[0].explanation is not None
 
@@ -310,7 +311,7 @@ class TestCommitExplanationEngine:
                 files_changed=["bad.py"]
             )
         ]
-        
+
         # Mock to succeed for first commit, fail for second
         def mock_explain_commit(commit, context, file_changes=None):
             if commit.sha == "a1b2c3d4e5f6789012345678901234567890abcd":
@@ -334,11 +335,11 @@ class TestCommitExplanationEngine:
                 )
             else:
                 raise Exception("Bad commit error")
-        
+
         mock_engine.explain_commit = mock_explain_commit
-        
+
         results = mock_engine.explain_commits_batch(commits, sample_context)
-        
+
         assert len(results) == 2
         assert results[0].explanation is not None
         assert results[0].explanation_error is None
@@ -396,9 +397,9 @@ class TestCommitExplanationEngine:
                 github_url="https://github.com/testowner/testrepo/commit/commit2000000000000000000000000000000000"
             )
         ]
-        
+
         summary = engine.get_explanation_summary(explanations)
-        
+
         assert "Analyzed 2 commits" in summary
         assert "feature" in summary.lower()
         assert "bugfix" in summary.lower()
@@ -427,7 +428,7 @@ class TestCommitExplanationEngine:
             explanation="This commit adds user authentication system. This could be useful for the main repository.",
             github_url="https://github.com/testowner/testrepo/commit/a1b2c3d4e5f6789012345678901234567890abcd"
         )
-        
+
         errors = engine.validate_explanation(explanation)
         assert len(errors) == 0
 
@@ -451,9 +452,9 @@ class TestCommitExplanationEngine:
             explanation="",  # Missing
             github_url=""  # Missing
         )
-        
+
         errors = engine.validate_explanation(explanation)
-        
+
         assert "Missing commit SHA" in errors
         assert "Missing 'what changed' description" in errors
         assert "Missing explanation text" in errors
@@ -480,13 +481,13 @@ class TestCommitExplanationEngine:
             explanation="Short.",  # Too short
             github_url="https://github.com/testowner/testrepo/commit/a1b2c3d4e5f6789012345678901234567890abcd"
         )
-        
+
         # Manually set invalid values after creation to test validation
         explanation.impact_assessment.change_magnitude = -1.0
         explanation.impact_assessment.file_criticality = 1.5
-        
+
         errors = engine.validate_explanation(explanation)
-        
+
         assert "Category confidence is too low" in errors
         assert "Invalid change magnitude" in errors
         assert "File criticality must be between 0 and 1" in errors
@@ -496,33 +497,33 @@ class TestCommitExplanationEngine:
     def test_get_engine_stats(self, engine):
         """Test getting engine statistics."""
         stats = engine.get_engine_stats()
-        
+
         assert "categorizer_patterns" in stats
         assert "assessor_rules" in stats
         assert "generator_templates" in stats
         assert "explanation_enabled" in stats
-        
+
         assert isinstance(stats["categorizer_patterns"], int)
         assert isinstance(stats["assessor_rules"], int)
         assert isinstance(stats["generator_templates"], int)
         assert stats["explanation_enabled"] is True
 
-    @patch('forklift.analysis.commit_explanation_engine.logger')
+    @patch("forklift.analysis.commit_explanation_engine.logger")
     def test_logging_during_explanation(
         self, mock_logger, engine, sample_commit, sample_context
     ):
         """Test that appropriate logging occurs during explanation."""
         engine.explain_commit(sample_commit, sample_context)
-        
+
         # Verify debug logging was called
         assert mock_logger.debug.called
-        
+
         # Check for specific log messages
         debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
         assert any("Explaining commit" in msg for msg in debug_calls)
         assert any("Successfully explained commit" in msg for msg in debug_calls)
 
-    @patch('forklift.analysis.commit_explanation_engine.logger')
+    @patch("forklift.analysis.commit_explanation_engine.logger")
     def test_logging_during_batch_explanation(
         self, mock_logger, engine, sample_context, sample_user
     ):
@@ -536,12 +537,12 @@ class TestCommitExplanationEngine:
                 files_changed=["test.py"]
             )
         ]
-        
+
         engine.explain_commits_batch(commits, sample_context)
-        
+
         # Verify info logging was called
         assert mock_logger.info.called
-        
+
         # Check for specific log messages
         info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
         assert any("Explaining 1 commits in batch" in msg for msg in info_calls)

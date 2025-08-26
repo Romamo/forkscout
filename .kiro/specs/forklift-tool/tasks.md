@@ -537,6 +537,63 @@
   - Write end-to-end tests for complete analysis workflow with cache disabled
   - _Requirements: 16.1, 16.5, 16.7, 16.10_
 
+- [ ] 16. Replace custom cache system with Hishel HTTP caching (HIGH PRIORITY)
+- [ ] 16.1 Remove custom cache system and add Hishel dependency
+  - Add hishel dependency to pyproject.toml for HTTP caching
+  - Remove custom cache management code (CacheManager, CacheWarmingConfig, CacheCleanupConfig, etc.)
+  - Remove custom SQLite cache implementation (cache.py, cache_manager.py)
+  - Update imports and dependencies to remove custom cache references
+  - Write migration notes documenting the simplification
+  - _Requirements: 21.1, 21.8_
+
+- [ ] 16.2 Integrate Hishel with GitHub client
+  - Update GitHubClient to use Hishel-wrapped httpx client for automatic HTTP caching
+  - Configure Hishel with SQLite storage backend and appropriate cache settings
+  - Set default TTL of 30 minutes for GitHub API responses
+  - Remove all custom cache integration code from GitHub client
+  - Write unit tests for Hishel integration with mocked HTTP responses
+  - _Requirements: 21.2, 21.3, 21.5, 21.10_
+
+- [ ] 16.3 Implement cache bypass functionality with Hishel
+  - Replace custom disable_cache logic with Hishel cache bypass configuration
+  - Update --disable-cache flag to configure Hishel to bypass cache for the session
+  - Remove custom cache bypass code and use Hishel's built-in bypass functionality
+  - Update all CLI commands to support cache bypass through Hishel configuration
+  - Write unit tests for simplified cache bypass functionality
+  - _Requirements: 21.4, 21.12_
+
+- [ ] 16.4 Simplify cache configuration and remove custom config
+  - Remove complex CacheConfig and replace with simple Hishel configuration
+  - Update ForkliftConfig to use minimal cache settings for Hishel
+  - Remove cache warming, cleanup, and monitoring configuration classes
+  - Add basic cache location and size limit configuration for Hishel
+  - Write unit tests for simplified cache configuration
+  - _Requirements: 21.5, 21.10, 21.11_
+
+- [ ] 16.5 Update all service classes to remove custom cache dependencies
+  - Remove CacheManager and AnalysisCacheManager dependencies from all services
+  - Update CLI commands to remove custom cache initialization code
+  - Ensure all services use the simplified Hishel-enabled GitHub client
+  - Remove cache management complexity from service constructors
+  - Write integration tests for simplified service initialization
+  - _Requirements: 21.6, 21.7, 21.12_
+
+- [ ] 16.6 Add basic cache monitoring from Hishel
+  - Implement simple cache hit/miss statistics collection from Hishel
+  - Add basic cache performance logging (much simpler than custom system)
+  - Remove complex cache monitoring and metrics code
+  - Add simple cache size and storage monitoring
+  - Write unit tests for simplified cache statistics
+  - _Requirements: 21.6, 21.7_
+
+- [ ] 16.7 Implement comprehensive testing for simplified cache system
+  - Write integration tests for Hishel HTTP caching with real GitHub API calls
+  - Create performance tests comparing cached vs non-cached HTTP operations
+  - Remove complex cache management tests and replace with simple Hishel tests
+  - Test cache persistence across application restarts
+  - Write end-to-end tests for complete workflows with Hishel caching enabled
+  - _Requirements: 21.1, 21.2, 21.3, 21.7, 21.9_
+
 - [ ] 17. Implement fork qualification data collection for user decision-making
 - [x] 17.1 Create fork qualification data models
   - Implement ForkQualificationMetrics data model with all GitHub API fields (stars, forks, size, language, activity dates, topics, etc.)
@@ -981,7 +1038,7 @@
   - Write unit tests for integration between detail mode and fork data collection
   - _Requirements: 21.1, 21.7, 21.8, 21.12_
 
-- [-] 19.5 Optimize show-forks --detail to skip API calls for forks with no commits ahead (HIGH PRIORITY)
+- [x] 19.5 Optimize show-forks --detail to skip API calls for forks with no commits ahead (HIGH PRIORITY)
   - Update show_fork_data_detailed method to use smart fork filtering based on commits_ahead_status
   - Skip compare API calls for forks already identified as "No commits ahead" using created_at >= pushed_at logic
   - Set exact_commits_ahead = 0 for skipped forks instead of making unnecessary API calls
@@ -991,6 +1048,111 @@
   - Write unit tests for optimized filtering logic covering various fork scenarios
   - Write integration tests to verify API call reduction with real repository data
   - _Requirements: 1.6, 21.1, 21.4, 21.5_
+
+- [ ] 20. Implement compact commit status display in fork tables
+- [ ] 20.1 Update fork display table structure for compact commit format
+  - Modify RepositoryDisplayService to combine commits ahead/behind into single "Commits" column
+  - Update table column definitions to replace "Commits Ahead" and "Commits Behind" with single "Commits" column
+  - Implement format_commits_status method to generate "+X -Y" format strings
+  - Update table width calculations to accommodate the new compact format
+  - Write unit tests for commit status formatting with various ahead/behind combinations
+  - _Requirements: 22.1, 22.2, 22.8_
+
+- [ ] 20.2 Implement commit status formatting logic
+  - Create format_commits_compact method that takes commits_ahead and commits_behind parameters
+  - Handle edge cases: empty cell (0 ahead, 0 behind), +X (only ahead), -Y (only behind)
+  - Add "Unknown" handling for cases where commit status cannot be determined
+  - Implement color coding: green for positive ahead values, red for positive behind values
+  - Write comprehensive unit tests for all formatting scenarios and edge cases
+  - _Requirements: 22.2, 22.3, 22.4, 22.5, 22.6, 22.7_
+
+- [ ] 20.3 Update all fork display commands with compact format
+  - Update show-forks command to use new compact commit format
+  - Update list-forks command to use consistent commit formatting
+  - Update show-fork-data-detailed command to use compact format
+  - Ensure consistent formatting across all fork-related display functions
+  - Update any fork preview or summary displays to use the new format
+  - Write integration tests to verify consistent formatting across all commands
+  - _Requirements: 22.11, 22.10_
+
+- [ ] 20.4 Implement sorting logic for compact commit format
+  - Update fork sorting logic to handle the new compact commit format
+  - Implement primary sort by commits ahead, secondary sort by commits behind
+  - Update sort_by="commits" option to work with the new format
+  - Handle sorting of "Unknown" commit status entries
+  - Add sorting tests for various commit status combinations
+  - Write unit tests for sorting logic with the new compact format
+  - _Requirements: 22.9, 22.10_
+
+- [ ] 20.5 Update documentation and help text for new format
+  - Update CLI help text to describe the new "+X -Y" commit format
+  - Update any inline documentation that references the old column structure
+  - Add examples of the new format to user documentation
+  - Update error messages or user guidance that mentions commit columns
+  - Write documentation tests to verify help text accuracy
+  - _Requirements: 22.12_
+
+- [ ] 20.6 Add comprehensive testing for compact commit display
+  - Write integration tests for the complete fork display workflow with new format
+  - Test edge cases: repos with no forks, forks with various commit statuses
+  - Test performance impact of the formatting changes
+  - Write visual regression tests to ensure table formatting remains readable
+  - Test compatibility with existing fork analysis and filtering functionality
+  - Write end-to-end tests covering all fork display commands with new format
+  - _Requirements: 22.10, 22.8, 22.11_
+
+- [-] 21. Implement --show-commits feature for show-forks command
+- [-] 21.1 Add --show-commits CLI option and parameter handling
+  - Add --show-commits=N option to show-forks command with integer validation
+  - Update CLI argument parsing to handle the new parameter
+  - Set default value to 0 (no commits shown) when option not specified
+  - Add parameter validation to ensure N is between 0 and reasonable limit (e.g., 10)
+  - Update command help text to document the new --show-commits option
+  - Write unit tests for CLI parameter parsing and validation
+  - _Requirements: 23.1, 23.4_
+
+- [ ] 21.2 Implement recent commits fetching functionality
+  - Create get_recent_commits method in GitHubClient to fetch last N commits from fork's default branch
+  - Add commit data models for storing short SHA and commit message
+  - Implement commit message truncation logic (50 characters with "..." indicator)
+  - Add error handling for cases where commits cannot be fetched
+  - Write unit tests for commit fetching with various scenarios (normal, empty repo, API errors)
+  - _Requirements: 23.2, 23.5, 23.6, 23.7, 23.8_
+
+- [ ] 21.3 Update fork display table structure for recent commits column
+  - Modify RepositoryDisplayService to conditionally add "Recent Commits" column when --show-commits > 0
+  - Implement format_recent_commits method to format commits with each commit on a separate line
+  - Update table width calculations to accommodate the new variable-width column
+  - Add logic to adjust column widths based on content length
+  - Write unit tests for table structure changes and commit formatting
+  - _Requirements: 23.3, 23.11_
+
+- [ ] 21.4 Integrate recent commits fetching with fork display workflow
+  - Update show_fork_data method to fetch recent commits when --show-commits is specified
+  - Add concurrent fetching of commits for multiple forks to improve performance
+  - Implement progress indicators showing commit fetching status for each fork
+  - Add rate limiting awareness to prevent API quota exhaustion
+  - Handle cases where some forks fail to fetch commits while others succeed
+  - Write integration tests for the complete workflow with real GitHub API calls
+  - _Requirements: 23.9, 23.10, 23.12_
+
+- [ ] 21.5 Add comprehensive error handling and edge cases
+  - Handle forks with no commits (empty repositories)
+  - Handle private forks where commits cannot be accessed
+  - Implement graceful degradation when API rate limits are hit
+  - Add timeout handling for slow commit fetching operations
+  - Display appropriate messages for different error scenarios
+  - Write unit tests for all error conditions and edge cases
+  - _Requirements: 23.6, 23.8, 23.9_
+
+- [ ] 21.6 Add comprehensive testing and documentation
+  - Write integration tests for --show-commits with various N values
+  - Test performance impact of fetching commits for large numbers of forks
+  - Add tests for combination with other flags (--max-forks, --exclude-archived, etc.)
+  - Update CLI help documentation and user guides
+  - Write end-to-end tests covering the complete show-forks workflow with commits
+  - Test table formatting and readability with various commit message lengths
+  - _Requirements: 23.10, 23.11, 23.12_
 
 - [ ] 19.6 Add comprehensive testing for show-forks --detail functionality
   - Write integration tests for show-forks --detail with real repository data

@@ -1,22 +1,23 @@
 """End-to-end tests for smart fork filtering workflow."""
 
 import asyncio
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
 from click.testing import CliRunner
 
 from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+from forklift.cli import cli
 from forklift.display.detailed_commit_display import DetailedCommitDisplay
 from forklift.models.fork_filtering import ForkFilteringConfig
 from forklift.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
-    QualifiedForksResult,
     QualificationStats,
+    QualifiedForksResult,
 )
-from forklift.models.github import Repository, Commit, User
-from forklift.cli import cli
+from forklift.models.github import Commit, Repository, User
 
 
 class TestSmartForkFilteringEndToEnd:
@@ -26,7 +27,7 @@ class TestSmartForkFilteringEndToEnd:
     def e2e_config(self):
         """Create configuration for end-to-end testing."""
         from forklift.config.settings import ForkliftConfig, GitHubConfig
-        
+
         return ForkliftConfig(
             github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
             openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -37,20 +38,20 @@ class TestSmartForkFilteringEndToEnd:
         """Create a realistic fork ecosystem for end-to-end testing."""
         # Simulate a real repository with diverse fork characteristics
         fork_metrics = []
-        
+
         # Active forks with commits ahead (should be processed)
         active_forks = [
             ("activedev1", "feature-branch-fork", 25, 5, True),
             ("contributor2", "bugfix-improvements", 15, 3, True),
             ("poweruser3", "performance-optimizations", 45, 8, True),
         ]
-        
+
         # Inactive forks with no commits ahead (should be filtered)
         inactive_forks = [
             ("olduser1", "abandoned-fork", 2, 0, False),
             ("testuser2", "empty-clone", 1, 0, False),
         ]
-        
+
         # Archived/disabled forks (should be filtered)
         archived_forks = [
             ("archiveduser", "old-experiment", 10, 2, True, True, False),  # Archived
@@ -63,15 +64,15 @@ class TestSmartForkFilteringEndToEnd:
             [(owner, name, stars, forks, commits, False, False) for owner, name, stars, forks, commits in inactive_forks] +
             archived_forks
         )
-        
+
         for owner, name, stars, forks_count, has_commits, archived, disabled in all_fork_data:
-            created_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
+            created_time = datetime(2023, 1, 1, tzinfo=UTC)
             pushed_time = (
-                datetime(2023, 8, 1, tzinfo=timezone.utc) 
-                if has_commits 
+                datetime(2023, 8, 1, tzinfo=UTC)
+                if has_commits
                 else created_time
             )
-            
+
             metrics = ForkQualificationMetrics(
                 id=fork_id,
                 full_name=f"{owner}/{name}",
@@ -92,7 +93,7 @@ class TestSmartForkFilteringEndToEnd:
                 disabled=disabled,
                 fork=True
             )
-            
+
             fork_metrics.append(metrics)
             fork_id += 1
 
@@ -120,13 +121,13 @@ class TestSmartForkFilteringEndToEnd:
             email="active@example.com",
             html_url="https://github.com/activedev1"
         )
-        
+
         return [
             Commit(
                 sha="e2e1234567890abcdef1234567890abcdef12345",
                 message="feat: add advanced caching system",
                 author=author,
-                date=datetime(2023, 8, 1, tzinfo=timezone.utc),
+                date=datetime(2023, 8, 1, tzinfo=UTC),
                 files_changed=["cache.py", "config.py", "tests/test_cache.py"],
                 additions=150,
                 deletions=20
@@ -135,7 +136,7 @@ class TestSmartForkFilteringEndToEnd:
                 sha="e2e2345678901bcdef234567890abcdef123456",
                 message="fix: resolve memory leak in worker threads",
                 author=author,
-                date=datetime(2023, 8, 5, tzinfo=timezone.utc),
+                date=datetime(2023, 8, 5, tzinfo=UTC),
                 files_changed=["worker.py", "memory_manager.py"],
                 additions=45,
                 deletions=30
@@ -144,7 +145,7 @@ class TestSmartForkFilteringEndToEnd:
                 sha="e2e3456789012cdef345678901bcdef123456",
                 message="docs: update API documentation with examples",
                 author=author,
-                date=datetime(2023, 8, 10, tzinfo=timezone.utc),
+                date=datetime(2023, 8, 10, tzinfo=UTC),
                 files_changed=["README.md", "docs/api.md", "examples/usage.py"],
                 additions=200,
                 deletions=50
@@ -156,15 +157,15 @@ class TestSmartForkFilteringEndToEnd:
         self, e2e_config, realistic_fork_ecosystem, sample_commits_for_active_forks
     ):
         """Test complete fork filtering workflow through CLI interface."""
-        
-        with patch('forklift.cli.load_config') as mock_load_config:
+
+        with patch("forklift.cli.load_config") as mock_load_config:
             mock_load_config.return_value = e2e_config
-            
-            with patch('forklift.cli.GitHubClient') as mock_github_client_class:
+
+            with patch("forklift.cli.GitHubClient") as mock_github_client_class:
                 # Setup GitHub client mock
                 mock_github_client = AsyncMock()
                 mock_github_client_class.return_value.__aenter__.return_value = mock_github_client
-                
+
                 # Mock repository (active fork)
                 active_repo = Repository(
                     id=50000,
@@ -174,12 +175,12 @@ class TestSmartForkFilteringEndToEnd:
                     url="https://api.github.com/repos/activedev1/feature-branch-fork",
                     html_url="https://github.com/activedev1/feature-branch-fork",
                     clone_url="https://github.com/activedev1/feature-branch-fork.git",
-                    created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                    pushed_at=datetime(2023, 8, 1, tzinfo=timezone.utc),  # Has commits
+                    created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                    pushed_at=datetime(2023, 8, 1, tzinfo=UTC),  # Has commits
                     default_branch="main"
                 )
                 mock_github_client.get_repository.return_value = active_repo
-                
+
                 # Mock commits for active fork
                 mock_github_client.get_branch_commits.return_value = [
                     {
@@ -195,15 +196,15 @@ class TestSmartForkFilteringEndToEnd:
                     for commit in sample_commits_for_active_forks
                 ]
 
-                with patch('forklift.cli.DetailedCommitDisplay') as mock_display_class:
+                with patch("forklift.cli.DetailedCommitDisplay") as mock_display_class:
                     # Setup detailed commit display mock
                     mock_display = AsyncMock()
                     mock_display_class.return_value = mock_display
-                    
+
                     # Mock fork status checker to simulate filtering
                     mock_checker = AsyncMock()
                     mock_display.fork_status_checker = mock_checker
-                    
+
                     # Active fork should be processed
                     mock_display.should_process_repository.return_value = True
                     mock_display.generate_detailed_view.return_value = [
@@ -213,17 +214,17 @@ class TestSmartForkFilteringEndToEnd:
                     # Test CLI command with --detail flag
                     runner = CliRunner()
                     result = runner.invoke(cli, [
-                        'show-commits',
-                        'activedev1/feature-branch-fork',
-                        '--detail'
+                        "show-commits",
+                        "activedev1/feature-branch-fork",
+                        "--detail"
                     ])
 
                     # Verify command executed successfully
                     assert result.exit_code == 0
-                    
+
                     # Verify fork filtering was applied
                     mock_display.should_process_repository.assert_called_once()
-                    
+
                     # Verify detailed view was generated for active fork
                     mock_display.generate_detailed_view.assert_called_once()
 
@@ -239,7 +240,7 @@ class TestSmartForkFilteringEndToEnd:
             skip_archived_forks=True,
             skip_disabled_forks=True
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config)
 
         # Test each type of fork in the ecosystem
@@ -248,14 +249,14 @@ class TestSmartForkFilteringEndToEnd:
             ("https://github.com/activedev1/feature-branch-fork", False, "has_commits_ahead"),
             ("https://github.com/contributor2/bugfix-improvements", False, "has_commits_ahead"),
             ("https://github.com/poweruser3/performance-optimizations", False, "has_commits_ahead"),
-            
+
             # Inactive forks - should be filtered (no commits)
             ("https://github.com/olduser1/abandoned-fork", True, "no_commits_ahead"),
             ("https://github.com/testuser2/empty-clone", True, "no_commits_ahead"),
-            
+
             # Archived fork - should be filtered (archived)
             ("https://github.com/archiveduser/old-experiment", True, "archived"),
-            
+
             # Disabled fork - should be filtered (disabled)
             ("https://github.com/disableduser/broken-fork", True, "disabled"),
         ]
@@ -266,7 +267,7 @@ class TestSmartForkFilteringEndToEnd:
             parts = fork_url.split("/")
             owner, name = parts[-2], parts[-1]
             full_name = f"{owner}/{name}"
-            
+
             # Find corresponding fork data
             fork_data = None
             for collected_fork in realistic_fork_ecosystem.collected_forks:
@@ -277,16 +278,16 @@ class TestSmartForkFilteringEndToEnd:
                         "disabled": collected_fork.metrics.disabled
                     }
                     break
-            
+
             assert fork_data is not None, f"Fork data not found for {full_name}"
-            
+
             # Evaluate fork for filtering
             should_filter, reason = await checker.evaluate_fork_for_filtering(
                 fork_url, fork_data, realistic_fork_ecosystem
             )
-            
+
             results.append((full_name, should_filter, reason))
-            
+
             # Verify expected behavior
             assert should_filter == expected_filtered, f"Fork {full_name}: expected filtered={expected_filtered}, got {should_filter}"
             assert reason == expected_reason, f"Fork {full_name}: expected reason={expected_reason}, got {reason}"
@@ -304,11 +305,11 @@ class TestSmartForkFilteringEndToEnd:
     ):
         """Test detailed commit display end-to-end workflow with filtering."""
         mock_github_client = AsyncMock()
-        
+
         # Setup fork filtering
         config = ForkFilteringConfig(enabled=True, log_filtering_decisions=True)
         checker = ForkCommitStatusChecker(mock_github_client, config)
-        
+
         # Setup detailed commit display
         display = DetailedCommitDisplay(
             github_client=mock_github_client,
@@ -324,11 +325,11 @@ class TestSmartForkFilteringEndToEnd:
             url="https://api.github.com/repos/activedev1/feature-branch-fork",
             html_url="https://github.com/activedev1/feature-branch-fork",
             clone_url="https://github.com/activedev1/feature-branch-fork.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 8, 1, tzinfo=timezone.utc),  # Has commits
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 8, 1, tzinfo=UTC),  # Has commits
             default_branch="main"
         )
-        
+
         inactive_repo = Repository(
             id=50001,
             owner="olduser1",
@@ -337,8 +338,8 @@ class TestSmartForkFilteringEndToEnd:
             url="https://api.github.com/repos/olduser1/abandoned-fork",
             html_url="https://github.com/olduser1/abandoned-fork",
             clone_url="https://github.com/olduser1/abandoned-fork.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # No commits
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # No commits
             default_branch="main"
         )
 
@@ -350,7 +351,7 @@ class TestSmartForkFilteringEndToEnd:
                 return False  # Inactive fork has no commits
             return None
 
-        with patch.object(checker, 'has_commits_ahead', side_effect=mock_has_commits_ahead):
+        with patch.object(checker, "has_commits_ahead", side_effect=mock_has_commits_ahead):
             # Test active repository - should be processed
             should_process_active = await display.should_process_repository(active_repo)
             assert should_process_active is True
@@ -365,7 +366,7 @@ class TestSmartForkFilteringEndToEnd:
                 (inactive_repo, sample_commits_for_active_forks)  # Same commits for testing
             ]
 
-            with patch.object(display, '_fetch_commit_details') as mock_fetch:
+            with patch.object(display, "_fetch_commit_details") as mock_fetch:
                 from forklift.display.detailed_commit_display import DetailedCommitInfo
                 mock_fetch.return_value = DetailedCommitInfo(
                     commit=sample_commits_for_active_forks[0],
@@ -385,9 +386,9 @@ class TestSmartForkFilteringEndToEnd:
     ):
         """Test performance impact of fork filtering in end-to-end scenario."""
         import time
-        
+
         mock_github_client = AsyncMock()
-        
+
         # Mock API response with delay to simulate real API calls
         async def mock_get_repository_with_delay(owner, repo):
             await asyncio.sleep(0.05)  # 50ms delay per API call
@@ -399,11 +400,11 @@ class TestSmartForkFilteringEndToEnd:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
-        
+
         mock_github_client.get_repository.side_effect = mock_get_repository_with_delay
 
         # Test with filtering enabled
@@ -412,28 +413,28 @@ class TestSmartForkFilteringEndToEnd:
             fallback_to_api=True,
             max_api_fallback_calls=5  # Limit API calls
         )
-        
+
         checker_with_filtering = ForkCommitStatusChecker(mock_github_client, config_with_filtering)
 
         # Test all forks in ecosystem + some unknown forks
         all_fork_urls = []
-        
+
         # Known forks (from qualification data)
         for fork_data in realistic_fork_ecosystem.collected_forks:
             all_fork_urls.append(f"https://github.com/{fork_data.metrics.full_name}")
-        
+
         # Unknown forks (will trigger API calls)
         for i in range(10):
             all_fork_urls.append(f"https://github.com/unknown{i}/repo{i}")
 
         # Measure time with filtering
         start_time = time.perf_counter()
-        
+
         results_with_filtering = []
         for fork_url in all_fork_urls:
             result = await checker_with_filtering.has_commits_ahead(fork_url, realistic_fork_ecosystem)
             results_with_filtering.append(result)
-        
+
         end_time = time.perf_counter()
         time_with_filtering = end_time - start_time
 
@@ -450,27 +451,27 @@ class TestSmartForkFilteringEndToEnd:
             fallback_to_api=True,
             max_api_fallback_calls=0  # No API calls when disabled
         )
-        
+
         checker_without_filtering = ForkCommitStatusChecker(mock_github_client, config_without_filtering)
 
         # Measure time without filtering (only process known forks to be fair)
-        known_fork_urls = [f"https://github.com/{fork_data.metrics.full_name}" 
+        known_fork_urls = [f"https://github.com/{fork_data.metrics.full_name}"
                           for fork_data in realistic_fork_ecosystem.collected_forks]
 
         start_time = time.perf_counter()
-        
+
         results_without_filtering = []
         for fork_url in known_fork_urls:
             result = await checker_without_filtering.has_commits_ahead(fork_url, realistic_fork_ecosystem)
             results_without_filtering.append(result)
-        
+
         end_time = time.perf_counter()
         time_without_filtering = end_time - start_time
 
         # Verify performance improvement
         # With filtering should be much faster due to API call reduction
         assert time_with_filtering < time_without_filtering + 1.0  # Allow some variance
-        
+
         # Verify statistics show efficiency
         stats_with_filtering = checker_with_filtering.get_statistics()
         assert stats_with_filtering.qualification_data_hits > 0
@@ -480,7 +481,7 @@ class TestSmartForkFilteringEndToEnd:
     async def test_error_recovery_in_e2e_workflow(self, realistic_fork_ecosystem):
         """Test error recovery and graceful degradation in end-to-end workflow."""
         mock_github_client = AsyncMock()
-        
+
         # Mock API to fail for some repositories
         def mock_get_repository_with_errors(owner, repo):
             if "error" in owner or "error" in repo:
@@ -493,11 +494,11 @@ class TestSmartForkFilteringEndToEnd:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
-        
+
         mock_github_client.get_repository.side_effect = mock_get_repository_with_errors
 
         config = ForkFilteringConfig(
@@ -505,22 +506,22 @@ class TestSmartForkFilteringEndToEnd:
             fallback_to_api=True,
             prefer_inclusion_on_uncertainty=True  # Include forks when uncertain
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config)
 
         # Test mix of successful and error-prone forks
         test_fork_urls = []
-        
+
         # Known forks (should work via qualification data)
         for fork_data in realistic_fork_ecosystem.collected_forks[:3]:
             test_fork_urls.append(f"https://github.com/{fork_data.metrics.full_name}")
-        
+
         # Error-prone forks (will fail API calls)
         test_fork_urls.extend([
             "https://github.com/erroruser1/errorrepo1",
             "https://github.com/erroruser2/errorrepo2",
         ])
-        
+
         # Good unknown forks (should work via API)
         test_fork_urls.extend([
             "https://github.com/gooduser1/goodrepo1",
@@ -530,7 +531,7 @@ class TestSmartForkFilteringEndToEnd:
         # Process all forks and track results
         results = []
         error_count = 0
-        
+
         for fork_url in test_fork_urls:
             try:
                 result = await checker.has_commits_ahead(fork_url, realistic_fork_ecosystem)
@@ -542,7 +543,7 @@ class TestSmartForkFilteringEndToEnd:
         # Verify error handling
         assert len(results) == len(test_fork_urls)
         assert error_count > 0  # Should have encountered some errors
-        
+
         # Verify successful processing of known forks despite errors
         successful_results = [r for r in results if r[2] is None]
         assert len(successful_results) >= 3  # At least the known forks + good unknown forks
@@ -556,7 +557,7 @@ class TestSmartForkFilteringEndToEnd:
     async def test_integration_with_real_world_fork_patterns(self):
         """Test integration with realistic fork patterns found in real repositories."""
         # Simulate patterns commonly found in real GitHub repositories
-        
+
         # Pattern 1: Many inactive forks (common in popular repos)
         inactive_pattern = []
         for i in range(50):
@@ -570,9 +571,9 @@ class TestSmartForkFilteringEndToEnd:
                 forks_count=0,       # No forks
                 size=1000,           # Same size as original
                 language="Python",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                updated_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 1, 1, tzinfo=timezone.utc),  # No commits
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                updated_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 1, 1, tzinfo=UTC),  # No commits
                 open_issues_count=0,
                 topics=[],
                 watchers_count=0,
@@ -595,9 +596,9 @@ class TestSmartForkFilteringEndToEnd:
                 forks_count=2 + i,              # Some forks
                 size=1500 + (i * 200),          # Larger size (more code)
                 language="Python",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                updated_at=datetime(2023, 9, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 9, 1, tzinfo=timezone.utc),  # Recent commits
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                updated_at=datetime(2023, 9, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 9, 1, tzinfo=UTC),  # Recent commits
                 open_issues_count=i + 1,
                 topics=["python", "enhancement"],
                 watchers_count=8 + (i * 3),
@@ -620,9 +621,9 @@ class TestSmartForkFilteringEndToEnd:
                 forks_count=0,
                 size=1200,
                 language="Python",
-                created_at=datetime(2022, 1, 1, tzinfo=timezone.utc),  # Older
-                updated_at=datetime(2022, 6, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2022, 6, 1, tzinfo=timezone.utc),
+                created_at=datetime(2022, 1, 1, tzinfo=UTC),  # Older
+                updated_at=datetime(2022, 6, 1, tzinfo=UTC),
+                pushed_at=datetime(2022, 6, 1, tzinfo=UTC),
                 open_issues_count=0,
                 topics=["python"],
                 watchers_count=i,
@@ -634,7 +635,7 @@ class TestSmartForkFilteringEndToEnd:
 
         # Combine all patterns
         all_forks = inactive_pattern + active_pattern + archived_pattern
-        
+
         realistic_ecosystem = QualifiedForksResult(
             repository_owner="upstream",
             repository_name="popular-repo",
@@ -656,7 +657,7 @@ class TestSmartForkFilteringEndToEnd:
             skip_archived_forks=True,
             log_filtering_decisions=False  # Disable for performance
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, config)
 
         # Process all forks
@@ -668,7 +669,7 @@ class TestSmartForkFilteringEndToEnd:
                 "archived": fork_data.metrics.archived,
                 "disabled": fork_data.metrics.disabled
             }
-            
+
             should_filter, reason = await checker.evaluate_fork_for_filtering(
                 fork_url, fork_metadata, realistic_ecosystem
             )
@@ -682,7 +683,7 @@ class TestSmartForkFilteringEndToEnd:
         # Should filter most inactive forks + archived forks
         expected_filtered = 50 + 3  # 50 inactive + ~3 archived (10/3)
         assert filtered_forks >= expected_filtered - 2  # Allow some variance
-        
+
         # Should include active forks
         assert included_forks >= 5  # At least the 5 active forks
 

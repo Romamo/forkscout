@@ -323,7 +323,28 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 1. WHEN discovering forks THEN the system SHALL use only the paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) to collect all available fork data without making individual repository API calls
 2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, topics, watchers_count, archived, and disabled status
 3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
-4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since last push, and activity ratios
+4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since last push, and activity ratios for comprehensive fork assessment
+
+### Requirement 21
+
+**User Story:** As a repository maintainer, I want simple and effective HTTP caching using Hishel to replace the complex custom cache system, so that I can benefit from faster subsequent runs with minimal code complexity and maintenance burden.
+
+**Note:** This requirement replaces the over-engineered custom SQLite cache system (tasks 9.1-9.2) with Hishel's HTTP-level caching. The existing custom cache system provides little value compared to using a battle-tested HTTP caching library that handles caching automatically at the transport level.
+
+#### Acceptance Criteria
+
+1. WHEN implementing caching THEN the system SHALL use Hishel HTTP caching instead of the custom SQLite cache system
+2. WHEN making any GitHub API call THEN Hishel SHALL automatically cache HTTP responses at the transport level
+3. WHEN cache data exists and is not expired THEN Hishel SHALL return cached responses without making new HTTP requests
+4. WHEN using the --disable-cache flag THEN the system SHALL configure Hishel to bypass cache for all HTTP requests in that session
+5. WHEN caching HTTP responses THEN Hishel SHALL use appropriate TTL values (default: 30 minutes for GitHub API responses)
+6. WHEN running show-forks command THEN the system SHALL benefit from automatic HTTP caching for instant results on repeated calls
+7. WHEN running subsequent analyses THEN the system SHALL leverage cached HTTP responses to significantly reduce API calls and execution time
+8. WHEN replacing the custom cache system THEN the system SHALL remove all custom cache management code (CacheManager, CacheWarmingConfig, etc.)
+9. WHEN HTTP cache operations fail THEN Hishel SHALL gracefully fall back to direct HTTP requests without failing the operation
+10. WHEN the system starts THEN Hishel SHALL automatically initialize HTTP cache storage with minimal configuration
+11. WHEN the system shuts down THEN Hishel SHALL handle cache cleanup automatically without custom management code
+12. WHEN migrating from custom cache THEN the system SHALL maintain the same user-facing cache functionality with much simpler implementation last push, and activity ratios
 5. WHEN identifying forks with no commits ahead THEN the system SHALL use created_at >= pushed_at comparison to detect forks that have never been modified after creation
 6. WHEN displaying fork qualification data THEN the system SHALL present comprehensive metrics in organized tables with clear column headers and proper data formatting
 7. WHEN processing large numbers of forks THEN the system SHALL handle pagination efficiently and provide progress indicators for data collection operations
@@ -409,3 +430,41 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 13. WHEN using --detail flag THEN the system SHALL skip compare API calls for forks already identified as having no commits ahead using created_at >= pushed_at logic to minimize unnecessary API requests
 14. WHEN skipping forks with no commits ahead THEN the system SHALL set their exact commits ahead count to 0 without making compare API calls
 15. WHEN optimizing API usage THEN the system SHALL log the number of API calls saved by skipping forks with no commits ahead
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want the fork display table to show commits ahead and behind in a single compact column, so that I can quickly see the complete commit status of each fork in a more space-efficient format.
+
+#### Acceptance Criteria
+
+1. WHEN displaying fork information THEN the system SHALL combine "Commits Ahead" and "Commits Behind" columns into a single "Commits" column
+2. WHEN showing commit status THEN the system SHALL use the format "+X -Y" where X is commits ahead and Y is commits behind (e.g., "+3 -1" means 3 ahead, 1 behind)
+3. WHEN a fork has no commits ahead THEN the system SHALL display "-Y" format (e.g., "-5" means 5 behind)
+4. WHEN a fork has no commits behind THEN the system SHALL display "+X" format (e.g., "+2" means 2 ahead)
+5. WHEN a fork is completely up-to-date THEN the system SHALL display an empty cell for the cleanest visual appearance
+6. WHEN a fork has unknown commit status THEN the system SHALL display "Unknown" in the Commits column
+7. WHEN formatting the Commits column THEN the system SHALL use appropriate colors (green for ahead, red for behind) to make the status visually clear
+8. WHEN displaying the table THEN the system SHALL adjust column widths to accommodate the new compact format while maintaining readability
+9. WHEN sorting by commits THEN the system SHALL sort primarily by commits ahead, then by commits behind as secondary criteria
+10. WHEN the compact format is implemented THEN the system SHALL maintain backward compatibility with existing fork analysis functionality
+11. WHEN displaying commit information THEN the system SHALL ensure the "+X -Y" format is consistent across all fork display commands (show-forks, list-forks, etc.)
+12. WHEN the new format is used THEN the system SHALL update any related documentation and help text to reflect the combined commit status display
+
+### Requirement 23
+
+**User Story:** As a repository maintainer, I want to see recent commit information directly in the show-forks table, so that I can quickly understand what changes have been made in each fork without navigating to individual repositories.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url> --show-commits=N` THEN the system SHALL add a "Recent Commits" column showing the last N commits for each fork
+2. WHEN --show-commits is specified THEN the system SHALL display each commit as "short_sha: commit_message" format (e.g., "a1b2c3d: Add user authentication")
+3. WHEN showing multiple commits THEN the system SHALL display each commit on a separate line within the cell for better readability
+4. WHEN --show-commits=0 or not specified THEN the system SHALL not show the Recent Commits column (default behavior)
+5. WHEN fetching commit information THEN the system SHALL get commits from the fork's default branch
+6. WHEN a fork has fewer commits than requested THEN the system SHALL show all available commits without error
+7. WHEN commit messages are very long THEN the system SHALL truncate them to a reasonable length (e.g., 50 characters) with "..." indicator
+8. WHEN commit information cannot be fetched THEN the system SHALL display "Unable to fetch commits" in that fork's Recent Commits cell
+9. WHEN using --show-commits THEN the system SHALL respect GitHub API rate limits and implement appropriate backoff strategies
+10. WHEN --show-commits is combined with other flags THEN the system SHALL work with existing options like --max-forks, --exclude-archived, and sorting
+11. WHEN displaying recent commits THEN the system SHALL adjust table layout to accommodate the new column while maintaining readability
+12. WHEN --show-commits is used THEN the system SHALL provide progress indicators showing commit fetching status for each fork

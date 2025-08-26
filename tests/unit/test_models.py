@@ -1,6 +1,8 @@
 """Unit tests for analysis data models."""
 
 
+from datetime import UTC
+
 import pytest
 
 from forklift.models import Feature, Fork, RankedFeature, Repository, User
@@ -159,23 +161,24 @@ def test_feature_score_validation():
 
 def test_fork_preview_item_model():
     """Test ForkPreviewItem model creation and validation."""
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from forklift.models.analysis import ForkPreviewItem
-    
+
     fork_item = ForkPreviewItem(
         name="test-repo",
         owner="test-owner",
         stars=42,
-        last_push_date=datetime(2023, 12, 1, tzinfo=timezone.utc),
+        last_push_date=datetime(2023, 12, 1, tzinfo=UTC),
         fork_url="https://github.com/test-owner/test-repo",
         activity_status="Active",
         commits_ahead="Unknown"
     )
-    
+
     assert fork_item.name == "test-repo"
     assert fork_item.owner == "test-owner"
     assert fork_item.stars == 42
-    assert fork_item.last_push_date == datetime(2023, 12, 1, tzinfo=timezone.utc)
+    assert fork_item.last_push_date == datetime(2023, 12, 1, tzinfo=UTC)
     assert fork_item.fork_url == "https://github.com/test-owner/test-repo"
     assert fork_item.activity_status == "Active"
     assert fork_item.commits_ahead == "Unknown"
@@ -184,7 +187,7 @@ def test_fork_preview_item_model():
 def test_fork_preview_item_model_defaults():
     """Test ForkPreviewItem model with default values."""
     from forklift.models.analysis import ForkPreviewItem
-    
+
     fork_item = ForkPreviewItem(
         name="test-repo",
         owner="test-owner",
@@ -192,7 +195,7 @@ def test_fork_preview_item_model_defaults():
         activity_status="No commits",
         commits_ahead="None"
     )
-    
+
     assert fork_item.name == "test-repo"
     assert fork_item.owner == "test-owner"
     assert fork_item.stars == 0  # Default value
@@ -204,34 +207,35 @@ def test_fork_preview_item_model_defaults():
 
 def test_forks_preview_model():
     """Test ForksPreview model creation and validation."""
-    from datetime import datetime, timezone
-    from forklift.models.analysis import ForksPreview, ForkPreviewItem
-    
+    from datetime import datetime
+
+    from forklift.models.analysis import ForkPreviewItem, ForksPreview
+
     fork_item1 = ForkPreviewItem(
         name="test-repo",
         owner="user1",
         stars=10,
-        last_push_date=datetime(2023, 12, 1, tzinfo=timezone.utc),
+        last_push_date=datetime(2023, 12, 1, tzinfo=UTC),
         fork_url="https://github.com/user1/test-repo",
         activity_status="Active",
         commits_ahead="Unknown"
     )
-    
+
     fork_item2 = ForkPreviewItem(
         name="test-repo",
         owner="user2",
         stars=5,
-        last_push_date=datetime(2023, 11, 1, tzinfo=timezone.utc),
+        last_push_date=datetime(2023, 11, 1, tzinfo=UTC),
         fork_url="https://github.com/user2/test-repo",
         activity_status="Stale",
         commits_ahead="Unknown"
     )
-    
+
     forks_preview = ForksPreview(
         total_forks=2,
         forks=[fork_item1, fork_item2]
     )
-    
+
     assert forks_preview.total_forks == 2
     assert len(forks_preview.forks) == 2
     assert forks_preview.forks[0] == fork_item1
@@ -240,13 +244,14 @@ def test_forks_preview_model():
 
 def test_fork_preview_item_activity_status_validation():
     """Test ForkPreviewItem model activity status field validation."""
-    from forklift.models.analysis import ForkPreviewItem
     import pytest
-    
+
+    from forklift.models.analysis import ForkPreviewItem
+
     # Test valid activity statuses
     valid_statuses = ["Active", "Stale", "No commits"]
     commits_ahead_statuses = ["Unknown", "Unknown", "None"]
-    for status, commits_ahead in zip(valid_statuses, commits_ahead_statuses):
+    for status, commits_ahead in zip(valid_statuses, commits_ahead_statuses, strict=False):
         fork_item = ForkPreviewItem(
             name="test-repo",
             owner="test-owner",
@@ -256,7 +261,7 @@ def test_fork_preview_item_activity_status_validation():
         )
         assert fork_item.activity_status == status
         assert fork_item.commits_ahead == commits_ahead
-    
+
     # Test that activity_status is required
     with pytest.raises(Exception):  # ValidationError
         ForkPreviewItem(
@@ -270,8 +275,8 @@ def test_fork_preview_item_activity_status_validation():
 def test_forks_preview_model_empty():
     """Test ForksPreview model with empty forks list."""
     from forklift.models.analysis import ForksPreview
-    
+
     forks_preview = ForksPreview(total_forks=0)
-    
+
     assert forks_preview.total_forks == 0
     assert forks_preview.forks == []  # Default empty list

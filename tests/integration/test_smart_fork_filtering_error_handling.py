@@ -1,17 +1,18 @@
 """Error handling and edge case tests for smart fork filtering."""
 
 import asyncio
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
 
 from forklift.analysis.fork_commit_status_checker import (
     ForkCommitStatusChecker,
     ForkCommitStatusError,
 )
 from forklift.github.client import (
-    GitHubClient,
     GitHubAPIError,
+    GitHubClient,
     GitHubNotFoundError,
     GitHubRateLimitError,
 )
@@ -19,8 +20,8 @@ from forklift.models.fork_filtering import ForkFilteringConfig
 from forklift.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
-    QualifiedForksResult,
     QualificationStats,
+    QualifiedForksResult,
 )
 from forklift.models.github import Repository
 
@@ -57,9 +58,9 @@ class TestSmartForkFilteringErrorHandling:
             forks_count=2,
             size=1000,
             language="Python",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2023, 6, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 6, 1, tzinfo=timezone.utc),
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 6, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 6, 1, tzinfo=UTC),
             open_issues_count=1,
             topics=["python"],
             watchers_count=10,
@@ -88,18 +89,18 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of GitHub API 404 Not Found errors."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to raise NotFoundError
         mock_github_client.get_repository.side_effect = GitHubNotFoundError(
             "Repository not found", status_code=404
         )
-        
+
         # Test with fork not in qualification data (triggers API fallback)
         result = await checker.has_commits_ahead("https://github.com/nonexistent/repo")
-        
+
         # Should return None for not found repositories
         assert result is None
-        
+
         # Verify statistics
         stats = checker.get_statistics()
         assert stats.api_fallback_calls == 1
@@ -112,17 +113,17 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of GitHub API rate limit errors."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to raise RateLimitError
         mock_github_client.get_repository.side_effect = GitHubRateLimitError(
             "Rate limit exceeded", status_code=403, retry_after=3600
         )
-        
+
         result = await checker.has_commits_ahead("https://github.com/ratelimited/repo")
-        
+
         # Should return None when rate limited
         assert result is None
-        
+
         # Verify statistics
         stats = checker.get_statistics()
         assert stats.api_fallback_calls == 1
@@ -134,17 +135,17 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of GitHub API server errors (5xx)."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to raise server error
         mock_github_client.get_repository.side_effect = GitHubAPIError(
             "Internal server error", status_code=500
         )
-        
+
         result = await checker.has_commits_ahead("https://github.com/servererror/repo")
-        
+
         # Should return None for server errors
         assert result is None
-        
+
         # Verify statistics
         stats = checker.get_statistics()
         assert stats.api_fallback_calls == 1
@@ -156,14 +157,14 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of unexpected exceptions."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to raise unexpected exception
         mock_github_client.get_repository.side_effect = Exception("Unexpected error")
-        
+
         # Should raise ForkCommitStatusError for unexpected exceptions
         with pytest.raises(ForkCommitStatusError, match="Failed to check commit status"):
             await checker.has_commits_ahead("https://github.com/unexpected/error")
-        
+
         # Verify error statistics
         stats = checker.get_statistics()
         assert stats.errors == 1
@@ -174,7 +175,7 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of various invalid URL formats."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         invalid_urls = [
             "",                                    # Empty string
             "   ",                                # Whitespace only
@@ -189,11 +190,11 @@ class TestSmartForkFilteringErrorHandling:
             "owner//repo",                        # Double slash
             "owner/repo/",                        # Trailing slash in owner/repo format
         ]
-        
+
         for invalid_url in invalid_urls:
             with pytest.raises(ForkCommitStatusError, match="Invalid fork URL format"):
                 await checker.has_commits_ahead(invalid_url)
-        
+
         # Verify all invalid URLs were counted as errors
         stats = checker.get_statistics()
         assert stats.errors == len(invalid_urls)
@@ -204,14 +205,14 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of network timeout errors."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to raise timeout error
-        mock_github_client.get_repository.side_effect = asyncio.TimeoutError("Request timeout")
-        
+        mock_github_client.get_repository.side_effect = TimeoutError("Request timeout")
+
         # Should raise ForkCommitStatusError for timeout
         with pytest.raises(ForkCommitStatusError, match="Failed to check commit status"):
             await checker.has_commits_ahead("https://github.com/timeout/repo")
-        
+
         # Verify error statistics
         stats = checker.get_statistics()
         assert stats.errors == 1
@@ -222,7 +223,7 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test handling of malformed qualification data."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Create qualification result with malformed data
         malformed_metrics = ForkQualificationMetrics(
             id=12345,
@@ -258,16 +259,16 @@ class TestSmartForkFilteringErrorHandling:
                 processing_time_seconds=1.0
             )
         )
-        
+
         # Should handle malformed data gracefully
         result = await checker.has_commits_ahead(
             "https://github.com/testuser/testrepo",
             malformed_result
         )
-        
+
         # Should return False when timestamps are None (can't determine, assume no commits)
         assert result is False
-        
+
         # Verify qualification data was used despite malformed timestamps
         stats = checker.get_statistics()
         assert stats.qualification_data_hits == 1
@@ -280,7 +281,7 @@ class TestSmartForkFilteringErrorHandling:
         # Set low API fallback limit
         error_handling_config.max_api_fallback_calls = 2
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock successful API responses
         mock_github_client.get_repository.return_value = Repository(
             id=99999,
@@ -290,28 +291,28 @@ class TestSmartForkFilteringErrorHandling:
             url="https://api.github.com/repos/test/repo",
             html_url="https://github.com/test/repo",
             clone_url="https://github.com/test/repo.git",
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
             default_branch="main"
         )
-        
+
         # First two calls should use API
         result1 = await checker.has_commits_ahead("https://github.com/test/repo1")
         result2 = await checker.has_commits_ahead("https://github.com/test/repo2")
-        
+
         assert result1 is True
         assert result2 is True
-        
+
         # Third call should hit the limit
         result3 = await checker.has_commits_ahead("https://github.com/test/repo3")
-        
+
         # Should return False when limit exceeded and prefer_inclusion_on_uncertainty=True
         # but limit reached overrides preference
         assert result3 is False
-        
+
         # Verify API call limit was respected
         assert mock_github_client.get_repository.call_count == 2
-        
+
         # Verify statistics
         stats = checker.get_statistics()
         assert stats.api_fallback_calls == 2
@@ -323,7 +324,7 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test error handling with concurrent requests."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to fail for some requests
         call_count = 0
         async def mock_get_repository_with_intermittent_errors(owner, repo):
@@ -339,31 +340,31 @@ class TestSmartForkFilteringErrorHandling:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
-        
+
         mock_github_client.get_repository.side_effect = mock_get_repository_with_intermittent_errors
-        
+
         # Create concurrent requests
         fork_urls = [f"https://github.com/user{i}/repo{i}" for i in range(10)]
-        
+
         # Process concurrently
         tasks = [checker.has_commits_ahead(fork_url) for fork_url in fork_urls]
         results = await asyncio.gather(*tasks, return_exceptions=False)
-        
+
         # Verify results
         assert len(results) == 10
-        
+
         # Some should succeed (True), some should fail (None)
         successful_results = [r for r in results if r is True]
         failed_results = [r for r in results if r is None]
-        
+
         assert len(successful_results) > 0
         assert len(failed_results) > 0
         assert len(successful_results) + len(failed_results) == 10
-        
+
         # Verify statistics
         stats = checker.get_statistics()
         assert stats.api_fallback_calls == 10
@@ -375,19 +376,19 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test that error handling doesn't cause memory leaks."""
         pytest.skip("psutil not available - skipping memory test")
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to always raise errors
         mock_github_client.get_repository.side_effect = Exception("Persistent error")
-        
+
         # Generate many errors
         for i in range(100):
             try:
                 await checker.has_commits_ahead(f"https://github.com/error{i}/repo{i}")
             except ForkCommitStatusError:
                 pass  # Expected
-        
+
         # Verify all errors were tracked
         stats = checker.get_statistics()
         assert stats.errors == 100
@@ -398,7 +399,7 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test recovery after temporary API failures."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mock API to fail initially, then succeed
         call_count = 0
         async def mock_get_repository_with_recovery(owner, repo):
@@ -415,23 +416,23 @@ class TestSmartForkFilteringErrorHandling:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
-        
+
         mock_github_client.get_repository.side_effect = mock_get_repository_with_recovery
-        
+
         # Test multiple requests
         results = []
         for i in range(6):
             result = await checker.has_commits_ahead(f"https://github.com/recovery{i}/repo{i}")
             results.append(result)
-        
+
         # First 3 should fail (None), last 3 should succeed (True)
         assert results[:3] == [None, None, None]
         assert results[3:] == [True, True, True]
-        
+
         # Verify statistics show both failures and successes
         stats = checker.get_statistics()
         assert stats.api_fallback_calls == 6
@@ -443,9 +444,9 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test edge cases in timestamp handling."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Test case 1: Exactly equal timestamps
-        equal_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        equal_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
         equal_metrics = ForkQualificationMetrics(
             id=11111,
             full_name="equal/timestamps",
@@ -466,7 +467,7 @@ class TestSmartForkFilteringErrorHandling:
             disabled=False,
             fork=True
         )
-        
+
         equal_result = QualifiedForksResult(
             repository_owner="upstream",
             repository_name="main-repo",
@@ -480,17 +481,17 @@ class TestSmartForkFilteringErrorHandling:
                 processing_time_seconds=1.0
             )
         )
-        
+
         result = await checker.has_commits_ahead(
             "https://github.com/equal/timestamps",
             equal_result
         )
         assert result is False  # Equal timestamps = no commits ahead
-        
+
         # Test case 2: Very small time difference (microseconds)
-        created_time = datetime(2023, 1, 1, 12, 0, 0, 0, tzinfo=timezone.utc)
-        pushed_time = datetime(2023, 1, 1, 12, 0, 0, 1, tzinfo=timezone.utc)  # 1 microsecond later
-        
+        created_time = datetime(2023, 1, 1, 12, 0, 0, 0, tzinfo=UTC)
+        pushed_time = datetime(2023, 1, 1, 12, 0, 0, 1, tzinfo=UTC)  # 1 microsecond later
+
         micro_metrics = ForkQualificationMetrics(
             id=22222,
             full_name="micro/difference",
@@ -511,7 +512,7 @@ class TestSmartForkFilteringErrorHandling:
             disabled=False,
             fork=True
         )
-        
+
         micro_result = QualifiedForksResult(
             repository_owner="upstream",
             repository_name="main-repo",
@@ -525,7 +526,7 @@ class TestSmartForkFilteringErrorHandling:
                 processing_time_seconds=1.0
             )
         )
-        
+
         result = await checker.has_commits_ahead(
             "https://github.com/micro/difference",
             micro_result
@@ -535,7 +536,7 @@ class TestSmartForkFilteringErrorHandling:
     @pytest.mark.asyncio
     async def test_configuration_edge_cases(self, mock_github_client):
         """Test edge cases in configuration handling."""
-        
+
         # Test with all features disabled
         disabled_config = ForkFilteringConfig(
             enabled=False,
@@ -543,13 +544,13 @@ class TestSmartForkFilteringErrorHandling:
             log_filtering_decisions=False,
             log_statistics=False
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, disabled_config)
-        
+
         # Should still work but with limited functionality
         result = await checker.has_commits_ahead("https://github.com/test/repo")
         assert result is False  # Default when everything disabled
-        
+
         # Test with contradictory settings
         contradictory_config = ForkFilteringConfig(
             enabled=True,
@@ -557,9 +558,9 @@ class TestSmartForkFilteringErrorHandling:
             prefer_inclusion_on_uncertainty=True,  # But prefer inclusion
             max_api_fallback_calls=0  # Zero API calls allowed
         )
-        
+
         checker = ForkCommitStatusChecker(mock_github_client, contradictory_config)
-        
+
         # Should handle contradictory settings gracefully
         result = await checker.has_commits_ahead("https://github.com/unknown/repo")
         assert result is None  # Uncertain, prefer inclusion, but no API allowed
@@ -570,7 +571,7 @@ class TestSmartForkFilteringErrorHandling:
     ):
         """Test that statistics remain accurate even under error conditions."""
         checker = ForkCommitStatusChecker(mock_github_client, error_handling_config)
-        
+
         # Mix of successful and failed operations
         operations = [
             ("success1", "success"),
@@ -579,7 +580,7 @@ class TestSmartForkFilteringErrorHandling:
             ("error2", "error"),
             ("success3", "success"),
         ]
-        
+
         # Mock API responses
         def mock_get_repository_mixed(owner, repo):
             if "error" in owner:
@@ -592,13 +593,13 @@ class TestSmartForkFilteringErrorHandling:
                 url=f"https://api.github.com/repos/{owner}/{repo}",
                 html_url=f"https://github.com/{owner}/{repo}",
                 clone_url=f"https://github.com/{owner}/{repo}.git",
-                created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                pushed_at=datetime(2023, 5, 1, tzinfo=timezone.utc),
+                created_at=datetime(2023, 1, 1, tzinfo=UTC),
+                pushed_at=datetime(2023, 5, 1, tzinfo=UTC),
                 default_branch="main"
             )
-        
+
         mock_github_client.get_repository.side_effect = mock_get_repository_mixed
-        
+
         # Process operations
         results = []
         for owner, expected_type in operations:
@@ -607,19 +608,19 @@ class TestSmartForkFilteringErrorHandling:
                 results.append((owner, result, None))
             except Exception as e:
                 results.append((owner, None, str(e)))
-        
+
         # Verify statistics accuracy
         stats = checker.get_statistics()
-        
+
         # Should have made 5 API calls total
         assert stats.api_fallback_calls == 5
-        
+
         # Should have 2 unknown status (errors) and 0 errors in stats
         # (GitHubAPIError is handled gracefully, not counted as error)
         assert stats.status_unknown == 2
-        
+
         # Should have 0 qualification hits (no qualification data provided)
         assert stats.qualification_data_hits == 0
-        
+
         # API efficiency should be 0% (no qualification data used)
         assert stats.api_usage_efficiency == 0.0

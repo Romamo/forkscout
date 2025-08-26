@@ -151,7 +151,7 @@ class ExplanationFormatter:
         """
         if self.use_simple_tables:
             return self._format_explanation_table_simple(explanations)
-        
+
         table = Table(title="Commit Explanations", show_header=True, header_style="bold magenta")
 
         # Add columns
@@ -214,7 +214,7 @@ class ExplanationFormatter:
             Simple ASCII table string for display
         """
         table_data = []
-        
+
         for commit_with_explanation in explanations:
             commit = commit_with_explanation.commit
             explanation = commit_with_explanation.explanation
@@ -419,13 +419,13 @@ class ExplanationFormatter:
         """
         if not isinstance(text, str):
             return str(text)
-        
+
         # Remove Rich markup patterns like [color]text[/color]
         import re
         # Remove Rich style patterns but preserve our ASCII labels like [FEAT], [HIGH], etc.
         # First remove closing tags [/anything]
-        text = re.sub(r'\[/[^\]]*\]', '', text)
+        text = re.sub(r"\[/[^\]]*\]", "", text)
         # Then remove opening Rich style tags (colors, styles, links, compound styles)
         # This pattern matches Rich markup but not our ASCII labels
-        text = re.sub(r'\[(?:bold|italic|underline|strike|dim|bright_\w+|\w+_\w+|red|green|blue|yellow|cyan|magenta|white|black|link=\S*|bold\s+\w+|\w+\s+\w+)\]', '', text)
+        text = re.sub(r"\[(?:bold|italic|underline|strike|dim|bright_\w+|\w+_\w+|red|green|blue|yellow|cyan|magenta|white|black|link=\S*|bold\s+\w+|\w+\s+\w+)\]", "", text)
         return text

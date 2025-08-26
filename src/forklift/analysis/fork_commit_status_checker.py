@@ -2,11 +2,10 @@
 
 import logging
 from urllib.parse import urlparse
-from typing import Optional
 
 from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
-from forklift.models.fork_qualification import QualifiedForksResult
 from forklift.models.fork_filtering import ForkFilteringConfig, ForkFilteringStats
+from forklift.models.fork_qualification import QualifiedForksResult
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class ForkCommitStatusChecker:
     """Determines if forks have commits ahead using qualification data with GitHub API fallback."""
 
     def __init__(
-        self, github_client: GitHubClient, config: Optional[ForkFilteringConfig] = None
+        self, github_client: GitHubClient, config: ForkFilteringConfig | None = None
     ):
         """
         Initialize fork commit status checker.

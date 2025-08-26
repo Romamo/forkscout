@@ -1,16 +1,17 @@
 """Unit tests for AI summary data models."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from forklift.models.ai_summary import (
-    AISummary,
-    AISummaryConfig,
-    CommitDetails,
-    AIUsageStats,
     AIError,
     AIErrorType,
+    AISummary,
+    AISummaryConfig,
+    AIUsageStats,
+    CommitDetails,
 )
 
 
@@ -23,7 +24,7 @@ class TestAISummary:
             commit_sha="abc123",
             summary_text="This commit adds user authentication functionality to secure user access"
         )
-        
+
         assert summary.commit_sha == "abc123"
         assert summary.summary_text == "This commit adds user authentication functionality to secure user access"
         assert summary.model_used == "gpt-4o-mini"  # Default value
@@ -35,7 +36,7 @@ class TestAISummary:
     def test_ai_summary_creation_with_all_fields(self):
         """Test creating AISummary with all fields."""
         generated_at = datetime(2024, 1, 15, 10, 30, 0)
-        
+
         summary = AISummary(
             commit_sha="def456",
             summary_text="Complete summary text describing database schema modifications for performance improvements",
@@ -45,7 +46,7 @@ class TestAISummary:
             processing_time_ms=1250.5,
             error=None
         )
-        
+
         assert summary.commit_sha == "def456"
         assert summary.summary_text == "Complete summary text describing database schema modifications for performance improvements"
         assert summary.model_used == "gpt-4"
@@ -60,7 +61,7 @@ class TestAISummary:
             summary_text="",
             error="Rate limit exceeded"
         )
-        
+
         assert summary.error == "Rate limit exceeded"
         assert summary.summary_text == ""
 
@@ -72,7 +73,7 @@ class TestAISummary:
                 summary_text="Test",
                 tokens_used=-1
             )
-        
+
         assert "greater than or equal to 0" in str(exc_info.value)
 
     def test_ai_summary_validation_negative_processing_time(self):
@@ -83,7 +84,7 @@ class TestAISummary:
                 summary_text="Test",
                 processing_time_ms=-1.0
             )
-        
+
         assert "greater than or equal to 0" in str(exc_info.value)
 
     def test_ai_summary_serialization(self):
@@ -92,9 +93,9 @@ class TestAISummary:
             commit_sha="serialize123",
             summary_text="Test summary with comprehensive details"
         )
-        
+
         data = summary.model_dump()
-        
+
         assert data["commit_sha"] == "serialize123"
         assert data["summary_text"] == "Test summary with comprehensive details"
         assert data["model_used"] == "gpt-4o-mini"
@@ -111,9 +112,9 @@ class TestAISummary:
             "processing_time_ms": 500.0,
             "error": None
         }
-        
+
         summary = AISummary(**data)
-        
+
         assert summary.commit_sha == "deserialize123"
         assert summary.tokens_used == 100
         assert summary.processing_time_ms == 500.0
@@ -125,7 +126,7 @@ class TestAISummaryConfig:
     def test_ai_summary_config_defaults(self):
         """Test AISummaryConfig with default values."""
         config = AISummaryConfig()
-        
+
         assert config.enabled is False
         assert config.model == "gpt-4o-mini"
         assert config.max_tokens == 150
@@ -151,7 +152,7 @@ class TestAISummaryConfig:
             batch_size=10,
             compact_mode=True
         )
-        
+
         assert config.enabled is True
         assert config.model == "gpt-4"
         assert config.max_tokens == 1000
@@ -168,15 +169,15 @@ class TestAISummaryConfig:
         # Test minimum value
         with pytest.raises(ValidationError):
             AISummaryConfig(max_tokens=0)
-        
+
         # Test maximum value
         with pytest.raises(ValidationError):
             AISummaryConfig(max_tokens=5000)
-        
+
         # Test valid values
         config = AISummaryConfig(max_tokens=1)
         assert config.max_tokens == 1
-        
+
         config = AISummaryConfig(max_tokens=4000)
         assert config.max_tokens == 4000
 
@@ -185,15 +186,15 @@ class TestAISummaryConfig:
         # Test minimum value
         with pytest.raises(ValidationError):
             AISummaryConfig(temperature=-0.1)
-        
+
         # Test maximum value
         with pytest.raises(ValidationError):
             AISummaryConfig(temperature=2.1)
-        
+
         # Test valid values
         config = AISummaryConfig(temperature=0.0)
         assert config.temperature == 0.0
-        
+
         config = AISummaryConfig(temperature=2.0)
         assert config.temperature == 2.0
 
@@ -202,15 +203,15 @@ class TestAISummaryConfig:
         # Test minimum value
         with pytest.raises(ValidationError):
             AISummaryConfig(batch_size=0)
-        
+
         # Test maximum value
         with pytest.raises(ValidationError):
             AISummaryConfig(batch_size=21)
-        
+
         # Test valid values
         config = AISummaryConfig(batch_size=1)
         assert config.batch_size == 1
-        
+
         config = AISummaryConfig(batch_size=20)
         assert config.batch_size == 20
 
@@ -221,7 +222,7 @@ class TestCommitDetails:
     def test_commit_details_creation_without_ai_summary(self):
         """Test creating CommitDetails without AI summary."""
         commit_date = datetime(2024, 1, 15, 10, 30, 0)
-        
+
         details = CommitDetails(
             commit_sha="commit123",
             message="Fix bug in authentication",
@@ -232,7 +233,7 @@ class TestCommitDetails:
             lines_removed=10,
             commit_url="https://github.com/owner/repo/commit/commit123"
         )
-        
+
         assert details.commit_sha == "commit123"
         assert details.message == "Fix bug in authentication"
         assert details.author == "John Doe"
@@ -250,7 +251,7 @@ class TestCommitDetails:
             commit_sha="commit123",
             summary_text="This commit fixes authentication bug by modifying login validation to prevent unauthorized access"
         )
-        
+
         details = CommitDetails(
             commit_sha="commit123",
             message="Fix bug in authentication",
@@ -259,7 +260,7 @@ class TestCommitDetails:
             commit_url="https://github.com/owner/repo/commit/commit123",
             ai_summary=ai_summary
         )
-        
+
         assert details.ai_summary is not None
         assert details.ai_summary.commit_sha == "commit123"
         assert details.ai_summary.summary_text == "This commit fixes authentication bug by modifying login validation to prevent unauthorized access"
@@ -267,7 +268,7 @@ class TestCommitDetails:
     def test_commit_details_validation_negative_counts(self):
         """Test validation of count fields."""
         commit_date = datetime(2024, 1, 15, 10, 30, 0)
-        
+
         # Test negative files_changed_count
         with pytest.raises(ValidationError):
             CommitDetails(
@@ -278,7 +279,7 @@ class TestCommitDetails:
                 commit_url="https://github.com/test/test/commit/test",
                 files_changed_count=-1
             )
-        
+
         # Test negative lines_added
         with pytest.raises(ValidationError):
             CommitDetails(
@@ -289,7 +290,7 @@ class TestCommitDetails:
                 commit_url="https://github.com/test/test/commit/test",
                 lines_added=-1
             )
-        
+
         # Test negative lines_removed
         with pytest.raises(ValidationError):
             CommitDetails(
@@ -308,7 +309,7 @@ class TestAIUsageStats:
     def test_ai_usage_stats_defaults(self):
         """Test AIUsageStats with default values."""
         stats = AIUsageStats()
-        
+
         assert stats.total_requests == 0
         assert stats.successful_requests == 0
         assert stats.failed_requests == 0
@@ -322,7 +323,7 @@ class TestAIUsageStats:
         """Test AIUsageStats with custom values."""
         session_start = datetime(2024, 1, 15, 10, 0, 0)
         last_request = datetime(2024, 1, 15, 10, 30, 0)
-        
+
         stats = AIUsageStats(
             total_requests=100,
             successful_requests=95,
@@ -333,7 +334,7 @@ class TestAIUsageStats:
             session_start=session_start,
             last_request=last_request
         )
-        
+
         assert stats.total_requests == 100
         assert stats.successful_requests == 95
         assert stats.failed_requests == 5
@@ -348,23 +349,23 @@ class TestAIUsageStats:
         # Test negative total_requests
         with pytest.raises(ValidationError):
             AIUsageStats(total_requests=-1)
-        
+
         # Test negative successful_requests
         with pytest.raises(ValidationError):
             AIUsageStats(successful_requests=-1)
-        
+
         # Test negative failed_requests
         with pytest.raises(ValidationError):
             AIUsageStats(failed_requests=-1)
-        
+
         # Test negative total_tokens_used
         with pytest.raises(ValidationError):
             AIUsageStats(total_tokens_used=-1)
-        
+
         # Test negative total_cost_usd
         with pytest.raises(ValidationError):
             AIUsageStats(total_cost_usd=-0.01)
-        
+
         # Test negative average_processing_time_ms
         with pytest.raises(ValidationError):
             AIUsageStats(average_processing_time_ms=-1.0)
@@ -379,7 +380,7 @@ class TestAIError:
             error_type=AIErrorType.RATE_LIMIT,
             message="Rate limit exceeded"
         )
-        
+
         assert error.error_type == AIErrorType.RATE_LIMIT
         assert error.message == "Rate limit exceeded"
         assert error.commit_sha is None
@@ -390,7 +391,7 @@ class TestAIError:
     def test_ai_error_creation_with_all_fields(self):
         """Test creating AIError with all fields."""
         timestamp = datetime(2024, 1, 15, 10, 30, 0)
-        
+
         error = AIError(
             error_type=AIErrorType.AUTHENTICATION,
             message="Invalid API key",
@@ -399,7 +400,7 @@ class TestAIError:
             timestamp=timestamp,
             recoverable=False
         )
-        
+
         assert error.error_type == AIErrorType.AUTHENTICATION
         assert error.message == "Invalid API key"
         assert error.commit_sha == "error123"
@@ -442,13 +443,13 @@ class TestModelSerialization:
             tokens_used=100,
             processing_time_ms=500.0
         )
-        
+
         # Serialize to dict
         data = original.model_dump()
-        
+
         # Deserialize back to object
         reconstructed = AISummary(**data)
-        
+
         assert reconstructed.commit_sha == original.commit_sha
         assert reconstructed.summary_text == original.summary_text
         assert reconstructed.tokens_used == original.tokens_used
@@ -460,7 +461,7 @@ class TestModelSerialization:
             commit_sha="roundtrip123",
             summary_text="Test summary with comprehensive details"
         )
-        
+
         original = CommitDetails(
             commit_sha="roundtrip123",
             message="Test commit",
@@ -472,13 +473,13 @@ class TestModelSerialization:
             commit_url="https://github.com/test/test/commit/roundtrip123",
             ai_summary=ai_summary
         )
-        
+
         # Serialize to dict
         data = original.model_dump()
-        
+
         # Deserialize back to object
         reconstructed = CommitDetails(**data)
-        
+
         assert reconstructed.commit_sha == original.commit_sha
         assert reconstructed.message == original.message
         assert reconstructed.ai_summary is not None
@@ -494,13 +495,13 @@ class TestModelSerialization:
             total_cost_usd=1.25,
             average_processing_time_ms=750.0
         )
-        
+
         # Serialize to dict
         data = original.model_dump()
-        
+
         # Deserialize back to object
         reconstructed = AIUsageStats(**data)
-        
+
         assert reconstructed.total_requests == original.total_requests
         assert reconstructed.successful_requests == original.successful_requests
         assert reconstructed.total_cost_usd == original.total_cost_usd
@@ -510,11 +511,11 @@ class TestModelSerialization:
         # Test default compact_mode is False
         config = AISummaryConfig()
         assert config.compact_mode is False
-        
+
         # Test setting compact_mode to True
         config_compact = AISummaryConfig(compact_mode=True)
         assert config_compact.compact_mode is True
-        
+
         # Test that compact_mode can be combined with other settings
         config_full = AISummaryConfig(
             enabled=True,
@@ -530,11 +531,11 @@ class TestModelSerialization:
     def test_ai_summary_config_compact_mode_serialization(self):
         """Test AISummaryConfig compact_mode serialization."""
         config = AISummaryConfig(compact_mode=True)
-        
+
         # Serialize to dict
         data = config.model_dump()
         assert data["compact_mode"] is True
-        
+
         # Deserialize back to object
         reconstructed = AISummaryConfig(**data)
         assert reconstructed.compact_mode is True

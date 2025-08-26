@@ -3,15 +3,15 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from forklift.models.interactive import InteractiveConfig
 from forklift.models.ai_summary import AISummaryConfig
 from forklift.models.fork_filtering import ForkFilteringConfig
+from forklift.models.interactive import InteractiveConfig
 
 
 class ScoringConfig(BaseModel):
@@ -278,7 +278,7 @@ class ForkliftConfig(BaseSettings):
     output_format: str = Field(
         default="markdown", description="Output format (markdown, json, yaml)"
     )
-    openai_api_key: Optional[str] = Field(
+    openai_api_key: str | None = Field(
         None, description="OpenAI API key for AI summaries"
     )
 
@@ -300,7 +300,7 @@ class ForkliftConfig(BaseSettings):
 
     @field_validator("openai_api_key")
     @classmethod
-    def validate_openai_api_key(cls, v: Optional[str]) -> Optional[str]:
+    def validate_openai_api_key(cls, v: str | None) -> str | None:
         """Validate OpenAI API key format."""
         if v is None:
             return v

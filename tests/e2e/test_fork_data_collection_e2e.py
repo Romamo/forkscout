@@ -1,9 +1,7 @@
 """End-to-end tests for complete fork data collection workflow with real data."""
 
-import asyncio
 import os
 import time
-from unittest.mock import patch
 
 import pytest
 
@@ -27,7 +25,7 @@ class TestForkDataCollectionEndToEnd:
             "expected_max_forks": 50,
         },
         {
-            "owner": "sanila2007", 
+            "owner": "sanila2007",
             "repo": "youtube-bot-telegram",
             "description": "Another small test repository",
             "expected_min_forks": 0,
@@ -154,7 +152,7 @@ class TestForkDataCollectionEndToEnd:
         assert len(successful_results) > 0, "At least one repository should process successfully"
 
         # Print summary
-        print(f"Workflow test with all repositories:")
+        print("Workflow test with all repositories:")
         for result in results:
             status = "SUCCESS" if result["success"] else "FAILED"
             print(f"  {result['repo']}: {status} ({result['time']:.2f}s)")
@@ -204,9 +202,9 @@ class TestForkDataCollectionEndToEnd:
         assert len(collected_forks) == result.stats.total_forks_discovered
         assert total_time < 60.0  # Should complete within 1 minute
 
-        print(f"Component integration test:")
+        print("Component integration test:")
         print(f"  Step 1 (Raw collection): {step1_time:.3f}s")
-        print(f"  Step 2 (Data processing): {step2_time:.3f}s") 
+        print(f"  Step 2 (Data processing): {step2_time:.3f}s")
         print(f"  Step 3 (Result creation): {step3_time:.3f}s")
         print(f"  Total time: {total_time:.3f}s")
         print(f"  Forks processed: {len(collected_forks)}")
@@ -222,13 +220,13 @@ class TestForkDataCollectionEndToEnd:
             await fork_discovery_service.discover_and_collect_fork_data(
                 invalid_repo_url, disable_cache=True
             )
-        
+
         error_time = time.time() - start_time
 
         # Error should be detected quickly
         assert error_time < 30.0  # Should fail within 30 seconds
 
-        print(f"Error recovery test:")
+        print("Error recovery test:")
         print(f"  Invalid repository: {invalid_repo_url}")
         print(f"  Error detection time: {error_time:.2f}s")
 
@@ -261,7 +259,7 @@ class TestForkDataCollectionEndToEnd:
         assert run1_time < 120.0
         assert run2_time < 120.0
 
-        print(f"Cache disabled workflow test:")
+        print("Cache disabled workflow test:")
         print(f"  Run 1: {run1_time:.2f}s, {result1.stats.total_forks_discovered} forks")
         print(f"  Run 2: {run2_time:.2f}s, {result2.stats.total_forks_discovered} forks")
         print(f"  Consistency: {'PASS' if result1.stats.total_forks_discovered == result2.stats.total_forks_discovered else 'FAIL'}")
@@ -301,10 +299,10 @@ class TestForkDataCollectionEndToEnd:
             # Verify timestamps are reasonable
             assert metrics.created_at.year >= 2008  # GitHub founded in 2008
             assert metrics.updated_at >= metrics.created_at
-            
-        print(f"Data quality validation:")
+
+        print("Data quality validation:")
         print(f"  Forks validated: {result.stats.total_forks_discovered}")
-        print(f"  All forks passed quality checks: PASS")
+        print("  All forks passed quality checks: PASS")
 
     @pytest.mark.asyncio
     @pytest.mark.e2e
@@ -336,7 +334,7 @@ class TestForkDataCollectionEndToEnd:
             assert forks_per_second >= performance_targets["min_forks_per_second"]
         assert api_efficiency >= performance_targets["min_api_efficiency"]
 
-        print(f"Performance benchmark test:")
+        print("Performance benchmark test:")
         print(f"  Total time: {total_time:.2f}s (target: <{performance_targets['max_total_time']}s)")
         print(f"  Forks per second: {forks_per_second:.1f} (target: >{performance_targets['min_forks_per_second']})")
         print(f"  API efficiency: {api_efficiency:.1f}% (target: >{performance_targets['min_api_efficiency']}%)")

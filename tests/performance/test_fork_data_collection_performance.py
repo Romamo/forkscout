@@ -2,13 +2,12 @@
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
 from forklift.github.fork_list_processor import ForkListProcessor
-from forklift.models.fork_qualification import QualifiedForksResult
 
 
 class TestForkDataCollectionPerformance:
@@ -95,7 +94,7 @@ class TestForkDataCollectionPerformance:
         forks_per_second = fork_count / processing_time
         assert forks_per_second > 20  # Should process at least 20 forks per second
 
-        print(f"Small dataset performance:")
+        print("Small dataset performance:")
         print(f"  Forks: {fork_count}")
         print(f"  Processing time: {processing_time:.3f}s")
         print(f"  Forks per second: {forks_per_second:.1f}")
@@ -134,7 +133,7 @@ class TestForkDataCollectionPerformance:
         forks_per_second = fork_count / processing_time
         assert forks_per_second > 50  # Should process at least 50 forks per second
 
-        print(f"Medium dataset performance:")
+        print("Medium dataset performance:")
         print(f"  Forks: {fork_count}")
         print(f"  Processing time: {processing_time:.3f}s")
         print(f"  Forks per second: {forks_per_second:.1f}")
@@ -173,7 +172,7 @@ class TestForkDataCollectionPerformance:
         forks_per_second = fork_count / processing_time
         assert forks_per_second > 100  # Should process at least 100 forks per second
 
-        print(f"Large dataset performance:")
+        print("Large dataset performance:")
         print(f"  Forks: {fork_count}")
         print(f"  Processing time: {processing_time:.3f}s")
         print(f"  Forks per second: {forks_per_second:.1f}")
@@ -218,7 +217,7 @@ class TestForkDataCollectionPerformance:
             assert processing_time < 5.0  # Should be fast for all ratios
             assert result.stats.total_forks_discovered == fork_count
 
-        print(f"Processing efficiency by commits ratio:")
+        print("Processing efficiency by commits ratio:")
         for result in results:
             print(f"  {result['ratio']:.0%} commits: {result['processing_time']:.3f}s, "
                   f"{result['forks_per_second']:.1f} forks/sec, "
@@ -228,8 +227,9 @@ class TestForkDataCollectionPerformance:
     @pytest.mark.performance
     def test_memory_efficiency_large_dataset(self, engine):
         """Test memory efficiency with large dataset."""
-        import psutil
         import os
+
+        import psutil
 
         fork_count = 5000
         mock_forks = self.create_mock_fork_data(fork_count)
@@ -253,7 +253,7 @@ class TestForkDataCollectionPerformance:
         # Memory usage should be reasonable (less than 100MB increase for 5000 forks)
         assert memory_increase < 100.0
 
-        print(f"Memory efficiency test:")
+        print("Memory efficiency test:")
         print(f"  Forks processed: {fork_count}")
         print(f"  Processing time: {processing_time:.3f}s")
         print(f"  Memory before: {memory_before:.1f} MB")
@@ -283,11 +283,11 @@ class TestForkDataCollectionPerformance:
             """Run multiple repository processing tasks concurrently."""
             # Simulate processing 5 repositories concurrently
             tasks = [process_repository(f"repo-{i}") for i in range(5)]
-            
+
             start_time = time.time()
             results = await asyncio.gather(*tasks)
             total_time = time.time() - start_time
-            
+
             return results, total_time
 
         # Mock to return first page then empty for each repository
@@ -313,8 +313,8 @@ class TestForkDataCollectionPerformance:
         average_processing_time = sum(processing_time for _, processing_time in results) / len(results)
         aggregate_forks_per_second = total_forks_processed / total_time
 
-        print(f"Concurrent processing simulation:")
-        print(f"  Repositories: 5")
+        print("Concurrent processing simulation:")
+        print("  Repositories: 5")
         print(f"  Total forks processed: {total_forks_processed}")
         print(f"  Total time: {total_time:.3f}s")
         print(f"  Average processing time per repo: {average_processing_time:.3f}s")
@@ -347,14 +347,14 @@ class TestForkDataCollectionPerformance:
 
             filtering_results[operation_name] = {
                 "time": operation_time,
-                "forks_per_second": fork_count / operation_time if operation_time > 0 else float('inf'),
+                "forks_per_second": fork_count / operation_time if operation_time > 0 else float("inf"),
                 "result_size": len(result) if isinstance(result, list) else sum(len(r) for r in result),
             }
 
             # Verify performance
             assert operation_time < 1.0  # All filtering operations should be very fast
 
-        print(f"Filtering performance impact:")
+        print("Filtering performance impact:")
         print(f"  Collection time: {collection_time:.3f}s ({fork_count / collection_time:.1f} forks/sec)")
         for operation, stats in filtering_results.items():
             print(f"  {operation}: {stats['time']:.3f}s ({stats['forks_per_second']:.1f} forks/sec)")
@@ -367,7 +367,7 @@ class TestForkDataCollectionPerformance:
 
         for size in dataset_sizes:
             mock_forks = self.create_mock_fork_data(size)
-            
+
             # Mock paginated responses with empty page to end pagination
             pages = [mock_forks[i:i+100] for i in range(0, size, 100)]
             pages.append([])  # Empty page to end pagination
@@ -393,7 +393,7 @@ class TestForkDataCollectionPerformance:
             assert processing_time < size * 0.01  # Should scale linearly or better
             assert result.stats.efficiency_percentage > 90  # Should maintain high efficiency
 
-        print(f"Scalability analysis:")
+        print("Scalability analysis:")
         print(f"{'Size':<6} {'Time(s)':<8} {'Forks/s':<8} {'API Calls':<10} {'Efficiency':<10}")
         print("-" * 50)
         for result in scalability_results:
@@ -406,7 +406,7 @@ class TestForkDataCollectionPerformance:
         """Test performance impact of error handling with mixed valid/invalid data."""
         fork_count = 1000
         valid_forks = self.create_mock_fork_data(int(fork_count * 0.8))  # 80% valid
-        
+
         # Create invalid forks (20% invalid)
         invalid_forks = [
             None,  # Null data
@@ -432,7 +432,7 @@ class TestForkDataCollectionPerformance:
         valid_forks_per_second = len(collected_forks) / processing_time
         total_items_per_second = len(mixed_data) / processing_time
 
-        print(f"Error handling performance impact:")
+        print("Error handling performance impact:")
         print(f"  Total items: {len(mixed_data)}")
         print(f"  Valid forks: {len(collected_forks)}")
         print(f"  Invalid items: {len(mixed_data) - len(collected_forks)}")
@@ -473,10 +473,10 @@ class TestForkDataCollectionPerformance:
         individual_time = asyncio.run(individual_calls_approach())
 
         # Calculate improvement
-        time_improvement = individual_time / list_time if list_time > 0 else float('inf')
+        time_improvement = individual_time / list_time if list_time > 0 else float("inf")
         api_calls_reduction = (fork_count - list_result.stats.api_calls_made) / fork_count * 100
 
-        print(f"Benchmark: Fork list vs Individual API calls:")
+        print("Benchmark: Fork list vs Individual API calls:")
         print(f"  Fork count: {fork_count}")
         print(f"  Fork list approach: {list_time:.3f}s, {list_result.stats.api_calls_made} API calls")
         print(f"  Individual calls approach: {individual_time:.3f}s, {fork_count} API calls")

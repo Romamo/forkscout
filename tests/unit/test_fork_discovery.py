@@ -1,6 +1,6 @@
 """Tests for fork discovery service."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -179,7 +179,7 @@ def sample_qualified_forks_result(sample_collected_fork_data):
         api_calls_saved=3,
         processing_time_seconds=1.5,
     )
-    
+
     return QualifiedForksResult(
         repository_owner="test-owner",
         repository_name="test-repo",
@@ -245,7 +245,7 @@ class TestForkDiscoveryService:
         """Test successful fork discovery."""
         # Setup mocks for new data collection method
         mock_github_client.get_repository.return_value = sample_repository
-        
+
         # Mock the get method for ForkListProcessor
         fork_data = {
             "id": sample_fork_repository.id,
@@ -272,7 +272,7 @@ class TestForkDiscoveryService:
             "default_branch": "main",
         }
         mock_github_client.get.return_value = [fork_data]
-        
+
         # Setup mocks for fork analysis
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
@@ -654,7 +654,7 @@ class TestForkDiscoveryService:
         """Test the integrated discover and filter operation."""
         # Setup mocks for new data collection method
         mock_github_client.get_repository.return_value = sample_repository
-        
+
         # Mock the get method for ForkListProcessor
         fork_data = {
             "id": sample_fork_repository.id,
@@ -681,7 +681,7 @@ class TestForkDiscoveryService:
             "default_branch": "main",
         }
         mock_github_client.get.return_value = [fork_data]
-        
+
         # Setup mocks for fork analysis
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
@@ -1094,16 +1094,16 @@ class TestForkDiscoveryDataCollectionIntegration:
         """Test discover_forks method with data collection integration."""
         # Setup mocks
         mock_github_client.get_repository.return_value = sample_repository
-        
+
         # Mock the discover_and_collect_fork_data method
         fork_discovery_service_with_mocks.discover_and_collect_fork_data = AsyncMock(
             return_value=sample_qualified_forks_result
         )
-        
+
         mock_data_collection_engine.exclude_no_commits_ahead.return_value = [
             sample_collected_fork_data
         ]
-        
+
         mock_github_client.get_commits_ahead_behind.return_value = {
             "ahead_by": 5,
             "behind_by": 2,
@@ -1156,7 +1156,7 @@ class TestForkDiscoveryDataCollectionIntegration:
             api_calls_saved=21,  # 7 forks * 3 calls each
             processing_time_seconds=1.5,
         )
-        
+
         qualified_result = QualifiedForksResult(
             repository_owner="test-owner",
             repository_name="test-repo",
@@ -1553,7 +1553,7 @@ class TestForkDiscoveryOptimization:
         """Test that optimization achieves target 60-80% reduction in API calls for typical repositories."""
         # Create a typical repository scenario with 10 forks, 7 of which have no commits ahead
         fork_repos = []
-        
+
         # 7 forks with no commits ahead (should be pre-filtered)
         for i in range(7):
             timestamp = datetime.utcnow() - timedelta(days=30 + i)
@@ -1574,7 +1574,7 @@ class TestForkDiscoveryOptimization:
                 pushed_at=timestamp,  # Same as created_at = no commits
             )
             fork_repos.append(fork_repo)
-        
+
         # 3 forks with commits ahead (should proceed to full analysis)
         for i in range(3):
             created_time = datetime.utcnow() - timedelta(days=30 + i)
@@ -1614,7 +1614,7 @@ class TestForkDiscoveryOptimization:
 
         # Assertions
         assert len(result) == 3  # Only 3 forks with commits ahead should be analyzed
-        
+
         # Verify API call reduction
         # Total potential calls: 10 forks * 3 calls = 30 calls
         # Actual calls: 3 forks * 3 calls = 9 calls
@@ -1622,12 +1622,12 @@ class TestForkDiscoveryOptimization:
         expected_calls = 3 * 3  # 3 forks * 3 calls each
         assert mock_github_client.get_commits_ahead_behind.call_count == 3
         assert mock_github_client.get_user.call_count == 3
-        
+
         # Calculate actual reduction percentage
         total_potential_calls = len(fork_repos) * 3
         actual_calls = expected_calls
         reduction_percentage = ((total_potential_calls - actual_calls) / total_potential_calls * 100)
-        
+
         # Should achieve target 60-80% reduction
         assert 60 <= reduction_percentage <= 80
         assert reduction_percentage == 70.0  # Exact expected reduction for this scenario
@@ -1703,15 +1703,16 @@ class TestForkDiscoveryServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_has_no_commits_ahead_logic(self, fork_discovery_service):
         """Test the _has_no_commits_ahead method with different timestamp scenarios."""
-        from datetime import datetime, timezone
-        from forklift.models.github import Repository, Fork, User
-        
+        from datetime import datetime
+
+        from forklift.models.github import Fork, Repository, User
+
         # Helper to create test fork
         def create_test_fork(full_name, created_at, pushed_at):
             repo = Repository(
                 id=1,
-                owner=full_name.split('/')[0],
-                name=full_name.split('/')[1],
+                owner=full_name.split("/")[0],
+                name=full_name.split("/")[1],
                 full_name=full_name,
                 url=f"https://api.github.com/repos/{full_name}",
                 html_url=f"https://github.com/{full_name}",
@@ -1737,31 +1738,31 @@ class TestForkDiscoveryServiceEdgeCases:
                 commits_ahead=0,
                 commits_behind=0
             )
-        
+
         # Test case 1: created_at == pushed_at (no commits)
         fork1 = create_test_fork(
             "user1/test-repo",
-            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
         )
-        
+
         # Test case 2: created_at > pushed_at (fork created after last push)
         fork2 = create_test_fork(
             "user2/test-repo",
-            created_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            created_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC),
+            pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
         )
-        
+
         # Test case 3: pushed_at > created_at (potentially has commits)
         fork3 = create_test_fork(
             "user3/test-repo",
-            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            pushed_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=timezone.utc)
+            created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
+            pushed_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC)
         )
-        
+
         # Test case 4: Missing timestamps
         fork4 = create_test_fork("user4/test-repo", created_at=None, pushed_at=None)
-        
+
         # Test the logic
         assert fork_discovery_service._has_no_commits_ahead(fork1) == True  # created_at == pushed_at
         assert fork_discovery_service._has_no_commits_ahead(fork2) == True  # created_at > pushed_at

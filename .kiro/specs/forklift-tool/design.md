@@ -99,6 +99,72 @@ The fork data collection system is designed to dramatically reduce GitHub API us
 - **Graceful Degradation**: Handle missing or incomplete fork data without failing the entire collection process
 - **Performance Optimization**: Process large numbers of forks efficiently with minimal memory usage
 
+## HTTP Caching System Design Philosophy
+
+The caching system is designed around simplicity and effectiveness using Hishel for HTTP-level caching, replacing the over-engineered custom SQLite cache system with a battle-tested solution that provides better performance with minimal code complexity.
+
+### HTTP Caching Design Principles
+
+- **Simplicity First**: Use Hishel's automatic HTTP caching instead of complex custom cache management
+- **Standards Compliance**: Leverage HTTP caching standards and headers for proper cache behavior
+- **Transparent Operation**: HTTP-level caching that works automatically without manual integration
+- **Minimal Configuration**: Simple setup with sensible defaults rather than complex configuration options
+- **Automatic Management**: Let Hishel handle cache warming, cleanup, and storage management
+- **Performance Focus**: Optimize for fast subsequent runs with minimal API calls
+
+### Cache System Migration Strategy
+
+The existing custom cache system (tasks 9.1-9.2) will be completely replaced with Hishel:
+
+**Removed Components:**
+- `CacheManager` class with complex cache warming and cleanup (~200 lines)
+- `CacheWarmingConfig` and `CacheCleanupConfig` classes (~100 lines)
+- `AnalysisCacheManager` for application-level caching (~150 lines)
+- Custom SQLite cache implementation (`cache.py`, `cache_manager.py`) (~300 lines)
+- Complex cache monitoring and metrics collection (~100 lines)
+
+**Total Code Reduction:** ~850 lines of complex cache management code
+
+**Replaced With:**
+- Hishel HTTP client wrapper for automatic caching (~20 lines)
+- Simple cache configuration in `ForkliftConfig` (~10 lines)
+- Automatic cache management with no manual intervention required
+- HTTP-standard compliant caching behavior
+
+**Benefits of Migration:**
+1. **Dramatic Code Simplification**: Remove 850+ lines of complex cache code
+2. **Better Performance**: HTTP-level caching is more efficient than application-level
+3. **Standards Compliance**: Respects HTTP cache headers and standards
+4. **Automatic Management**: No need for cache warming, cleanup, or monitoring
+5. **Reduced Maintenance**: Battle-tested library vs custom implementation
+6. **Easier Testing**: Simple HTTP caching vs complex cache state management
+7. **Better User Experience**: Transparent caching that "just works"
+
+### Cache Bypass Implementation
+
+With Hishel, cache bypass becomes much simpler:
+
+```python
+# Current complex approach (to be removed)
+async def get_repository(self, owner: str, repo: str, disable_cache: bool = False) -> Repository:
+    if disable_cache:
+        logger.debug(f"Cache bypass requested for repository {owner}/{repo}")
+        # Complex cache bypass logic...
+    # More complex cache integration...
+
+# New simple approach with Hishel
+class GitHubClient:
+    def __init__(self, token: str, cache_enabled: bool = True):
+        if cache_enabled:
+            self.client = httpx.AsyncClient(transport=CacheTransport(...))
+        else:
+            self.client = httpx.AsyncClient()  # No caching
+    
+    def disable_cache_for_session(self):
+        # Simply recreate client without cache transport
+        self.client = httpx.AsyncClient(headers=self.client.headers)
+```
+
 ## Smart Fork Filtering System Design Philosophy
 
 The smart fork filtering system is designed to automatically skip forks with no commits ahead when using detailed analysis commands, leveraging already collected fork qualification data to avoid unnecessary expensive operations like AI summaries and diff generation.
@@ -367,25 +433,68 @@ class ForkFilteringConfig(BaseModel):
 
 ## Components and Interfaces
 
-### GitHub Client
+### GitHub Client (Simplified with Hishel)
 ```python
 class GitHubClient:
-    def __init__(self, token: str, rate_limit_handler: RateLimitHandler, cache_manager: Optional[CacheManager] = None)
-    async def get_repository(self, owner: str, repo: str, disable_cache: bool = False) -> Repository
-    async def get_forks(self, owner: str, repo: str, disable_cache: bool = False) -> List[Fork]
-    async def get_commits_ahead(self, fork: Fork, base_repo: Repository, disable_cache: bool = False) -> List[Commit]
+    def __init__(self, token: str, rate_limit_handler: RateLimitHandler, cache_enabled: bool = True)
+    async def get_repository(self, owner: str, repo: str) -> Repository
+    async def get_forks(self, owner: str, repo: str) -> List[Fork]
+    async def get_commits_ahead(self, fork: Fork, base_repo: Repository) -> List[Commit]
     async def create_pull_request(self, pr_data: PullRequestData) -> PullRequest
     
     # Enhanced pagination methods
-    async def get_all_repository_forks(self, owner: str, repo: str, max_forks: int = None, progress_callback: Callable = None, disable_cache: bool = False) -> List[Fork]
-    async def get_paginated_commits(self, owner: str, repo: str, branch: str = None, max_commits: int = None, progress_callback: Callable = None, disable_cache: bool = False) -> AsyncIterator[List[Commit]]
-    async def get_repository_branches_paginated(self, owner: str, repo: str, max_branches: int = None, disable_cache: bool = False) -> List[Branch]
+    async def get_all_repository_forks(self, owner: str, repo: str, max_forks: int = None, progress_callback: Callable = None) -> List[Fork]
+    async def get_paginated_commits(self, owner: str, repo: str, branch: str = None, max_commits: int = None, progress_callback: Callable = None) -> AsyncIterator[List[Commit]]
+    async def get_repository_branches_paginated(self, owner: str, repo: str, max_branches: int = None) -> List[Branch]
     
-    # Cache management methods
-    def set_cache_disabled(self, disabled: bool) -> None
-    def is_cache_disabled(self) -> bool
-    async def _get_with_cache(self, cache_key: str, fetch_func: Callable, disable_cache: bool = False) -> Any
-    def _log_cache_operation(self, operation: str, cache_key: str, hit: bool) -> None
+    # Simplified cache control (Hishel handles the complexity)
+    def disable_cache_for_session(self) -> None
+    def enable_cache_for_session(self) -> None
+    def get_cache_stats(self) -> Dict[str, Any]  # Simple stats from Hishel
+```
+
+### Hishel Cache Configuration
+```python
+class CacheConfig:
+    """Simplified cache configuration for Hishel."""
+    def __init__(
+        self,
+        enabled: bool = True,
+        storage_path: str = ".forklift_cache",
+        default_ttl_seconds: int = 1800,  # 30 minutes
+        max_size_mb: int = 100
+    )
+
+# Hishel integration in GitHub client
+import hishel
+from hishel import CacheTransport
+
+class GitHubClient:
+    def __init__(self, token: str, cache_config: CacheConfig = None):
+        self.cache_config = cache_config or CacheConfig()
+        
+        if self.cache_config.enabled:
+            # Use Hishel for automatic HTTP caching
+            transport = CacheTransport(
+                transport=httpx.AsyncHTTPTransport(),
+                storage=hishel.SQLiteStorage(self.cache_config.storage_path),
+                controller=hishel.Controller(
+                    cacheable_methods=["GET"],
+                    cacheable_status_codes=[200],
+                    allow_stale=False,
+                )
+            )
+            self.client = httpx.AsyncClient(
+                transport=transport,
+                headers={"Authorization": f"token {token}"},
+                timeout=30.0
+            )
+        else:
+            # Direct HTTP client without caching
+            self.client = httpx.AsyncClient(
+                headers={"Authorization": f"token {token}"},
+                timeout=30.0
+            )
 ```
 
 ### Pagination Manager
@@ -409,14 +518,14 @@ class PaginationProgressTracker:
     def format_progress_display(self) -> str
 ```
 
-### Fork Discovery Service
+### Fork Discovery Service (Simplified)
 ```python
 class ForkDiscoveryService:
     def __init__(self, github_client: GitHubClient, data_collection_engine: ForkDataCollectionEngine)
-    async def discover_forks(self, repository_url: str, disable_cache: bool = False) -> List[Fork]
-    async def discover_and_collect_fork_data(self, repository_url: str, disable_cache: bool = False) -> ForkDataCollectionResult
-    async def filter_active_forks(self, forks: List[Fork], disable_cache: bool = False) -> List[Fork]
-    async def get_unique_commits(self, fork: Fork, base_repo: Repository, disable_cache: bool = False) -> List[Commit]
+    async def discover_forks(self, repository_url: str) -> List[Fork]
+    async def discover_and_collect_fork_data(self, repository_url: str) -> ForkDataCollectionResult
+    async def filter_active_forks(self, forks: List[Fork]) -> List[Fork]
+    async def get_unique_commits(self, fork: Fork, base_repo: Repository) -> List[Commit]
 
 class ForkDataCollectionEngine:
     def __init__(self)
@@ -437,11 +546,11 @@ class ForkListProcessor:
     def validate_fork_data_completeness(self, fork_data: dict) -> bool
 ```
 
-### Repository Analyzer
+### Repository Analyzer (Simplified)
 ```python
 class RepositoryAnalyzer:
-    def __init__(self, github_client: GitHubClient, explanation_engine: Optional[CommitExplanationEngine] = None, cache_manager: Optional[CacheManager] = None)
-    async def analyze_fork(self, fork: Fork, base_repo: Repository, explain: bool = False, disable_cache: bool = False) -> ForkAnalysis
+    def __init__(self, github_client: GitHubClient, explanation_engine: Optional[CommitExplanationEngine] = None)
+    async def analyze_fork(self, fork: Fork, base_repo: Repository, explain: bool = False) -> ForkAnalysis
     async def extract_features(self, commits: List[Commit]) -> List[Feature]
     async def categorize_changes(self, commits: List[Commit]) -> Dict[str, List[Commit]]
     async def _analyze_commits_with_explanations(self, commits: List[Commit], context: AnalysisContext) -> List[CommitWithExplanation]
@@ -567,13 +676,13 @@ class FeatureRankingEngine:
 ### CLI Command Handlers
 ```python
 class RepositoryDisplayService:
-    def __init__(self, github_client: GitHubClient, data_collection_engine: ForkDataCollectionEngine, cache_manager: Optional[CacheManager] = None, ai_summary_engine: Optional[AICommitSummaryEngine] = None)
-    async def show_repository_details(self, repo_url: str, disable_cache: bool = False) -> RepositoryDetails
-    async def list_forks_preview(self, repo_url: str, disable_cache: bool = False) -> ForksPreview
-    async def show_fork_data(self, repo_url: str, show_all: bool = False, disable_cache: bool = False) -> ForkDataCollectionResult
-    async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter, disable_cache: bool = False) -> List[Fork]
-    async def show_fork_details(self, fork_url: str, disable_cache: bool = False) -> ForkDetails
-    async def show_commits(self, fork_url: str, branch: str, limit: int, disable_cache: bool = False, ai_summary: bool = False) -> List[CommitDetails]
+    def __init__(self, github_client: GitHubClient, data_collection_engine: ForkDataCollectionEngine, ai_summary_engine: Optional[AICommitSummaryEngine] = None)
+    async def show_repository_details(self, repo_url: str) -> RepositoryDetails
+    async def list_forks_preview(self, repo_url: str) -> ForksPreview
+    async def show_fork_data(self, repo_url: str, show_all: bool = False) -> ForkDataCollectionResult
+    async def show_promising_forks(self, repo_url: str, filters: PromisingForksFilter) -> List[Fork]
+    async def show_fork_details(self, fork_url: str) -> ForkDetails
+    async def show_commits(self, fork_url: str, branch: str, limit: int, ai_summary: bool = False) -> List[CommitDetails]
     async def _generate_ai_summaries(self, commits: List[Commit], repository: Repository) -> Dict[str, AISummary]
     def _format_commit_with_ai_summary(self, commit: CommitDetails, ai_summary: Optional[AISummary]) -> str
     def _format_fork_data_display(self, collection_result: ForkDataCollectionResult, show_all: bool) -> str
@@ -588,15 +697,15 @@ class RepositoryDisplayService:
     def _should_exclude_fork_insights(self) -> bool
 
 class InteractiveAnalyzer:
-    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, cache_manager: Optional[CacheManager] = None)
-    async def analyze_specific_fork(self, fork_url: str, branch: str, disable_cache: bool = False) -> ForkAnalysisResult
+    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer)
+    async def analyze_specific_fork(self, fork_url: str, branch: str) -> ForkAnalysisResult
     def format_repository_display(self, repo: Repository) -> str
     def format_forks_table(self, forks: List[Fork]) -> str
     def format_commits_display(self, commits: List[Commit]) -> str
 
 class InteractiveAnalysisOrchestrator:
-    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, config: InteractiveConfig, cache_manager: Optional[CacheManager] = None)
-    async def run_interactive_analysis(self, repo_url: str, disable_cache: bool = False) -> InteractiveAnalysisResult
+    def __init__(self, github_client: GitHubClient, analyzer: RepositoryAnalyzer, config: InteractiveConfig)
+    async def run_interactive_analysis(self, repo_url: str) -> InteractiveAnalysisResult
     async def execute_step(self, step: InteractiveStep) -> StepResult
     async def get_user_confirmation(self, step_name: str, results: Any) -> UserChoice
     def display_step_results(self, step_name: str, results: Any) -> None

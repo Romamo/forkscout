@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -69,10 +68,10 @@ class ForkAnalysis(BaseModel):
     analysis_date: datetime = Field(
         default_factory=datetime.utcnow, description="Analysis timestamp"
     )
-    commit_explanations: Optional[list["CommitExplanation"]] = Field(
+    commit_explanations: list["CommitExplanation"] | None = Field(
         None, description="Commit explanations if generated"
     )
-    explanation_summary: Optional[str] = Field(
+    explanation_summary: str | None = Field(
         None, description="Summary of explanation analysis"
     )
 
@@ -128,7 +127,7 @@ class MainRepoValue(str, Enum):
     """Assessment of whether a commit could be valuable for the main repository."""
 
     YES = "yes"      # This change could be useful for the main repository
-    NO = "no"        # This change is not relevant for the main repository  
+    NO = "no"        # This change is not relevant for the main repository
     UNCLEAR = "unclear"  # Cannot determine if this would be useful
 
 
@@ -139,7 +138,7 @@ class FileChange(BaseModel):
     status: str = Field(..., description="Change status: added, modified, deleted, renamed")
     additions: int = Field(default=0, ge=0, description="Number of lines added")
     deletions: int = Field(default=0, ge=0, description="Number of lines deleted")
-    patch: Optional[str] = Field(None, description="Patch content if available")
+    patch: str | None = Field(None, description="Patch content if available")
 
 
 class CommitCategory(BaseModel):
@@ -166,9 +165,9 @@ class AnalysisContext(BaseModel):
     """Context information for commit analysis."""
 
     repository: Repository = Field(..., description="Repository being analyzed")
-    fork: Optional[Fork] = Field(None, description="Fork being analyzed (None for original repositories)")
-    project_type: Optional[str] = Field(None, description="Type of project (web, library, cli, etc.)")
-    main_language: Optional[str] = Field(None, description="Primary programming language")
+    fork: Fork | None = Field(None, description="Fork being analyzed (None for original repositories)")
+    project_type: str | None = Field(None, description="Type of project (web, library, cli, etc.)")
+    main_language: str | None = Field(None, description="Primary programming language")
     critical_files: list[str] = Field(
         default_factory=list, description="List of critical files in the project"
     )
@@ -206,5 +205,5 @@ class CommitWithExplanation(BaseModel):
     """A commit paired with its optional explanation."""
 
     commit: Commit = Field(..., description="The commit")
-    explanation: Optional[CommitExplanation] = Field(None, description="Generated explanation")
-    explanation_error: Optional[str] = Field(None, description="Error message if explanation failed")
+    explanation: CommitExplanation | None = Field(None, description="Generated explanation")
+    explanation_error: str | None = Field(None, description="Error message if explanation failed")

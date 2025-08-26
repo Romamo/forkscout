@@ -9,13 +9,12 @@ import pytest
 
 from forklift.config import GitHubConfig
 from forklift.github.client import (
-    GitHubClient,
     GitHubAPIError,
-    GitHubRateLimitError,
     GitHubAuthenticationError,
+    GitHubClient,
     GitHubNotFoundError,
 )
-from forklift.github.rate_limiter import RateLimitHandler, CircuitBreaker
+from forklift.github.rate_limiter import CircuitBreaker, RateLimitHandler
 
 
 @pytest.fixture
@@ -89,7 +88,7 @@ class TestGitHubClientRateLimiting:
             mock_response_2,
         ]
 
-        with patch('asyncio.sleep'):  # Mock sleep to speed up test
+        with patch("asyncio.sleep"):  # Mock sleep to speed up test
             client._client = mock_client
             result = await client.get("test/endpoint")
 
@@ -116,7 +115,7 @@ class TestGitHubClientRateLimiting:
         mock_client = AsyncMock()
         mock_client.request.side_effect = [mock_response_1, mock_response_2]
 
-        with patch('asyncio.sleep') as mock_sleep:
+        with patch("asyncio.sleep") as mock_sleep:
             client._client = mock_client
             result = await client.get("test/endpoint")
 
@@ -306,7 +305,7 @@ class TestGitHubClientCircuitBreaker:
             timeout=0.1,  # Short timeout for testing
             expected_exception=GitHubAPIError,
         )
-        
+
         client = GitHubClient(
             config=github_config,
             circuit_breaker=circuit_breaker,
@@ -362,8 +361,8 @@ class TestGitHubClientUtilityMethods:
             }
         }
 
-        with patch.object(client, 'get_rate_limit', return_value=rate_limit_data):
-            with patch('asyncio.sleep') as mock_sleep:
+        with patch.object(client, "get_rate_limit", return_value=rate_limit_data):
+            with patch("asyncio.sleep") as mock_sleep:
                 await client.wait_for_rate_limit_reset()
 
         # Should have slept for approximately 1 second + buffer
@@ -386,8 +385,8 @@ class TestGitHubClientUtilityMethods:
             }
         }
 
-        with patch.object(client, 'get_rate_limit', return_value=rate_limit_data):
-            with patch('asyncio.sleep') as mock_sleep:
+        with patch.object(client, "get_rate_limit", return_value=rate_limit_data):
+            with patch("asyncio.sleep") as mock_sleep:
                 await client.wait_for_rate_limit_reset()
 
         # Should not have slept
@@ -434,7 +433,7 @@ class TestIntegrationScenarios:
         """Test complex scenario with multiple error types and recovery."""
         rate_limit_handler = RateLimitHandler(max_retries=5, base_delay=0.01)
         circuit_breaker = CircuitBreaker(failure_threshold=3, expected_exception=GitHubAPIError)
-        
+
         client = GitHubClient(
             config=github_config,
             rate_limit_handler=rate_limit_handler,
@@ -467,7 +466,7 @@ class TestIntegrationScenarios:
         mock_client = AsyncMock()
         mock_client.request.side_effect = responses
 
-        with patch('asyncio.sleep'):  # Mock sleep to speed up test
+        with patch("asyncio.sleep"):  # Mock sleep to speed up test
             client._client = mock_client
             result = await client.get("test/endpoint")
 

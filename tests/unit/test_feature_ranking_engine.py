@@ -1,12 +1,12 @@
 """Tests for the FeatureRankingEngine."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock
+
+import pytest
 
 from src.forklift.config.settings import ScoringConfig
-from src.forklift.models.analysis import Feature, ForkMetrics, FeatureCategory
-from src.forklift.models.github import Fork, Repository, Commit, User
+from src.forklift.models.analysis import Feature, FeatureCategory, ForkMetrics
+from src.forklift.models.github import Commit, Fork, Repository, User
 from src.forklift.ranking.feature_ranking_engine import FeatureRankingEngine
 
 
@@ -110,7 +110,7 @@ class TestFeatureRankingEngine:
     def test_calculate_feature_score_basic(self, ranking_engine, sample_feature, sample_fork_metrics):
         """Test basic feature score calculation."""
         score = ranking_engine.calculate_feature_score(sample_feature, sample_fork_metrics)
-        
+
         assert 0 <= score <= 100
         assert isinstance(score, float)
 
@@ -123,7 +123,7 @@ class TestFeatureRankingEngine:
             last_activity=datetime.utcnow() - timedelta(days=1),
             commit_frequency=2.0
         )
-        
+
         score = ranking_engine.calculate_feature_score(sample_feature, good_metrics)
         assert score > 50  # Should be above average with good metrics
 
@@ -136,7 +136,7 @@ class TestFeatureRankingEngine:
             last_activity=datetime.utcnow() - timedelta(days=365),
             commit_frequency=0.0
         )
-        
+
         score = ranking_engine.calculate_feature_score(sample_feature, poor_metrics)
         assert score < 70  # Should be lower with poor metrics
 
@@ -145,7 +145,7 @@ class TestFeatureRankingEngine:
         # Create features with different characteristics
         author1 = User(login="author1", html_url="https://github.com/author1")
         author2 = User(login="author2", html_url="https://github.com/author2")
-        
+
         recent_commit = Commit(
             sha="1234567890abcdef1234567890abcdef12345678",
             message="feat: add excellent new feature with comprehensive tests",
@@ -155,7 +155,7 @@ class TestFeatureRankingEngine:
             additions=100,
             deletions=10
         )
-        
+
         old_commit = Commit(
             sha="abcdef1234567890abcdef1234567890abcdef12",
             message="fix",
@@ -165,7 +165,7 @@ class TestFeatureRankingEngine:
             additions=5,
             deletions=1
         )
-        
+
         good_feature = Feature(
             id="good-feature",
             title="Excellent Feature",
@@ -175,7 +175,7 @@ class TestFeatureRankingEngine:
             files_affected=["src/feature.py", "tests/test_feature.py", "docs/feature.md"],
             source_fork=sample_fork
         )
-        
+
         poor_feature = Feature(
             id="poor-feature",
             title="Poor Feature",
@@ -185,7 +185,7 @@ class TestFeatureRankingEngine:
             files_affected=["src/old.py"],
             source_fork=sample_fork
         )
-        
+
         features = [poor_feature, good_feature]  # Intentionally out of order
         fork_metrics_map = {
             sample_fork.repository.url: ForkMetrics(
@@ -196,9 +196,9 @@ class TestFeatureRankingEngine:
                 commit_frequency=1.0
             )
         }
-        
+
         ranked_features = ranking_engine.rank_features(features, fork_metrics_map)
-        
+
         assert len(ranked_features) == 2
         assert ranked_features[0].feature.id == "good-feature"  # Should be ranked first
         assert ranked_features[1].feature.id == "poor-feature"  # Should be ranked second
@@ -208,19 +208,19 @@ class TestFeatureRankingEngine:
         """Test that ranking includes breakdown of factors."""
         features = [sample_feature]
         fork_metrics_map = {sample_feature.source_fork.repository.url: sample_fork_metrics}
-        
+
         ranked_features = ranking_engine.rank_features(features, fork_metrics_map)
-        
+
         assert len(ranked_features) == 1
         ranked_feature = ranked_features[0]
-        
+
         # Check that ranking factors are included
         assert "code_quality" in ranked_feature.ranking_factors
         assert "community_engagement" in ranked_feature.ranking_factors
         assert "test_coverage" in ranked_feature.ranking_factors
         assert "documentation" in ranked_feature.ranking_factors
         assert "recency" in ranked_feature.ranking_factors
-        
+
         # All factors should be numeric
         for factor_score in ranked_feature.ranking_factors.values():
             assert isinstance(factor_score, (int, float))
@@ -238,7 +238,7 @@ class TestFeatureRankingEngine:
             additions=80,
             deletions=10
         )
-        
+
         feature = Feature(
             id="test-feature",
             title="Test Feature",
@@ -248,7 +248,7 @@ class TestFeatureRankingEngine:
             files_affected=["src/auth.py", "tests/test_auth.py"],
             source_fork=sample_fork
         )
-        
+
         score = ranking_engine._calculate_code_quality_score(feature)
         assert score > 50  # Should be above average
 
@@ -264,7 +264,7 @@ class TestFeatureRankingEngine:
             additions=1,
             deletions=0
         )
-        
+
         feature = Feature(
             id="test-feature",
             title="Test Feature",
@@ -274,7 +274,7 @@ class TestFeatureRankingEngine:
             files_affected=["file.py"],
             source_fork=sample_fork
         )
-        
+
         score = ranking_engine._calculate_code_quality_score(feature)
         assert score < 60  # Should be below average
 
@@ -287,7 +287,7 @@ class TestFeatureRankingEngine:
             last_activity=datetime.utcnow() - timedelta(days=1),
             commit_frequency=3.0
         )
-        
+
         low_engagement_metrics = ForkMetrics(
             stars=0,
             forks=0,
@@ -295,10 +295,10 @@ class TestFeatureRankingEngine:
             last_activity=datetime.utcnow() - timedelta(days=365),
             commit_frequency=0.0
         )
-        
+
         high_score = ranking_engine._calculate_community_engagement_score(high_engagement_metrics)
         low_score = ranking_engine._calculate_community_engagement_score(low_engagement_metrics)
-        
+
         assert high_score > low_score
         assert 0 <= high_score <= 100
         assert 0 <= low_score <= 100
@@ -314,7 +314,7 @@ class TestFeatureRankingEngine:
             files_affected=["src/feature.py", "tests/test_feature.py"],
             source_fork=sample_fork
         )
-        
+
         score = ranking_engine._calculate_test_coverage_score(feature_with_tests)
         assert score >= 80  # Should have high score with 1:1 test ratio
 
@@ -329,14 +329,14 @@ class TestFeatureRankingEngine:
             files_affected=["src/feature.py"],
             source_fork=sample_fork
         )
-        
+
         score = ranking_engine._calculate_test_coverage_score(feature_without_tests)
         assert score <= 30  # Should have low score without tests
 
     def test_documentation_score_with_docs(self, ranking_engine, sample_fork):
         """Test documentation scoring with documentation files."""
         author = User(login="author", html_url="https://github.com/author")
-        
+
         feature_with_docs = Feature(
             id="test-feature",
             title="Documented Feature",
@@ -356,14 +356,14 @@ class TestFeatureRankingEngine:
             files_affected=["src/auth.py", "docs/auth.md", "README.md"],
             source_fork=sample_fork
         )
-        
+
         score = ranking_engine._calculate_documentation_score(feature_with_docs)
         assert score >= 70  # Should have high score with documentation
 
     def test_recency_score_calculation(self, ranking_engine, sample_fork):
         """Test recency score calculation."""
         author = User(login="author", html_url="https://github.com/author")
-        
+
         recent_feature = Feature(
             id="recent-feature",
             title="Recent Feature",
@@ -383,7 +383,7 @@ class TestFeatureRankingEngine:
             files_affected=["file.py"],
             source_fork=sample_fork
         )
-        
+
         old_feature = Feature(
             id="old-feature",
             title="Old Feature",
@@ -403,10 +403,10 @@ class TestFeatureRankingEngine:
             files_affected=["file.py"],
             source_fork=sample_fork
         )
-        
+
         recent_score = ranking_engine._calculate_recency_score(recent_feature)
         old_score = ranking_engine._calculate_recency_score(old_feature)
-        
+
         assert recent_score > old_score
         assert recent_score >= 90  # Recent should be high
         assert old_score <= 20     # Old should be low
@@ -417,13 +417,13 @@ class TestFeatureRankingEngine:
         good_score = ranking_engine._analyze_commit_message_quality(
             "feat(auth): implement JWT token validation with error handling"
         )
-        
+
         # Poor commit message
         poor_score = ranking_engine._analyze_commit_message_quality("fix")
-        
+
         # Empty commit message
         empty_score = ranking_engine._analyze_commit_message_quality("")
-        
+
         assert good_score > poor_score
         assert poor_score > empty_score  # Poor should be better than empty
         assert empty_score < 0  # Should be negative
@@ -432,13 +432,13 @@ class TestFeatureRankingEngine:
         """Test change size analysis."""
         # Moderate changes (preferred)
         moderate_score = ranking_engine._analyze_change_size(50, 10)
-        
+
         # Very large changes (less preferred)
         large_score = ranking_engine._analyze_change_size(1000, 500)
-        
+
         # Very small changes (might be trivial)
         small_score = ranking_engine._analyze_change_size(1, 0)
-        
+
         assert moderate_score > large_score
         assert moderate_score > small_score
 
@@ -449,13 +449,13 @@ class TestFeatureRankingEngine:
         assert ranking_engine._is_test_file("tests/test_user.py")
         assert ranking_engine._is_test_file("auth_test.py")
         assert not ranking_engine._is_test_file("auth.py")
-        
+
         # Source files
         assert ranking_engine._is_source_file("auth.py")
         assert ranking_engine._is_source_file("main.js")
         assert not ranking_engine._is_source_file("test_auth.py")
         assert not ranking_engine._is_source_file("README.md")
-        
+
         # Documentation files
         assert ranking_engine._is_documentation_file("README.md")
         assert ranking_engine._is_documentation_file("docs/guide.rst")
@@ -471,10 +471,10 @@ class TestFeatureRankingEngine:
             documentation_weight=0.0,
             recency_weight=0.0
         )
-        
+
         engine = FeatureRankingEngine(config)
         score = engine.calculate_feature_score(sample_feature, sample_fork_metrics)
-        
+
         # Score should only reflect code quality
         code_quality_score = engine._calculate_code_quality_score(sample_feature)
         assert abs(score - code_quality_score) < 0.1  # Allow for floating point precision
@@ -489,7 +489,7 @@ class TestFeatureRankingEngine:
             last_activity=datetime.utcnow(),
             commit_frequency=100.0
         )
-        
+
         score = ranking_engine.calculate_feature_score(sample_feature, extreme_metrics)
         assert 0 <= score <= 100
 
@@ -504,9 +504,9 @@ class TestFeatureRankingEngine:
             files_affected=[],
             source_fork=sample_fork
         )
-        
+
         empty_metrics = ForkMetrics()
-        
+
         score = ranking_engine.calculate_feature_score(empty_feature, empty_metrics)
         assert 0 <= score <= 100
         assert score < 50  # Should be low for empty feature
@@ -523,9 +523,9 @@ class TestFeatureRankingEngine:
             files_affected=["src/auth.py", "tests/test_auth.py"],
             source_fork=self._create_test_fork("fork1", sample_user)
         )
-        
+
         auth_feature2 = Feature(
-            id="auth-feature-2", 
+            id="auth-feature-2",
             title="Authentication System",
             description="Adds JWT authentication for user login and session management",
             category=FeatureCategory.NEW_FEATURE,
@@ -533,7 +533,7 @@ class TestFeatureRankingEngine:
             files_affected=["lib/authentication.py", "tests/auth_test.py"],
             source_fork=self._create_test_fork("fork2", sample_user)
         )
-        
+
         # Create dissimilar feature
         cache_feature = Feature(
             id="cache-feature",
@@ -544,23 +544,23 @@ class TestFeatureRankingEngine:
             files_affected=["src/cache.py", "tests/test_cache.py"],
             source_fork=self._create_test_fork("fork3", sample_user)
         )
-        
+
         features = [auth_feature1, auth_feature2, cache_feature]
         groups = ranking_engine.group_similar_features(features)
-        
+
         # Should have 2 groups: one with auth features, one with cache feature
         assert len(groups) == 2
-        
+
         # Find the auth group and cache group
         auth_group = None
         cache_group = None
-        
+
         for group in groups:
             if any(f.id.startswith("auth") for f in group):
                 auth_group = group
             elif any(f.id.startswith("cache") for f in group):
                 cache_group = group
-        
+
         assert auth_group is not None
         assert cache_group is not None
         assert len(auth_group) == 2  # Both auth features should be grouped
@@ -577,7 +577,7 @@ class TestFeatureRankingEngine:
             files_affected=["src/auth.py"],
             source_fork=self._create_test_fork("fork1", sample_user)
         )
-        
+
         # Similar feature
         similar_feature = Feature(
             id="feature-2",
@@ -588,7 +588,7 @@ class TestFeatureRankingEngine:
             files_affected=["lib/auth.py"],
             source_fork=self._create_test_fork("fork2", sample_user)
         )
-        
+
         # Dissimilar feature
         dissimilar_feature = Feature(
             id="feature-3",
@@ -599,7 +599,7 @@ class TestFeatureRankingEngine:
             files_affected=["migrations/001.sql"],
             source_fork=self._create_test_fork("fork3", sample_user)
         )
-        
+
         assert ranking_engine._are_features_similar(feature1, similar_feature)
         assert not ranking_engine._are_features_similar(feature1, dissimilar_feature)
 
@@ -610,12 +610,12 @@ class TestFeatureRankingEngine:
         text2 = "Authentication system for users"
         similarity = ranking_engine._calculate_text_similarity(text1, text2)
         assert similarity > 0.6
-        
+
         # Dissimilar texts
         text3 = "Database migration script"
         similarity2 = ranking_engine._calculate_text_similarity(text1, text3)
         assert similarity2 < 0.5  # Adjusted threshold
-        
+
         # Empty text handling
         similarity3 = ranking_engine._calculate_text_similarity("", text1)
         assert similarity3 == 0.0
@@ -624,14 +624,14 @@ class TestFeatureRankingEngine:
         """Test file similarity calculation."""
         files1 = ["src/auth.py", "tests/test_auth.py", "docs/auth.md"]
         files2 = ["src/auth.py", "tests/test_auth.py", "docs/authentication.md"]  # More similar files
-        
+
         similarity = ranking_engine._calculate_file_similarity(files1, files2)
         assert 0.0 < similarity < 1.0  # Should have some similarity but not perfect
-        
+
         # Identical files
         similarity2 = ranking_engine._calculate_file_similarity(files1, files1)
         assert similarity2 == 1.0
-        
+
         # No overlap
         files3 = ["src/cache.py", "tests/test_cache.py"]
         similarity3 = ranking_engine._calculate_file_similarity(files1, files3)
@@ -649,7 +649,7 @@ class TestFeatureRankingEngine:
             files_affected=["src/auth.py"],
             source_fork=self._create_test_fork("fork1", sample_user)
         )
-        
+
         auth_feature2 = Feature(
             id="auth-2",
             title="User Authentication",
@@ -659,15 +659,15 @@ class TestFeatureRankingEngine:
             files_affected=["lib/auth.py"],
             source_fork=self._create_test_fork("fork2", sample_user)
         )
-        
+
         features = [auth_feature1, auth_feature2]
         fork_metrics_map = {
             auth_feature1.source_fork.repository.url: ForkMetrics(),
             auth_feature2.source_fork.repository.url: ForkMetrics()
         }
-        
+
         ranked_features = ranking_engine.rank_features(features, fork_metrics_map)
-        
+
         # Both features should have each other as similar implementations
         assert len(ranked_features) == 2
         for rf in ranked_features:
@@ -679,14 +679,14 @@ class TestFeatureRankingEngine:
         """Test keyword extraction from text."""
         text = "This is a user authentication system with JWT tokens"
         keywords = ranking_engine._extract_keywords(text)
-        
+
         # Should extract meaningful keywords and exclude stop words
         assert "user" in keywords
         assert "authentication" in keywords
         assert "system" in keywords
         assert "jwt" in keywords
         assert "tokens" in keywords
-        
+
         # Should exclude stop words and short words
         assert "this" not in keywords
         assert "is" not in keywords
@@ -699,7 +699,7 @@ class TestFeatureRankingEngine:
         long_path = "project/src/main/java/com/example/auth/AuthService.java"
         normalized = ranking_engine._normalize_file_path(long_path)
         assert normalized == "example/auth/authservice.java"  # Only last 3 parts
-        
+
         # Test short paths
         short_path = "src/auth.py"
         normalized2 = ranking_engine._normalize_file_path(short_path)
@@ -715,7 +715,7 @@ class TestFeatureRankingEngine:
             html_url="https://github.com/upstream/repo",
             clone_url="https://github.com/upstream/repo.git"
         )
-        
+
         fork_repo = Repository(
             owner=fork_name,
             name="repo",
@@ -725,7 +725,7 @@ class TestFeatureRankingEngine:
             clone_url=f"https://github.com/{fork_name}/repo.git",
             is_fork=True
         )
-        
+
         return Fork(
             repository=fork_repo,
             parent=parent_repo,

@@ -1,7 +1,6 @@
 """Error handling for OpenAI API operations."""
 
 import logging
-from typing import Optional
 
 import httpx
 
@@ -32,7 +31,7 @@ class OpenAIErrorHandler:
         """
         if isinstance(error, httpx.HTTPStatusError):
             status_code = error.response.status_code
-            
+
             if status_code == 401:
                 return AIErrorType.AUTHENTICATION
             elif status_code == 429:
@@ -43,7 +42,7 @@ class OpenAIErrorHandler:
                 return AIErrorType.MODEL_ERROR
             else:
                 return AIErrorType.UNKNOWN
-                
+
         elif isinstance(error, httpx.TimeoutException):
             return AIErrorType.TIMEOUT
         elif isinstance(error, (httpx.RequestError, httpx.ConnectError)):
@@ -63,7 +62,7 @@ class OpenAIErrorHandler:
             True if the error is retryable, False otherwise
         """
         error_type = self.classify_error(error)
-        
+
         # Retryable errors
         retryable_types = {
             AIErrorType.RATE_LIMIT,
@@ -71,7 +70,7 @@ class OpenAIErrorHandler:
             AIErrorType.NETWORK_ERROR,
             AIErrorType.MODEL_ERROR,  # Server errors (5xx)
         }
-        
+
         return error_type in retryable_types
 
     def get_retry_delay(self, attempt: int, error: Exception) -> float:
@@ -85,7 +84,7 @@ class OpenAIErrorHandler:
             Delay in seconds before next retry
         """
         error_type = self.classify_error(error)
-        
+
         if error_type == AIErrorType.RATE_LIMIT:
             # For rate limits, try to extract retry-after header
             if isinstance(error, httpx.HTTPStatusError):
@@ -95,14 +94,14 @@ class OpenAIErrorHandler:
                         return min(float(retry_after), 300)  # Cap at 5 minutes
                     except ValueError:
                         pass
-            
+
             # Default rate limit backoff
             return min(60 * (2 ** attempt), 300)  # Exponential backoff, cap at 5 minutes
-        
+
         elif error_type in {AIErrorType.TIMEOUT, AIErrorType.NETWORK_ERROR, AIErrorType.MODEL_ERROR}:
             # Exponential backoff for network and server errors
             return min(2 ** attempt, 60)  # Cap at 1 minute
-        
+
         else:
             # Default backoff for other retryable errors
             return min(1 * (2 ** attempt), 30)  # Cap at 30 seconds
@@ -110,7 +109,7 @@ class OpenAIErrorHandler:
     def create_ai_error(
         self,
         error: Exception,
-        commit_sha: Optional[str] = None,
+        commit_sha: str | None = None,
         retry_count: int = 0
     ) -> AIError:
         """Create an AIError from an exception.
@@ -124,13 +123,13 @@ class OpenAIErrorHandler:
             AIError object with error details
         """
         error_type = self.classify_error(error)
-        
+
         # Extract meaningful error message
         if isinstance(error, httpx.HTTPStatusError):
             message = f"HTTP {error.response.status_code}: {error.response.text}"
         else:
             message = str(error)
-        
+
         return AIError(
             error_type=error_type,
             message=message,
@@ -142,9 +141,9 @@ class OpenAIErrorHandler:
     def log_error(
         self,
         error: Exception,
-        commit_sha: Optional[str] = None,
+        commit_sha: str | None = None,
         retry_count: int = 0,
-        context: Optional[str] = None
+        context: str | None = None
     ) -> None:
         """Log an error with appropriate level and context.
 
@@ -155,25 +154,25 @@ class OpenAIErrorHandler:
             context: Additional context information (optional)
         """
         error_type = self.classify_error(error)
-        
+
         # Build log message
         parts = []
         if context:
             parts.append(f"[{context}]")
         if commit_sha:
             parts.append(f"commit {commit_sha[:8]}")
-        
+
         prefix = " ".join(parts)
         if prefix:
             prefix += ": "
-        
+
         message = f"{prefix}OpenAI API error ({error_type})"
-        
+
         if retry_count > 0:
             message += f" (retry {retry_count})"
-        
+
         message += f": {error}"
-        
+
         # Log at appropriate level
         if error_type == AIErrorType.AUTHENTICATION:
             logger.error(message)
@@ -184,9 +183,7 @@ class OpenAIErrorHandler:
                 logger.warning(message)
             else:
                 logger.debug(message)  # Don't spam logs with retry attempts
-        elif error_type == AIErrorType.INVALID_REQUEST:
-            logger.error(message)
-        elif error_type == AIErrorType.MODEL_ERROR:
+        elif error_type == AIErrorType.INVALID_REQUEST or error_type == AIErrorType.MODEL_ERROR:
             logger.error(message)
         else:
             logger.error(message)
@@ -202,19 +199,19 @@ class OpenAIErrorHandler:
             True if processing should be aborted, False to continue
         """
         error_type = self.classify_error(error)
-        
+
         # Always abort on authentication errors
         if error_type == AIErrorType.AUTHENTICATION:
             return True
-        
+
         # Abort on non-retryable errors
         if not self.is_retryable(error):
             return True
-        
+
         # Abort if max retries exceeded
         if retry_count >= self.max_retries:
             return True
-        
+
         return False
 
     def get_user_friendly_message(self, error: Exception) -> str:
@@ -227,7 +224,7 @@ class OpenAIErrorHandler:
             User-friendly error message
         """
         error_type = self.classify_error(error)
-        
+
         if error_type == AIErrorType.AUTHENTICATION:
             return "Invalid OpenAI API key. Please check your OPENAI_API_KEY environment variable."
         elif error_type == AIErrorType.RATE_LIMIT:

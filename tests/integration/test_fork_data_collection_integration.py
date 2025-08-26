@@ -3,7 +3,7 @@
 import asyncio
 import os
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 

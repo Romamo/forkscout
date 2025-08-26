@@ -302,13 +302,14 @@ class TestRepositoryDisplayService:
 
     def test_display_fork_data_table_simplified_columns(self):
         """Test that fork data table uses simplified column structure without #, Size, Language."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
             QualificationStats,
             QualifiedForksResult,
         )
-        from datetime import datetime, UTC
 
         # Create test fork data
         metrics = ForkQualificationMetrics(

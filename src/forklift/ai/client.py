@@ -3,12 +3,12 @@
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 from pydantic import BaseModel
 
-from forklift.models.ai_summary import AISummaryConfig, AIError, AIErrorType
+from forklift.models.ai_summary import AISummaryConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class OpenAIResponse(BaseModel):
     """Response from OpenAI API."""
 
     text: str
-    usage: Dict[str, Any]
+    usage: dict[str, Any]
     model: str
     finish_reason: str
 
@@ -28,7 +28,7 @@ class OpenAIClient:
     def __init__(
         self,
         api_key: str,
-        config: Optional[AISummaryConfig] = None,
+        config: AISummaryConfig | None = None,
         base_url: str = "https://api.openai.com/v1"
     ):
         """Initialize OpenAI client.
@@ -41,17 +41,17 @@ class OpenAIClient:
         self.api_key = api_key
         self.config = config or AISummaryConfig()
         self.base_url = base_url
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._validate_api_key()
 
     def _validate_api_key(self) -> None:
         """Validate API key format."""
         if not self.api_key:
             raise ValueError("OpenAI API key is required")
-        
+
         if not self.api_key.startswith("sk-"):
             raise ValueError("Invalid OpenAI API key format")
-        
+
         if len(self.api_key) < 20:
             raise ValueError("OpenAI API key is too short")
 
@@ -74,10 +74,10 @@ class OpenAIClient:
 
     async def create_chat_completion(
         self,
-        messages: List[Dict[str, str]],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        model: Optional[str] = None
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        model: str | None = None
     ) -> OpenAIResponse:
         """Create a chat completion using OpenAI API.
 
@@ -105,10 +105,10 @@ class OpenAIClient:
         # Validate parameters
         if not messages:
             raise ValueError("Messages list cannot be empty")
-        
+
         if max_tokens <= 0:
             raise ValueError("max_tokens must be positive")
-        
+
         if not (0.0 <= temperature <= 2.0):
             raise ValueError("temperature must be between 0.0 and 2.0")
 
@@ -128,7 +128,7 @@ class OpenAIClient:
                 f"{self.base_url}/chat/completions",
                 json=payload
             )
-            
+
             processing_time = (time.time() - start_time) * 1000  # Convert to ms
             logger.debug(f"OpenAI API request completed in {processing_time:.2f}ms")
 
@@ -155,15 +155,15 @@ class OpenAIClient:
                 )
 
             response.raise_for_status()
-            
+
             # Parse response
             response_data = response.json()
-            
+
             if "choices" not in response_data or not response_data["choices"]:
                 raise ValueError("Invalid response format from OpenAI API")
 
             choice = response_data["choices"][0]
-            
+
             return OpenAIResponse(
                 text=choice["message"]["content"],
                 usage=response_data.get("usage", {}),
@@ -186,11 +186,11 @@ class OpenAIClient:
 
     async def create_completion_with_retry(
         self,
-        messages: List[Dict[str, str]],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        model: Optional[str] = None,
-        max_retries: Optional[int] = None
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        model: str | None = None,
+        max_retries: int | None = None
     ) -> OpenAIResponse:
         """Create completion with automatic retry logic.
 
@@ -220,12 +220,12 @@ class OpenAIClient:
                 )
             except httpx.HTTPStatusError as e:
                 last_exception = e
-                
+
                 # Don't retry on authentication errors
                 if e.response.status_code == 401:
                     logger.error("Authentication failed - not retrying")
                     raise
-                
+
                 # Handle rate limiting with exponential backoff
                 if e.response.status_code == 429:
                     if attempt < max_retries:
@@ -239,7 +239,7 @@ class OpenAIClient:
                     else:
                         logger.error("Rate limit exceeded - max retries reached")
                         raise
-                
+
                 # Retry on server errors (5xx)
                 if 500 <= e.response.status_code < 600:
                     if attempt < max_retries:
@@ -253,14 +253,14 @@ class OpenAIClient:
                     else:
                         logger.error("Server error - max retries reached")
                         raise
-                
+
                 # Don't retry on client errors (4xx except 429)
                 logger.error(f"Client error {e.response.status_code} - not retrying")
                 raise
-                
+
             except (httpx.TimeoutException, httpx.RequestError) as e:
                 last_exception = e
-                
+
                 if attempt < max_retries:
                     backoff_delay = 2 ** attempt
                     logger.warning(
@@ -272,7 +272,7 @@ class OpenAIClient:
                 else:
                     logger.error("Network error - max retries reached")
                     raise
-            
+
             except Exception as e:
                 # Don't retry on unexpected errors
                 logger.error(f"Unexpected error - not retrying: {e}")
@@ -310,18 +310,18 @@ class OpenAIClient:
         """
         if max_tokens <= 0:
             return ""
-        
+
         estimated_tokens = self.get_token_estimate(text)
-        
+
         if estimated_tokens <= max_tokens:
             return text
-        
+
         # Calculate approximate character limit
         char_limit = max_tokens * 4
-        
+
         if len(text) <= char_limit:
             return text
-        
+
         # Truncate and add indicator
         truncated = text[:char_limit - 20]  # Leave room for truncation indicator
         return truncated + "\n[... truncated ...]"
@@ -337,16 +337,16 @@ class OpenAIClient:
             test_messages = [
                 {"role": "user", "content": "Hello"}
             ]
-            
+
             await self.create_chat_completion(
                 messages=test_messages,
                 max_tokens=1,
                 temperature=0.0
             )
-            
+
             logger.info("OpenAI API connection validated successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"OpenAI API connection validation failed: {e}")
             return False

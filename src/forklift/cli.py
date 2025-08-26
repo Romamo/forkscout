@@ -799,12 +799,16 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.argument("repository_url")
 @click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to display")
 @click.option("--detail", is_flag=True, help="Fetch exact commit counts ahead for each fork using additional API requests")
+@click.option("--show-commits", type=click.IntRange(0, 10), default=0, help="Show last N commits for each fork (0-10, default: 0)")
 @click.pass_context
-def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool) -> None:
+def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool, show_commits: int) -> None:
     """Display a summary table of repository forks with key metrics.
 
     Use --detail flag to fetch exact commit counts ahead for each fork.
     This makes additional API requests but provides precise commit information.
+
+    Use --show-commits N to display the last N commits for each fork.
+    This adds a "Recent Commits" column showing commit messages (max 10 commits).
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
@@ -823,7 +827,7 @@ def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, d
             console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Run forks summary display
-        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose, detail))
+        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose, detail, show_commits))
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1365,7 +1369,8 @@ async def _show_forks_summary(
     repository_url: str,
     max_forks: int | None,
     verbose: bool,
-    detail: bool = False
+    detail: bool = False,
+    show_commits: int = 0
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -1375,6 +1380,7 @@ async def _show_forks_summary(
         max_forks: Maximum number of forks to display (ignored - shows all)
         verbose: Whether to show verbose output
         detail: Whether to fetch exact commit counts ahead using additional API requests
+        show_commits: Number of recent commits to show for each fork (0-10)
     """
     async with GitHubClient(config.github) as github_client:
         display_service = RepositoryDisplayService(github_client, console)
@@ -1888,24 +1894,26 @@ async def _show_commits(
 
             # Check fork status before expensive operations if using --detail flag
             if detail and not force:
-                from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
-                
+                from forklift.analysis.fork_commit_status_checker import (
+                    ForkCommitStatusChecker,
+                )
+
                 status_checker = ForkCommitStatusChecker(github_client)
-                
+
                 try:
                     has_commits = await status_checker.has_commits_ahead(fork_url)
-                    
+
                     if has_commits is False:
-                        console.print(f"[yellow]Fork has no commits ahead of upstream - skipping detailed analysis[/yellow]")
-                        console.print(f"[dim]Use --force flag to analyze anyway[/dim]")
+                        console.print("[yellow]Fork has no commits ahead of upstream - skipping detailed analysis[/yellow]")
+                        console.print("[dim]Use --force flag to analyze anyway[/dim]")
                         return
                     elif has_commits is None:
                         if verbose:
-                            console.print(f"[yellow]Could not determine fork commit status - proceeding with analysis[/yellow]")
+                            console.print("[yellow]Could not determine fork commit status - proceeding with analysis[/yellow]")
                     else:
                         if verbose:
-                            console.print(f"[green]Fork has commits ahead - proceeding with detailed analysis[/green]")
-                            
+                            console.print("[green]Fork has commits ahead - proceeding with detailed analysis[/green]")
+
                 except Exception as e:
                     logger.warning(f"Fork status check failed: {e}")
                     if verbose:
@@ -2407,7 +2415,9 @@ async def _display_detailed_commits(
                     )
 
                     # Create fork status checker for batch operations
-                    from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+                    from forklift.analysis.fork_commit_status_checker import (
+                        ForkCommitStatusChecker,
+                    )
                     fork_status_checker = ForkCommitStatusChecker(github_client)
 
                     # Create detailed commit display
@@ -2463,9 +2473,11 @@ async def _display_detailed_commits(
         # If no AI engine available, create detailed display without AI
         if not ai_engine:
             # Create fork status checker for batch operations
-            from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+            from forklift.analysis.fork_commit_status_checker import (
+                ForkCommitStatusChecker,
+            )
             fork_status_checker = ForkCommitStatusChecker(github_client)
-            
+
             detailed_display = DetailedCommitDisplay(
                 github_client=github_client,
                 ai_engine=None,
