@@ -892,6 +892,7 @@ def list_forks(ctx: click.Context, repository_url: str) -> None:
 @click.option("--sort-by", type=click.Choice(["stars", "forks", "size", "activity", "commits_status", "name", "owner", "language"]), default="stars", help="Sort forks by specified criteria")
 @click.option("--show-all", is_flag=True, help="Show all forks instead of limiting to 50")
 @click.option("--disable-cache", is_flag=True, help="Bypass cache and fetch fresh data")
+@click.option("--show-commits", type=click.IntRange(0, 10), default=0, help="Show last N commits for each fork (0-10, default: 0)")
 @click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection")
 @click.pass_context
 def show_fork_data(
@@ -902,12 +903,16 @@ def show_fork_data(
     sort_by: str,
     show_all: bool,
     disable_cache: bool,
+    show_commits: int,
     interactive: bool
 ) -> None:
     """Display comprehensive fork data and let users choose which forks to analyze.
 
     This command shows all available fork information without automatic filtering or scoring,
     allowing users to make informed decisions about which forks warrant detailed analysis.
+
+    Use --show-commits N to display the last N commits for each fork (0-10).
+    This adds a "Recent Commits" column showing commit messages and requires additional API calls.
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
@@ -927,7 +932,7 @@ def show_fork_data(
 
         # Run comprehensive fork data display
         asyncio.run(_show_comprehensive_fork_data(
-            config, repository_url, exclude_archived, exclude_disabled, sort_by, show_all, disable_cache, interactive, verbose
+            config, repository_url, exclude_archived, exclude_disabled, sort_by, show_all, disable_cache, show_commits, interactive, verbose
         ))
 
     except CLIError as e:
@@ -1313,6 +1318,7 @@ async def _show_comprehensive_fork_data(
     sort_by: str,
     show_all: bool,
     disable_cache: bool,
+    show_commits: int,
     interactive: bool,
     verbose: bool
 ) -> None:
@@ -1326,6 +1332,7 @@ async def _show_comprehensive_fork_data(
         sort_by: Sort criteria for the display
         show_all: Whether to show all forks or limit display
         disable_cache: Whether to bypass cache for fresh data
+        show_commits: Number of recent commits to show for each fork (0-10)
         interactive: Whether to enter interactive mode
         verbose: Enable verbose output
     """
@@ -1344,7 +1351,8 @@ async def _show_comprehensive_fork_data(
                 exclude_disabled=exclude_disabled,
                 sort_by=sort_by,
                 show_all=show_all,
-                disable_cache=disable_cache
+                disable_cache=disable_cache,
+                show_commits=show_commits
             )
 
             if verbose:

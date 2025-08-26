@@ -1119,7 +1119,7 @@
   - Write unit tests for commit fetching with various scenarios (normal, empty repo, API errors)
   - _Requirements: 23.2, 23.5, 23.6, 23.7, 23.8_
 
-- [-] 21.3 Update fork display table structure for recent commits column
+- [x] 21.3 Update fork display table structure for recent commits column
   - Modify RepositoryDisplayService to conditionally add "Recent Commits" column when --show-commits > 0
   - Implement format_recent_commits method to format commits with each commit on a separate line
   - Update table width calculations to accommodate the new variable-width column
@@ -1127,7 +1127,7 @@
   - Write unit tests for table structure changes and commit formatting
   - _Requirements: 23.3, 23.11_
 
-- [ ] 21.4 Integrate recent commits fetching with fork display workflow
+- [-] 21.4 Integrate recent commits fetching with fork display workflow
   - Update show_fork_data method to fetch recent commits when --show-commits is specified
   - Add concurrent fetching of commits for multiple forks to improve performance
   - Implement progress indicators showing commit fetching status for each fork

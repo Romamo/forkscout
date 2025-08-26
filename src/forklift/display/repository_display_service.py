@@ -1,11 +1,13 @@
 """Repository Display Service for incremental repository exploration."""
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
 from forklift.github.client import GitHubClient
@@ -779,6 +781,14 @@ class RepositoryDisplayService:
             display_limit = (
                 len(sorted_forks) if show_all else min(50, len(sorted_forks))
             )
+            
+            # Fetch commits concurrently if requested
+            commits_cache = {}
+            if show_commits > 0:
+                forks_to_display = sorted_forks[:display_limit]
+                commits_cache = await self._fetch_commits_concurrently(
+                    forks_to_display, show_commits
+                )
 
             for _i, fork_data in enumerate(sorted_forks[:display_limit], 1):
                 metrics = fork_data.metrics
@@ -818,10 +828,11 @@ class RepositoryDisplayService:
                     status_display,
                 ]
 
-                # Conditionally add recent commits data
+                # Add recent commits data from cache
                 if show_commits > 0:
-                    recent_commits_text = await self._get_and_format_recent_commits(
-                        metrics.owner, metrics.name, show_commits
+                    fork_key = f"{metrics.owner}/{metrics.name}"
+                    recent_commits_text = commits_cache.get(
+                        fork_key, "[dim]No commits available[/dim]"
                     )
                     row_data.append(recent_commits_text)
 
@@ -1619,6 +1630,83 @@ class RepositoryDisplayService:
             criteria_text, title="Promising Forks Analysis", border_style="blue"
         )
         self.console.print(panel)
+
+    async def _fetch_commits_concurrently(
+        self, forks_data: list, show_commits: int
+    ) -> dict[str, str]:
+        """Fetch recent commits for multiple forks concurrently with progress tracking.
+
+        Args:
+            forks_data: List of fork data objects
+            show_commits: Number of recent commits to fetch for each fork
+
+        Returns:
+            Dictionary mapping fork keys (owner/name) to formatted commit strings
+        """
+        if show_commits <= 0 or not forks_data:
+            return {}
+
+        # Create semaphore to limit concurrent requests (respect rate limits)
+        semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
+        commits_cache = {}
+
+        async def fetch_fork_commits(fork_data) -> tuple[str, str]:
+            """Fetch commits for a single fork with rate limiting."""
+            fork_key = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
+            
+            async with semaphore:
+                try:
+                    # Add small delay to respect rate limits
+                    await asyncio.sleep(0.1)
+                    
+                    recent_commits = await self.github_client.get_recent_commits(
+                        fork_data.metrics.owner, fork_data.metrics.name, count=show_commits
+                    )
+                    formatted_commits = self.format_recent_commits(recent_commits)
+                    return fork_key, formatted_commits
+                except Exception as e:
+                    logger.debug(f"Failed to fetch recent commits for {fork_key}: {e}")
+                    return fork_key, "[dim]No commits available[/dim]"
+
+        # Show progress indicator for commit fetching
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=self.console,
+        ) as progress:
+            task = progress.add_task(
+                f"Fetching recent commits for {len(forks_data)} forks...", 
+                total=len(forks_data)
+            )
+
+            # Create tasks for concurrent execution
+            tasks = []
+            for fork_data in forks_data:
+                task_coro = fetch_fork_commits(fork_data)
+                tasks.append(task_coro)
+
+            # Execute tasks concurrently with progress updates
+            completed_count = 0
+            for coro in asyncio.as_completed(tasks):
+                try:
+                    fork_key, formatted_commits = await coro
+                    commits_cache[fork_key] = formatted_commits
+                    completed_count += 1
+                    
+                    # Update progress
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"Fetched commits for {completed_count}/{len(forks_data)} forks"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to fetch commits for fork: {e}")
+                    completed_count += 1
+                    progress.update(task, advance=1)
+
+        return commits_cache
 
     async def _get_and_format_recent_commits(
         self, owner: str, repo_name: str, count: int
