@@ -10,7 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from forklift.models.github import Repository
-from forklift.models.analysis import AnalysisResult, Feature, ForkAnalysis
+from forklift.models.analysis import Feature, ForkAnalysis
+from forklift.models.fork_qualification import ForkQualificationMetrics, QualifiedForksResult, QualificationStats, CollectedForkData
 from forklift.storage.cache_validation import validate_before_cache, CacheValidationError
 
 
@@ -84,47 +85,127 @@ def test_repository_serialization():
         return False
 
 
-def test_feature_serialization():
-    """Test Feature model serialization/deserialization."""
-    print("\nTesting Feature model serialization...")
+def test_fork_qualification_serialization():
+    """Test ForkQualificationMetrics model serialization/deserialization."""
+    print("\nTesting ForkQualificationMetrics model serialization...")
     
-    # Create a Feature instance (simplified for testing)
-    feature_data = {
-        "id": "test_feature_1",
-        "name": "Test Feature",
-        "description": "A test feature for serialization testing",
-        "fork_source": "test_owner/test_fork",
-        "commit_sha": "abc123def456",
-        "author": "test_author",
-        "date": datetime.now().isoformat(),
-        "github_url": "https://github.com/test_owner/test_fork/commit/abc123def456",
-        "impact_score": 0.8,
-        "complexity_score": 0.6,
-        "value_score": 0.7
-    }
+    # Create a ForkQualificationMetrics instance
+    metrics = ForkQualificationMetrics(
+        id=12345,
+        name="test-fork",
+        full_name="owner/test-fork",
+        owner="owner",
+        html_url="https://github.com/owner/test-fork",
+        stargazers_count=25,
+        forks_count=5,
+        watchers_count=15,
+        size=2048,
+        language="Python",
+        topics=["test", "fork"],
+        open_issues_count=3,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        pushed_at=datetime.now(),
+        archived=False,
+        disabled=False,
+        fork=True,
+        license_key="mit",
+        license_name="MIT License",
+        description="Test fork for serialization",
+        homepage="https://example.com",
+        default_branch="main"
+    )
     
     try:
-        feature = Feature(**feature_data)
-        print("✅ Feature creation successful")
+        print("✅ ForkQualificationMetrics creation successful")
     except Exception as e:
-        print(f"❌ Feature creation failed: {e}")
+        print(f"❌ ForkQualificationMetrics creation failed: {e}")
         return False
     
     # Test serialization
     try:
-        feature_dict = feature.model_dump()
-        json_str = json.dumps(feature_dict, default=str)
-        print(f"✅ Feature JSON serialization: {len(json_str)} bytes")
+        metrics_dict = metrics.model_dump()
+        json_str = json.dumps(metrics_dict, default=str)
+        print(f"✅ ForkQualificationMetrics JSON serialization: {len(json_str)} bytes")
     except Exception as e:
-        print(f"❌ Feature JSON serialization failed: {e}")
+        print(f"❌ ForkQualificationMetrics JSON serialization failed: {e}")
         return False
     
     # Test deserialization
     try:
-        feature_reconstructed = Feature(**feature_dict)
-        print("✅ Feature deserialization successful")
+        metrics_reconstructed = ForkQualificationMetrics(**metrics_dict)
+        print("✅ ForkQualificationMetrics deserialization successful")
     except Exception as e:
-        print(f"❌ Feature deserialization failed: {e}")
+        print(f"❌ ForkQualificationMetrics deserialization failed: {e}")
+        return False
+    
+    # Test cache validation
+    try:
+        validate_before_cache(metrics_dict, ForkQualificationMetrics)
+        print("✅ ForkQualificationMetrics cache validation successful")
+    except CacheValidationError as e:
+        print(f"❌ ForkQualificationMetrics cache validation failed: {e}")
+        return False
+    
+    return True
+
+
+def test_qualified_forks_result_serialization():
+    """Test QualifiedForksResult model serialization/deserialization."""
+    print("\nTesting QualifiedForksResult model serialization...")
+    
+    # Create sample data
+    metrics = ForkQualificationMetrics(
+        id=12345,
+        name="test-fork",
+        full_name="owner/test-fork",
+        owner="owner",
+        html_url="https://github.com/owner/test-fork",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        pushed_at=datetime.now()
+    )
+    
+    collected_fork = CollectedForkData(metrics=metrics)
+    
+    stats = QualificationStats(
+        total_forks_discovered=10,
+        forks_with_no_commits=3,
+        forks_with_commits=7,
+        api_calls_made=20,
+        api_calls_saved=80,
+        processing_time_seconds=15.5
+    )
+    
+    result = QualifiedForksResult(
+        repository_owner="owner",
+        repository_name="repo",
+        repository_url="https://github.com/owner/repo",
+        collected_forks=[collected_fork],
+        stats=stats
+    )
+    
+    try:
+        print("✅ QualifiedForksResult creation successful")
+    except Exception as e:
+        print(f"❌ QualifiedForksResult creation failed: {e}")
+        return False
+    
+    # Test serialization
+    try:
+        result_dict = result.model_dump()
+        json_str = json.dumps(result_dict, default=str)
+        print(f"✅ QualifiedForksResult JSON serialization: {len(json_str)} bytes")
+    except Exception as e:
+        print(f"❌ QualifiedForksResult JSON serialization failed: {e}")
+        return False
+    
+    # Test deserialization
+    try:
+        result_reconstructed = QualifiedForksResult(**result_dict)
+        print("✅ QualifiedForksResult deserialization successful")
+    except Exception as e:
+        print(f"❌ QualifiedForksResult deserialization failed: {e}")
         return False
     
     return True
@@ -133,6 +214,31 @@ def test_feature_serialization():
 def check_required_fields():
     """Check that all models have properly defined required fields."""
     print("\nChecking required fields...")
+    
+    # Test ForkQualificationMetrics required fields
+    try:
+        ForkQualificationMetrics()  # Should fail due to missing required fields
+        print("❌ ForkQualificationMetrics allows creation without required fields")
+        return False
+    except Exception:
+        print("✅ ForkQualificationMetrics properly validates required fields")
+    
+    # Test with minimal required fields
+    try:
+        minimal_metrics = ForkQualificationMetrics(
+            id=12345,
+            name="test",
+            full_name="test/test",
+            owner="test",
+            html_url="https://github.com/test/test",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            pushed_at=datetime.now()
+        )
+        print("✅ ForkQualificationMetrics accepts minimal required fields")
+    except Exception as e:
+        print(f"❌ ForkQualificationMetrics rejects valid minimal data: {e}")
+        return False
     
     # Test Repository required fields
     try:
@@ -166,7 +272,8 @@ def main():
     
     checks = [
         test_repository_serialization,
-        test_feature_serialization,
+        test_fork_qualification_serialization,
+        test_qualified_forks_result_serialization,
         check_required_fields
     ]
     
