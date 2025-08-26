@@ -346,3 +346,39 @@ https://github.com/xgboosted/pandas-ta-classic
 10. WHEN fork data collection is complete THEN the system SHALL let users choose which forks to analyze in detail based on the comprehensive information provided, automatically excluding forks with no commits ahead
 11. WHEN users make fork selections THEN the system SHALL proceed with expensive commit analysis only for user-selected forks that have commits ahead, dramatically reducing API usage
 12. WHEN fork data collection is complete THEN the system SHALL provide summary statistics showing total forks discovered, forks with no commits ahead (excluded), forks available for analysis, and percentage of API calls saved by filtering and user selection
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want the --disable-cache flag to work correctly with the analyze command, so that I can bypass cached data and get fresh results from GitHub API when needed.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift analyze <repo-url> --disable-cache` THEN the system SHALL successfully execute without throwing "unexpected keyword argument 'disable_cache'" errors
+2. WHEN --disable-cache flag is provided THEN the GitHubClient methods SHALL accept and properly handle the disable_cache parameter
+3. WHEN disable_cache=True is passed to GitHub API methods THEN the system SHALL bypass cache read operations and fetch fresh data from GitHub API
+4. WHEN disable_cache=True is passed to GitHub API methods THEN the system SHALL bypass cache write operations and not store fetched data in cache
+5. WHEN using --disable-cache THEN all GitHub API methods (get_repository, get_forks, get_commits_ahead, get_user, etc.) SHALL support the disable_cache parameter
+6. WHEN cache is disabled THEN the system SHALL log cache bypass operations for debugging and show performance impact
+7. WHEN --disable-cache is used THEN the system SHALL still respect GitHub API rate limits and implement appropriate backoff strategies
+8. WHEN cache bypass is active THEN the system SHALL provide timing information showing the impact of fetching fresh data
+9. WHEN --disable-cache flag is used THEN the system SHALL work correctly with all analysis modes including interactive mode and explanation generation
+10. WHEN cache disabling is implemented THEN all existing functionality SHALL continue to work normally when cache is enabled (default behavior)
+
+### Requirement 21
+
+**User Story:** As a repository maintainer, I want enhanced show-forks command with detailed commit information, so that I can see precise commit counts ahead for each fork and have a cleaner table layout focused on the most important metrics.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url> --detail` THEN the system SHALL make additional API requests to fetch exact commits ahead count for each fork
+2. WHEN using --detail flag THEN the system SHALL display a "Detailed Fork Information" table with URL as the first column, followed by Stars, Forks, Commits Ahead, and Last Push columns only
+3. WHEN --detail flag is provided THEN the system SHALL remove Fork Name, Owner, Activity, and Status columns from the table to focus on essential metrics
+4. WHEN fetching detailed commit information THEN the system SHALL use GitHub's compare API endpoint to get accurate commits ahead count between fork and upstream repository
+5. WHEN --detail flag is used THEN the system SHALL display exact numeric commit counts (e.g., "5 commits ahead") instead of status indicators like "Has commits" or "Unknown"
+6. WHEN making additional API requests for --detail THEN the system SHALL respect GitHub API rate limits and implement appropriate backoff strategies
+7. WHEN --detail flag is combined with other options THEN the system SHALL work with existing flags like --max-forks, --exclude-archived, and sorting options
+8. WHEN detailed commit information cannot be fetched THEN the system SHALL display "Unknown" for that fork's commits ahead count and continue processing other forks
+9. WHEN using --detail flag THEN the system SHALL provide progress indicators showing the additional API requests being made for commit comparison
+10. WHEN --detail is not provided THEN the system SHALL use the existing behavior with the current table structure and no additional API requests
+11. WHEN displaying the detailed table THEN the system SHALL maintain clear formatting and readability with the reduced column set
+12. WHEN --detail flag is used THEN the system SHALL log the additional API calls made and their impact on rate limiting for monitoring purposes

@@ -155,6 +155,9 @@ class CollectedForkData(BaseModel):
     collection_timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="When this data was collected"
     )
+    exact_commits_ahead: int | str | None = Field(
+        None, description="Exact number of commits ahead (fetched via compare API) or 'Unknown'"
+    )
 
     @computed_field
     @property

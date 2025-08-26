@@ -697,3 +697,127 @@ class TestRunAnalysis:
         
         with pytest.raises(CLIError, match="Failed to discover forks"):
             await _run_analysis(config, "owner", "repo", verbose=False)
+
+
+class TestShowForksCommand:
+    """Test show-forks command functionality."""
+
+    def setup_method(self):
+        """Setup test fixtures."""
+        self.runner = CliRunner()
+
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._show_forks_summary')
+    def test_show_forks_basic(self, mock_show_forks_summary, mock_load_config):
+        """Test basic show-forks command."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+        
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo"])
+        
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, False, False
+        )
+
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._show_forks_summary')
+    def test_show_forks_with_detail_flag(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --detail flag."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+        
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--detail"])
+        
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, False, True
+        )
+
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._show_forks_summary')
+    def test_show_forks_with_max_forks_and_detail(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --max-forks and --detail flags."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+        
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--max-forks", "50", "--detail"])
+        
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", 50, False, True
+        )
+
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._show_forks_summary')
+    def test_show_forks_with_verbose_and_detail(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --verbose and --detail flags."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+        
+        result = self.runner.invoke(cli, ["--verbose", "show-forks", "owner/repo", "--detail"])
+        
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, True, True
+        )
+
+    def test_show_forks_help_includes_detail_flag(self):
+        """Test that show-forks help includes --detail flag documentation."""
+        result = self.runner.invoke(cli, ["show-forks", "--help"])
+        
+        assert result.exit_code == 0
+        assert "--detail" in result.output
+        assert "Fetch exact commit counts ahead" in result.output
+        assert "additional API requests" in result.output
+
+    @patch('forklift.cli.load_config')
+    def test_show_forks_no_github_token(self, mock_load_config):
+        """Test show-forks command without GitHub token."""
+        # Setup mock config without token
+        mock_config = create_mock_config()
+        mock_config.github.token = None
+        mock_load_config.return_value = mock_config
+        
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo"])
+        
+        assert result.exit_code == 1
+        assert "GitHub token not configured" in result.output
+
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._show_forks_summary')
+    def test_show_forks_invalid_max_forks(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with invalid --max-forks value."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        
+        # Test with value too low
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--max-forks", "0"])
+        assert result.exit_code != 0
+        
+        # Test with value too high
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--max-forks", "1001"])
+        assert result.exit_code != 0
+
+    @patch('forklift.cli.load_config')
+    @patch('forklift.cli._show_forks_summary')
+    def test_show_forks_exception_handling(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command exception handling."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.side_effect = Exception("Test error")
+        
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo"])
+        
+        assert result.exit_code == 1
+        assert "Unexpected error" in result.output

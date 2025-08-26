@@ -479,6 +479,15 @@
   - Write unit tests for session management and completion summary generation
   - _Requirements: 15.13, 15.14, 15.15_
 
+- [x] 14.6 Fix analyze command cache disabling parameter bug (HIGH PRIORITY)
+  - Fix GitHubClient.get_repository() method to accept disable_cache parameter
+  - Update all GitHub API methods to support disable_cache parameter consistently
+  - Ensure ForkDiscoveryService can pass disable_cache to all GitHub API calls
+  - Add proper parameter handling and validation for cache bypass functionality
+  - Fix the "unexpected keyword argument 'disable_cache'" error in analyze command
+  - Write unit tests for disable_cache parameter handling in GitHub client methods
+  - _Requirements: 22.1, 22.2, 22.5, 22.10_
+
 - [ ] 15. Implement cache disabling functionality for fresh data retrieval
 - [ ] 15.1 Add cache bypass infrastructure to core components
   - Create CacheBypassManager class to handle cache disabling logic
@@ -938,3 +947,44 @@
   - Test enhanced display with various fork data scenarios and edge cases
   - Write regression tests to ensure existing functionality remains intact
   - _Requirements: 21.1, 21.2, 21.3, 21.4, 21.5, 21.6_
+
+- [ ] 19. Implement show-forks --detail functionality with commits ahead API calls
+- [-] 19.1 Add --detail flag to show-forks CLI command
+  - Add --detail click option to show-forks command in src/forklift/cli.py
+  - Update _show_forks_summary function to accept and pass detail parameter
+  - Modify command help text to document --detail flag functionality
+  - Add parameter validation and error handling for detail mode
+  - Write unit tests for CLI command parameter handling with --detail flag
+  - _Requirements: 21.1, 21.7, 21.10_
+
+- [ ] 19.2 Implement commits ahead API calls for detailed mode
+  - Create get_commits_ahead method in GitHubClient using GitHub's compare API endpoint
+  - Add error handling for compare API failures (repository access, branch differences)
+  - Implement rate limiting and backoff strategies for additional API calls
+  - Add progress indicators for commits ahead API requests
+  - Write unit tests for commits ahead API calls with various repository scenarios
+  - _Requirements: 21.4, 21.6, 21.8, 21.9, 21.12_
+
+- [ ] 19.3 Create detailed fork display table with reduced columns
+  - Implement _display_detailed_fork_table method in RepositoryDisplayService
+  - Create table with URL as first column, followed by Stars, Forks, Commits Ahead, Last Push
+  - Remove Fork Name, Owner, Activity, and Status columns from detailed display
+  - Add exact numeric commit counts display (e.g., "5 commits ahead")
+  - Write unit tests for detailed table formatting and column structure
+  - _Requirements: 21.2, 21.3, 21.5, 21.11_
+
+- [ ] 19.4 Integrate detailed mode with existing fork data collection
+  - Update show_fork_data method to support detail parameter
+  - Add commits ahead fetching logic when detail mode is enabled
+  - Implement fallback to "Unknown" when commits ahead cannot be determined
+  - Add detailed mode statistics and API call tracking
+  - Write unit tests for integration between detail mode and fork data collection
+  - _Requirements: 21.1, 21.7, 21.8, 21.12_
+
+- [ ] 19.5 Add comprehensive testing for show-forks --detail functionality
+  - Write integration tests for show-forks --detail with real repository data
+  - Create tests for commits ahead API calls with various fork scenarios
+  - Add tests for detailed table display and column formatting
+  - Test error handling when commits ahead cannot be fetched
+  - Write performance tests for additional API calls impact
+  - _Requirements: 21.1, 21.4, 21.6, 21.8, 21.9, 21.11, 21.12_

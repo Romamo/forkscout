@@ -10,7 +10,8 @@ import httpx
 
 from forklift.config import GitHubConfig
 from forklift.models.github import Commit, Fork, Repository, User
-from .rate_limiter import RateLimitHandler, CircuitBreaker
+
+from .rate_limiter import CircuitBreaker, RateLimitHandler
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class GitHubClient:
     """Async GitHub API client with authentication and error handling."""
 
     def __init__(
-        self, 
+        self,
         config: GitHubConfig,
         rate_limit_handler: RateLimitHandler | None = None,
         circuit_breaker: CircuitBreaker | None = None,
@@ -71,7 +72,7 @@ class GitHubClient:
         self.config = config
         self._client: httpx.AsyncClient | None = None
         self._headers = self._build_headers()
-        
+
         # Initialize rate limiting and circuit breaker
         self.rate_limit_handler = rate_limit_handler or RateLimitHandler()
         self.circuit_breaker = circuit_breaker or CircuitBreaker(
@@ -128,7 +129,7 @@ class GitHubClient:
     ) -> dict[str, Any]:
         """Make an authenticated request to the GitHub API with retry logic."""
         operation_name = f"{method} {endpoint}"
-        
+
         async def make_request() -> dict[str, Any]:
             """Inner function to make the actual request."""
             await self._ensure_client()
@@ -189,7 +190,7 @@ class GitHubClient:
                                 reset_time = int(time.time()) + int(retry_after)
                             except ValueError:
                                 pass
-                        
+
                         raise GitHubRateLimitError(
                             "GitHub API rate limit exceeded (429)",
                             reset_time=reset_time,
@@ -274,9 +275,17 @@ class GitHubClient:
 
     # Repository operations
 
-    async def get_repository(self, owner: str, repo: str) -> Repository:
-        """Get repository information."""
+    async def get_repository(self, owner: str, repo: str, disable_cache: bool = False) -> Repository:
+        """Get repository information.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            disable_cache: Whether to bypass cache (not implemented yet)
+        """
         logger.info(f"Fetching repository {owner}/{repo}")
+        if disable_cache:
+            logger.debug(f"Cache bypass requested for repository {owner}/{repo}")
         data = await self.get(f"repos/{owner}/{repo}")
         return Repository.from_github_api(data)
 
@@ -384,9 +393,16 @@ class GitHubClient:
 
     # User operations
 
-    async def get_user(self, username: str) -> User:
-        """Get user information."""
+    async def get_user(self, username: str, disable_cache: bool = False) -> User:
+        """Get user information.
+
+        Args:
+            username: GitHub username
+            disable_cache: Whether to bypass cache (not implemented yet)
+        """
         logger.info(f"Fetching user {username}")
+        if disable_cache:
+            logger.debug(f"Cache bypass requested for user {username}")
         data = await self.get(f"users/{username}")
         return User.from_github_api(data)
 
@@ -421,15 +437,15 @@ class GitHubClient:
             rate_limit_status = await self.check_rate_limit()
             remaining = rate_limit_status["remaining"]
             reset_time = rate_limit_status["reset"]
-            
+
             if remaining <= 10:  # Conservative threshold
                 current_time = time.time()
                 wait_time = max(0, reset_time - current_time + 1)  # +1 second buffer
-                
+
                 if wait_time > 0:
                     logger.info(f"Rate limit low ({remaining} remaining), waiting {wait_time:.1f}s for reset")
                     await asyncio.sleep(wait_time)
-                    
+
         except Exception as e:
             logger.warning(f"Could not check rate limit status: {e}")
 
@@ -478,39 +494,49 @@ class GitHubClient:
         return data.get("names", [])
 
     async def get_repository_contributors(
-        self, owner: str, repo: str, per_page: int = 100, max_count: int | None = None
+        self, owner: str, repo: str, per_page: int = 100, max_count: int | None = None, disable_cache: bool = False
     ) -> list[dict[str, Any]]:
-        """Get repository contributors."""
+        """Get repository contributors.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            per_page: Number of contributors per page
+            max_count: Maximum number of contributors to fetch
+            disable_cache: Whether to bypass cache (not implemented yet)
+        """
         logger.info(f"Fetching contributors for {owner}/{repo}")
-        
+        if disable_cache:
+            logger.debug(f"Cache bypass requested for contributors {owner}/{repo}")
+
         if max_count and max_count <= per_page:
             # Single request is sufficient
             params = {"per_page": min(max_count, 100)}
             data = await self.get(f"repos/{owner}/{repo}/contributors", params=params)
             return data[:max_count] if max_count else data
-        
+
         # Paginated request
         all_contributors = []
         page = 1
-        
+
         while True:
             params = {"per_page": min(per_page, 100), "page": page}
             data = await self.get(f"repos/{owner}/{repo}/contributors", params=params)
-            
+
             if not data:
                 break
-            
+
             all_contributors.extend(data)
-            
+
             if max_count and len(all_contributors) >= max_count:
                 all_contributors = all_contributors[:max_count]
                 break
-            
+
             if len(data) < per_page:
                 break
-            
+
             page += 1
-        
+
         return all_contributors
 
     async def get_repository_branches(
@@ -518,35 +544,35 @@ class GitHubClient:
     ) -> list[dict[str, Any]]:
         """Get repository branches."""
         logger.debug(f"Fetching branches for {owner}/{repo}")
-        
+
         if max_count and max_count <= per_page:
             # Single request is sufficient
             params = {"per_page": min(max_count, 100)}
             data = await self.get(f"repos/{owner}/{repo}/branches", params=params)
             return data[:max_count] if max_count else data
-        
+
         # Paginated request
         all_branches = []
         page = 1
-        
+
         while True:
             params = {"per_page": min(per_page, 100), "page": page}
             data = await self.get(f"repos/{owner}/{repo}/branches", params=params)
-            
+
             if not data:
                 break
-            
+
             all_branches.extend(data)
-            
+
             if max_count and len(all_branches) >= max_count:
                 all_branches = all_branches[:max_count]
                 break
-            
+
             if len(data) < per_page:
                 break
-            
+
             page += 1
-        
+
         return all_branches
 
     async def get_branch_commits(
@@ -554,37 +580,37 @@ class GitHubClient:
     ) -> list[dict[str, Any]]:
         """Get commits for a specific branch."""
         logger.debug(f"Fetching commits for branch {branch} in {owner}/{repo}")
-        
+
         params = {"sha": branch, "per_page": min(per_page, 100)}
-        
+
         if max_count and max_count <= per_page:
             # Single request is sufficient
             params["per_page"] = min(max_count, 100)
             data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
             return data[:max_count] if max_count else data
-        
+
         # Paginated request
         all_commits = []
         page = 1
-        
+
         while True:
             params = {"sha": branch, "per_page": min(per_page, 100), "page": page}
             data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
-            
+
             if not data:
                 break
-            
+
             all_commits.extend(data)
-            
+
             if max_count and len(all_commits) >= max_count:
                 all_commits = all_commits[:max_count]
                 break
-            
+
             if len(data) < per_page:
                 break
-            
+
             page += 1
-        
+
         return all_commits
 
     async def get_branch_comparison(
@@ -597,14 +623,24 @@ class GitHubClient:
     # Fork-specific operations
 
     async def get_fork_comparison(
-        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, disable_cache: bool = False
     ) -> dict[str, Any]:
-        """Compare a fork with its parent repository."""
+        """Compare a fork with its parent repository.
+
+        Args:
+            fork_owner: Fork repository owner
+            fork_repo: Fork repository name
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            disable_cache: Whether to bypass cache (not implemented yet)
+        """
         logger.info(f"Comparing fork {fork_owner}/{fork_repo} with parent {parent_owner}/{parent_repo}")
+        if disable_cache:
+            logger.debug("Cache bypass requested for fork comparison")
 
         # Compare fork's default branch with parent's default branch
-        fork_info = await self.get_repository(fork_owner, fork_repo)
-        parent_info = await self.get_repository(parent_owner, parent_repo)
+        fork_info = await self.get_repository(fork_owner, fork_repo, disable_cache=disable_cache)
+        parent_info = await self.get_repository(parent_owner, parent_repo, disable_cache=disable_cache)
 
         # Compare the branches
         comparison = await self.compare_commits(
@@ -617,12 +653,23 @@ class GitHubClient:
         return comparison
 
     async def get_commits_ahead_behind(
-        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, disable_cache: bool = False
     ) -> dict[str, int]:
-        """Get the number of commits a fork is ahead/behind its parent."""
+        """Get the number of commits a fork is ahead/behind its parent.
+
+        Args:
+            fork_owner: Fork repository owner
+            fork_repo: Fork repository name
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            disable_cache: Whether to bypass cache (not implemented yet)
+        """
         try:
+            if disable_cache:
+                logger.debug(f"Cache bypass requested for commits comparison {fork_owner}/{fork_repo} vs {parent_owner}/{parent_repo}")
+
             comparison = await self.get_fork_comparison(
-                fork_owner, fork_repo, parent_owner, parent_repo
+                fork_owner, fork_repo, parent_owner, parent_repo, disable_cache=disable_cache
             )
 
             return {
@@ -655,3 +702,53 @@ class GitHubClient:
             commits_behind=comparison["behind_by"],
             last_activity=fork_repo.pushed_at,
         )
+
+    async def compare_repositories(
+        self,
+        base_owner: str,
+        base_repo: str,
+        fork_owner: str,
+        fork_repo: str
+    ) -> dict[str, Any]:
+        """Compare two repositories using GitHub's compare API.
+
+        This method compares the default branch of the fork repository
+        with the default branch of the base repository to determine
+        how many commits the fork is ahead.
+
+        Args:
+            base_owner: Base repository owner
+            base_repo: Base repository name
+            fork_owner: Fork repository owner
+            fork_repo: Fork repository name
+
+        Returns:
+            Dictionary containing comparison data including ahead_by count
+
+        Raises:
+            GitHubAPIError: If the comparison cannot be performed
+        """
+        logger.debug(f"Comparing repositories: {base_owner}/{base_repo} vs {fork_owner}/{fork_repo}")
+
+        try:
+            # Get repository information to determine default branches
+            base_info = await self.get_repository(base_owner, base_repo)
+            fork_info = await self.get_repository(fork_owner, fork_repo)
+
+            # Use GitHub's compare API to compare default branches
+            # Format: base...head where head can be owner:branch for cross-repo comparison
+            comparison_ref = f"{base_info.default_branch}...{fork_owner}:{fork_info.default_branch}"
+
+            comparison = await self.get(f"repos/{base_owner}/{base_repo}/compare/{comparison_ref}")
+
+            return {
+                "ahead_by": comparison.get("ahead_by", 0),
+                "behind_by": comparison.get("behind_by", 0),
+                "status": comparison.get("status", "unknown"),
+                "total_commits": comparison.get("total_commits", 0),
+                "commits": comparison.get("commits", []),
+            }
+
+        except GitHubAPIError as e:
+            logger.warning(f"Failed to compare {base_owner}/{base_repo} with {fork_owner}/{fork_repo}: {e}")
+            raise

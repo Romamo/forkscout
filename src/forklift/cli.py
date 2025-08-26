@@ -488,6 +488,7 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
 @click.option("--interactive", "-i", is_flag=True, help="Enter interactive mode for fork selection and analysis")
 @click.option("--scan-all", is_flag=True, help="Scan all forks including those with no commits ahead (bypasses default filtering)")
 @click.option("--explain", is_flag=True, help="Generate explanations for each commit during analysis")
+@click.option("--disable-cache", is_flag=True, help="Bypass cache and fetch fresh data from GitHub API")
 @click.pass_context
 def analyze(
     ctx: click.Context,
@@ -500,7 +501,8 @@ def analyze(
     dry_run: bool,
     interactive: bool,
     scan_all: bool,
-    explain: bool
+    explain: bool,
+    disable_cache: bool
 ) -> None:
     """Analyze a repository and its forks for valuable features.
 
@@ -533,10 +535,10 @@ def analyze(
 
         if interactive:
             # Run interactive analysis
-            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose, scan_all, explain))
+            results = asyncio.run(_run_interactive_analysis(config, owner, repo_name, verbose, scan_all, explain, disable_cache))
         else:
             # Run standard analysis
-            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose, scan_all, explain))
+            results = asyncio.run(_run_analysis(config, owner, repo_name, verbose, scan_all, explain, disable_cache))
 
             # Display results
             display_analysis_summary(results)
@@ -796,9 +798,13 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @cli.command("show-forks")
 @click.argument("repository_url")
 @click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to display")
+@click.option("--detail", is_flag=True, help="Fetch exact commit counts ahead for each fork using additional API requests")
 @click.pass_context
-def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None) -> None:
+def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool) -> None:
     """Display a summary table of repository forks with key metrics.
+
+    Use --detail flag to fetch exact commit counts ahead for each fork.
+    This makes additional API requests but provides precise commit information.
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
@@ -817,7 +823,7 @@ def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None) -
             console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Run forks summary display
-        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose))
+        asyncio.run(_show_forks_summary(config, repository_url, max_forks, verbose, detail))
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1356,7 +1362,8 @@ async def _show_forks_summary(
     config: ForkliftConfig,
     repository_url: str,
     max_forks: int | None,
-    verbose: bool
+    verbose: bool,
+    detail: bool = False
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -1365,25 +1372,41 @@ async def _show_forks_summary(
         repository_url: Repository URL to get forks for
         max_forks: Maximum number of forks to display (ignored - shows all)
         verbose: Whether to show verbose output
+        detail: Whether to fetch exact commit counts ahead using additional API requests
     """
     async with GitHubClient(config.github) as github_client:
         display_service = RepositoryDisplayService(github_client, console)
 
         try:
-            # Use show_fork_data which only uses pagination-only requests
-            fork_data_result = await display_service.show_fork_data(
-                repository_url,
-                exclude_archived=False,
-                exclude_disabled=False,
-                sort_by="stars",
-                show_all=True,
-                disable_cache=False
-            )
+            if detail:
+                # Use detailed fork display with exact commit counts
+                fork_data_result = await display_service.show_fork_data_detailed(
+                    repository_url,
+                    max_forks=max_forks,
+                    disable_cache=False
+                )
 
-            if verbose:
-                total_forks = fork_data_result["total_forks"]
-                displayed_forks = fork_data_result["displayed_forks"]
-                console.print(f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks using pagination-only requests[/green]")
+                if verbose:
+                    total_forks = fork_data_result["total_forks"]
+                    displayed_forks = fork_data_result["displayed_forks"]
+                    api_calls_made = fork_data_result.get("api_calls_made", 0)
+                    console.print(f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks with detailed commit information[/green]")
+                    console.print(f"[blue]Made {api_calls_made} additional API calls for commit comparison[/blue]")
+            else:
+                # Use standard fork data display (pagination-only)
+                fork_data_result = await display_service.show_fork_data(
+                    repository_url,
+                    exclude_archived=False,
+                    exclude_disabled=False,
+                    sort_by="stars",
+                    show_all=True,
+                    disable_cache=False
+                )
+
+                if verbose:
+                    total_forks = fork_data_result["total_forks"]
+                    displayed_forks = fork_data_result["displayed_forks"]
+                    console.print(f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks using pagination-only requests[/green]")
 
         except Exception as e:
             logger.error(f"Failed to display forks data: {e}")
@@ -1396,7 +1419,8 @@ async def _run_analysis(
     repo_name: str,
     verbose: bool,
     scan_all: bool = False,
-    explain: bool = False
+    explain: bool = False,
+    disable_cache: bool = False
 ) -> dict:
     """Run the actual repository analysis.
 
@@ -1407,6 +1431,7 @@ async def _run_analysis(
         verbose: Whether to show verbose output
         scan_all: Whether to scan all forks (bypass filtering)
         explain: Whether to generate commit explanations
+        disable_cache: Whether to bypass cache and fetch fresh data
 
     Returns:
         Dictionary with analysis results
@@ -1461,7 +1486,7 @@ async def _run_analysis(
         task1 = progress.add_task("Discovering forks...", total=None)
         try:
             repository_url = f"https://github.com/{owner}/{repo_name}"
-            all_forks = await fork_discovery.discover_forks(repository_url)
+            all_forks = await fork_discovery.discover_forks(repository_url, disable_cache=disable_cache)
             results["total_forks"] = len(all_forks)
 
             if scan_all:
@@ -1481,7 +1506,7 @@ async def _run_analysis(
         # Step 2: Get base repository for comparison
         base_repo_task = progress.add_task("Getting base repository...", total=None)
         try:
-            base_repo = await github_client.get_repository(owner, repo_name)
+            base_repo = await github_client.get_repository(owner, repo_name, disable_cache=disable_cache)
             progress.update(base_repo_task, completed=True, description="Base repository retrieved")
         except Exception as e:
             progress.update(base_repo_task, description=f"Failed to get base repository: {e}")
@@ -1587,7 +1612,8 @@ async def _run_interactive_analysis(
     repo_name: str,
     verbose: bool,
     scan_all: bool = False,
-    explain: bool = False
+    explain: bool = False,
+    disable_cache: bool = False
 ) -> dict:
     """Run interactive repository analysis with user confirmation stops.
 
@@ -1598,6 +1624,7 @@ async def _run_interactive_analysis(
         verbose: Whether to show verbose output
         scan_all: Whether to scan all forks (bypass filtering)
         explain: Whether to generate commit explanations
+        disable_cache: Whether to bypass cache and fetch fresh data
 
     Returns:
         Dictionary with analysis results
@@ -1605,6 +1632,10 @@ async def _run_interactive_analysis(
     # Validate GitHub token
     if not config.github.token:
         raise CLIError("GitHub token not configured. Use 'forklift configure' to set it up.")
+
+    # Warn about cache disabling in interactive mode
+    if disable_cache:
+        console.print("[yellow]WARNING: Cache disabling in interactive mode is not fully implemented yet.[/yellow]")
 
     # Initialize GitHub client
     github_client = GitHubClient(config.github)
@@ -2065,7 +2096,7 @@ async def _display_commit_explanations_for_commits(
     commits: list
 ) -> None:
     """Display commit explanations for a list of commits.
-    
+
     Args:
         github_client: GitHub API client
         owner: Repository owner
@@ -2153,7 +2184,7 @@ async def _display_ai_summaries_for_commits(
     compact_mode: bool = False
 ) -> None:
     """Display AI-powered summaries for a list of commits.
-    
+
     Args:
         github_client: GitHub API client
         config: Forklift configuration
@@ -2298,7 +2329,7 @@ async def _display_detailed_commits(
     disable_cache: bool = False
 ) -> None:
     """Display commits in detailed view with comprehensive information.
-    
+
     Args:
         github_client: GitHub API client
         config: Forklift configuration
@@ -2790,7 +2821,7 @@ async def _show_fork_details(
 
 def _display_comprehensive_fork_data(qualification_result, verbose: bool) -> None:
     """Display comprehensive fork data in a user-friendly format.
-    
+
     Args:
         qualification_result: QualifiedForksResult containing all fork data
         verbose: Whether to show verbose output
@@ -2878,7 +2909,7 @@ def _display_comprehensive_fork_data(qualification_result, verbose: bool) -> Non
 
 async def _interactive_fork_selection(qualification_result, config: ForkliftConfig, verbose: bool) -> None:
     """Interactive mode for selecting and analyzing specific forks.
-    
+
     Args:
         qualification_result: QualifiedForksResult containing all fork data
         config: Forklift configuration

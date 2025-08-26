@@ -1435,4 +1435,173 @@ forklift analyze --auto-pr --min-score 80
 
 # Scheduled analysis
 forklift schedule --cron "0 0 * * 0" --config config.yaml
+
+## Show-Forks Detail Mode Design
+
+### Overview
+
+The show-forks --detail functionality extends the existing fork display system to provide precise commit ahead information by making additional GitHub API calls. This design balances the need for accurate commit data with API rate limiting considerations.
+
+### Architecture
+
+The detail mode follows a two-phase approach:
+1. **Phase 1**: Collect basic fork data using pagination-only requests (existing functionality)
+2. **Phase 2**: When --detail flag is provided, make additional compare API calls to get exact commit counts
+
+```mermaid
+graph TD
+    A[show-forks --detail] --> B[Collect Basic Fork Data]
+    B --> C[Filter Forks for Detail Processing]
+    C --> D[Make Compare API Calls]
+    D --> E[Display Detailed Table]
+    
+    F[GitHub Compare API] --> D
+    G[Rate Limiting] --> D
+    H[Progress Tracking] --> D
+    I[Error Handling] --> D
+```
+
+### Components
+
+#### Enhanced CLI Command
+```python
+@cli.command("show-forks")
+@click.argument("repository_url")
+@click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to display")
+@click.option("--detail", is_flag=True, help="Make additional API calls to get exact commits ahead count")
+@click.pass_context
+def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool) -> None:
+    """Display fork information with optional detailed commit analysis."""
+```
+
+#### GitHub Client Enhancement
+```python
+class GitHubClient:
+    async def get_commits_ahead(self, base_owner: str, base_repo: str, head_owner: str, head_repo: str, 
+                               base_branch: str = "main", head_branch: str = "main", 
+                               disable_cache: bool = False) -> int | None:
+        """Get exact number of commits ahead using GitHub's compare API.
+        
+        Args:
+            base_owner: Owner of the base repository (upstream)
+            base_repo: Name of the base repository
+            head_owner: Owner of the head repository (fork)
+            head_repo: Name of the head repository
+            base_branch: Base branch to compare against
+            head_branch: Head branch to compare from
+            disable_cache: Whether to bypass cache
+            
+        Returns:
+            Number of commits ahead, or None if comparison fails
+        """
+```
+
+#### Repository Display Service Enhancement
+```python
+class RepositoryDisplayService:
+    async def show_fork_data_detailed(self, repo_url: str, exclude_archived: bool = False,
+                                    exclude_disabled: bool = False, sort_by: str = "stars",
+                                    show_all: bool = False, disable_cache: bool = False) -> dict[str, Any]:
+        """Display comprehensive fork data with exact commits ahead information."""
+        
+    def _display_detailed_fork_table(self, qualification_result: QualifiedForksResult,
+                                   commits_ahead_data: dict[str, int | None],
+                                   sort_by: str = "stars", show_all: bool = False) -> None:
+        """Display fork table with detailed commit information and reduced columns."""
+        
+    async def _fetch_commits_ahead_batch(self, base_owner: str, base_repo: str,
+                                       forks: List[CollectedForkData],
+                                       progress_callback: Callable = None) -> dict[str, int | None]:
+        """Batch fetch commits ahead data with rate limiting and progress tracking."""
+```
+
+### Table Structure Design
+
+#### Current Table (without --detail)
+| Fork Name | Owner | Stars | Forks | URL | Commits Ahead | Activity | Last Push | Status |
+
+#### New Detailed Table (with --detail)
+| URL | Stars | Forks | Commits Ahead | Last Push |
+
+### Design Decisions
+
+#### Column Reduction Rationale
+- **URL First**: Most important for navigation and identification
+- **Remove Fork Name/Owner**: Redundant with URL, reduces visual clutter
+- **Remove Activity**: Duplicates Last Push information
+- **Remove Status**: Focus on active metrics rather than status indicators
+- **Keep Stars/Forks**: Essential popularity metrics
+- **Enhanced Commits Ahead**: Exact counts instead of status indicators
+
+#### API Call Strategy
+```python
+# Efficient batch processing with rate limiting
+async def _process_commits_ahead_with_rate_limiting(self, forks: List[CollectedForkData]) -> dict[str, int]:
+    """Process commits ahead requests with intelligent rate limiting."""
+    
+    results = {}
+    rate_limiter = self.github_client.rate_limiter
+    
+    for fork in forks:
+        try:
+            # Check rate limit before making request
+            await rate_limiter.wait_if_needed()
+            
+            commits_ahead = await self.github_client.get_commits_ahead(
+                base_owner=self.base_owner,
+                base_repo=self.base_repo,
+                head_owner=fork.metrics.owner,
+                head_repo=fork.metrics.name
+            )
+            
+            results[f"{fork.metrics.owner}/{fork.metrics.name}"] = commits_ahead
+            
+        except Exception as e:
+            logger.warning(f"Failed to get commits ahead for {fork.metrics.owner}/{fork.metrics.name}: {e}")
+            results[f"{fork.metrics.owner}/{fork.metrics.name}"] = None
+            
+    return results
+```
+
+#### Error Handling Strategy
+- **Graceful Degradation**: Show "Unknown" for failed API calls
+- **Continue Processing**: Don't fail entire operation for individual fork failures
+- **Rate Limit Respect**: Implement backoff and retry logic
+- **Progress Feedback**: Show user progress during additional API calls
+
+#### Performance Considerations
+- **Batch Processing**: Process multiple forks concurrently within rate limits
+- **Caching**: Cache compare results to avoid repeated API calls
+- **User Warning**: Inform users about additional API calls and potential delays
+- **Configurable Limits**: Allow users to limit number of detailed forks processed
+
+### Data Flow
+
+1. **Initial Collection**: Use existing pagination-only fork collection
+2. **Detail Processing**: When --detail flag is present:
+   - Extract fork list from collected data
+   - Make compare API calls for each fork
+   - Handle rate limiting and errors
+   - Update display data with exact commit counts
+3. **Display**: Render detailed table with reduced columns and exact commit data
+
+### Integration Points
+
+#### With Existing Systems
+- **Fork Data Collection**: Builds on existing `ForkDataCollectionEngine`
+- **Rate Limiting**: Uses existing `GitHubClient` rate limiting infrastructure
+- **Caching**: Integrates with existing cache system for compare results
+- **Progress Display**: Uses existing progress indicator patterns
+
+#### Configuration Integration
+```python
+class DetailModeConfig:
+    max_concurrent_requests: int = 5
+    compare_timeout_seconds: int = 30
+    enable_compare_caching: bool = True
+    show_progress_indicators: bool = True
+    fallback_to_unknown: bool = True
+```
+
+This design ensures that the --detail functionality provides valuable exact commit information while maintaining system performance and respecting GitHub API constraints.
 ```

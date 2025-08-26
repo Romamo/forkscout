@@ -1116,6 +1116,247 @@ class RepositoryDisplayService:
             self.console.print(f"[red]Error: Failed to collect fork data: {e}[/red]")
             raise
 
+    async def show_fork_data_detailed(
+        self,
+        repo_url: str,
+        max_forks: int | None = None,
+        disable_cache: bool = False,
+    ) -> dict[str, Any]:
+        """Display detailed fork data with exact commit counts ahead.
+
+        This method makes additional API requests to fetch precise commit counts
+        ahead for each fork using GitHub's compare API endpoint.
+
+        Args:
+            repo_url: Repository URL in format owner/repo or full GitHub URL
+            max_forks: Maximum number of forks to display (None for all)
+            disable_cache: Whether to bypass cache for fresh data
+
+        Returns:
+            Dictionary containing detailed fork data with exact commit counts
+
+        Raises:
+            ValueError: If repository URL format is invalid
+            GitHubAPIError: If fork data cannot be fetched
+        """
+        from rich.progress import (
+            BarColumn,
+            Progress,
+            SpinnerColumn,
+            TaskProgressColumn,
+            TextColumn,
+        )
+
+        from forklift.analysis.fork_data_collection_engine import (
+            ForkDataCollectionEngine,
+        )
+        from forklift.github.fork_list_processor import ForkListProcessor
+
+        owner, repo_name = self._parse_repository_url(repo_url)
+
+        logger.info(f"Collecting detailed fork data with exact commit counts for {owner}/{repo_name}")
+
+        try:
+            # Initialize components
+            fork_processor = ForkListProcessor(self.github_client)
+            data_engine = ForkDataCollectionEngine()
+
+            # Get all forks data from GitHub API
+            forks_list_data = await fork_processor.get_all_forks_list_data(
+                owner, repo_name
+            )
+
+            if not forks_list_data:
+                self.console.print(
+                    "[yellow]No forks found for this repository.[/yellow]"
+                )
+                return {"total_forks": 0, "collected_forks": [], "stats": None, "api_calls_made": 0}
+
+            # Apply max_forks limit if specified
+            if max_forks and len(forks_list_data) > max_forks:
+                forks_list_data = forks_list_data[:max_forks]
+
+            # Collect basic fork data
+            collected_forks = data_engine.collect_fork_data_from_list(forks_list_data)
+
+            # Filter out archived and disabled forks for detailed analysis
+            active_forks = [
+                fork for fork in collected_forks
+                if not fork.metrics.archived and not fork.metrics.disabled
+            ]
+
+            # Fetch exact commit counts with progress indicator
+            api_calls_made = 0
+            detailed_forks = []
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=self.console
+            ) as progress:
+                task = progress.add_task(
+                    "Fetching exact commit counts...",
+                    total=len(active_forks)
+                )
+
+                for fork_data in active_forks:
+                    try:
+                        # Get exact commits ahead count using compare API
+                        commits_ahead = await self._get_exact_commits_ahead(
+                            owner, repo_name, fork_data.metrics.owner, fork_data.metrics.name
+                        )
+                        api_calls_made += 1
+
+                        # Update fork data with exact commit count
+                        fork_data.exact_commits_ahead = commits_ahead
+                        detailed_forks.append(fork_data)
+
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"Fetching commits for {fork_data.metrics.owner}/{fork_data.metrics.name}"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {e}")
+                        # Set to unknown and continue
+                        fork_data.exact_commits_ahead = "Unknown"
+                        detailed_forks.append(fork_data)
+                        progress.update(task, advance=1)
+
+            # Display detailed fork data table
+            self._display_detailed_fork_table(detailed_forks, owner, repo_name)
+
+            return {
+                "total_forks": len(forks_list_data),
+                "displayed_forks": len(detailed_forks),
+                "collected_forks": detailed_forks,
+                "api_calls_made": api_calls_made,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to collect detailed fork data: {e}")
+            self.console.print(f"[red]Error: Failed to collect detailed fork data: {e}[/red]")
+            raise
+
+    async def _get_exact_commits_ahead(
+        self,
+        base_owner: str,
+        base_repo: str,
+        fork_owner: str,
+        fork_repo: str
+    ) -> int | str:
+        """Get exact number of commits ahead using GitHub's compare API.
+
+        Args:
+            base_owner: Base repository owner
+            base_repo: Base repository name
+            fork_owner: Fork repository owner
+            fork_repo: Fork repository name
+
+        Returns:
+            Number of commits ahead or "Unknown" if cannot be determined
+        """
+        try:
+            # Use GitHub's compare API to get exact commit count
+            comparison = await self.github_client.compare_repositories(
+                base_owner, base_repo, fork_owner, fork_repo
+            )
+
+            if comparison and "ahead_by" in comparison:
+                return comparison["ahead_by"]
+            else:
+                return "Unknown"
+
+        except Exception as e:
+            logger.debug(f"Failed to compare {fork_owner}/{fork_repo} with {base_owner}/{base_repo}: {e}")
+            return "Unknown"
+
+    def _display_detailed_fork_table(
+        self,
+        detailed_forks: list,
+        base_owner: str,
+        base_repo: str
+    ) -> None:
+        """Display detailed fork information table with exact commit counts.
+
+        Args:
+            detailed_forks: List of fork data with exact commit counts
+            base_owner: Base repository owner
+            base_repo: Base repository name
+        """
+        if not detailed_forks:
+            self.console.print("[yellow]No active forks found for detailed analysis.[/yellow]")
+            return
+
+        # Sort forks by commits ahead (descending), then by stars (descending)
+        sorted_forks = sorted(
+            detailed_forks,
+            key=lambda x: (
+                x.exact_commits_ahead if isinstance(x.exact_commits_ahead, int) else -1,
+                x.metrics.stargazers_count
+            ),
+            reverse=True
+        )
+
+        # Create detailed fork table with simplified columns
+        self.console.print(f"\n[bold blue]Detailed Fork Information for {base_owner}/{base_repo}[/bold blue]")
+        self.console.print("=" * 80)
+
+        fork_table = Table(
+            title=f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts)"
+        )
+        fork_table.add_column("URL", style="cyan", min_width=35)
+        fork_table.add_column("Stars", style="yellow", justify="right", width=8)
+        fork_table.add_column("Forks", style="green", justify="right", width=8)
+        fork_table.add_column("Commits Ahead", style="magenta", justify="right", width=15)
+        fork_table.add_column("Last Push", style="blue", width=12)
+
+        for fork_data in sorted_forks:
+            metrics = fork_data.metrics
+
+            # Format URL
+            fork_url = self._format_fork_url(metrics.owner, metrics.name)
+
+            # Format commits ahead
+            if isinstance(fork_data.exact_commits_ahead, int):
+                if fork_data.exact_commits_ahead == 0:
+                    commits_display = "[dim]0 commits[/dim]"
+                else:
+                    commits_display = f"[green]{fork_data.exact_commits_ahead} commits[/green]"
+            else:
+                commits_display = "[yellow]Unknown[/yellow]"
+
+            # Format last push date
+            last_push = self._format_datetime(metrics.pushed_at)
+
+            fork_table.add_row(
+                fork_url,
+                str(metrics.stargazers_count),
+                str(metrics.forks_count),
+                commits_display,
+                last_push,
+            )
+
+        self.console.print(fork_table)
+
+        # Show summary statistics
+        total_commits_ahead = sum(
+            fork.exact_commits_ahead for fork in sorted_forks
+            if isinstance(fork.exact_commits_ahead, int)
+        )
+        forks_with_commits = len([
+            fork for fork in sorted_forks
+            if isinstance(fork.exact_commits_ahead, int) and fork.exact_commits_ahead > 0
+        ])
+
+        self.console.print("\n[bold]Summary:[/bold]")
+        self.console.print(f"• {forks_with_commits} forks have commits ahead")
+        self.console.print(f"• {total_commits_ahead} total commits ahead across all forks")
+        self.console.print("• Exact commit counts fetched using GitHub compare API")
+
     async def show_promising_forks(
         self,
         repo_url: str,
