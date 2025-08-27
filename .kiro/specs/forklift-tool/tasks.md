@@ -1062,7 +1062,7 @@
   - Write unit tests for CLI command parameter handling with --detail flag
   - _Requirements: 21.1, 21.7, 21.10_
 
-- [ ] 19.2 Implement commits ahead API calls for detailed mode
+- [-] 19.2 Implement commits ahead API calls for detailed mode
   - Create get_commits_ahead method in GitHubClient using GitHub's compare API endpoint
   - Add error handling for compare API failures (repository access, branch differences)
   - Implement rate limiting and backoff strategies for additional API calls
@@ -1259,7 +1259,7 @@
   - Write end-to-end tests for complete fork filtering workflow
   - _Requirements: 21.1, 21.2, 21.4, 21.6, 21.7, 21.10_
 
-- [-] 20.7 Optimize show-forks --show-commits to skip downloading commits for forks with no commits ahead
+- [x] 20.7 Optimize show-forks --show-commits to skip downloading commits for forks with no commits ahead
   - Enhance show_fork_data and show_fork_data_detailed methods to check fork commit status before downloading commits
   - Implement commit status checking using already collected fork qualification data (created_at >= pushed_at comparison)
   - Add logic to skip commit downloads for forks with no commits ahead and display "No commits ahead" in Recent Commits column

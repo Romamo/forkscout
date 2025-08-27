@@ -1876,6 +1876,39 @@ async def _analyze_fork(
             raise CLIError(f"Failed to analyze fork: {e}")
 
 
+async def _get_parent_repository_url(github_client: GitHubClient, fork_url: str) -> str | None:
+    """
+    Get the parent repository URL from a fork URL.
+
+    Args:
+        github_client: GitHub API client
+        fork_url: URL of the fork repository
+
+    Returns:
+        Parent repository URL if fork, None if not a fork or error
+    """
+    try:
+        owner, repo_name = validate_repository_url(fork_url)
+        
+        # Get raw repository data to access parent information
+        repo_data = await github_client.get(f"repos/{owner}/{repo_name}")
+        
+        if repo_data.get("fork") and repo_data.get("parent"):
+            return repo_data["parent"]["html_url"]
+        elif repo_data.get("fork"):
+            # If it's a fork but parent info is not available, try to construct URL
+            # This is a fallback - the parent info should normally be available
+            logger.warning(f"Fork {owner}/{repo_name} has no parent info available")
+            return None
+        else:
+            # Not a fork, return the same URL as it might be the parent
+            return fork_url
+            
+    except Exception as e:
+        logger.debug(f"Could not determine parent repository for {fork_url}: {e}")
+        return None
+
+
 async def _show_commits(
     config: ForkliftConfig,
     fork_url: str,
@@ -1926,11 +1959,41 @@ async def _show_commits(
                 from forklift.analysis.fork_commit_status_checker import (
                     ForkCommitStatusChecker,
                 )
+                from forklift.analysis.fork_qualification_lookup import (
+                    ForkQualificationLookup,
+                )
 
-                status_checker = ForkCommitStatusChecker(github_client)
+                # Initialize qualification lookup service
+                cache_manager = None
+                try:
+                    cache_manager = AnalysisCacheManager()
+                    await cache_manager.initialize()
+                except Exception as e:
+                    logger.warning(f"Failed to initialize cache manager for qualification lookup: {e}")
+
+                qualification_lookup = ForkQualificationLookup(
+                    github_client, cache_manager
+                )
 
                 try:
-                    has_commits = await status_checker.has_commits_ahead(fork_url)
+                    # Try to get parent repository URL from fork URL
+                    parent_repo_url = await _get_parent_repository_url(github_client, fork_url)
+                    
+                    # Look up qualification data for the parent repository
+                    qualification_result = None
+                    if parent_repo_url:
+                        try:
+                            qualification_result = await qualification_lookup.get_fork_qualification_data(
+                                parent_repo_url, disable_cache
+                            )
+                            if qualification_result and verbose:
+                                console.print(f"[blue]Using fork qualification data from {parent_repo_url}[/blue]")
+                        except Exception as e:
+                            logger.debug(f"Could not get qualification data: {e}")
+
+                    # Check fork status using qualification data if available
+                    status_checker = ForkCommitStatusChecker(github_client)
+                    has_commits = await status_checker.has_commits_ahead(fork_url, qualification_result)
 
                     if has_commits is False:
                         console.print("[yellow]Fork has no commits ahead of upstream - skipping detailed analysis[/yellow]")
@@ -1947,6 +2010,13 @@ async def _show_commits(
                     logger.warning(f"Fork status check failed: {e}")
                     if verbose:
                         console.print(f"[yellow]Fork status check failed - proceeding with analysis: {e}[/yellow]")
+                finally:
+                    # Clean up cache manager
+                    if cache_manager:
+                        try:
+                            await cache_manager.close()
+                        except Exception as e:
+                            logger.warning(f"Failed to close cache manager: {e}")
 
             with Progress(
                 SpinnerColumn(),
