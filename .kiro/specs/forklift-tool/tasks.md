@@ -1269,3 +1269,39 @@
   - Write unit tests for commit download optimization logic and fork status determination
   - Add integration tests to verify optimization works correctly with various fork scenarios
   - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.6, 24.7, 24.8, 24.10, 24.12_
+
+- [ ] 21. Fix GitHub API rate limiting to handle long wait times and provide better user feedback (HIGH PRIORITY)
+- [ ] 21.1 Remove max_delay restriction for rate limit reset times
+  - Update RateLimitHandler.calculate_delay() to always use x-ratelimit-reset time when available, ignoring max_delay limit
+  - Modify rate limit handling logic to wait for full reset time even if it exceeds current 60-second max_delay
+  - Add special handling for rate limit errors that bypasses normal exponential backoff limits
+  - Update retry logic to continue attempting when rate limit reset time is available rather than giving up after max_retries
+  - Write unit tests for long wait time handling and reset time prioritization
+  - _Requirements: 22.1, 22.2, 22.7_
+
+- [ ] 21.2 Add user-friendly progress feedback for rate limiting
+  - Implement countdown timer display during rate limit waits showing remaining time
+  - Add periodic progress updates every 30 seconds for long waits (>60 seconds)
+  - Create clear user messages explaining rate limit situation and expected resolution
+  - Add detailed logging of rate limit events including wait times, reset timestamps, and quota information
+  - Implement progress indicators that show rate limit recovery and operation resumption
+  - Write unit tests for progress feedback and user messaging
+  - _Requirements: 22.3, 22.4, 22.5, 22.8, 22.10_
+
+- [ ] 21.3 Improve rate limit error handling and recovery
+  - Enhance rate limit error detection to properly distinguish between rate limits and auth failures
+  - Update error handling to continue retrying when reset time is available instead of failing after max attempts
+  - Add immediate operation resumption after rate limit recovery without additional delays
+  - Implement better error messages that explain the difference between temporary rate limits and permanent failures
+  - Add request batching optimization to minimize rate limit impact during large operations
+  - Write unit tests for improved error handling and recovery scenarios
+  - _Requirements: 22.6, 22.7, 22.8, 22.9_
+
+- [ ] 21.4 Add integration tests for rate limiting improvements
+  - Create integration tests that simulate long rate limit wait scenarios
+  - Add tests for user feedback during extended rate limit waits
+  - Implement tests for rate limit recovery and operation continuation
+  - Create tests for proper handling of different rate limit response formats
+  - Add end-to-end tests for complete analysis workflow with rate limiting
+  - Write performance tests to verify rate limiting doesn't unnecessarily slow operations
+  - _Requirements: 22.1, 22.3, 22.4, 22.8, 22.10_

@@ -53,9 +53,12 @@ class RateLimitHandler:
             current_time = time.time()
             reset_delay = max(0, reset_time - current_time + 1)  # +1 second buffer
 
-            # Only use reset delay if it's reasonable and in the future
-            if reset_delay > 0 and reset_delay <= self.max_delay:
-                logger.info(f"Rate limit reset in {reset_delay:.1f} seconds, waiting...")
+            # Always use reset delay if it's valid and in the future, ignoring max_delay
+            if reset_delay > 0:
+                if reset_delay > self.max_delay:
+                    logger.info(f"Rate limit reset in {reset_delay:.1f} seconds (exceeds max_delay of {self.max_delay}s), waiting for full reset time...")
+                else:
+                    logger.info(f"Rate limit reset in {reset_delay:.1f} seconds, waiting...")
                 return reset_delay
 
         # Calculate exponential backoff delay
@@ -99,10 +102,14 @@ class RateLimitHandler:
             )
 
         last_exception = None
+        attempt = 0
 
-        for attempt in range(self.max_retries + 1):
+        while True:
             try:
-                logger.debug(f"Executing {operation_name} (attempt {attempt + 1}/{self.max_retries + 1})")
+                if attempt == 0:
+                    logger.debug(f"Executing {operation_name} (attempt {attempt + 1})")
+                else:
+                    logger.debug(f"Executing {operation_name} (attempt {attempt + 1})")
                 result = await func()
 
                 if attempt > 0:
@@ -118,9 +125,20 @@ class RateLimitHandler:
 
                 last_exception = e
 
-                if attempt == self.max_retries:
+                # For rate limit errors with reset time, continue retrying indefinitely
+                from .exceptions import GitHubRateLimitError
+                is_rate_limit_with_reset = (
+                    isinstance(e, GitHubRateLimitError) and 
+                    e.reset_time and 
+                    e.reset_time > 0
+                )
+
+                # Check if we should stop retrying
+                if attempt >= self.max_retries and not is_rate_limit_with_reset:
                     logger.error(f"Max retries ({self.max_retries}) exceeded for {operation_name}")
                     break
+                elif attempt >= self.max_retries and is_rate_limit_with_reset:
+                    logger.info(f"Max retries reached but continuing for rate limit with reset time: {e.reset_time}")
 
                 # Calculate delay based on exception type
                 delay = self._get_delay_for_exception(e, attempt)
@@ -131,6 +149,7 @@ class RateLimitHandler:
                 )
 
                 await asyncio.sleep(delay)
+                attempt += 1
 
             except Exception as e:
                 # Non-retryable exception, re-raise immediately
@@ -168,7 +187,20 @@ class RateLimitHandler:
 
         if isinstance(exception, GitHubRateLimitError):
             # For rate limit errors, use the reset time if available
-            return self.calculate_delay(attempt, exception.reset_time)
+            if exception.reset_time and exception.reset_time > 0:
+                return self.calculate_delay(attempt, exception.reset_time)
+            else:
+                # No reset time available, use progressive backoff for rate limits
+                # Use longer delays: 5min, 15min, 30min instead of short exponential backoff
+                progressive_delays = [300, 900, 1800]  # 5min, 15min, 30min in seconds
+                if attempt < len(progressive_delays):
+                    delay = progressive_delays[attempt]
+                    logger.info(f"Rate limit without reset time, using progressive backoff: {delay}s")
+                    return delay
+                else:
+                    # For attempts beyond our progressive delays, use 30min
+                    logger.info("Rate limit without reset time, using maximum backoff: 1800s (30min)")
+                    return 1800
         else:
             # For other errors, use standard exponential backoff
             return self.calculate_delay(attempt)

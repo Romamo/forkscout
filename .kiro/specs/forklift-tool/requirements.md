@@ -509,3 +509,20 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 10. WHEN users want to force commit downloads for all forks THEN the system SHALL provide a --force-all-commits flag to bypass the optimization
 11. WHEN the optimization encounters errors determining commit status THEN the system SHALL err on the side of inclusion and download commits rather than skip potentially valuable information
 12. WHEN --show-commits optimization is complete THEN the system SHALL maintain the same table format and user experience while significantly reducing API usage for repositories with many unchanged forks
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want improved GitHub API rate limiting that properly handles long wait times and provides better user feedback, so that I can reliably analyze repositories without operations failing due to rate limit handling issues.
+
+#### Acceptance Criteria
+
+1. WHEN the system encounters 403 Forbidden responses from GitHub API THEN it SHALL log all response headers to help diagnose whether rate limit headers are present
+2. WHEN GitHub API returns rate limit headers (x-ratelimit-remaining, x-ratelimit-reset, x-ratelimit-limit) THEN the system SHALL log these values for debugging
+3. WHEN rate limit reset time is missing or zero THEN the system SHALL implement intelligent fallback with longer delays instead of short exponential backoff
+4. WHEN rate limit reset time is available and longer than max_delay (60 seconds) THEN the system SHALL wait for the full reset time instead of falling back to exponential backoff
+5. WHEN waiting for rate limit reset THEN the system SHALL display user-friendly progress messages with countdown timers showing remaining wait time
+6. WHEN rate limit wait times are long (>60 seconds) THEN the system SHALL provide periodic progress updates every 30 seconds to show the operation is still active
+7. WHEN rate limiting occurs without proper headers THEN the system SHALL implement progressive backoff with longer delays (5min, 15min, 30min) instead of giving up
+8. WHEN rate limit errors occur THEN the system SHALL distinguish between temporary rate limits and permanent authentication/authorization failures
+9. WHEN multiple rate limit retries are needed THEN the system SHALL continue retrying until successful rather than giving up after max_retries when dealing with rate limits
+10. WHEN users encounter rate limiting THEN the system SHALL provide helpful messages explaining the situation and expected resolution time

@@ -115,11 +115,30 @@ class GitHubClient:
 
                 # Handle rate limiting
                 if response.status_code == 403:
+                    # Log all response headers for debugging rate limit issues
+                    logger.debug(f"403 Forbidden response headers: {dict(response.headers)}")
+                    
                     rate_limit_remaining = response.headers.get("x-ratelimit-remaining")
-                    if rate_limit_remaining == "0":
-                        reset_time = int(response.headers.get("x-ratelimit-reset", 0))
-                        limit = int(response.headers.get("x-ratelimit-limit", 0))
-                        remaining = int(response.headers.get("x-ratelimit-remaining", 0))
+                    rate_limit_reset = response.headers.get("x-ratelimit-reset")
+                    rate_limit_limit = response.headers.get("x-ratelimit-limit")
+                    
+                    # Log rate limit header values for debugging
+                    logger.info(f"Rate limit headers - remaining: {rate_limit_remaining}, reset: {rate_limit_reset}, limit: {rate_limit_limit}")
+                    
+                    # Check if this is a rate limit error (remaining is 0 or headers suggest rate limiting)
+                    is_rate_limited = (
+                        rate_limit_remaining == "0" or 
+                        (rate_limit_remaining is not None and int(rate_limit_remaining) == 0) or
+                        "rate limit" in response.text.lower() if hasattr(response, 'text') else False
+                    )
+                    
+                    if is_rate_limited:
+                        reset_time = int(rate_limit_reset) if rate_limit_reset and rate_limit_reset != "0" else 0
+                        limit = int(rate_limit_limit) if rate_limit_limit else 0
+                        remaining = int(rate_limit_remaining) if rate_limit_remaining else 0
+                        
+                        logger.info(f"GitHub API rate limit detected - reset_time: {reset_time}, remaining: {remaining}, limit: {limit}")
+                        
                         raise GitHubRateLimitError(
                             "GitHub API rate limit exceeded",
                             reset_time=reset_time,
