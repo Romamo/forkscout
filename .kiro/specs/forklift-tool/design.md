@@ -249,6 +249,88 @@ The enhanced fork display system is designed to provide a cleaner, more focused 
 - **Reduced Redundancy**: Eliminate duplicate information sections that don't add value
 - **Improved Readability**: Streamline the display to make scanning and decision-making faster
 
+## Enhanced Show-Forks Command Design
+
+### Overview
+
+The enhanced show-forks command is designed to provide consistent, detailed fork information with improved commit display functionality. The design focuses on standardizing table formatting and optimizing commit information display to show only relevant ahead commits with temporal context.
+
+### Design Principles
+
+- **Consistent Formatting**: Use the same detailed table format for all fork displays regardless of flags
+- **Ahead-Only Commits**: Show only commits that are ahead of upstream to focus on unique contributions
+- **Temporal Context**: Include commit dates and hashes to provide chronological understanding and unique identification of fork activity
+- **API Optimization**: Fetch commits only for forks with commits ahead to minimize API usage
+- **Clear Information Hierarchy**: Present commit date and message in a scannable format
+
+### Architecture Components
+
+#### Enhanced Fork Display Service
+
+The `RepositoryDisplayService` will be enhanced to support:
+
+1. **Unified Table Formatting**: Standardize all fork table displays to use detailed formatting
+2. **Commit-Aware Display**: Integrate commit information directly into fork table display
+3. **Date Formatting**: Provide consistent date formatting across all commit displays
+4. **Optimized Data Fetching**: Coordinate with GitHub client to fetch commits efficiently
+
+#### Commit Information Integration
+
+```mermaid
+graph TD
+    A[show-forks command] --> B[RepositoryDisplayService]
+    B --> C[Fork Data Collection]
+    C --> D{--show-commits flag?}
+    D -->|No| E[Display Standard Fork Table]
+    D -->|Yes| F[Check Commits Ahead Status]
+    F --> G{Has Commits Ahead?}
+    G -->|No| H[Leave Recent Commits Column Empty]
+    G -->|Yes| I[Fetch Ahead Commits Only]
+    I --> J[Format with Dates]
+    J --> K[Display Enhanced Table]
+    E --> L[Final Output]
+    K --> L
+    H --> L
+```
+
+#### Data Flow Design
+
+1. **Fork Collection**: Gather fork data using existing collection mechanisms
+2. **Commit Status Check**: Determine which forks have commits ahead using qualification data
+3. **Selective Commit Fetching**: Fetch commits only for forks with ahead status
+4. **Commit Filtering**: Filter fetched commits to show only those ahead of upstream
+5. **Date Integration**: Add commit dates to display format
+6. **Table Generation**: Create unified table format with commit information
+
+### Implementation Strategy
+
+#### Table Format Standardization
+
+- Modify `RepositoryDisplayService` to always use detailed table format
+- Remove conditional formatting based on --detail flag
+- Ensure consistent column widths and information density
+
+#### Commit Display Enhancement
+
+- Add "Recent Commits" column when --show-commits is specified
+- Format commits as "YYYY-MM-DD hash commit message" for clarity and unique identification
+- Limit display to specified number of commits (newest first)
+- Handle cases where no commits are ahead gracefully
+
+#### API Optimization Strategy
+
+- Use existing fork qualification data to determine commit status
+- Skip API calls for forks with no commits ahead
+- Batch commit requests where possible
+- Implement proper error handling for commit fetch failures
+
+### Error Handling
+
+- **Missing Commit Data**: Display appropriate message when commits cannot be fetched
+- **API Rate Limits**: Implement proper backoff and retry logic
+- **Invalid Fork Status**: Fall back to safe defaults when status is unclear
+- **Date Formatting Errors**: Use fallback date formats for edge cases
+
 ### Collected Fork Metrics
 
 The system collects and displays all available fork information:

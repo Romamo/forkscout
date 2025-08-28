@@ -7,6 +7,8 @@ import time
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+from .rate_limit_progress import get_progress_manager
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
@@ -143,12 +145,44 @@ class RateLimitHandler:
                 # Calculate delay based on exception type
                 delay = self._get_delay_for_exception(e, attempt)
 
-                logger.warning(
-                    f"Attempt {attempt + 1} failed for {operation_name}, "
-                    f"retrying in {delay:.2f}s: {e}"
-                )
+                # Show progress for rate limit waits
+                from .exceptions import GitHubRateLimitError
+                if isinstance(e, GitHubRateLimitError):
+                    # Get progress tracker for this operation
+                    progress_manager = get_progress_manager()
+                    tracker = progress_manager.get_tracker(operation_name)
+                    
+                    # Show rate limit info if available
+                    if hasattr(e, 'remaining') and hasattr(e, 'limit'):
+                        await tracker.show_rate_limit_info(
+                            remaining=e.remaining or 0,
+                            limit=e.limit or 5000,
+                            reset_time=e.reset_time
+                        )
+                    
+                    # Track progress during the wait
+                    await tracker.track_rate_limit_wait(
+                        wait_seconds=delay,
+                        reset_time=e.reset_time,
+                        operation_name=operation_name
+                    )
+                    
+                    # Sleep with progress tracking
+                    await asyncio.sleep(delay)
+                    
+                    # Show completion message
+                    await tracker.show_completion_message(operation_name)
+                    
+                    # Clean up tracker
+                    progress_manager.cleanup_tracker(operation_name)
+                else:
+                    # Non-rate-limit error, just log and sleep
+                    logger.warning(
+                        f"Attempt {attempt + 1} failed for {operation_name}, "
+                        f"retrying in {delay:.2f}s: {e}"
+                    )
+                    await asyncio.sleep(delay)
 
-                await asyncio.sleep(delay)
                 attempt += 1
 
             except Exception as e:

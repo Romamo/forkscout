@@ -810,7 +810,7 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.argument("repository_url")
 @click.option("--max-forks", type=click.IntRange(1, 1000), help="Maximum number of forks to display")
 @click.option("--detail", is_flag=True, help="Fetch exact commit counts ahead for each fork using additional API requests")
-@click.option("--show-commits", type=click.IntRange(0, 10), default=0, help="Show last N commits for each fork (0-10, default: 0)")
+@click.option("--show-commits", type=click.IntRange(0, 1000000), default=0, help="Show last N commits for each fork (default: 0)")
 @click.option("--force-all-commits", is_flag=True, help="Bypass optimization and download commits for all forks when using --show-commits")
 @click.pass_context
 def show_forks(ctx: click.Context, repository_url: str, max_forks: int | None, detail: bool, show_commits: int, force_all_commits: bool) -> None:

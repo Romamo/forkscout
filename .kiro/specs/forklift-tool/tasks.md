@@ -1305,3 +1305,48 @@
   - Add end-to-end tests for complete analysis workflow with rate limiting
   - Write performance tests to verify rate limiting doesn't unnecessarily slow operations
   - _Requirements: 22.1, 22.3, 22.4, 22.8, 22.10_
+
+- [ ] 22. Enhance show-forks command with improved table formatting and commit information
+- [ ] 22.1 Standardize show-forks table formatting to use detailed format
+  - Modify RepositoryDisplayService to always use detailed table format for show-forks command
+  - Remove conditional formatting based on --detail flag and make detailed format the default
+  - Ensure consistent column widths and information density across all fork displays
+  - Update table headers and styling to match the detailed format used with --detail flag
+  - Write unit tests for standardized table formatting and visual consistency
+  - _Requirements: 22.1_
+
+- [ ] 22.2 Enhance --show-commits to display only commits ahead with dates
+  - Modify show-forks command to fetch and display only commits that are ahead of upstream repository
+  - Add commit date and hash information to the Recent Commits column alongside commit messages
+  - Format commit display as "YYYY-MM-DD hash commit message" for clear temporal context and unique identification
+  - Implement optimization to skip API calls for forks with no commits ahead
+  - Add graceful handling for forks with no commits ahead by keeping Recent Commits column empty
+  - Write unit tests for ahead-only commit fetching and date formatting
+  - _Requirements: 22.2, 22.3, 22.4, 22.5_
+
+- [ ] 22.3 Optimize commit fetching for forks with commits ahead
+  - Use existing fork qualification data to determine which forks have commits ahead
+  - Skip expensive commit API calls for forks identified as having no commits ahead
+  - Implement batch commit fetching for forks that do have commits ahead
+  - Add progress indicators showing commit fetching status for relevant forks
+  - Create fallback logic when commit status cannot be determined from qualification data
+  - Write integration tests for optimized commit fetching with real GitHub data
+  - _Requirements: 22.5, 22.8_
+
+- [ ] 22.4 Improve Recent Commits column formatting and display
+  - Design clear, scannable format for commit date, hash, and message display in table columns
+  - Implement proper column width management to accommodate date and message information
+  - Add chronological ordering of commits (newest first) within the specified limit
+  - Create consistent date formatting (YYYY-MM-DD) across all commit displays
+  - Handle long commit messages with appropriate truncation while preserving readability
+  - Write unit tests for commit column formatting and display consistency
+  - _Requirements: 22.4, 22.6, 22.9_
+
+- [ ] 22.5 Add comprehensive testing for enhanced show-forks functionality
+  - Write unit tests for standardized table formatting and commit integration
+  - Create integration tests for --show-commits with ahead-only commit fetching
+  - Add tests for date formatting and commit message display in table format
+  - Implement tests for optimization logic that skips forks with no commits ahead
+  - Create performance tests measuring API call reduction from commit optimization
+  - Write end-to-end tests for complete enhanced show-forks workflow
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.10_

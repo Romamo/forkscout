@@ -526,3 +526,20 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 8. WHEN rate limit errors occur THEN the system SHALL distinguish between temporary rate limits and permanent authentication/authorization failures
 9. WHEN multiple rate limit retries are needed THEN the system SHALL continue retrying until successful rather than giving up after max_retries when dealing with rate limits
 10. WHEN users encounter rate limiting THEN the system SHALL provide helpful messages explaining the situation and expected resolution time
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want enhanced show-forks command functionality with improved table formatting and commit information, so that I can get better insights into fork activity and recent changes.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url>` THEN the system SHALL display the "All Forks" table using the same detailed formatting as the --detail flag for consistency
+2. WHEN using --show-commits flag THEN the system SHALL download and display only commits that are ahead of the upstream repository, not all commits
+3. WHEN displaying commits in the Recent Commits column THEN the system SHALL include the commit date, hash, and commit message for better temporal context
+4. WHEN showing recent commits THEN the system SHALL format the information as "YYYY-MM-DD hash commit message" for clear identification and temporal context
+5. WHEN --show-commits is used THEN the system SHALL optimize API calls by only fetching commits for forks that have commits ahead of the upstream
+6. WHEN displaying the Recent Commits column THEN the system SHALL show both the commit date and message in a clear, scannable format
+7. WHEN no commits are ahead for a fork THEN the system SHALL keep the Recent Commits column empty since the commits count column already indicates the status
+8. WHEN commits ahead exist THEN the system SHALL display up to the specified number of recent commits with dates in chronological order (newest first)
+9. WHEN formatting commit information THEN the system SHALL ensure the date and message fit within reasonable column width for table readability
+10. WHEN using --show-commits with --force-all-commits THEN the system SHALL still only show commits ahead, but fetch them for all forks regardless of optimization
