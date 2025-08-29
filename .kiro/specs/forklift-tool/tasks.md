@@ -1219,7 +1219,7 @@
   - Write unit tests for commit status detection with various fork scenarios
   - _Requirements: 21.1, 21.2, 21.3, 21.5_
 
-- [-] 20.2 Enhance show-commits command with smart fork filtering
+- [x] 20.2 Enhance show-commits command with smart fork filtering
   - Add pre-analysis check in show-commits command to detect forks with no commits ahead
   - Implement graceful exit with clear messaging when fork has no commits ahead
   - Add --force flag to override no-commits-ahead filtering when needed
