@@ -698,6 +698,174 @@ class TestRunAnalysis:
             await _run_analysis(config, "owner", "repo", verbose=False)
 
 
+class TestShowCommitsCommand:
+    """Test show-commits command functionality with fork filtering."""
+
+    def setup_method(self):
+        """Setup test fixtures."""
+        self.runner = CliRunner()
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_basic(self, mock_show_commits, mock_load_config):
+        """Test basic show-commits command."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.return_value = None
+
+        result = self.runner.invoke(cli, ["show-commits", "owner/repo"])
+
+        assert result.exit_code == 0
+        mock_show_commits.assert_called_once()
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_with_detail_flag(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with --detail flag."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.return_value = None
+
+        result = self.runner.invoke(cli, ["show-commits", "owner/repo", "--detail"])
+
+        assert result.exit_code == 0
+        mock_show_commits.assert_called_once()
+        
+        # Verify detail flag was passed (positional argument 14)
+        call_args = mock_show_commits.call_args[0]
+        assert len(call_args) >= 15  # Should have at least 15 positional arguments
+        assert call_args[14] is True  # detail flag
+        assert call_args[15] is False  # force flag
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_with_force_flag(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with --force flag."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.return_value = None
+
+        result = self.runner.invoke(cli, ["show-commits", "owner/repo", "--detail", "--force"])
+
+        assert result.exit_code == 0
+        mock_show_commits.assert_called_once()
+        
+        # Verify flags were passed (positional arguments 14 and 15)
+        call_args = mock_show_commits.call_args[0]
+        assert len(call_args) >= 16  # Should have at least 16 positional arguments
+        assert call_args[14] is True  # detail flag
+        assert call_args[15] is True  # force flag
+
+    def test_show_commits_help_includes_filtering_info(self):
+        """Test that help text includes information about fork filtering."""
+        result = self.runner.invoke(cli, ["show-commits", "--help"])
+
+        assert result.exit_code == 0
+        assert "--detail" in result.output
+        assert "--force" in result.output
+        assert "Automatically skips forks with no commits ahead" in result.output
+        assert "Force analysis even for forks with no commits ahead" in result.output
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_invalid_repository_url(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with invalid repository URL."""
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.side_effect = CLIError("Invalid GitHub repository URL")
+
+        result = self.runner.invoke(cli, ["show-commits", "invalid-url"])
+
+        assert result.exit_code == 1
+        assert "Invalid GitHub repository URL" in result.output
+        mock_show_commits.assert_called_once()
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_keyboard_interrupt(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with keyboard interrupt."""
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.side_effect = KeyboardInterrupt()
+
+        result = self.runner.invoke(cli, ["show-commits", "owner/repo"])
+
+        assert result.exit_code == 130
+        assert "Operation interrupted by user" in result.output
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_cli_error(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with CLI error."""
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.side_effect = CLIError("Test CLI error")
+
+        result = self.runner.invoke(cli, ["show-commits", "owner/repo"])
+
+        assert result.exit_code == 1
+        assert "Error: Test CLI error" in result.output
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_unexpected_error(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with unexpected error."""
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.side_effect = Exception("Unexpected error")
+
+        result = self.runner.invoke(cli, ["show-commits", "owner/repo"])
+
+        assert result.exit_code == 1
+        assert "Unexpected error" in result.output
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_commits")
+    def test_show_commits_with_all_flags(self, mock_show_commits, mock_load_config):
+        """Test show-commits command with multiple flags."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_commits.return_value = None
+
+        result = self.runner.invoke(cli, [
+            "show-commits", "owner/repo",
+            "--branch", "main",
+            "--limit", "10",
+            "--since", "2024-01-01",
+            "--until", "2024-12-31",
+            "--author", "testuser",
+            "--include-merge",
+            "--show-files",
+            "--show-stats",
+            "--explain",
+            "--detail",
+            "--force",
+            "--disable-cache"
+        ])
+
+        assert result.exit_code == 0
+        mock_show_commits.assert_called_once()
+        
+        # Verify all flags were passed correctly as positional arguments
+        call_args = mock_show_commits.call_args[0]
+        assert len(call_args) >= 16  # Should have at least 16 positional arguments
+        # Arguments: config, fork_url, branch, limit, since_date, until_date, author, include_merge, show_files, show_stats, verbose, explain, ai_summary, ai_summary_compact, detail, force, disable_cache
+        assert call_args[2] == "main"  # branch
+        assert call_args[3] == 10  # limit
+        assert call_args[6] == "testuser"  # author
+        assert call_args[7] is True  # include_merge
+        assert call_args[8] is True  # show_files
+        assert call_args[9] is True  # show_stats
+        assert call_args[11] is True  # explain
+        assert call_args[14] is True  # detail
+        assert call_args[15] is True  # force
+        assert call_args[16] is True  # disable_cache
+
+
 class TestShowForksCommand:
     """Test show-forks command functionality."""
 

@@ -1106,7 +1106,7 @@ def analyze_fork(
 @click.option("--explain", is_flag=True, help="Generate explanations for each commit")
 @click.option("--ai-summary", is_flag=True, help="Generate AI-powered summaries for each commit (requires OpenAI API key)")
 @click.option("--ai-summary-compact", is_flag=True, help="Generate compact AI summaries with minimal formatting (requires OpenAI API key)")
-@click.option("--detail", is_flag=True, help="Display comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs")
+@click.option("--detail", is_flag=True, help="Display comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs. Automatically skips forks with no commits ahead unless --force is used.")
 @click.option("--force", is_flag=True, help="Force analysis even for forks with no commits ahead (only applies with --detail flag)")
 @click.option("--disable-cache", is_flag=True, help="Disable caching and fetch fresh data from GitHub API")
 @click.pass_context
@@ -1135,6 +1135,11 @@ def show_commits(
     - File changes and line statistics
     - Commit type categorization
     - Author and activity patterns
+
+    When using the --detail flag, the command automatically checks if the fork
+    has commits ahead of its upstream repository. If no commits are ahead,
+    the analysis is skipped with a clear message. Use --force to override
+    this behavior and analyze all forks regardless of commit status.
 
     FORK_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
