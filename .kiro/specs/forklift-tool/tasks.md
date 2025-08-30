@@ -1243,7 +1243,7 @@
   - Write unit tests for fork filtering configuration and logging
   - _Requirements: 21.8, 21.9_
 
-- [ ] 20.5 Implement fork qualification data integration
+- [x] 20.5 Implement fork qualification data integration
   - Update show-commits command to use existing fork qualification data when available
   - Add qualification data lookup methods to avoid redundant API calls
   - Implement data freshness checks to ensure qualification data is current
@@ -1271,7 +1271,7 @@
   - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.6, 24.7, 24.8, 24.10, 24.12_
 
 - [ ] 21. Fix GitHub API rate limiting to handle long wait times and provide better user feedback (HIGH PRIORITY)
-- [ ] 21.1 Remove max_delay restriction for rate limit reset times
+- [x] 21.1 Remove max_delay restriction for rate limit reset times
   - Update RateLimitHandler.calculate_delay() to always use x-ratelimit-reset time when available, ignoring max_delay limit
   - Modify rate limit handling logic to wait for full reset time even if it exceeds current 60-second max_delay
   - Add special handling for rate limit errors that bypasses normal exponential backoff limits
@@ -1279,7 +1279,7 @@
   - Write unit tests for long wait time handling and reset time prioritization
   - _Requirements: 22.1, 22.2, 22.7_
 
-- [ ] 21.2 Add user-friendly progress feedback for rate limiting
+- [x] 21.2 Add user-friendly progress feedback for rate limiting
   - Implement countdown timer display during rate limit waits showing remaining time
   - Add periodic progress updates every 30 seconds for long waits (>60 seconds)
   - Create clear user messages explaining rate limit situation and expected resolution
@@ -1288,7 +1288,7 @@
   - Write unit tests for progress feedback and user messaging
   - _Requirements: 22.3, 22.4, 22.5, 22.8, 22.10_
 
-- [ ] 21.3 Improve rate limit error handling and recovery
+- [-] 21.3 Improve rate limit error handling and recovery
   - Enhance rate limit error detection to properly distinguish between rate limits and auth failures
   - Update error handling to continue retrying when reset time is available instead of failing after max attempts
   - Add immediate operation resumption after rate limit recovery without additional delays

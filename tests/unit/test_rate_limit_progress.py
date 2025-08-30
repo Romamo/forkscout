@@ -89,8 +89,9 @@ class TestRateLimitProgressTracker:
                 pass
         
         output = captured_output.getvalue()
-        assert "Rate limit reached for test operation" in output
-        assert "Waiting until" in output
+        assert "GitHub API Rate Limit Reached" in output
+        assert "Operation: test operation" in output
+        assert "Reset time:" in output
 
     @pytest.mark.asyncio
     async def test_show_rate_limit_info(self):
@@ -109,8 +110,8 @@ class TestRateLimitProgressTracker:
         
         output = captured_output.getvalue()
         assert "GitHub API Rate Limit Status" in output
-        assert "Remaining: 100/5000" in output
-        assert "Resets in:" in output
+        assert "Current quota: 100/5,000" in output
+        assert "Reset time:" in output
 
     @pytest.mark.asyncio
     async def test_show_rate_limit_info_low_quota_warning(self):
@@ -125,7 +126,7 @@ class TestRateLimitProgressTracker:
             )
         
         output = captured_output.getvalue()
-        assert "Warning: Low on API quota" in output
+        assert "WARNING: Low quota" in output
 
     @pytest.mark.asyncio
     async def test_show_completion_message(self):
@@ -137,8 +138,8 @@ class TestRateLimitProgressTracker:
             await tracker.show_completion_message("test operation")
         
         output = captured_output.getvalue()
-        assert "Rate limit wait complete" in output
-        assert "resuming test operation" in output
+        assert "Rate Limit Recovery Complete" in output
+        assert "resuming operations" in output
 
     def test_cancel_progress(self):
         """Test cancelling progress tracking."""
@@ -244,6 +245,231 @@ class TestGlobalProgressManager:
         assert isinstance(manager, RateLimitProgressManager)
 
 
+class TestEnhancedProgressFeedback:
+    """Test enhanced progress feedback functionality."""
+
+    @pytest.mark.asyncio
+    async def test_detailed_rate_limit_logging(self):
+        """Test detailed logging of rate limit events."""
+        tracker = RateLimitProgressTracker(show_progress=False)  # Disable output for test
+        
+        reset_time = int(time.time()) + 300  # 5 minutes from now
+        
+        with patch('forklift.github.rate_limit_progress.logger') as mock_logger:
+            tracker._log_rate_limit_event(300.0, reset_time, "test operation")
+            
+            # Verify detailed logging was called
+            mock_logger.info.assert_called_once()
+            log_call = mock_logger.info.call_args[0][0]
+            
+            assert "rate_limit_hit" in log_call
+            assert "test operation" in log_call
+            assert "300.0" in log_call
+
+    @pytest.mark.asyncio
+    async def test_countdown_timer_display(self):
+        """Test countdown timer display for long waits."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            # Start tracking a long wait
+            task = asyncio.create_task(
+                tracker.track_rate_limit_wait(120.0, operation_name="test operation")
+            )
+            
+            # Let it start and show initial message
+            await asyncio.sleep(0.2)
+            
+            # Cancel the task
+            task.cancel()
+            
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        
+        output = captured_output.getvalue()
+        
+        # Verify enhanced initial message
+        assert "GitHub API Rate Limit Reached" in output
+        assert "What's happening:" in output
+        assert "GitHub limits API requests" in output
+        assert "will retry automatically" in output
+
+    @pytest.mark.asyncio
+    async def test_periodic_progress_updates_long_wait(self):
+        """Test periodic progress updates for long waits (>60 seconds)."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            # Start tracking a long wait
+            task = asyncio.create_task(
+                tracker.track_rate_limit_wait(180.0, operation_name="long operation")
+            )
+            
+            # Let it start and show some progress
+            await asyncio.sleep(0.3)
+            
+            # Cancel the task
+            task.cancel()
+            
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        
+        output = captured_output.getvalue()
+        
+        # Verify long wait handling
+        assert "Progress (updates every 30 seconds)" in output
+        assert "remaining" in output
+        assert "elapsed" in output
+
+    @pytest.mark.asyncio
+    async def test_enhanced_completion_message(self):
+        """Test enhanced completion message with timing information."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        # Set up timing information
+        tracker._start_time = time.time() - 60  # Simulate 60 second wait
+        tracker._total_wait_time = 65.0  # Expected 65 seconds
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            with patch('forklift.github.rate_limit_progress.logger') as mock_logger:
+                await tracker.show_completion_message("test operation")
+        
+        output = captured_output.getvalue()
+        
+        # Verify enhanced completion message
+        assert "Rate Limit Recovery Complete" in output
+        assert "API access restored" in output
+        assert "Wait time:" in output
+        assert "expected:" in output
+        
+        # Verify completion logging
+        mock_logger.info.assert_called_once()
+        log_call = mock_logger.info.call_args[0][0]
+        assert "rate_limit_recovery" in log_call
+
+    @pytest.mark.asyncio
+    async def test_enhanced_rate_limit_info_display(self):
+        """Test enhanced rate limit information display."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        reset_time = int(time.time()) + 1800  # 30 minutes from now
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            with patch('forklift.github.rate_limit_progress.logger') as mock_logger:
+                await tracker.show_rate_limit_info(
+                    remaining=150,
+                    limit=5000,
+                    reset_time=reset_time
+                )
+        
+        output = captured_output.getvalue()
+        
+        # Verify enhanced rate limit display
+        assert "Current quota: 150/5,000" in output
+        assert "Usage:" in output
+        assert "4,850 requests" in output  # Used requests
+        assert "97.0% of quota" in output  # Usage percentage
+        assert "WARNING: Low quota" in output  # Warning for 150 remaining
+        
+        # Verify detailed logging
+        mock_logger.info.assert_called_once()
+        log_call = mock_logger.info.call_args[0][0]
+        assert "rate_limit_status" in log_call
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_recovery_progress(self):
+        """Test rate limit recovery progress indicators."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            with patch('forklift.github.rate_limit_progress.logger') as mock_logger:
+                await tracker.show_rate_limit_recovery_progress(
+                    current_remaining=2500,
+                    previous_remaining=100,
+                    limit=5000,
+                    operation_name="recovery test"
+                )
+        
+        output = captured_output.getvalue()
+        
+        # Verify recovery progress display
+        assert "Rate Limit Recovery Detected" in output
+        assert "Quota recovered: +2400 requests" in output
+        assert "Current quota: 2,500/5,000" in output
+        assert "Recovery level: 50.0%" in output
+        assert "Partial recovery" in output
+        
+        # Verify recovery logging
+        mock_logger.info.assert_called_once()
+        log_call = mock_logger.info.call_args[0][0]
+        assert "rate_limit_recovery_progress" in log_call
+
+    @pytest.mark.asyncio
+    async def test_critical_rate_limit_warnings(self):
+        """Test critical rate limit warning messages."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        # Test zero remaining requests
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            await tracker.show_rate_limit_info(
+                remaining=0,
+                limit=5000
+            )
+        
+        output = captured_output.getvalue()
+        assert "CRITICAL: No requests remaining" in output
+        assert "operations will be blocked" in output
+
+    @pytest.mark.asyncio
+    async def test_user_friendly_explanations(self):
+        """Test user-friendly explanations in rate limit messages."""
+        tracker = RateLimitProgressTracker(show_progress=True)
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            # Test initial message explanation
+            task = asyncio.create_task(
+                tracker.track_rate_limit_wait(30.0, operation_name="explanation test")
+            )
+            
+            await asyncio.sleep(0.1)
+            task.cancel()
+            
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        
+        output = captured_output.getvalue()
+        
+        # Verify user-friendly explanations
+        assert "What's happening:" in output
+        assert "GitHub limits API requests to prevent server overload" in output
+        assert "This is normal behavior" in output
+        assert "helps maintain API stability" in output
+
+    def test_format_duration_enhanced(self):
+        """Test enhanced duration formatting."""
+        tracker = RateLimitProgressTracker()
+        
+        # Test various durations
+        assert tracker._format_duration(0) == "0s"
+        assert tracker._format_duration(45) == "45s"
+        assert tracker._format_duration(90) == "1m 30s"
+        assert tracker._format_duration(3661) == "1h 1m"
+        assert tracker._format_duration(7200) == "2h 0m"
+
+
 class TestProgressIntegration:
     """Test integration scenarios for progress tracking."""
 
@@ -291,3 +517,56 @@ class TestProgressIntegration:
             pass  # Expected
         
         assert tracker._cancelled is True
+
+    @pytest.mark.asyncio
+    async def test_end_to_end_rate_limit_progress_flow(self):
+        """Test complete rate limit progress flow from start to finish."""
+        manager = RateLimitProgressManager()
+        tracker = manager.get_tracker("e2e_test", show_progress=True)
+        
+        captured_output = StringIO()
+        with patch('sys.stdout', captured_output):
+            with patch('forklift.github.rate_limit_progress.logger') as mock_logger:
+                # Show initial rate limit info
+                await tracker.show_rate_limit_info(
+                    remaining=0,
+                    limit=5000,
+                    reset_time=int(time.time()) + 60
+                )
+                
+                # Start rate limit wait
+                task = asyncio.create_task(
+                    tracker.track_rate_limit_wait(10.0, operation_name="e2e_test")
+                )
+                
+                # Let it run briefly
+                await asyncio.sleep(0.2)
+                
+                # Cancel and complete
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                
+                # Show completion
+                await tracker.show_completion_message("e2e_test")
+                
+                # Show recovery
+                await tracker.show_rate_limit_recovery_progress(
+                    current_remaining=5000,
+                    previous_remaining=0,
+                    limit=5000,
+                    operation_name="e2e_test"
+                )
+        
+        output = captured_output.getvalue()
+        
+        # Verify complete flow
+        assert "CRITICAL: No requests remaining" in output
+        assert "GitHub API Rate Limit Reached" in output
+        assert "Rate Limit Recovery Complete" in output
+        assert "Rate Limit Recovery Detected" in output
+        
+        # Verify logging occurred at each step
+        assert mock_logger.info.call_count >= 3  # Status, event, recovery logs
