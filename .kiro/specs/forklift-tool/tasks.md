@@ -1132,7 +1132,7 @@
   - Write unit tests for sorting logic with the new compact format
   - _Requirements: 22.9, 22.10_
 
-- [-] 20.5 Update documentation and help text for new format
+- [x] 20.5 Update documentation and help text for new format
   - Update CLI help text to describe the new "+X -Y" commit format
   - Update any inline documentation that references the old column structure
   - Add examples of the new format to user documentation
@@ -1140,7 +1140,7 @@
   - Write documentation tests to verify help text accuracy
   - _Requirements: 22.12_
 
-- [ ] 20.6 Add comprehensive testing for compact commit display
+- [-] 20.6 Add comprehensive testing for compact commit display
   - Write integration tests for the complete fork display workflow with new format
   - Test edge cases: repos with no forks, forks with various commit statuses
   - Test performance impact of the formatting changes

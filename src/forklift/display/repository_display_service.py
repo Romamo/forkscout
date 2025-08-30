@@ -92,7 +92,7 @@ class RepositoryDisplayService:
 
             # Sort by stars and last push date
             fork_items.sort(
-                key=lambda x: (x.stars, x.last_push_date or datetime.min), reverse=True
+                key=lambda x: (x.stars, x.last_push_date or datetime.min.replace(tzinfo=timezone.utc)), reverse=True
             )
 
             # Convert to dict format for display
