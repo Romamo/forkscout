@@ -113,7 +113,7 @@ class GitHubClient:
                     json=json_data,
                 )
 
-                # Handle rate limiting
+                # Handle rate limiting with improved detection
                 if response.status_code == 403:
                     # Log all response headers for debugging rate limit issues
                     logger.debug(f"403 Forbidden response headers: {dict(response.headers)}")
@@ -123,14 +123,10 @@ class GitHubClient:
                     rate_limit_limit = response.headers.get("x-ratelimit-limit")
                     
                     # Log rate limit header values for debugging
-                    logger.info(f"Rate limit headers - remaining: {rate_limit_remaining}, reset: {rate_limit_reset}, limit: {rate_limit_limit}")
+                    logger.debug(f"Rate limit headers - remaining: {rate_limit_remaining}, reset: {rate_limit_reset}, limit: {rate_limit_limit}")
                     
-                    # Check if this is a rate limit error (remaining is 0 or headers suggest rate limiting)
-                    is_rate_limited = (
-                        rate_limit_remaining == "0" or 
-                        (rate_limit_remaining is not None and int(rate_limit_remaining) == 0) or
-                        "rate limit" in response.text.lower() if hasattr(response, 'text') else False
-                    )
+                    # Enhanced rate limit detection
+                    is_rate_limited = self._is_rate_limit_error(response, rate_limit_remaining)
                     
                     if is_rate_limited:
                         reset_time = int(rate_limit_reset) if rate_limit_reset and rate_limit_reset != "0" else 0
@@ -146,6 +142,10 @@ class GitHubClient:
                             limit=limit,
                             status_code=response.status_code,
                         )
+                    else:
+                        # This is a 403 but not a rate limit - likely authentication/authorization issue
+                        logger.warning(f"403 Forbidden but not rate limited - likely auth/permission issue")
+                        # Fall through to handle as authentication error below
 
                 # Handle authentication errors (non-retryable)
                 if response.status_code == 401:
@@ -506,6 +506,68 @@ class GitHubClient:
         self.circuit_breaker.last_failure_time = None
         self.circuit_breaker.state = "closed"
         logger.info("Circuit breaker manually reset")
+
+    def _is_rate_limit_error(self, response: httpx.Response, rate_limit_remaining: str | None) -> bool:
+        """Enhanced rate limit error detection.
+        
+        Args:
+            response: HTTP response object
+            rate_limit_remaining: Value of x-ratelimit-remaining header
+            
+        Returns:
+            True if this is a rate limit error, False otherwise
+        """
+        # Check if remaining requests is 0
+        if rate_limit_remaining == "0":
+            return True
+        
+        if rate_limit_remaining is not None:
+            try:
+                remaining = int(rate_limit_remaining)
+                if remaining == 0:
+                    return True
+            except ValueError:
+                pass
+        
+        # Check response body for rate limit indicators
+        try:
+            response_text = response.text.lower()
+            rate_limit_indicators = [
+                "rate limit",
+                "api rate limit exceeded",
+                "rate_limit_exceeded",
+                "too many requests",
+                "abuse detection",
+                "secondary rate limit"
+            ]
+            
+            for indicator in rate_limit_indicators:
+                if indicator in response_text:
+                    logger.debug(f"Rate limit detected via response text: '{indicator}'")
+                    return True
+                    
+        except Exception as e:
+            logger.debug(f"Could not check response text for rate limit indicators: {e}")
+        
+        # Check for specific GitHub rate limit response structure
+        try:
+            response_data = response.json()
+            if isinstance(response_data, dict):
+                message = response_data.get("message", "").lower()
+                if "rate limit" in message or "abuse" in message:
+                    logger.debug(f"Rate limit detected via JSON message: '{message}'")
+                    return True
+                    
+                # Check for documentation_url that points to rate limiting docs
+                docs_url = response_data.get("documentation_url", "")
+                if "rate-limiting" in docs_url or "abuse-rate-limits" in docs_url:
+                    logger.debug(f"Rate limit detected via documentation URL: '{docs_url}'")
+                    return True
+                    
+        except Exception as e:
+            logger.debug(f"Could not parse JSON response for rate limit detection: {e}")
+        
+        return False
 
     def get_user_friendly_error_message(self, error: Exception) -> str:
         """Get user-friendly error message for display.
