@@ -592,11 +592,11 @@ class RepositoryDisplayService:
             status = fork_data["activity_status"]
             status_styled = self._style_activity_status(status)
 
-            # Format commits ahead/behind using compact format
+            # Use compact format for commits ahead/behind
             commits_ahead = fork_data["commits_ahead"]
             commits_behind = fork_data["commits_behind"]
 
-            commits_status = self.format_commits_status(commits_ahead, commits_behind)
+            commits_status = self.format_commits_compact(commits_ahead, commits_behind)
 
             table.add_row(
                 str(i),
@@ -865,10 +865,15 @@ class RepositoryDisplayService:
             for _i, fork_data in enumerate(sorted_forks[:display_limit], 1):
                 metrics = fork_data.metrics
 
-                # Format commits ahead status for detailed display
-                commits_status = self._format_commits_ahead_detailed(
-                    metrics.commits_ahead_status
-                )
+                # Use compact format for commits ahead status
+                if metrics.commits_ahead_status == "None":
+                    commits_status = ""  # Empty cell for no commits ahead
+                elif metrics.commits_ahead_status == "Unknown":
+                    commits_status = "[green]+?[/green]"  # Unknown but potentially has commits
+                else:
+                    commits_status = self._format_commits_ahead_detailed(
+                        metrics.commits_ahead_status
+                    )
 
                 # Format last push date
                 last_push = self._format_datetime(metrics.pushed_at)
@@ -1515,16 +1520,14 @@ class RepositoryDisplayService:
             # Format URL
             fork_url = self._format_fork_url(metrics.owner, metrics.name)
 
-            # Format commits ahead
+            # Use compact format for commits ahead
             if isinstance(fork_data.exact_commits_ahead, int):
                 if fork_data.exact_commits_ahead == 0:
-                    commits_display = "[dim]0 commits[/dim]"
+                    commits_display = ""  # Empty cell for no commits ahead
                 else:
-                    commits_display = (
-                        f"[green]{fork_data.exact_commits_ahead} commits[/green]"
-                    )
+                    commits_display = f"[green]+{fork_data.exact_commits_ahead}[/green]"
             else:
-                commits_display = "[yellow]Unknown[/yellow]"
+                commits_display = "[green]+?[/green]"  # Unknown but potentially has commits
 
             # Format last push date
             last_push = self._format_datetime(metrics.pushed_at)
@@ -1664,12 +1667,19 @@ class RepositoryDisplayService:
             else:
                 score_text = f"[red]{activity_score:.2f}[/red]"
 
+            # Use compact format for commits ahead
+            commits_ahead = fork_data['commits_ahead']
+            if commits_ahead == 0:
+                commits_compact = ""  # Empty cell for no commits ahead
+            else:
+                commits_compact = f"[green]+{commits_ahead}[/green]"
+
             table.add_row(
                 str(i),
                 fork.name,
                 fork.owner,
                 f"⭐{fork.stars}",
-                f"+{fork_data['commits_ahead']}",
+                commits_compact,
                 score_text,
                 fork_data["last_activity"],
                 fork.language or "N/A",
@@ -1906,7 +1916,7 @@ class RepositoryDisplayService:
         return "\n".join(formatted_commits)
 
     def _display_forks_preview_table(self, fork_items: list[dict[str, Any]]) -> None:
-        """Display forks preview in a lightweight table format.
+        """Display forks preview in a lightweight table format with compact commit formatting.
 
         Args:
             fork_items: List of fork preview item dictionaries
@@ -1927,9 +1937,14 @@ class RepositoryDisplayService:
             # Format last push date
             last_push = self._format_datetime(fork_item["last_push_date"])
 
-            # Style commits ahead status with colors
+            # Use compact format for commits ahead status
             commits_ahead = fork_item["commits_ahead"]
-            commits_ahead_styled = self._style_commits_ahead_status(commits_ahead)
+            if commits_ahead == "None":
+                commits_compact = ""  # Empty cell for no commits ahead
+            elif commits_ahead == "Unknown":
+                commits_compact = "[green]+?[/green]"  # Unknown but potentially has commits
+            else:
+                commits_compact = self._style_commits_ahead_status(commits_ahead)
 
             table.add_row(
                 str(i),
@@ -1937,7 +1952,7 @@ class RepositoryDisplayService:
                 fork_item["owner"],
                 f"⭐{fork_item['stars']}",
                 last_push,
-                commits_ahead_styled,
+                commits_compact,
             )
 
         self.console.print(table)

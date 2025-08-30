@@ -1106,7 +1106,7 @@
   - Write unit tests for commit status formatting with various ahead/behind combinations
   - _Requirements: 22.1, 22.2, 22.8_
 
-- [-] 20.2 Implement commit status formatting logic
+- [x] 20.2 Implement commit status formatting logic
   - Create format_commits_compact method that takes commits_ahead and commits_behind parameters
   - Handle edge cases: empty cell (0 ahead, 0 behind), +X (only ahead), -Y (only behind)
   - Add "Unknown" handling for cases where commit status cannot be determined
@@ -1114,7 +1114,7 @@
   - Write comprehensive unit tests for all formatting scenarios and edge cases
   - _Requirements: 22.2, 22.3, 22.4, 22.5, 22.6, 22.7_
 
-- [ ] 20.3 Update all fork display commands with compact format
+- [-] 20.3 Update all fork display commands with compact format
   - Update show-forks command to use new compact commit format
   - Update list-forks command to use consistent commit formatting
   - Update show-fork-data-detailed command to use compact format
