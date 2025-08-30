@@ -166,7 +166,7 @@ class TestShowForksDetailContracts:
             # Metrics should have required fields
             metrics = fork_data.metrics
             required_metrics_fields = [
-                'name', 'owner', 'stars', 'forks_count', 'size',
+                'name', 'owner', 'stargazers_count', 'forks_count', 'size',
                 'language', 'created_at', 'updated_at', 'pushed_at',
                 'archived', 'disabled', 'can_skip_analysis'
             ]
