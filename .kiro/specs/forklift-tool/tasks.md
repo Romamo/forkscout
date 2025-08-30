@@ -1098,7 +1098,7 @@
   - _Requirements: 1.6, 21.1, 21.4, 21.5_
 
 - [ ] 20. Implement compact commit status display in fork tables
-- [ ] 20.1 Update fork display table structure for compact commit format
+- [-] 20.1 Update fork display table structure for compact commit format
   - Modify RepositoryDisplayService to combine commits ahead/behind into single "Commits" column
   - Update table column definitions to replace "Commits Ahead" and "Commits Behind" with single "Commits" column
   - Implement format_commits_status method to generate "+X -Y" format strings
@@ -1202,7 +1202,7 @@
   - Test table formatting and readability with various commit message lengths
   - _Requirements: 23.10, 23.11, 23.12_
 
-- [ ] 19.6 Add comprehensive testing for show-forks --detail functionality
+- [x] 19.6 Add comprehensive testing for show-forks --detail functionality
   - Write integration tests for show-forks --detail with real repository data
   - Create tests for commits ahead API calls with various fork scenarios
   - Add tests for detailed table display and column formatting
@@ -1307,7 +1307,7 @@
   - _Requirements: 22.1, 22.3, 22.4, 22.8, 22.10_
 
 - [ ] 22. Enhance show-forks command with improved table formatting and commit information
-- [-] 22.1 Standardize show-forks table formatting to use detailed format
+- [x] 22.1 Standardize show-forks table formatting to use detailed format
   - Modify RepositoryDisplayService to always use detailed table format for show-forks command
   - Remove conditional formatting based on --detail flag and make detailed format the default
   - Ensure consistent column widths and information density across all fork displays
@@ -1324,7 +1324,7 @@
   - Write unit tests for ahead-only commit fetching and date formatting
   - _Requirements: 22.2, 22.3, 22.4, 22.5_
 
-- [ ] 22.3 Optimize commit fetching for forks with commits ahead
+- [x] 22.3 Optimize commit fetching for forks with commits ahead
   - Use existing fork qualification data to determine which forks have commits ahead
   - Skip expensive commit API calls for forks identified as having no commits ahead
   - Implement batch commit fetching for forks that do have commits ahead

@@ -1,11 +1,14 @@
 """GitHub-related data models."""
 
+import logging
 import re
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 
 class Repository(BaseModel):
@@ -361,6 +364,7 @@ class RecentCommit(BaseModel):
 
     short_sha: str = Field(..., min_length=7, max_length=7, description="Short commit SHA (7 characters)")
     message: str = Field(..., min_length=1, description="Commit message (truncated if needed)")
+    date: datetime | None = Field(None, description="Commit date")
 
     @field_validator("short_sha")
     @classmethod
@@ -385,7 +389,16 @@ class RecentCommit(BaseModel):
         # Remove newlines and extra whitespace
         message = " ".join(message.split())
         
+        # Extract commit date
+        date = None
+        if "author" in commit_data and "date" in commit_data["author"]:
+            try:
+                date = datetime.fromisoformat(commit_data["author"]["date"].replace("Z", "+00:00"))
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to parse commit date: {e}")
+        
         return cls(
             short_sha=short_sha,
-            message=message
+            message=message,
+            date=date
         )

@@ -432,6 +432,70 @@ class GitHubClient:
         logger.info(f"Comparing {base}...{head} in {owner}/{repo}")
         return await self.get(f"repos/{owner}/{repo}/compare/{base}...{head}")
 
+    async def get_commits_ahead(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, count: int = 10
+    ) -> list[RecentCommit]:
+        """Get commits that are ahead in a fork compared to its parent.
+        
+        Args:
+            fork_owner: Fork repository owner
+            fork_repo: Fork repository name
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            count: Maximum number of commits to fetch (1-10)
+            
+        Returns:
+            List of RecentCommit objects representing commits ahead
+            
+        Raises:
+            GitHubAPIError: If API request fails
+            ValueError: If count is not between 1 and 10
+        """
+        if not (1 <= count <= 10):
+            raise ValueError("Count must be between 1 and 10")
+            
+        logger.debug(f"Fetching {count} commits ahead from {fork_owner}/{fork_repo} vs {parent_owner}/{parent_repo}")
+        
+        try:
+            # Get repository info to find default branches
+            fork_info = await self.get_repository(fork_owner, fork_repo)
+            parent_info = await self.get_repository(parent_owner, parent_repo)
+            
+            # Compare fork's default branch with parent's default branch
+            comparison = await self.compare_commits(
+                parent_owner,
+                parent_repo,
+                parent_info.default_branch,
+                f"{fork_owner}:{fork_info.default_branch}",
+            )
+            
+            if not comparison or "commits" not in comparison:
+                logger.warning(f"No commits found in comparison for {fork_owner}/{fork_repo}")
+                return []
+            
+            # Get the commits that are ahead (limited by count)
+            ahead_commits = comparison["commits"][:count]
+            
+            # Convert to RecentCommit objects
+            recent_commits = []
+            for commit_data in ahead_commits:
+                try:
+                    recent_commit = RecentCommit.from_github_api(commit_data)
+                    recent_commits.append(recent_commit)
+                except Exception as e:
+                    logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
+                    continue
+            
+            logger.debug(f"Successfully fetched {len(recent_commits)} commits ahead from {fork_owner}/{fork_repo}")
+            return recent_commits
+            
+        except GitHubAPIError:
+            # Re-raise GitHub API errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to fetch commits ahead from {fork_owner}/{fork_repo}: {e}")
+            raise GitHubAPIError(f"Failed to fetch commits ahead: {e}")
+
     # User operations
 
     async def get_user(self, username: str, disable_cache: bool = False) -> User:

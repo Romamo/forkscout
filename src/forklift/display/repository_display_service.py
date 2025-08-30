@@ -578,8 +578,7 @@ class RepositoryDisplayService:
         table.add_column("Fork Name", style="cyan", min_width=25)
         table.add_column("Owner", style="blue", min_width=15)
         table.add_column("Stars", style="yellow", justify="right", width=8)
-        table.add_column("Commits Ahead", style="green", justify="right", width=12)
-        table.add_column("Commits Behind", style="red", justify="right", width=13)
+        table.add_column("Commits", style="green", justify="right", width=12)
         table.add_column("Last Activity", style="magenta", width=15)
         table.add_column("Status", style="white", width=10)
         table.add_column("Language", style="white", width=12)
@@ -593,20 +592,18 @@ class RepositoryDisplayService:
             status = fork_data["activity_status"]
             status_styled = self._style_activity_status(status)
 
-            # Format commits ahead/behind
+            # Format commits ahead/behind using compact format
             commits_ahead = fork_data["commits_ahead"]
             commits_behind = fork_data["commits_behind"]
 
-            ahead_text = f"+{commits_ahead}" if commits_ahead > 0 else "0"
-            behind_text = f"-{commits_behind}" if commits_behind > 0 else "0"
+            commits_status = self.format_commits_status(commits_ahead, commits_behind)
 
             table.add_row(
                 str(i),
                 fork.name,
                 fork.owner,
                 f"⭐{fork.stars}",
-                ahead_text,
-                behind_text,
+                commits_status,
                 fork_data["last_activity"],
                 status_styled,
                 fork.language or "N/A",
@@ -703,6 +700,20 @@ class RepositoryDisplayService:
         else:
             return "[yellow]Unknown[/yellow]"
 
+    def format_commits_status(self, commits_ahead: int, commits_behind: int) -> str:
+        """Format commits ahead/behind into compact "+X -Y" format.
+
+        Args:
+            commits_ahead: Number of commits ahead
+            commits_behind: Number of commits behind
+
+        Returns:
+            Formatted commits status string in "+X -Y" format
+        """
+        ahead_text = f"+{commits_ahead}" if commits_ahead > 0 else "+0"
+        behind_text = f"-{commits_behind}" if commits_behind > 0 else "-0"
+        return f"{ahead_text} {behind_text}"
+
     async def _display_fork_data_table(
         self,
         qualification_result,
@@ -783,9 +794,7 @@ class RepositoryDisplayService:
             fork_table.add_column("URL", style="cyan", min_width=35)
             fork_table.add_column("Stars", style="yellow", justify="right", width=8)
             fork_table.add_column("Forks", style="green", justify="right", width=8)
-            fork_table.add_column(
-                "Commits Ahead", style="magenta", justify="right", width=15
-            )
+            fork_table.add_column("Commits", style="magenta", justify="right", width=12)
             fork_table.add_column("Last Push", style="blue", width=12)
 
             # Conditionally add Recent Commits column
@@ -808,7 +817,11 @@ class RepositoryDisplayService:
             if show_commits > 0:
                 forks_to_display = sorted_forks[:display_limit]
                 commits_cache = await self._fetch_commits_concurrently(
-                    forks_to_display, show_commits, force_all_commits
+                    forks_to_display,
+                    show_commits,
+                    qualification_result.repository_owner,
+                    qualification_result.repository_name,
+                    force_all_commits,
                 )
 
             for _i, fork_data in enumerate(sorted_forks[:display_limit], 1):
@@ -1455,7 +1468,7 @@ class RepositoryDisplayService:
         commits_cache = {}
         if show_commits > 0:
             commits_cache = await self._fetch_commits_concurrently(
-                sorted_forks, show_commits, force_all_commits
+                sorted_forks, show_commits, base_owner, base_repo, force_all_commits
             )
 
         for fork_data in sorted_forks:
@@ -1592,7 +1605,7 @@ class RepositoryDisplayService:
         table.add_column("Fork Name", style="cyan", min_width=25)
         table.add_column("Owner", style="blue", min_width=15)
         table.add_column("Stars", style="yellow", justify="right", width=8)
-        table.add_column("Commits Ahead", style="green", justify="right", width=12)
+        table.add_column("Commits", style="green", justify="right", width=12)
         table.add_column("Activity Score", style="magenta", justify="right", width=13)
         table.add_column("Last Activity", style="white", width=15)
         table.add_column("Language", style="white", width=12)
@@ -1654,13 +1667,20 @@ class RepositoryDisplayService:
         self.console.print(panel)
 
     async def _fetch_commits_concurrently(
-        self, forks_data: list, show_commits: int, force_all_commits: bool = False
+        self,
+        forks_data: list,
+        show_commits: int,
+        base_owner: str,
+        base_repo: str,
+        force_all_commits: bool = False,
     ) -> dict[str, str]:
-        """Fetch recent commits for multiple forks concurrently with progress tracking and optimization.
+        """Fetch commits ahead for multiple forks concurrently with progress tracking and optimization.
 
         Args:
             forks_data: List of fork data objects
-            show_commits: Number of recent commits to fetch for each fork
+            show_commits: Number of commits ahead to fetch for each fork
+            base_owner: Base repository owner
+            base_repo: Base repository name
             force_all_commits: If True, bypass optimization and fetch commits for all forks
 
         Returns:
@@ -1714,22 +1734,27 @@ class RepositoryDisplayService:
         # Create semaphore to limit concurrent requests (respect rate limits)
         semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
 
-        async def fetch_fork_commits(fork_key: str, fork_data) -> tuple[str, str]:
-            """Fetch commits for a single fork with rate limiting."""
+        async def fetch_fork_commits(
+            fork_key: str, fork_data, base_owner: str, base_repo: str
+        ) -> tuple[str, str]:
+            """Fetch commits ahead for a single fork with rate limiting."""
             async with semaphore:
                 try:
                     # Add small delay to respect rate limits
                     await asyncio.sleep(0.1)
 
-                    recent_commits = await self.github_client.get_recent_commits(
+                    # Get commits ahead instead of recent commits
+                    commits_ahead = await self.github_client.get_commits_ahead(
                         fork_data.metrics.owner,
                         fork_data.metrics.name,
+                        base_owner,
+                        base_repo,
                         count=show_commits,
                     )
-                    formatted_commits = self.format_recent_commits(recent_commits)
+                    formatted_commits = self.format_recent_commits(commits_ahead)
                     return fork_key, formatted_commits
                 except Exception as e:
-                    logger.debug(f"Failed to fetch recent commits for {fork_key}: {e}")
+                    logger.debug(f"Failed to fetch commits ahead for {fork_key}: {e}")
                     return fork_key, "[dim]No commits available[/dim]"
 
         # Show progress indicator for commit fetching
@@ -1748,7 +1773,9 @@ class RepositoryDisplayService:
             # Create tasks for concurrent execution
             tasks = []
             for fork_key, fork_data in forks_needing_commits:
-                task_coro = fetch_fork_commits(fork_key, fork_data)
+                task_coro = fetch_fork_commits(
+                    fork_key, fork_data, base_owner, base_repo
+                )
                 tasks.append(task_coro)
 
             # Execute tasks concurrently with progress updates
@@ -1782,26 +1809,35 @@ class RepositoryDisplayService:
 
         return commits_cache
 
-    async def _get_and_format_recent_commits(
-        self, owner: str, repo_name: str, count: int
+    async def _get_and_format_commits_ahead(
+        self,
+        fork_owner: str,
+        fork_repo: str,
+        base_owner: str,
+        base_repo: str,
+        count: int,
     ) -> str:
-        """Get and format recent commits for a fork.
+        """Get and format commits ahead for a fork.
 
         Args:
-            owner: Fork owner
-            repo_name: Fork repository name
-            count: Number of recent commits to fetch
+            fork_owner: Fork owner
+            fork_repo: Fork repository name
+            base_owner: Base repository owner
+            base_repo: Base repository name
+            count: Number of commits ahead to fetch
 
         Returns:
-            Formatted string with recent commits, each on a separate line
+            Formatted string with commits ahead, each on a separate line
         """
         try:
-            recent_commits = await self.github_client.get_recent_commits(
-                owner, repo_name, count=count
+            commits_ahead = await self.github_client.get_commits_ahead(
+                fork_owner, fork_repo, base_owner, base_repo, count=count
             )
-            return self.format_recent_commits(recent_commits)
+            return self.format_recent_commits(commits_ahead)
         except Exception as e:
-            logger.debug(f"Failed to fetch recent commits for {owner}/{repo_name}: {e}")
+            logger.debug(
+                f"Failed to fetch commits ahead for {fork_owner}/{fork_repo}: {e}"
+            )
             return "[dim]No commits available[/dim]"
 
     def format_recent_commits(self, commits: list) -> str:
@@ -1816,10 +1852,17 @@ class RepositoryDisplayService:
         if not commits:
             return "[dim]No commits[/dim]"
 
-        # Format: short_sha: message for each commit
-        formatted_commits = [
-            f"{commit.short_sha}: {commit.message}" for commit in commits
-        ]
+        # Format: YYYY-MM-DD hash commit message for each commit
+        formatted_commits = []
+        for commit in commits:
+            if commit.date:
+                date_str = commit.date.strftime("%Y-%m-%d")
+                formatted_commits.append(
+                    f"{date_str} {commit.short_sha} {commit.message}"
+                )
+            else:
+                # Fallback to old format if date is not available
+                formatted_commits.append(f"{commit.short_sha}: {commit.message}")
 
         # Join with newlines for multi-line display in table cell
         return "\n".join(formatted_commits)
@@ -1840,7 +1883,7 @@ class RepositoryDisplayService:
         table.add_column("Owner", style="blue", min_width=15)
         table.add_column("Stars", style="yellow", justify="right", width=8)
         table.add_column("Last Push", style="magenta", width=15)
-        table.add_column("Commits Ahead", style="green", width=13)
+        table.add_column("Commits", style="green", width=13)
 
         for i, fork_item in enumerate(fork_items, 1):
             # Format last push date

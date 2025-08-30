@@ -19,8 +19,7 @@ class TestRepositoryDisplayService:
         self.mock_github_client = Mock()
         self.mock_console = Mock(spec=Console)
         self.service = RepositoryDisplayService(
-            github_client=self.mock_github_client,
-            console=self.mock_console
+            github_client=self.mock_github_client, console=self.mock_console
         )
 
     def test_init_with_console(self):
@@ -38,25 +37,33 @@ class TestRepositoryDisplayService:
 
     def test_parse_repository_url_https(self):
         """Test parsing HTTPS GitHub URLs."""
-        owner, repo = self.service._parse_repository_url("https://github.com/owner/repo")
+        owner, repo = self.service._parse_repository_url(
+            "https://github.com/owner/repo"
+        )
         assert owner == "owner"
         assert repo == "repo"
 
     def test_parse_repository_url_https_with_git(self):
         """Test parsing HTTPS URLs with .git suffix."""
-        owner, repo = self.service._parse_repository_url("https://github.com/owner/repo.git")
+        owner, repo = self.service._parse_repository_url(
+            "https://github.com/owner/repo.git"
+        )
         assert owner == "owner"
         assert repo == "repo"
 
     def test_parse_repository_url_https_with_slash(self):
         """Test parsing HTTPS URLs with trailing slash."""
-        owner, repo = self.service._parse_repository_url("https://github.com/owner/repo/")
+        owner, repo = self.service._parse_repository_url(
+            "https://github.com/owner/repo/"
+        )
         assert owner == "owner"
         assert repo == "repo"
 
     def test_parse_repository_url_ssh(self):
         """Test parsing SSH GitHub URLs."""
-        owner, repo = self.service._parse_repository_url("git@github.com:owner/repo.git")
+        owner, repo = self.service._parse_repository_url(
+            "git@github.com:owner/repo.git"
+        )
         assert owner == "owner"
         assert repo == "repo"
 
@@ -85,6 +92,7 @@ class TestRepositoryDisplayService:
     def test_format_datetime_yesterday(self):
         """Test formatting yesterday's datetime."""
         from datetime import timedelta
+
         yesterday = datetime.utcnow() - timedelta(days=1)
         result = self.service._format_datetime(yesterday)
         assert result == "Yesterday"
@@ -92,6 +100,7 @@ class TestRepositoryDisplayService:
     def test_format_datetime_days_ago(self):
         """Test formatting datetime from days ago."""
         from datetime import timedelta
+
         three_days_ago = datetime.utcnow() - timedelta(days=3)
         result = self.service._format_datetime(three_days_ago)
         assert "3 days ago" in result
@@ -99,6 +108,7 @@ class TestRepositoryDisplayService:
     def test_format_datetime_weeks_ago(self):
         """Test formatting datetime from weeks ago."""
         from datetime import timedelta
+
         two_weeks_ago = datetime.utcnow() - timedelta(days=14)
         result = self.service._format_datetime(two_weeks_ago)
         assert "week" in result
@@ -120,6 +130,7 @@ class TestRepositoryDisplayService:
     def test_calculate_activity_status_moderate(self):
         """Test activity status calculation for moderately active repository."""
         from datetime import timedelta
+
         repo = Mock()
         repo.pushed_at = (datetime.utcnow() - timedelta(days=60)).replace(tzinfo=UTC)
         result = self.service._calculate_activity_status(repo)
@@ -128,6 +139,7 @@ class TestRepositoryDisplayService:
     def test_calculate_activity_status_stale(self):
         """Test activity status calculation for stale repository."""
         from datetime import timedelta
+
         repo = Mock()
         repo.pushed_at = (datetime.utcnow() - timedelta(days=200)).replace(tzinfo=UTC)
         result = self.service._calculate_activity_status(repo)
@@ -136,7 +148,11 @@ class TestRepositoryDisplayService:
     def test_calculate_activity_status_inactive(self):
         """Test activity status calculation for inactive repository."""
         repo = Mock()
-        repo.pushed_at = datetime.utcnow().replace(year=datetime.utcnow().year - 2).replace(tzinfo=UTC)
+        repo.pushed_at = (
+            datetime.utcnow()
+            .replace(year=datetime.utcnow().year - 2)
+            .replace(tzinfo=UTC)
+        )
         result = self.service._calculate_activity_status(repo)
         assert result == "inactive"
 
@@ -194,7 +210,7 @@ class TestRepositoryDisplayService:
         base_time = datetime.utcnow().replace(tzinfo=UTC)
         repo = Mock()
         repo.created_at = base_time - timedelta(days=100)  # Created 100 days ago
-        repo.pushed_at = base_time - timedelta(days=30)    # Last push 30 days ago
+        repo.pushed_at = base_time - timedelta(days=30)  # Last push 30 days ago
         result = self.service._calculate_fork_activity_status(repo)
         assert result == "Active"
 
@@ -203,7 +219,7 @@ class TestRepositoryDisplayService:
         base_time = datetime.utcnow().replace(tzinfo=UTC)
         repo = Mock()
         repo.created_at = base_time - timedelta(days=200)  # Created 200 days ago
-        repo.pushed_at = base_time - timedelta(days=90)    # Last push exactly 90 days ago
+        repo.pushed_at = base_time - timedelta(days=90)  # Last push exactly 90 days ago
         result = self.service._calculate_fork_activity_status(repo)
         assert result == "Active"
 
@@ -212,7 +228,7 @@ class TestRepositoryDisplayService:
         base_time = datetime.utcnow().replace(tzinfo=UTC)
         repo = Mock()
         repo.created_at = base_time - timedelta(days=365)  # Created 1 year ago
-        repo.pushed_at = base_time - timedelta(days=180)   # Last push 6 months ago
+        repo.pushed_at = base_time - timedelta(days=180)  # Last push 6 months ago
         result = self.service._calculate_fork_activity_status(repo)
         assert result == "Stale"
 
@@ -221,7 +237,9 @@ class TestRepositoryDisplayService:
         base_time = datetime.utcnow().replace(tzinfo=UTC)
         repo = Mock()
         repo.created_at = base_time - timedelta(days=500)  # Created 500 days ago
-        repo.pushed_at = base_time - timedelta(days=400)   # Last push 400 days ago (has commits but old)
+        repo.pushed_at = base_time - timedelta(
+            days=400
+        )  # Last push 400 days ago (has commits but old)
         result = self.service._calculate_fork_activity_status(repo)
         assert result == "Stale"
 
@@ -356,8 +374,7 @@ class TestRepositoryDisplayService:
         )
 
         fork_data = CollectedForkData(
-            metrics=metrics,
-            activity_summary="Active fork with recent commits"
+            metrics=metrics, activity_summary="Active fork with recent commits"
         )
 
         stats = QualificationStats(
@@ -367,7 +384,7 @@ class TestRepositoryDisplayService:
             archived_forks=0,
             disabled_forks=0,
             analysis_candidate_percentage=100.0,
-            skip_rate_percentage=0.0
+            skip_rate_percentage=0.0,
         )
 
         qualification_result = QualifiedForksResult(
@@ -375,14 +392,16 @@ class TestRepositoryDisplayService:
             repository_name="testrepo",
             repository_url="https://github.com/testowner/testrepo",
             collected_forks=[fork_data],
-            stats=stats
+            stats=stats,
         )
 
         # Call method
         await self.service._display_fork_data_table(qualification_result)
 
         # Verify console.print was called multiple times
-        assert self.mock_console.print.call_count >= 3  # Summary table + fork table + insights
+        assert (
+            self.mock_console.print.call_count >= 3
+        )  # Summary table + fork table + insights
 
         # Check that the table was created and printed
         # We can't easily inspect the Rich Table structure, but we can verify the method completed
@@ -408,21 +427,31 @@ class TestRepositoryDisplayService:
             license_name="MIT License",
             created_at=datetime(2023, 1, 1, tzinfo=UTC),
             updated_at=datetime(2023, 12, 1, tzinfo=UTC),
-            pushed_at=datetime(2023, 12, 1, tzinfo=UTC)
+            pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
         )
 
         # Setup mock responses
         self.mock_github_client.get_repository = AsyncMock(return_value=mock_repo)
-        self.mock_github_client.get_repository_languages = AsyncMock(return_value={"Python": 1000, "JavaScript": 500})
-        self.mock_github_client.get_repository_topics = AsyncMock(return_value=["python", "web", "api"])
+        self.mock_github_client.get_repository_languages = AsyncMock(
+            return_value={"Python": 1000, "JavaScript": 500}
+        )
+        self.mock_github_client.get_repository_topics = AsyncMock(
+            return_value=["python", "web", "api"]
+        )
 
         # Call method
         result = await self.service.show_repository_details("testowner/testrepo")
 
         # Verify calls
-        self.mock_github_client.get_repository.assert_called_once_with("testowner", "testrepo")
-        self.mock_github_client.get_repository_languages.assert_called_once_with("testowner", "testrepo")
-        self.mock_github_client.get_repository_topics.assert_called_once_with("testowner", "testrepo")
+        self.mock_github_client.get_repository.assert_called_once_with(
+            "testowner", "testrepo"
+        )
+        self.mock_github_client.get_repository_languages.assert_called_once_with(
+            "testowner", "testrepo"
+        )
+        self.mock_github_client.get_repository_topics.assert_called_once_with(
+            "testowner", "testrepo"
+        )
 
         # Verify result
         assert result["repository"] == mock_repo
@@ -438,7 +467,9 @@ class TestRepositoryDisplayService:
     async def test_show_repository_details_api_error(self):
         """Test repository details display with API error."""
         # Setup mock to raise error
-        self.mock_github_client.get_repository = AsyncMock(side_effect=GitHubAPIError("Repository not found"))
+        self.mock_github_client.get_repository = AsyncMock(
+            side_effect=GitHubAPIError("Repository not found")
+        )
 
         # Call method and expect exception
         with pytest.raises(GitHubAPIError):
@@ -448,8 +479,6 @@ class TestRepositoryDisplayService:
         self.mock_console.print.assert_called()
         error_call = self.mock_console.print.call_args[0][0]
         assert "[red]Error:" in error_call
-
-
 
     def test_display_repository_table(self):
         """Test repository table display formatting."""
@@ -466,7 +495,7 @@ class TestRepositoryDisplayService:
             stars=100,
             forks_count=50,
             description="Test repository",
-            language="Python"
+            language="Python",
         )
 
         repo_details = {
@@ -477,7 +506,7 @@ class TestRepositoryDisplayService:
             "license": "MIT License",
             "last_activity": "1 month ago",
             "created": "1 year ago",
-            "updated": "1 week ago"
+            "updated": "1 week ago",
         }
 
         # Call method
@@ -552,16 +581,18 @@ class TestRepositoryDisplayService:
             default_branch="main",
             stars=10,
             forks_count=2,
-            language="Python"
+            language="Python",
         )
 
-        enhanced_forks = [{
-            "fork": mock_fork,
-            "commits_ahead": 5,
-            "commits_behind": 2,
-            "activity_status": "active",
-            "last_activity": "1 week ago"
-        }]
+        enhanced_forks = [
+            {
+                "fork": mock_fork,
+                "commits_ahead": 5,
+                "commits_behind": 2,
+                "activity_status": "active",
+                "last_activity": "1 week ago",
+            }
+        ]
 
         # Call method
         self.service._display_forks_table(enhanced_forks)
@@ -584,16 +615,18 @@ class TestRepositoryDisplayService:
                 clone_url=f"https://github.com/user{i}/testrepo.git",
                 default_branch="main",
                 stars=i,
-                forks_count=0
+                forks_count=0,
             )
 
-            enhanced_forks.append({
-                "fork": mock_fork,
-                "commits_ahead": 1,
-                "commits_behind": 0,
-                "activity_status": "active",
-                "last_activity": "1 week ago"
-            })
+            enhanced_forks.append(
+                {
+                    "fork": mock_fork,
+                    "commits_ahead": 1,
+                    "commits_behind": 0,
+                    "activity_status": "active",
+                    "last_activity": "1 week ago",
+                }
+            )
 
         # Call method
         self.service._display_forks_table(enhanced_forks, max_display=50)
@@ -603,7 +636,11 @@ class TestRepositoryDisplayService:
 
         # Check that overflow message was printed
         calls = [call[0][0] for call in self.mock_console.print.call_args_list]
-        overflow_messages = [call for call in calls if "... and" in str(call) and "more forks" in str(call)]
+        overflow_messages = [
+            call
+            for call in calls
+            if "... and" in str(call) and "more forks" in str(call)
+        ]
         assert len(overflow_messages) > 0
 
     @pytest.mark.asyncio
@@ -627,7 +664,7 @@ class TestRepositoryDisplayService:
             is_archived=False,
             is_disabled=False,
             pushed_at=datetime.utcnow() - timedelta(days=30),  # 30 days ago
-            created_at=datetime.utcnow() - timedelta(days=200)  # 200 days ago
+            created_at=datetime.utcnow() - timedelta(days=200),  # 200 days ago
         )
 
         mock_fork2 = Repository(
@@ -645,7 +682,7 @@ class TestRepositoryDisplayService:
             is_archived=False,
             is_disabled=False,
             pushed_at=datetime.utcnow() - timedelta(days=60),  # 60 days ago
-            created_at=datetime.utcnow() - timedelta(days=200)  # 200 days ago
+            created_at=datetime.utcnow() - timedelta(days=200),  # 200 days ago
         )
 
         # Mock the show_forks_summary method to return our test data
@@ -655,21 +692,20 @@ class TestRepositoryDisplayService:
                 "commits_ahead": 5,
                 "commits_behind": 2,
                 "activity_status": "moderate",
-                "last_activity": "2 months ago"
+                "last_activity": "2 months ago",
             },
             {
                 "fork": mock_fork2,
                 "commits_ahead": 3,
                 "commits_behind": 1,
                 "activity_status": "stale",
-                "last_activity": "3 months ago"
-            }
+                "last_activity": "3 months ago",
+            },
         ]
 
         # Create filter that should match only the first fork
         filters = PromisingForksFilter(
-            min_stars=5,  # Only fork1 has >= 5 stars
-            min_commits_ahead=1
+            min_stars=5, min_commits_ahead=1  # Only fork1 has >= 5 stars
         )
 
         # Call method - should return empty result due to temporary disabling
@@ -704,21 +740,23 @@ class TestRepositoryDisplayService:
             is_archived=False,
             is_disabled=False,
             pushed_at=datetime(2023, 10, 1, tzinfo=UTC),
-            created_at=datetime(2023, 1, 1, tzinfo=UTC)
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
         )
 
-        _enhanced_forks = [{
-            "fork": mock_fork,
-            "commits_ahead": 1,
-            "commits_behind": 0,
-            "activity_status": "stale",
-            "last_activity": "3 months ago"
-        }]
+        _enhanced_forks = [
+            {
+                "fork": mock_fork,
+                "commits_ahead": 1,
+                "commits_behind": 0,
+                "activity_status": "stale",
+                "last_activity": "3 months ago",
+            }
+        ]
 
         # Create strict filter that won't match
         filters = PromisingForksFilter(
             min_stars=10,  # Fork only has 2 stars
-            min_commits_ahead=5  # Fork only has 1 commit ahead
+            min_commits_ahead=5,  # Fork only has 1 commit ahead
         )
 
         # Call method - should return empty result due to temporary disabling
@@ -771,16 +809,18 @@ class TestRepositoryDisplayService:
             stars=10,
             forks_count=2,
             language="Python",
-            pushed_at=datetime(2023, 11, 1, tzinfo=UTC)
+            pushed_at=datetime(2023, 11, 1, tzinfo=UTC),
         )
 
-        promising_forks = [{
-            "fork": mock_fork,
-            "commits_ahead": 5,
-            "commits_behind": 2,
-            "activity_status": "active",
-            "last_activity": "1 week ago"
-        }]
+        promising_forks = [
+            {
+                "fork": mock_fork,
+                "commits_ahead": 5,
+                "commits_behind": 2,
+                "activity_status": "active",
+                "last_activity": "1 week ago",
+            }
+        ]
 
         filters = PromisingForksFilter()
 
@@ -821,7 +861,7 @@ class TestRepositoryDisplayService:
             forks_count=2,
             is_fork=True,
             created_at=base_time - timedelta(days=200),  # Created 200 days ago
-            pushed_at=base_time - timedelta(days=30)     # Last push 30 days ago (Active)
+            pushed_at=base_time - timedelta(days=30),  # Last push 30 days ago (Active)
         )
 
         mock_fork2 = Repository(
@@ -837,17 +877,21 @@ class TestRepositoryDisplayService:
             forks_count=1,
             is_fork=True,
             created_at=base_time - timedelta(days=100),  # Created 100 days ago
-            pushed_at=base_time - timedelta(days=100)    # Same as created (No commits)
+            pushed_at=base_time - timedelta(days=100),  # Same as created (No commits)
         )
 
         # Setup mock response
-        self.mock_github_client.get_repository_forks = AsyncMock(return_value=[mock_fork1, mock_fork2])
+        self.mock_github_client.get_repository_forks = AsyncMock(
+            return_value=[mock_fork1, mock_fork2]
+        )
 
         # Call method
         result = await self.service.list_forks_preview("testowner/testrepo")
 
         # Verify calls
-        self.mock_github_client.get_repository_forks.assert_called_once_with("testowner", "testrepo")
+        self.mock_github_client.get_repository_forks.assert_called_once_with(
+            "testowner", "testrepo"
+        )
 
         # Verify result structure
         assert result["total_forks"] == 2
@@ -894,7 +938,9 @@ class TestRepositoryDisplayService:
     async def test_list_forks_preview_api_error(self):
         """Test forks preview display with API error."""
         # Setup mock to raise error
-        self.mock_github_client.get_repository_forks = AsyncMock(side_effect=GitHubAPIError("API error"))
+        self.mock_github_client.get_repository_forks = AsyncMock(
+            side_effect=GitHubAPIError("API error")
+        )
 
         # Call method and expect exception
         with pytest.raises(GitHubAPIError):
@@ -924,7 +970,7 @@ class TestRepositoryDisplayService:
             forks_count=1,
             is_fork=True,
             created_at=base_time - timedelta(days=100),
-            pushed_at=base_time - timedelta(days=30)  # More recent
+            pushed_at=base_time - timedelta(days=30),  # More recent
         )
 
         mock_fork2 = Repository(
@@ -940,11 +986,13 @@ class TestRepositoryDisplayService:
             forks_count=2,
             is_fork=True,
             created_at=base_time - timedelta(days=200),
-            pushed_at=base_time - timedelta(days=60)  # Older
+            pushed_at=base_time - timedelta(days=60),  # Older
         )
 
         # Setup mock response (unsorted)
-        self.mock_github_client.get_repository_forks = AsyncMock(return_value=[mock_fork1, mock_fork2])
+        self.mock_github_client.get_repository_forks = AsyncMock(
+            return_value=[mock_fork1, mock_fork2]
+        )
 
         # Call method
         result = await self.service.list_forks_preview("testowner/testrepo")
@@ -969,7 +1017,7 @@ class TestRepositoryDisplayService:
                 "last_push_date": datetime(2023, 11, 1, tzinfo=UTC),
                 "fork_url": "https://github.com/user1/testrepo",
                 "activity_status": "Active",
-                "commits_ahead": "Unknown"
+                "commits_ahead": "Unknown",
             },
             {
                 "name": "testrepo",
@@ -978,8 +1026,8 @@ class TestRepositoryDisplayService:
                 "last_push_date": datetime(2023, 10, 1, tzinfo=UTC),
                 "fork_url": "https://github.com/user2/testrepo",
                 "activity_status": "No commits",
-                "commits_ahead": "None"
-            }
+                "commits_ahead": "None",
+            },
         ]
 
         # Call method
@@ -1012,7 +1060,7 @@ class TestRepositoryDisplayService:
             exclude_archived=True,
             exclude_disabled=True,
             min_fork_age_days=30,
-            max_fork_age_days=365
+            max_fork_age_days=365,
         )
 
         # Call method
@@ -1040,7 +1088,7 @@ class TestRepositoryDisplayService:
             forks_count=3,
             is_fork=True,
             created_at=base_time - timedelta(days=100),  # Created 100 days ago
-            pushed_at=base_time - timedelta(days=10)     # Last push 10 days ago (Active)
+            pushed_at=base_time - timedelta(days=10),  # Last push 10 days ago (Active)
         )
 
         stale_fork = Repository(
@@ -1056,7 +1104,7 @@ class TestRepositoryDisplayService:
             forks_count=1,
             is_fork=True,
             created_at=base_time - timedelta(days=300),  # Created 300 days ago
-            pushed_at=base_time - timedelta(days=200)    # Last push 200 days ago (Stale)
+            pushed_at=base_time - timedelta(days=200),  # Last push 200 days ago (Stale)
         )
 
         no_commits_fork = Repository(
@@ -1071,8 +1119,8 @@ class TestRepositoryDisplayService:
             stars=2,
             forks_count=0,
             is_fork=True,
-            created_at=base_time - timedelta(days=50),   # Created 50 days ago
-            pushed_at=base_time - timedelta(days=50)     # Same as created (No commits)
+            created_at=base_time - timedelta(days=50),  # Created 50 days ago
+            pushed_at=base_time - timedelta(days=50),  # Same as created (No commits)
         )
 
         # Setup mock response
@@ -1094,13 +1142,17 @@ class TestRepositoryDisplayService:
             assert fork_item["activity_status"] in ["Active", "Stale", "No commits"]
 
         # Find specific forks and verify their activity status
-        active_item = next(item for item in fork_items if item["owner"] == "active_user")
+        active_item = next(
+            item for item in fork_items if item["owner"] == "active_user"
+        )
         assert active_item["activity_status"] == "Active"
 
         stale_item = next(item for item in fork_items if item["owner"] == "stale_user")
         assert stale_item["activity_status"] == "Stale"
 
-        no_commits_item = next(item for item in fork_items if item["owner"] == "no_commits_user")
+        no_commits_item = next(
+            item for item in fork_items if item["owner"] == "no_commits_user"
+        )
         assert no_commits_item["activity_status"] == "No commits"
 
     def test_display_forks_preview_table_with_activity_column(self):
@@ -1114,7 +1166,7 @@ class TestRepositoryDisplayService:
                 "last_push_date": datetime(2023, 11, 1, tzinfo=UTC),
                 "fork_url": "https://github.com/active_user/active_repo",
                 "activity_status": "Active",
-                "commits_ahead": "Unknown"
+                "commits_ahead": "Unknown",
             },
             {
                 "name": "stale_repo",
@@ -1123,7 +1175,7 @@ class TestRepositoryDisplayService:
                 "last_push_date": datetime(2023, 6, 1, tzinfo=UTC),
                 "fork_url": "https://github.com/stale_user/stale_repo",
                 "activity_status": "Stale",
-                "commits_ahead": "Unknown"
+                "commits_ahead": "Unknown",
             },
             {
                 "name": "no_commits_repo",
@@ -1132,8 +1184,8 @@ class TestRepositoryDisplayService:
                 "last_push_date": datetime(2023, 1, 1, tzinfo=UTC),
                 "fork_url": "https://github.com/no_commits_user/no_commits_repo",
                 "activity_status": "No commits",
-                "commits_ahead": "None"
-            }
+                "commits_ahead": "None",
+            },
         ]
 
         # Call method
@@ -1159,7 +1211,7 @@ class TestRepositoryDisplayService:
             clone_url="https://github.com/user/test-repo.git",
             created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
-            updated_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
+            updated_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         # Test case 2: created_at > pushed_at (fork created after last push)
@@ -1173,7 +1225,7 @@ class TestRepositoryDisplayService:
             clone_url="https://github.com/user2/test-repo.git",
             created_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC),
             pushed_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
-            updated_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC)
+            updated_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         # Test case 3: pushed_at > created_at (potentially has commits)
@@ -1187,7 +1239,7 @@ class TestRepositoryDisplayService:
             clone_url="https://github.com/user3/test-repo.git",
             created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             pushed_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC),
-            updated_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC)
+            updated_at=datetime(2023, 2, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         # Test case 4: Missing timestamps
@@ -1201,7 +1253,7 @@ class TestRepositoryDisplayService:
             clone_url="https://github.com/user4/test-repo.git",
             created_at=None,
             pushed_at=None,
-            updated_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
+            updated_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         # Test the logic
@@ -1214,8 +1266,12 @@ class TestRepositoryDisplayService:
         """Test commits ahead status styling with simple format."""
         # Test styling for different statuses - now uses simple Yes/No format
         assert self.service._style_commits_ahead_status("None") == "[red]No[/red]"
-        assert self.service._style_commits_ahead_status("Unknown") == "[green]Yes[/green]"
-        assert self.service._style_commits_ahead_status("Invalid") == "Unknown"  # Unknown status returns as "Unknown"
+        assert (
+            self.service._style_commits_ahead_status("Unknown") == "[green]Yes[/green]"
+        )
+        assert (
+            self.service._style_commits_ahead_status("Invalid") == "Unknown"
+        )  # Unknown status returns as "Unknown"
 
     @pytest.mark.asyncio
     async def test_list_forks_preview_activity_edge_cases(self):
@@ -1236,7 +1292,7 @@ class TestRepositoryDisplayService:
             forks_count=1,
             is_fork=True,
             created_at=None,  # Missing created_at
-            pushed_at=base_time - timedelta(days=10)
+            pushed_at=base_time - timedelta(days=10),
         )
 
         # Fork with missing pushed_at
@@ -1253,7 +1309,7 @@ class TestRepositoryDisplayService:
             forks_count=0,
             is_fork=True,
             created_at=base_time - timedelta(days=50),
-            pushed_at=None  # Missing pushed_at
+            pushed_at=None,  # Missing pushed_at
         )
 
         # Fork with pushed_at within 1 minute of created_at
@@ -1270,7 +1326,9 @@ class TestRepositoryDisplayService:
             forks_count=2,
             is_fork=True,
             created_at=base_time - timedelta(days=30),
-            pushed_at=base_time - timedelta(days=30) + timedelta(seconds=30)  # 30 seconds after created
+            pushed_at=base_time
+            - timedelta(days=30)
+            + timedelta(seconds=30),  # 30 seconds after created
         )
 
         # Setup mock response
@@ -1284,13 +1342,19 @@ class TestRepositoryDisplayService:
         # Verify all edge cases are handled
         fork_items = result["forks"]
 
-        missing_created_item = next(item for item in fork_items if item["owner"] == "missing_created")
+        missing_created_item = next(
+            item for item in fork_items if item["owner"] == "missing_created"
+        )
         assert missing_created_item["activity_status"] == "No commits"
 
-        missing_pushed_item = next(item for item in fork_items if item["owner"] == "missing_pushed")
+        missing_pushed_item = next(
+            item for item in fork_items if item["owner"] == "missing_pushed"
+        )
         assert missing_pushed_item["activity_status"] == "No commits"
 
-        within_minute_item = next(item for item in fork_items if item["owner"] == "within_minute")
+        within_minute_item = next(
+            item for item in fork_items if item["owner"] == "within_minute"
+        )
         assert within_minute_item["activity_status"] == "No commits"
 
     def test_format_recent_commits_empty_list(self):
@@ -1299,55 +1363,121 @@ class TestRepositoryDisplayService:
         assert result == "[dim]No commits[/dim]"
 
     def test_format_recent_commits_single_commit(self):
-        """Test formatting single commit."""
+        """Test formatting single commit with date."""
         from forklift.models.github import RecentCommit
-        
+        from datetime import datetime
+
+        commit = RecentCommit(
+            short_sha="abc1234",
+            message="Fix bug in parser",
+            date=datetime(2024, 1, 15, 10, 30),
+        )
+        result = self.service.format_recent_commits([commit])
+        assert result == "2024-01-15 abc1234 Fix bug in parser"
+
+    def test_format_recent_commits_single_commit_no_date(self):
+        """Test formatting single commit without date (fallback to old format)."""
+        from forklift.models.github import RecentCommit
+
         commit = RecentCommit(short_sha="abc1234", message="Fix bug in parser")
         result = self.service.format_recent_commits([commit])
         assert result == "abc1234: Fix bug in parser"
 
     def test_format_recent_commits_multiple_commits(self):
-        """Test formatting multiple commits."""
+        """Test formatting multiple commits with dates."""
         from forklift.models.github import RecentCommit
-        
+        from datetime import datetime
+
         commits = [
-            RecentCommit(short_sha="abc1234", message="Fix bug in parser"),
-            RecentCommit(short_sha="def5678", message="Add new feature"),
-            RecentCommit(short_sha="9012abc", message="Update documentation")
+            RecentCommit(
+                short_sha="abc1234",
+                message="Fix bug in parser",
+                date=datetime(2024, 1, 15, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Add new feature",
+                date=datetime(2024, 1, 14, 9, 15),
+            ),
+            RecentCommit(
+                short_sha="9012abc", message="Update documentation"
+            ),  # No date
         ]
         result = self.service.format_recent_commits(commits)
-        expected = "abc1234: Fix bug in parser\ndef5678: Add new feature\n9012abc: Update documentation"
+        expected = "2024-01-15 abc1234 Fix bug in parser\n2024-01-14 def5678 Add new feature\n9012abc: Update documentation"
         assert result == expected
 
     @pytest.mark.asyncio
-    async def test_get_and_format_recent_commits_success(self):
-        """Test successful recent commits fetching and formatting."""
+    async def test_get_and_format_commits_ahead_success(self):
+        """Test successful commits ahead fetching and formatting."""
         from forklift.models.github import RecentCommit
-        
-        # Setup mock commits
+        from datetime import datetime
+
+        # Setup mock commits with dates
         mock_commits = [
-            RecentCommit(short_sha="abc1234", message="Fix bug"),
-            RecentCommit(short_sha="def5678", message="Add feature")
+            RecentCommit(
+                short_sha="abc1234",
+                message="Fix bug",
+                date=datetime(2024, 1, 15, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Add feature",
+                date=datetime(2024, 1, 14, 9, 15),
+            ),
         ]
-        
-        self.mock_github_client.get_recent_commits = AsyncMock(return_value=mock_commits)
-        
-        result = await self.service._get_and_format_recent_commits("owner", "repo", 2)
-        
-        expected = "abc1234: Fix bug\ndef5678: Add feature"
+
+        self.mock_github_client.get_commits_ahead = AsyncMock(return_value=mock_commits)
+
+        result = await self.service._get_and_format_commits_ahead(
+            "fork_owner", "fork_repo", "base_owner", "base_repo", 2
+        )
+
+        expected = "2024-01-15 abc1234 Fix bug\n2024-01-14 def5678 Add feature"
         assert result == expected
-        self.mock_github_client.get_recent_commits.assert_called_once_with("owner", "repo", count=2)
+        self.mock_github_client.get_commits_ahead.assert_called_once_with(
+            "fork_owner", "fork_repo", "base_owner", "base_repo", count=2
+        )
 
     @pytest.mark.asyncio
-    async def test_get_and_format_recent_commits_api_error(self):
-        """Test recent commits fetching with API error."""
+    async def test_get_and_format_commits_ahead_api_error(self):
+        """Test commits ahead fetching with API error."""
         from forklift.github.client import GitHubAPIError
-        
-        self.mock_github_client.get_recent_commits = AsyncMock(
+
+        self.mock_github_client.get_commits_ahead = AsyncMock(
             side_effect=GitHubAPIError("API error")
         )
-        
-        result = await self.service._get_and_format_recent_commits("owner", "repo", 2)
-        
+
+        result = await self.service._get_and_format_commits_ahead(
+            "fork_owner", "fork_repo", "base_owner", "base_repo", 2
+        )
+
         assert result == "[dim]No commits available[/dim]"
-        self.mock_github_client.get_recent_commits.assert_called_once_with("owner", "repo", count=2)
+        self.mock_github_client.get_commits_ahead.assert_called_once_with(
+            "fork_owner", "fork_repo", "base_owner", "base_repo", count=2
+        )
+
+    def test_format_commits_status_both_zero(self):
+        """Test format_commits_status with both ahead and behind as zero."""
+        result = self.service.format_commits_status(0, 0)
+        assert result == "+0 -0"
+
+    def test_format_commits_status_ahead_only(self):
+        """Test format_commits_status with commits ahead only."""
+        result = self.service.format_commits_status(5, 0)
+        assert result == "+5 -0"
+
+    def test_format_commits_status_behind_only(self):
+        """Test format_commits_status with commits behind only."""
+        result = self.service.format_commits_status(0, 3)
+        assert result == "+0 -3"
+
+    def test_format_commits_status_both_nonzero(self):
+        """Test format_commits_status with both ahead and behind non-zero."""
+        result = self.service.format_commits_status(7, 2)
+        assert result == "+7 -2"
+
+    def test_format_commits_status_large_numbers(self):
+        """Test format_commits_status with large numbers."""
+        result = self.service.format_commits_status(123, 456)
+        assert result == "+123 -456"
