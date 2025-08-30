@@ -158,6 +158,9 @@ class CollectedForkData(BaseModel):
     exact_commits_ahead: int | str | None = Field(
         None, description="Exact number of commits ahead (fetched via compare API) or 'Unknown'"
     )
+    exact_commits_behind: int | str | None = Field(
+        None, description="Exact number of commits behind (fetched via compare API) or 'Unknown'"
+    )
 
     @computed_field
     @property

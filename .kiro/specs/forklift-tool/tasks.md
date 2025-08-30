@@ -1114,7 +1114,7 @@
   - Write comprehensive unit tests for all formatting scenarios and edge cases
   - _Requirements: 22.2, 22.3, 22.4, 22.5, 22.6, 22.7_
 
-- [-] 20.3 Update all fork display commands with compact format
+- [x] 20.3 Update all fork display commands with compact format
   - Update show-forks command to use new compact commit format
   - Update list-forks command to use consistent commit formatting
   - Update show-fork-data-detailed command to use compact format
@@ -1123,7 +1123,7 @@
   - Write integration tests to verify consistent formatting across all commands
   - _Requirements: 22.11, 22.10_
 
-- [ ] 20.4 Implement sorting logic for compact commit format
+- [-] 20.4 Implement sorting logic for compact commit format
   - Update fork sorting logic to handle the new compact commit format
   - Implement primary sort by commits ahead, secondary sort by commits behind
   - Update sort_by="commits" option to work with the new format

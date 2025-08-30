@@ -1048,6 +1048,256 @@ class TestRepositoryDisplayService:
         call_args = self.mock_console.print.call_args[0][0]
         assert call_args == "[yellow]No forks found.[/yellow]"
 
+    def test_get_commits_sort_key_with_integer_values(self):
+        """Test commits sort key generation with integer commits ahead/behind values."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create fork data with integer commit values
+        metrics = ForkQualificationMetrics(
+            id=123,
+            name="testrepo",
+            owner="testowner",
+            full_name="testowner/testrepo",
+            html_url="https://github.com/testowner/testrepo",
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 12, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
+        )
+        
+        fork_data = CollectedForkData(metrics=metrics)
+        fork_data.exact_commits_ahead = 5
+        fork_data.exact_commits_behind = 2
+
+        # Call method
+        sort_key = self.service._get_commits_sort_key(fork_data)
+
+        # Verify sort key (positive values, reverse=True will be applied)
+        assert sort_key == (5, 2)
+
+    def test_get_commits_sort_key_with_unknown_status(self):
+        """Test commits sort key generation with unknown commit status."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create fork data with unknown commit status
+        metrics = ForkQualificationMetrics(
+            id=123,
+            name="testrepo",
+            owner="testowner",
+            full_name="testowner/testrepo",
+            html_url="https://github.com/testowner/testrepo",
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 12, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
+        )
+        
+        fork_data = CollectedForkData(metrics=metrics)
+        fork_data.exact_commits_ahead = "Unknown"
+        fork_data.exact_commits_behind = "Unknown"
+
+        # Call method
+        sort_key = self.service._get_commits_sort_key(fork_data)
+
+        # Verify sort key (unknown gets high priority value)
+        assert sort_key == (999, 0)
+
+    def test_get_commits_sort_key_with_no_commits_ahead(self):
+        """Test commits sort key generation with no commits ahead."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create fork data with no commits ahead
+        metrics = ForkQualificationMetrics(
+            id=123,
+            name="testrepo",
+            owner="testowner",
+            full_name="testowner/testrepo",
+            html_url="https://github.com/testowner/testrepo",
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 12, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
+        )
+        
+        fork_data = CollectedForkData(metrics=metrics)
+        fork_data.exact_commits_ahead = "None"
+        fork_data.exact_commits_behind = 3
+
+        # Call method
+        sort_key = self.service._get_commits_sort_key(fork_data)
+
+        # Verify sort key (no commits ahead gets 0 priority)
+        assert sort_key == (0, 3)
+
+    def test_get_commits_sort_key_with_none_values(self):
+        """Test commits sort key generation with None values."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create fork data with None commit values
+        metrics = ForkQualificationMetrics(
+            id=123,
+            name="testrepo",
+            owner="testowner",
+            full_name="testowner/testrepo",
+            html_url="https://github.com/testowner/testrepo",
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 12, 1, tzinfo=UTC),
+            pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
+        )
+        
+        fork_data = CollectedForkData(metrics=metrics)
+        # exact_commits_ahead and exact_commits_behind are None by default
+
+        # Call method
+        sort_key = self.service._get_commits_sort_key(fork_data)
+
+        # Verify sort key (None values get treated as unknown)
+        assert sort_key == (999, 0)
+
+    def test_sort_forks_by_commits_with_compact_format(self):
+        """Test sorting forks by commits using the new compact format."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create test fork data with different commit statuses
+        base_time = datetime(2023, 1, 1, tzinfo=UTC)
+        
+        # Fork 1: 5 commits ahead, 2 behind
+        metrics1 = ForkQualificationMetrics(
+            id=1, name="repo1", owner="user1", full_name="user1/repo1",
+            html_url="https://github.com/user1/repo1",
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork1 = CollectedForkData(metrics=metrics1)
+        fork1.exact_commits_ahead = 5
+        fork1.exact_commits_behind = 2
+
+        # Fork 2: 3 commits ahead, 1 behind
+        metrics2 = ForkQualificationMetrics(
+            id=2, name="repo2", owner="user2", full_name="user2/repo2",
+            html_url="https://github.com/user2/repo2",
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork2 = CollectedForkData(metrics=metrics2)
+        fork2.exact_commits_ahead = 3
+        fork2.exact_commits_behind = 1
+
+        # Fork 3: Unknown status
+        metrics3 = ForkQualificationMetrics(
+            id=3, name="repo3", owner="user3", full_name="user3/repo3",
+            html_url="https://github.com/user3/repo3",
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork3 = CollectedForkData(metrics=metrics3)
+        fork3.exact_commits_ahead = "Unknown"
+        fork3.exact_commits_behind = "Unknown"
+
+        # Fork 4: No commits ahead
+        metrics4 = ForkQualificationMetrics(
+            id=4, name="repo4", owner="user4", full_name="user4/repo4",
+            html_url="https://github.com/user4/repo4",
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork4 = CollectedForkData(metrics=metrics4)
+        fork4.exact_commits_ahead = 0
+        fork4.exact_commits_behind = 5
+
+        collected_forks = [fork4, fork2, fork1, fork3]  # Unsorted order
+
+        # Sort by commits
+        sorted_forks = self.service._sort_forks(collected_forks, "commits")
+
+        # Verify sorting order: Unknown (fork3), 5 ahead (fork1), 3 ahead (fork2), 0 ahead (fork4)
+        assert sorted_forks[0].metrics.id == 3  # Unknown status first
+        assert sorted_forks[1].metrics.id == 1  # 5 commits ahead
+        assert sorted_forks[2].metrics.id == 2  # 3 commits ahead
+        assert sorted_forks[3].metrics.id == 4  # 0 commits ahead
+
+    def test_sort_forks_by_commits_secondary_sort_by_behind(self):
+        """Test sorting forks by commits with secondary sort by commits behind."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create test fork data with same commits ahead but different commits behind
+        base_time = datetime(2023, 1, 1, tzinfo=UTC)
+        
+        # Fork 1: 3 commits ahead, 5 behind
+        metrics1 = ForkQualificationMetrics(
+            id=1, name="repo1", owner="user1", full_name="user1/repo1",
+            html_url="https://github.com/user1/repo1",
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork1 = CollectedForkData(metrics=metrics1)
+        fork1.exact_commits_ahead = 3
+        fork1.exact_commits_behind = 5
+
+        # Fork 2: 3 commits ahead, 2 behind
+        metrics2 = ForkQualificationMetrics(
+            id=2, name="repo2", owner="user2", full_name="user2/repo2",
+            html_url="https://github.com/user2/repo2",
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork2 = CollectedForkData(metrics=metrics2)
+        fork2.exact_commits_ahead = 3
+        fork2.exact_commits_behind = 2
+
+        collected_forks = [fork1, fork2]  # Unsorted order
+
+        # Sort by commits
+        sorted_forks = self.service._sort_forks(collected_forks, "commits")
+
+        # Verify secondary sorting by commits behind (higher behind count first)
+        assert sorted_forks[0].metrics.id == 1  # 3 ahead, 5 behind
+        assert sorted_forks[1].metrics.id == 2  # 3 ahead, 2 behind
+
+    def test_sort_forks_enhanced_with_compact_format(self):
+        """Test enhanced fork sorting with compact commit format support."""
+        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from datetime import datetime, UTC
+
+        # Create test fork data with different characteristics
+        base_time = datetime(2023, 1, 1, tzinfo=UTC)
+        
+        # Fork 1: Unknown commits, high stars
+        metrics1 = ForkQualificationMetrics(
+            id=1, name="repo1", owner="user1", full_name="user1/repo1",
+            html_url="https://github.com/user1/repo1", stargazers_count=100, forks_count=20,
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork1 = CollectedForkData(metrics=metrics1)
+        fork1.exact_commits_ahead = "Unknown"
+
+        # Fork 2: 5 commits ahead, low stars
+        metrics2 = ForkQualificationMetrics(
+            id=2, name="repo2", owner="user2", full_name="user2/repo2",
+            html_url="https://github.com/user2/repo2", stargazers_count=10, forks_count=5,
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork2 = CollectedForkData(metrics=metrics2)
+        fork2.exact_commits_ahead = 5
+
+        # Fork 3: No commits ahead, high stars
+        metrics3 = ForkQualificationMetrics(
+            id=3, name="repo3", owner="user3", full_name="user3/repo3",
+            html_url="https://github.com/user3/repo3", stargazers_count=50, forks_count=15,
+            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+        )
+        fork3 = CollectedForkData(metrics=metrics3)
+        fork3.exact_commits_ahead = 0
+
+        collected_forks = [fork3, fork2, fork1]  # Unsorted order
+
+        # Sort using enhanced method
+        sorted_forks = self.service._sort_forks_enhanced(collected_forks)
+
+        # Verify sorting order: commits first, then by stars
+        # Unknown (fork1) and 5 ahead (fork2) should come before 0 ahead (fork3)
+        # Between fork1 and fork2, fork1 should come first due to higher stars
+        assert sorted_forks[0].metrics.id == 1  # Unknown commits, high stars
+        assert sorted_forks[1].metrics.id == 2  # 5 commits ahead, low stars  
+        assert sorted_forks[2].metrics.id == 3  # 0 commits ahead, high stars
+
     def test_display_filter_criteria(self):
         """Test filter criteria display."""
         from forklift.models.filters import PromisingForksFilter

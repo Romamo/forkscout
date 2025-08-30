@@ -936,6 +936,7 @@ class RepositoryDisplayService:
                 x.metrics.commits_ahead_status == "Has commits",
                 x.metrics.stargazers_count,
             ),
+            "commits": lambda x: self._get_commits_sort_key(x),
             "name": lambda x: x.metrics.name.lower(),
             "owner": lambda x: x.metrics.owner.lower(),
             "language": lambda x: x.metrics.language or "zzz",  # Put None at end
@@ -950,11 +951,54 @@ class RepositoryDisplayService:
 
         return sorted(collected_forks, key=sort_func, reverse=reverse)
 
+    def _get_commits_sort_key(self, fork_data) -> tuple:
+        """Get sort key for commits sorting with compact format support.
+        
+        Implements primary sort by commits ahead, secondary sort by commits behind.
+        Handles "Unknown" commit status entries by treating them as having potential commits.
+        
+        Args:
+            fork_data: CollectedForkData object
+            
+        Returns:
+            Tuple for multi-level sorting (commits_ahead, commits_behind)
+        """
+        # Get commits ahead and behind values
+        commits_ahead = getattr(fork_data, 'exact_commits_ahead', None)
+        commits_behind = getattr(fork_data, 'exact_commits_behind', None)
+        
+        # Handle different data types for commits_ahead
+        if commits_ahead is None or commits_ahead == "Unknown":
+            # Unknown status - treat as potentially having commits (high priority)
+            ahead_sort_value = 999  # High value to sort first
+        elif isinstance(commits_ahead, int):
+            ahead_sort_value = commits_ahead
+        else:
+            # String values like "No commits ahead" or "Has commits"
+            if commits_ahead in ["None", "No commits ahead"]:
+                ahead_sort_value = 0
+            else:
+                ahead_sort_value = 999  # Treat as unknown/potential commits
+        
+        # Handle different data types for commits_behind
+        if commits_behind is None or commits_behind == "Unknown":
+            # Unknown status - use 0 as neutral value
+            behind_sort_value = 0
+        elif isinstance(commits_behind, int):
+            behind_sort_value = commits_behind
+        else:
+            # String values - use 0 as default
+            behind_sort_value = 0
+            
+        # Return tuple for multi-level sorting
+        # Positive values since reverse=True will be applied
+        return (ahead_sort_value, behind_sort_value)
+
     def _sort_forks_enhanced(self, collected_forks: list) -> list:
         """Sort forks with enhanced multi-level sorting logic.
 
         Implements commits-first sorting with multi-level criteria:
-        1. Commits status (has commits first)
+        1. Commits status (has commits first, with compact format support)
         2. Forks count (descending)
         3. Stars count (descending)
         4. Last push date (descending - most recent first)
@@ -967,11 +1011,12 @@ class RepositoryDisplayService:
         """
 
         def sort_key(fork_data):
-            """Multi-level sort key for enhanced fork sorting."""
+            """Multi-level sort key for enhanced fork sorting with compact commit format."""
             metrics = fork_data.metrics
 
-            # 1. Commits status - has commits first (True sorts before False)
-            has_commits = metrics.commits_ahead_status == "Has commits"
+            # 1. Commits status - use compact format sorting logic
+            commits_sort_key = self._get_commits_sort_key(fork_data)
+            commits_ahead_priority = -commits_sort_key[0]  # Negate for descending order
 
             # 2. Forks count (descending)
             forks_count = metrics.forks_count
@@ -991,7 +1036,7 @@ class RepositoryDisplayService:
             # Note: Python sorts tuples lexicographically, so we need to negate
             # numeric values for descending order
             return (
-                not has_commits,  # False (has commits) sorts before True (no commits)
+                commits_ahead_priority,  # Already negative for descending order
                 -forks_count,  # Negative for descending order
                 -stars_count,  # Negative for descending order
                 push_timestamp,  # Already negative for descending order
