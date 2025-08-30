@@ -1288,7 +1288,7 @@
   - Write unit tests for progress feedback and user messaging
   - _Requirements: 22.3, 22.4, 22.5, 22.8, 22.10_
 
-- [-] 21.3 Improve rate limit error handling and recovery
+- [x] 21.3 Improve rate limit error handling and recovery
   - Enhance rate limit error detection to properly distinguish between rate limits and auth failures
   - Update error handling to continue retrying when reset time is available instead of failing after max attempts
   - Add immediate operation resumption after rate limit recovery without additional delays
@@ -1307,7 +1307,7 @@
   - _Requirements: 22.1, 22.3, 22.4, 22.8, 22.10_
 
 - [ ] 22. Enhance show-forks command with improved table formatting and commit information
-- [ ] 22.1 Standardize show-forks table formatting to use detailed format
+- [-] 22.1 Standardize show-forks table formatting to use detailed format
   - Modify RepositoryDisplayService to always use detailed table format for show-forks command
   - Remove conditional formatting based on --detail flag and make detailed format the default
   - Ensure consistent column widths and information density across all fork displays

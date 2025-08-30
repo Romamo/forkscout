@@ -7,7 +7,13 @@ from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
 from rich.table import Table
 
 from forklift.github.client import GitHubClient
@@ -681,6 +687,22 @@ class RepositoryDisplayService:
         else:
             return "Unknown"
 
+    def _format_commits_ahead_detailed(self, status: str) -> str:
+        """Format commits ahead status for detailed display.
+
+        Args:
+            status: Commits ahead status string
+
+        Returns:
+            Formatted status string matching detailed table format
+        """
+        if status in ["None", "No commits ahead"]:
+            return "[dim]0 commits[/dim]"
+        elif status in ["Unknown", "Has commits"]:
+            return "[yellow]Unknown[/yellow]"
+        else:
+            return "[yellow]Unknown[/yellow]"
+
     async def _display_fork_data_table(
         self,
         qualification_result,
@@ -751,22 +773,20 @@ class RepositoryDisplayService:
                 qualification_result.collected_forks
             )
 
-            # Create main fork data table
+            # Create main fork data table using detailed format
             title_suffix = (
                 f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
             )
             fork_table = Table(
                 title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity){title_suffix}"
             )
-            fork_table.add_column("Fork Name", style="cyan", min_width=20)
-            fork_table.add_column("Owner", style="blue", min_width=15)
-            fork_table.add_column("Stars", style="yellow", justify="right", width=6)
-            fork_table.add_column("Forks", style="green", justify="right", width=6)
-            fork_table.add_column("URL", style="white", min_width=30)
-            fork_table.add_column("Commits Ahead", style="magenta", width=15)
-            fork_table.add_column("Activity", style="orange3", width=20)
+            fork_table.add_column("URL", style="cyan", min_width=35)
+            fork_table.add_column("Stars", style="yellow", justify="right", width=8)
+            fork_table.add_column("Forks", style="green", justify="right", width=8)
+            fork_table.add_column(
+                "Commits Ahead", style="magenta", justify="right", width=15
+            )
             fork_table.add_column("Last Push", style="blue", width=12)
-            fork_table.add_column("Status", style="red", width=12)
 
             # Conditionally add Recent Commits column
             if show_commits > 0:
@@ -782,7 +802,7 @@ class RepositoryDisplayService:
             display_limit = (
                 len(sorted_forks) if show_all else min(50, len(sorted_forks))
             )
-            
+
             # Fetch commits concurrently if requested
             commits_cache = {}
             if show_commits > 0:
@@ -794,19 +814,8 @@ class RepositoryDisplayService:
             for _i, fork_data in enumerate(sorted_forks[:display_limit], 1):
                 metrics = fork_data.metrics
 
-                # Style status indicators
-                status_parts = []
-                if metrics.archived:
-                    status_parts.append("[red]Archived[/red]")
-                if metrics.disabled:
-                    status_parts.append("[red]Disabled[/red]")
-                if not status_parts:
-                    status_parts.append("[green]Active[/green]")
-
-                status_display = " ".join(status_parts)
-
-                # Style commits ahead status
-                commits_status = self._style_commits_ahead_display(
+                # Format commits ahead status for detailed display
+                commits_status = self._format_commits_ahead_detailed(
                     metrics.commits_ahead_status
                 )
 
@@ -816,17 +825,13 @@ class RepositoryDisplayService:
                 # Generate fork URL
                 fork_url = self._format_fork_url(metrics.owner, metrics.name)
 
-                # Prepare row data
+                # Prepare row data using detailed format
                 row_data = [
-                    metrics.name,
-                    metrics.owner,
+                    fork_url,
                     str(metrics.stargazers_count),
                     str(metrics.forks_count),
-                    fork_url,
                     commits_status,
-                    fork_data.activity_summary,
                     last_push,
-                    status_display,
                 ]
 
                 # Add recent commits data from cache
@@ -1667,31 +1672,39 @@ class RepositoryDisplayService:
         # Separate forks that can be skipped from those needing commit downloads
         forks_to_skip = []
         forks_needing_commits = []
-        
+
         for fork_data in forks_data:
             fork_key = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
-            
+
             # Check if fork can be skipped (no commits ahead) unless force_all_commits is True
-            if not force_all_commits and hasattr(fork_data.metrics, 'can_skip_analysis') and fork_data.metrics.can_skip_analysis:
+            if (
+                not force_all_commits
+                and hasattr(fork_data.metrics, "can_skip_analysis")
+                and fork_data.metrics.can_skip_analysis
+            ):
                 forks_to_skip.append((fork_key, fork_data))
             else:
                 forks_needing_commits.append((fork_key, fork_data))
 
         # Initialize commits cache with skipped forks
         commits_cache = {}
-        
+
         # Add "No commits ahead" message for skipped forks
-        for fork_key, fork_data in forks_to_skip:
+        for fork_key, _fork_data in forks_to_skip:
             commits_cache[fork_key] = "[dim]No commits ahead[/dim]"
 
         # Log optimization statistics
         skipped_count = len(forks_to_skip)
         processing_count = len(forks_needing_commits)
         total_forks = len(forks_data)
-        
+
         if skipped_count > 0:
-            logger.info(f"Commit download optimization: Skipped {skipped_count}/{total_forks} forks with no commits ahead")
-            self.console.print(f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]")
+            logger.info(
+                f"Commit download optimization: Skipped {skipped_count}/{total_forks} forks with no commits ahead"
+            )
+            self.console.print(
+                f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]"
+            )
 
         # If no forks need commit downloads, return early
         if not forks_needing_commits:
@@ -1707,9 +1720,11 @@ class RepositoryDisplayService:
                 try:
                     # Add small delay to respect rate limits
                     await asyncio.sleep(0.1)
-                    
+
                     recent_commits = await self.github_client.get_recent_commits(
-                        fork_data.metrics.owner, fork_data.metrics.name, count=show_commits
+                        fork_data.metrics.owner,
+                        fork_data.metrics.name,
+                        count=show_commits,
                     )
                     formatted_commits = self.format_recent_commits(recent_commits)
                     return fork_key, formatted_commits
@@ -1726,8 +1741,8 @@ class RepositoryDisplayService:
             console=self.console,
         ) as progress:
             task = progress.add_task(
-                f"Fetching recent commits for {processing_count} forks (skipped {skipped_count})...", 
-                total=processing_count
+                f"Fetching recent commits for {processing_count} forks (skipped {skipped_count})...",
+                total=processing_count,
             )
 
             # Create tasks for concurrent execution
@@ -1743,12 +1758,12 @@ class RepositoryDisplayService:
                     fork_key, formatted_commits = await coro
                     commits_cache[fork_key] = formatted_commits
                     completed_count += 1
-                    
+
                     # Update progress
                     progress.update(
                         task,
                         advance=1,
-                        description=f"Fetched commits for {completed_count}/{processing_count} forks (skipped {skipped_count})"
+                        description=f"Fetched commits for {completed_count}/{processing_count} forks (skipped {skipped_count})",
                     )
                 except Exception as e:
                     logger.warning(f"Failed to fetch commits for fork: {e}")
@@ -1757,12 +1772,13 @@ class RepositoryDisplayService:
 
         # Log final statistics
         api_calls_saved = skipped_count
-        api_calls_made = processing_count
         total_potential_calls = total_forks
-        
+
         if api_calls_saved > 0:
             savings_percentage = (api_calls_saved / total_potential_calls) * 100
-            self.console.print(f"[green]✓ Commit download optimization saved {api_calls_saved} API calls ({savings_percentage:.1f}% reduction)[/green]")
+            self.console.print(
+                f"[green]✓ Commit download optimization saved {api_calls_saved} API calls ({savings_percentage:.1f}% reduction)[/green]"
+            )
 
         return commits_cache
 

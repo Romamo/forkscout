@@ -270,6 +270,31 @@ class TestRepositoryDisplayService:
         result = self.service._format_commits_ahead_simple("some_other_status")
         assert result == "Unknown"
 
+    def test_format_commits_ahead_detailed_none(self):
+        """Test format_commits_ahead_detailed with None status."""
+        result = self.service._format_commits_ahead_detailed("None")
+        assert result == "[dim]0 commits[/dim]"
+
+    def test_format_commits_ahead_detailed_no_commits_ahead(self):
+        """Test format_commits_ahead_detailed with 'No commits ahead' status."""
+        result = self.service._format_commits_ahead_detailed("No commits ahead")
+        assert result == "[dim]0 commits[/dim]"
+
+    def test_format_commits_ahead_detailed_unknown(self):
+        """Test format_commits_ahead_detailed with Unknown status."""
+        result = self.service._format_commits_ahead_detailed("Unknown")
+        assert result == "[yellow]Unknown[/yellow]"
+
+    def test_format_commits_ahead_detailed_has_commits(self):
+        """Test format_commits_ahead_detailed with 'Has commits' status."""
+        result = self.service._format_commits_ahead_detailed("Has commits")
+        assert result == "[yellow]Unknown[/yellow]"
+
+    def test_format_commits_ahead_detailed_other(self):
+        """Test format_commits_ahead_detailed with other status."""
+        result = self.service._format_commits_ahead_detailed("other")
+        assert result == "[yellow]Unknown[/yellow]"
+
     def test_style_commits_ahead_status_simple_no(self):
         """Test styling commits ahead status with simple 'No' format."""
         result = self.service._style_commits_ahead_status("None")
@@ -302,7 +327,7 @@ class TestRepositoryDisplayService:
 
     @pytest.mark.asyncio
     async def test_display_fork_data_table_simplified_columns(self):
-        """Test that fork data table uses simplified column structure without #, Size, Language."""
+        """Test that fork data table uses detailed format with URL, Stars, Forks, Commits Ahead, Last Push columns."""
         from datetime import UTC, datetime
 
         from forklift.models.fork_qualification import (
