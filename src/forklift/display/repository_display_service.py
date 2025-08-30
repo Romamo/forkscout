@@ -714,6 +714,44 @@ class RepositoryDisplayService:
         behind_text = f"-{commits_behind}" if commits_behind > 0 else "-0"
         return f"{ahead_text} {behind_text}"
 
+    def format_commits_compact(self, commits_ahead: int, commits_behind: int) -> str:
+        """Format commits ahead/behind into compact format with edge case handling.
+
+        Args:
+            commits_ahead: Number of commits ahead (or -1 for unknown)
+            commits_behind: Number of commits behind (or -1 for unknown)
+
+        Returns:
+            Formatted commits status string with edge cases:
+            - Empty cell for 0 ahead, 0 behind
+            - "+X" for only ahead commits
+            - "-Y" for only behind commits
+            - "+X -Y" for both ahead and behind
+            - "Unknown" for cases where status cannot be determined
+        """
+        # Handle unknown status (represented by -1)
+        if commits_ahead == -1 or commits_behind == -1:
+            return "Unknown"
+
+        # Handle edge case: both zero (empty cell)
+        if commits_ahead == 0 and commits_behind == 0:
+            return ""
+
+        # Handle only ahead commits
+        if commits_ahead > 0 and commits_behind == 0:
+            return f"[green]+{commits_ahead}[/green]"
+
+        # Handle only behind commits
+        if commits_ahead == 0 and commits_behind > 0:
+            return f"[red]-{commits_behind}[/red]"
+
+        # Handle both ahead and behind commits
+        if commits_ahead > 0 and commits_behind > 0:
+            return f"[green]+{commits_ahead}[/green] [red]-{commits_behind}[/red]"
+
+        # Fallback for any other case
+        return "Unknown"
+
     async def _display_fork_data_table(
         self,
         qualification_result,

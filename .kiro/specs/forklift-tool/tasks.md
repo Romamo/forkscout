@@ -1098,7 +1098,7 @@
   - _Requirements: 1.6, 21.1, 21.4, 21.5_
 
 - [ ] 20. Implement compact commit status display in fork tables
-- [-] 20.1 Update fork display table structure for compact commit format
+- [x] 20.1 Update fork display table structure for compact commit format
   - Modify RepositoryDisplayService to combine commits ahead/behind into single "Commits" column
   - Update table column definitions to replace "Commits Ahead" and "Commits Behind" with single "Commits" column
   - Implement format_commits_status method to generate "+X -Y" format strings
@@ -1106,7 +1106,7 @@
   - Write unit tests for commit status formatting with various ahead/behind combinations
   - _Requirements: 22.1, 22.2, 22.8_
 
-- [ ] 20.2 Implement commit status formatting logic
+- [-] 20.2 Implement commit status formatting logic
   - Create format_commits_compact method that takes commits_ahead and commits_behind parameters
   - Handle edge cases: empty cell (0 ahead, 0 behind), +X (only ahead), -Y (only behind)
   - Add "Unknown" handling for cases where commit status cannot be determined

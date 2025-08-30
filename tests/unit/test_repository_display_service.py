@@ -1481,3 +1481,58 @@ class TestRepositoryDisplayService:
         """Test format_commits_status with large numbers."""
         result = self.service.format_commits_status(123, 456)
         assert result == "+123 -456"
+
+    def test_format_commits_compact_both_zero(self):
+        """Test format_commits_compact with both ahead and behind as zero (empty cell)."""
+        result = self.service.format_commits_compact(0, 0)
+        assert result == ""
+
+    def test_format_commits_compact_ahead_only(self):
+        """Test format_commits_compact with commits ahead only."""
+        result = self.service.format_commits_compact(5, 0)
+        assert result == "[green]+5[/green]"
+
+    def test_format_commits_compact_behind_only(self):
+        """Test format_commits_compact with commits behind only."""
+        result = self.service.format_commits_compact(0, 3)
+        assert result == "[red]-3[/red]"
+
+    def test_format_commits_compact_both_nonzero(self):
+        """Test format_commits_compact with both ahead and behind non-zero."""
+        result = self.service.format_commits_compact(7, 2)
+        assert result == "[green]+7[/green] [red]-2[/red]"
+
+    def test_format_commits_compact_unknown_ahead(self):
+        """Test format_commits_compact with unknown commits ahead (-1)."""
+        result = self.service.format_commits_compact(-1, 0)
+        assert result == "Unknown"
+
+    def test_format_commits_compact_unknown_behind(self):
+        """Test format_commits_compact with unknown commits behind (-1)."""
+        result = self.service.format_commits_compact(0, -1)
+        assert result == "Unknown"
+
+    def test_format_commits_compact_both_unknown(self):
+        """Test format_commits_compact with both ahead and behind unknown (-1)."""
+        result = self.service.format_commits_compact(-1, -1)
+        assert result == "Unknown"
+
+    def test_format_commits_compact_large_numbers(self):
+        """Test format_commits_compact with large numbers."""
+        result = self.service.format_commits_compact(123, 456)
+        assert result == "[green]+123[/green] [red]-456[/red]"
+
+    def test_format_commits_compact_single_ahead(self):
+        """Test format_commits_compact with single commit ahead."""
+        result = self.service.format_commits_compact(1, 0)
+        assert result == "[green]+1[/green]"
+
+    def test_format_commits_compact_single_behind(self):
+        """Test format_commits_compact with single commit behind."""
+        result = self.service.format_commits_compact(0, 1)
+        assert result == "[red]-1[/red]"
+
+    def test_format_commits_compact_edge_case_mixed_unknown(self):
+        """Test format_commits_compact with mixed unknown values."""
+        result = self.service.format_commits_compact(5, -1)
+        assert result == "Unknown"
