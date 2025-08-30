@@ -103,6 +103,27 @@ cache:
 forklift analyze https://github.com/fastapi/fastapi
 ```
 
+### Fork Analysis Commands
+```bash
+# Show all forks with compact commit status
+forklift show-forks https://github.com/fastapi/fastapi
+
+# Show forks with recent commits in a separate column
+forklift show-forks https://github.com/fastapi/fastapi --show-commits 3
+
+# Show detailed fork information with exact commit counts
+forklift show-forks https://github.com/fastapi/fastapi --detail
+```
+
+### Understanding Commit Status Format
+
+The fork tables display commit status in a compact "+X -Y" format:
+- `+5 -2` means 5 commits ahead, 2 commits behind
+- `+3` means 3 commits ahead, up-to-date
+- `-1` means 1 commit behind, no new commits  
+- Empty cell means completely up-to-date
+- `Unknown` means status could not be determined
+
 ### With Custom Configuration
 ```bash
 forklift analyze https://github.com/fastapi/fastapi --config my-config.yaml

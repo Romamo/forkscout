@@ -557,8 +557,10 @@ class TestShowForksCommitsE2E:
         # Verify comprehensive help documentation
         assert "--show-commits" in help_output
         assert "Show last N commits" in help_output or "commits for each fork" in help_output
-        assert "0-10" in help_output
         assert "default: 0" in help_output or "default=0" in help_output
         
         # Verify the help explains the feature properly
         assert "Recent Commits" in help_output or "commit messages" in help_output
+        
+        # Verify the new commit format is documented
+        assert "+X -Y" in help_output or "commits ahead" in help_output.lower()

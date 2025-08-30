@@ -377,12 +377,7 @@ class TestShowCommitsIntegration:
             call_args = mock_show_forks.call_args[0]
             assert call_args[4] == 3  # show_commits parameter
 
-    @pytest.mark.asyncio
-    @patch("forklift.cli.load_config")
-    @patch("forklift.cli.GitHubClient")
-    async def test_show_forks_commits_help_documentation(
-        self, mock_github_client_class, mock_load_config, mock_config
-    ):
+    def test_show_forks_commits_help_documentation(self):
         """Test that --show-commits flag appears correctly in help documentation."""
         runner = CliRunner()
         
@@ -395,8 +390,11 @@ class TestShowCommitsIntegration:
         # Verify --show-commits option is documented
         assert "--show-commits" in help_text
         assert "Show last N commits" in help_text or "commits for each fork" in help_text
-        assert "0-10" in help_text  # Range should be documented
         assert "default: 0" in help_text or "default=0" in help_text
+        
+        # Verify the new commit format is documented
+        assert "+X -Y" in help_text or "commits ahead" in help_text.lower()
+        assert "Recent Commits" in help_text or "commit messages" in help_text
 
     @pytest.mark.asyncio
     @patch("forklift.cli.load_config")

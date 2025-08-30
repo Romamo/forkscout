@@ -965,7 +965,7 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
     "--show-commits",
     type=click.IntRange(0, 1000000),
     default=0,
-    help="Show last N commits for each fork (default: 0)",
+    help="Show last N commits for each fork in Recent Commits column (default: 0)",
 )
 @click.option(
     "--force-all-commits",
@@ -982,6 +982,18 @@ def show_forks(
     force_all_commits: bool,
 ) -> None:
     """Display a summary table of repository forks with key metrics.
+
+    This command shows a table of all forks with key information including:
+    - Fork name and owner
+    - Stars, forks, and activity information  
+    - Commits status in compact "+X -Y" format (X=ahead, Y=behind)
+    - Last activity date and programming language
+
+    The Commits column uses a compact format:
+    - "+5 -2" means 5 commits ahead, 2 commits behind
+    - "+3" means 3 commits ahead, up-to-date
+    - "-1" means 1 commit behind, no new commits
+    - Empty cell means completely up-to-date
 
     Use --detail flag to fetch exact commit counts ahead for each fork.
     This makes additional API requests but provides precise commit information.
@@ -1116,7 +1128,7 @@ def list_forks(ctx: click.Context, repository_url: str) -> None:
     "--show-commits",
     type=click.IntRange(0, 10),
     default=0,
-    help="Show last N commits for each fork (0-10, default: 0)",
+    help="Show last N commits for each fork in Recent Commits column (0-10, default: 0)",
 )
 @click.option(
     "--interactive",
@@ -1140,6 +1152,12 @@ def show_fork_data(
 
     This command shows all available fork information without automatic filtering or scoring,
     allowing users to make informed decisions about which forks warrant detailed analysis.
+
+    The table includes a Commits column showing status in compact "+X -Y" format:
+    - "+5 -2" means 5 commits ahead, 2 commits behind
+    - "+3" means 3 commits ahead, up-to-date  
+    - "-1" means 1 commit behind, no new commits
+    - Empty cell means completely up-to-date
 
     Use --show-commits N to display the last N commits for each fork (0-10).
     This adds a "Recent Commits" column showing commit messages and requires additional API calls.

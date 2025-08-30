@@ -1123,7 +1123,7 @@
   - Write integration tests to verify consistent formatting across all commands
   - _Requirements: 22.11, 22.10_
 
-- [-] 20.4 Implement sorting logic for compact commit format
+- [x] 20.4 Implement sorting logic for compact commit format
   - Update fork sorting logic to handle the new compact commit format
   - Implement primary sort by commits ahead, secondary sort by commits behind
   - Update sort_by="commits" option to work with the new format
@@ -1132,7 +1132,7 @@
   - Write unit tests for sorting logic with the new compact format
   - _Requirements: 22.9, 22.10_
 
-- [ ] 20.5 Update documentation and help text for new format
+- [-] 20.5 Update documentation and help text for new format
   - Update CLI help text to describe the new "+X -Y" commit format
   - Update any inline documentation that references the old column structure
   - Add examples of the new format to user documentation

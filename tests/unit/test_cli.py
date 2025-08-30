@@ -1099,5 +1099,5 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         assert "--show-commits" in result.output
-        assert "Show last N commits for each fork" in result.output
-        assert "0-10" in result.output
+        assert "Show last N commits for each fork" in result.output or "Recent Commits column" in result.output
+        assert "default: 0" in result.output
