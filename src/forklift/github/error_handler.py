@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from .exceptions import (
     GitHubAPIError,
@@ -54,10 +55,10 @@ class EnhancedErrorHandler:
             GitHubTimeoutError: If operation times out
         """
         timeout = timeout_seconds or self.timeout_seconds
-        
+
         try:
             return await asyncio.wait_for(operation(), timeout=timeout)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             logger.error(f"Operation '{operation_name}' timed out after {timeout}s")
             raise GitHubTimeoutError(
                 f"Operation '{operation_name}' timed out after {timeout} seconds",
@@ -80,18 +81,18 @@ class EnhancedErrorHandler:
         # Don't convert rate limit errors - they should be handled by retry logic
         if isinstance(error, GitHubRateLimitError):
             return error
-        
+
         if isinstance(error, GitHubNotFoundError):
             # Could be private repository or truly not found
             return GitHubPrivateRepositoryError(
                 f"Repository '{repository}' not found or is private",
                 repository=repository,
             )
-        
+
         if isinstance(error, GitHubAPIError):
             if error.status_code == 403:
                 # Check if this is a rate limit error (some rate limits use 403)
-                if hasattr(error, 'reset_time') or 'rate limit' in str(error).lower():
+                if hasattr(error, "reset_time") or "rate limit" in str(error).lower():
                     return error  # Keep as rate limit error
                 # Otherwise, it's likely a private repository
                 return GitHubPrivateRepositoryError(
@@ -104,7 +105,7 @@ class EnhancedErrorHandler:
                     f"Repository '{repository}' appears to be empty or has no commits",
                     repository=repository,
                 )
-        
+
         return error
 
     def handle_fork_access_error(
@@ -125,7 +126,7 @@ class EnhancedErrorHandler:
                 fork_url=fork_url,
                 reason="not_found",
             )
-        
+
         if isinstance(error, GitHubAPIError):
             if error.status_code == 403:
                 return GitHubForkAccessError(
@@ -133,7 +134,7 @@ class EnhancedErrorHandler:
                     fork_url=fork_url,
                     reason="private",
                 )
-        
+
         return error
 
     def handle_commit_access_error(
@@ -162,7 +163,7 @@ class EnhancedErrorHandler:
                     f"Cannot access commits in repository '{repository}' - may be private",
                     repository=repository,
                 )
-        
+
         return error
 
     async def safe_repository_operation(
@@ -270,13 +271,13 @@ class EnhancedErrorHandler:
         """
         if isinstance(error, GitHubTimeoutError):
             return f"Operation timed out after {error.timeout_seconds} seconds. The repository may be very large or GitHub API is slow."
-        
+
         elif isinstance(error, GitHubPrivateRepositoryError):
             return f"Cannot access repository '{error.repository}' - it may be private or you may not have permission."
-        
+
         elif isinstance(error, GitHubEmptyRepositoryError):
             return f"Repository '{error.repository}' appears to be empty or has no commits."
-        
+
         elif isinstance(error, GitHubForkAccessError):
             if error.reason == "private":
                 return f"Cannot access fork '{error.fork_url}' - it may be private."
@@ -284,7 +285,7 @@ class EnhancedErrorHandler:
                 return f"Fork '{error.fork_url}' not found - it may have been deleted."
             else:
                 return f"Cannot access fork '{error.fork_url}'."
-        
+
         elif isinstance(error, GitHubRateLimitError):
             if error.reset_time:
                 import time
@@ -292,19 +293,19 @@ class EnhancedErrorHandler:
                 return f"GitHub API rate limit exceeded. Please wait {wait_time:.0f} seconds before retrying."
             else:
                 return "GitHub API rate limit exceeded. Please wait before retrying."
-        
+
         elif isinstance(error, GitHubAuthenticationError):
             return "GitHub authentication failed. Please check your API token."
-        
+
         elif isinstance(error, GitHubNotFoundError):
             return "GitHub resource not found. Please check the repository URL."
-        
+
         elif isinstance(error, GitHubAPIError):
             if error.status_code:
                 return f"GitHub API error ({error.status_code}): {error}"
             else:
                 return f"GitHub API error: {error}"
-        
+
         else:
             return f"Unexpected error: {error}"
 
@@ -325,18 +326,18 @@ class EnhancedErrorHandler:
             GitHubTimeoutError,
         )):
             return True
-        
+
         # Stop processing for authentication errors
         if isinstance(error, GitHubAuthenticationError):
             return False
-        
+
         # For rate limit errors, let the retry logic handle it
         if isinstance(error, GitHubRateLimitError):
             return True
-        
+
         # For other API errors, continue but log the issue
         if isinstance(error, GitHubAPIError):
             return True
-        
+
         # For unexpected errors, stop processing
         return False

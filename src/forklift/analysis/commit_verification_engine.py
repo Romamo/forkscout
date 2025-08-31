@@ -3,8 +3,9 @@
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 
 from forklift.github.client import GitHubClient
 from forklift.github.exceptions import (

@@ -2,12 +2,11 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
 from forklift.analysis.fork_discovery import ForkDiscoveryService
 from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import QualifiedForksResult, CollectedForkData
+from forklift.models.fork_qualification import CollectedForkData, QualifiedForksResult
 from forklift.storage.analysis_cache import AnalysisCacheManager
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ class ForkQualificationLookup:
     def __init__(
         self,
         github_client: GitHubClient,
-        cache_manager: Optional[AnalysisCacheManager] = None,
+        cache_manager: AnalysisCacheManager | None = None,
         data_freshness_hours: int = 24,
     ):
         """
@@ -42,7 +41,7 @@ class ForkQualificationLookup:
 
     async def get_fork_qualification_data(
         self, repository_url: str, disable_cache: bool = False
-    ) -> Optional[QualifiedForksResult]:
+    ) -> QualifiedForksResult | None:
         """
         Get fork qualification data for a repository, using cache when available.
 
@@ -106,7 +105,7 @@ class ForkQualificationLookup:
 
     async def lookup_fork_data(
         self, fork_url: str, repository_url: str, disable_cache: bool = False
-    ) -> Optional[CollectedForkData]:
+    ) -> CollectedForkData | None:
         """
         Look up specific fork data from qualification results.
 
@@ -190,7 +189,7 @@ class ForkQualificationLookup:
         max_age = timedelta(hours=self.data_freshness_hours)
 
         is_fresh = data_age <= max_age
-        
+
         if not is_fresh:
             logger.debug(
                 f"Qualification data is stale: age={data_age.total_seconds()/3600:.1f}h, "
@@ -201,7 +200,7 @@ class ForkQualificationLookup:
 
     async def _generate_qualification_data(
         self, repository_url: str, disable_cache: bool = False
-    ) -> Optional[QualifiedForksResult]:
+    ) -> QualifiedForksResult | None:
         """
         Generate fresh qualification data using fork discovery service.
 
@@ -318,7 +317,7 @@ class ForkQualificationLookup:
                     if cached_data:
                         info["has_cached_data"] = True
                         qualification_result = QualifiedForksResult(**cached_data)
-                        
+
                         if qualification_result.qualification_timestamp:
                             now = datetime.utcnow()
                             data_age = now - qualification_result.qualification_timestamp.replace(tzinfo=None)

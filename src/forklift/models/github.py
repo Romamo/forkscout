@@ -380,15 +380,15 @@ class RecentCommit(BaseModel):
         commit_data = data.get("commit", data)
         full_sha = data["sha"]
         short_sha = full_sha[:7]
-        
+
         message = commit_data["message"]
         # Truncate message if needed
         if len(message) > max_message_length:
             message = message[:max_message_length - 3] + "..."
-        
+
         # Remove newlines and extra whitespace
         message = " ".join(message.split())
-        
+
         # Extract commit date
         date = None
         if "author" in commit_data and "date" in commit_data["author"]:
@@ -396,7 +396,7 @@ class RecentCommit(BaseModel):
                 date = datetime.fromisoformat(commit_data["author"]["date"].replace("Z", "+00:00"))
             except (ValueError, TypeError) as e:
                 logger.warning(f"Failed to parse commit date: {e}")
-        
+
         return cls(
             short_sha=short_sha,
             message=message,

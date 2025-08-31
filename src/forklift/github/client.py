@@ -117,24 +117,24 @@ class GitHubClient:
                 if response.status_code == 403:
                     # Log all response headers for debugging rate limit issues
                     logger.debug(f"403 Forbidden response headers: {dict(response.headers)}")
-                    
+
                     rate_limit_remaining = response.headers.get("x-ratelimit-remaining")
                     rate_limit_reset = response.headers.get("x-ratelimit-reset")
                     rate_limit_limit = response.headers.get("x-ratelimit-limit")
-                    
+
                     # Log rate limit header values for debugging
                     logger.debug(f"Rate limit headers - remaining: {rate_limit_remaining}, reset: {rate_limit_reset}, limit: {rate_limit_limit}")
-                    
+
                     # Enhanced rate limit detection
                     is_rate_limited = self._is_rate_limit_error(response, rate_limit_remaining)
-                    
+
                     if is_rate_limited:
                         reset_time = int(rate_limit_reset) if rate_limit_reset and rate_limit_reset != "0" else 0
                         limit = int(rate_limit_limit) if rate_limit_limit else 0
                         remaining = int(rate_limit_remaining) if rate_limit_remaining else 0
-                        
+
                         logger.info(f"GitHub API rate limit detected - reset_time: {reset_time}, remaining: {remaining}, limit: {limit}")
-                        
+
                         raise GitHubRateLimitError(
                             "GitHub API rate limit exceeded",
                             reset_time=reset_time,
@@ -144,7 +144,7 @@ class GitHubClient:
                         )
                     else:
                         # This is a 403 but not a rate limit - likely authentication/authorization issue
-                        logger.warning(f"403 Forbidden but not rate limited - likely auth/permission issue")
+                        logger.warning("403 Forbidden but not rate limited - likely auth/permission issue")
                         # Fall through to handle as authentication error below
 
                 # Handle authentication errors (non-retryable)
@@ -273,7 +273,7 @@ class GitHubClient:
         logger.info(f"Fetching repository {owner}/{repo}")
         if disable_cache:
             logger.debug(f"Cache bypass requested for repository {owner}/{repo}")
-        
+
         try:
             data = await self.get(f"repos/{owner}/{repo}")
             return Repository.from_github_api(data)
@@ -453,14 +453,14 @@ class GitHubClient:
         """
         if not (1 <= count <= 10):
             raise ValueError("Count must be between 1 and 10")
-            
+
         logger.debug(f"Fetching {count} commits ahead from {fork_owner}/{fork_repo} vs {parent_owner}/{parent_repo}")
-        
+
         try:
             # Get repository info to find default branches
             fork_info = await self.get_repository(fork_owner, fork_repo)
             parent_info = await self.get_repository(parent_owner, parent_repo)
-            
+
             # Compare fork's default branch with parent's default branch
             comparison = await self.compare_commits(
                 parent_owner,
@@ -468,14 +468,14 @@ class GitHubClient:
                 parent_info.default_branch,
                 f"{fork_owner}:{fork_info.default_branch}",
             )
-            
+
             if not comparison or "commits" not in comparison:
                 logger.warning(f"No commits found in comparison for {fork_owner}/{fork_repo}")
                 return []
-            
+
             # Get the commits that are ahead (limited by count)
             ahead_commits = comparison["commits"][:count]
-            
+
             # Convert to RecentCommit objects
             recent_commits = []
             for commit_data in ahead_commits:
@@ -485,10 +485,10 @@ class GitHubClient:
                 except Exception as e:
                     logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
                     continue
-            
+
             logger.debug(f"Successfully fetched {len(recent_commits)} commits ahead from {fork_owner}/{fork_repo}")
             return recent_commits
-            
+
         except GitHubAPIError:
             # Re-raise GitHub API errors
             raise
@@ -584,7 +584,7 @@ class GitHubClient:
         # Check if remaining requests is 0
         if rate_limit_remaining == "0":
             return True
-        
+
         if rate_limit_remaining is not None:
             try:
                 remaining = int(rate_limit_remaining)
@@ -592,7 +592,7 @@ class GitHubClient:
                     return True
             except ValueError:
                 pass
-        
+
         # Check response body for rate limit indicators
         try:
             response_text = response.text.lower()
@@ -604,15 +604,15 @@ class GitHubClient:
                 "abuse detection",
                 "secondary rate limit"
             ]
-            
+
             for indicator in rate_limit_indicators:
                 if indicator in response_text:
                     logger.debug(f"Rate limit detected via response text: '{indicator}'")
                     return True
-                    
+
         except Exception as e:
             logger.debug(f"Could not check response text for rate limit indicators: {e}")
-        
+
         # Check for specific GitHub rate limit response structure
         try:
             response_data = response.json()
@@ -621,16 +621,16 @@ class GitHubClient:
                 if "rate limit" in message or "abuse" in message:
                     logger.debug(f"Rate limit detected via JSON message: '{message}'")
                     return True
-                    
+
                 # Check for documentation_url that points to rate limiting docs
                 docs_url = response_data.get("documentation_url", "")
                 if "rate-limiting" in docs_url or "abuse-rate-limits" in docs_url:
                     logger.debug(f"Rate limit detected via documentation URL: '{docs_url}'")
                     return True
-                    
+
         except Exception as e:
             logger.debug(f"Could not parse JSON response for rate limit detection: {e}")
-        
+
         return False
 
     def get_user_friendly_error_message(self, error: Exception) -> str:
@@ -822,23 +822,23 @@ class GitHubClient:
         """
         if not (1 <= count <= 10):
             raise ValueError("Count must be between 1 and 10")
-            
+
         logger.debug(f"Fetching {count} recent commits from {owner}/{repo} branch {branch or 'default'}")
-        
+
         try:
             # If no branch specified, get repository info to find default branch
             if branch is None:
                 repo_info = await self.get_repository(owner, repo)
                 branch = repo_info.default_branch
-            
+
             # Fetch recent commits
             params = {"sha": branch, "per_page": min(count, 100)}
             data = await self.get(f"repos/{owner}/{repo}/commits", params=params)
-            
+
             if not data:
                 logger.warning(f"No commits found for {owner}/{repo} branch {branch}")
                 return []
-            
+
             # Convert to RecentCommit objects
             recent_commits = []
             for commit_data in data[:count]:
@@ -848,10 +848,10 @@ class GitHubClient:
                 except Exception as e:
                     logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
                     continue
-            
+
             logger.debug(f"Successfully fetched {len(recent_commits)} recent commits from {owner}/{repo}")
             return recent_commits
-            
+
         except GitHubAPIError:
             # Re-raise GitHub API errors
             raise

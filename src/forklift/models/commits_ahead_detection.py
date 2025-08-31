@@ -3,12 +3,11 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
 
 
 class CommitStatus(Enum):
     """Enumeration of possible commit status values."""
-    
+
     HAS_COMMITS = "has_commits"
     NO_COMMITS = "no_commits"
     UNKNOWN = "unknown"
@@ -19,7 +18,7 @@ class CommitStatus(Enum):
 @dataclass
 class ForkQualification:
     """Fork qualification data with commit status and confidence information."""
-    
+
     fork_url: str
     owner: str
     name: str
@@ -28,14 +27,14 @@ class ForkQualification:
     commit_status: CommitStatus
     confidence_score: float
     verification_method: str
-    last_verified: Optional[datetime] = None
-    commits_ahead_count: Optional[int] = None
+    last_verified: datetime | None = None
+    commits_ahead_count: int | None = None
 
 
 @dataclass
 class TimestampAnalysisResult:
     """Result of timestamp-based commit analysis."""
-    
+
     created_at: datetime
     pushed_at: datetime
     status: CommitStatus
@@ -47,11 +46,11 @@ class TimestampAnalysisResult:
 @dataclass
 class CommitDetectionResult:
     """Summary result of commit detection analysis."""
-    
+
     total_forks: int
     has_commits: int
     no_commits: int
     unknown_status: int
     api_calls_saved: int
     processing_time: float
-    confidence_distribution: Dict[str, int]
+    confidence_distribution: dict[str, int]

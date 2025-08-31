@@ -1,12 +1,10 @@
 """Override and control mechanisms for bypassing filtering and confirmation prompts."""
 
 import logging
-from typing import Any, Callable, Optional
 
 from rich.console import Console
-from rich.prompt import Confirm, IntPrompt, Prompt
+from rich.prompt import Confirm
 from rich.table import Table
-
 
 from forklift.models.github import Fork
 
@@ -135,7 +133,7 @@ class ExpensiveOperationConfirmer:
         )
 
     async def confirm_detailed_analysis(
-        self, fork_url: str, has_commits_ahead: Optional[bool] = None
+        self, fork_url: str, has_commits_ahead: bool | None = None
     ) -> bool:
         """Confirm detailed analysis for a specific fork.
         
@@ -150,7 +148,7 @@ class ExpensiveOperationConfirmer:
             return True
 
         # Display fork information
-        self.console.print(f"\n[bold]Detailed Analysis Request[/bold]")
+        self.console.print("\n[bold]Detailed Analysis Request[/bold]")
         self.console.print(f"Fork: {fork_url}")
 
         if has_commits_ahead is not None:
@@ -225,7 +223,7 @@ class FilteringOverride:
         return forks
 
     def apply_force_override(
-        self, fork: Fork, has_commits_ahead: Optional[bool] = None
+        self, fork: Fork, has_commits_ahead: bool | None = None
     ) -> bool:
         """Apply force override for individual fork analysis.
         
@@ -257,8 +255,8 @@ class OverrideController:
         self,
         console: Console,
         config: OverrideConfig,
-        confirmer: Optional[ExpensiveOperationConfirmer] = None,
-        filtering_override: Optional[FilteringOverride] = None,
+        confirmer: ExpensiveOperationConfirmer | None = None,
+        filtering_override: FilteringOverride | None = None,
     ):
         """Initialize override controller.
         
@@ -313,7 +311,7 @@ class OverrideController:
         return self.filtering_override.apply_scan_all_override(forks)
 
     def should_force_individual_analysis(
-        self, fork: Fork, has_commits_ahead: Optional[bool] = None
+        self, fork: Fork, has_commits_ahead: bool | None = None
     ) -> bool:
         """Check if individual fork analysis should be forced.
         

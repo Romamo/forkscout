@@ -28,7 +28,6 @@ from forklift.analysis.explanation_generator import ExplanationGenerator
 from forklift.analysis.fork_discovery import ForkDiscoveryService
 from forklift.analysis.impact_assessor import ImpactAssessor
 from forklift.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
-from forklift.analysis.override_control import create_override_controller
 from forklift.analysis.interactive_steps import (
     FeatureRankingStep,
     ForkAnalysisStep,
@@ -36,6 +35,7 @@ from forklift.analysis.interactive_steps import (
     ForkFilteringStep,
     RepositoryDiscoveryStep,
 )
+from forklift.analysis.override_control import create_override_controller
 from forklift.analysis.repository_analyzer import RepositoryAnalyzer
 from forklift.config.settings import ForkliftConfig, load_config
 from forklift.display.detailed_commit_display import (
@@ -682,7 +682,7 @@ def analyze(
                 console.print(
                     "[yellow]Analysis complete. No high-value features found.[/yellow]"
                 )
-        
+
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
@@ -1038,7 +1038,7 @@ def show_forks(
                 force_all_commits,
             )
         )
-        
+
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
@@ -1087,7 +1087,7 @@ def list_forks(ctx: click.Context, repository_url: str) -> None:
 
         # Run forks preview display
         asyncio.run(_list_forks_preview(config, repository_url, verbose))
-        
+
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
@@ -2017,19 +2017,19 @@ async def _run_analysis(
 
         # Step 3: Analyze forks
         forks_to_analyze = forks[: config.analysis.max_forks_to_analyze]
-        
+
         # Check for expensive operation approval
         if len(forks_to_analyze) > 0:
             operation_description = f"analysis of {len(forks_to_analyze)} forks"
             if explain:
                 operation_description += " with commit explanations"
-            
+
             approval = await override_controller.check_expensive_operation_approval(
-                "fork_analysis", 
-                forks=forks_to_analyze, 
+                "fork_analysis",
+                forks=forks_to_analyze,
                 description=operation_description
             )
-            
+
             if not approval:
                 console.print("[yellow]Analysis cancelled by user.[/yellow]")
                 results["analyzed_forks"] = 0
@@ -2037,7 +2037,7 @@ async def _run_analysis(
                 results["high_value_features"] = 0
                 results["fork_analyses"] = []
                 return results
-        
+
         task2 = progress.add_task("Analyzing forks...", total=len(forks_to_analyze))
         analyzed_count = 0
         total_features = 0
@@ -2579,7 +2579,7 @@ async def _show_commits(
                     fork_url=fork_url,
                     has_commits_ahead=None,  # We don't know at this point
                 )
-                
+
                 if not approval:
                     console.print("[yellow]Detailed analysis cancelled by user.[/yellow]")
                     return
