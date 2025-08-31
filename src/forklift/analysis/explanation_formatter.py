@@ -1,5 +1,6 @@
 """Explanation formatting utilities for rich terminal output."""
 
+import sys
 
 from rich.console import Console
 from rich.table import Table
@@ -86,7 +87,7 @@ class ExplanationFormatter:
         self.use_colors = use_colors
         self.use_icons = use_icons
         self.use_simple_tables = use_simple_tables
-        self.console = Console()
+        self.console = Console(file=sys.stdout)
         self.simple_formatter = SimpleTableFormatter()
 
     def format_commit_explanation(

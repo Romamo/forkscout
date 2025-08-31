@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 from datetime import UTC, datetime
 from typing import Any
 
@@ -47,7 +48,7 @@ class RepositoryDisplayService:
             should_exclude_fork_insights: Whether to exclude fork insights section
         """
         self.github_client = github_client
-        self.console = console or Console()
+        self.console = console or Console(file=sys.stdout)
         self.cache_manager = cache_manager
         self._should_exclude_language_distribution = (
             should_exclude_language_distribution

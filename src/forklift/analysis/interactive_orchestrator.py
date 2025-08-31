@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -41,7 +42,7 @@ class InteractiveAnalysisOrchestrator:
         """
         self.github_client = github_client
         self.config = config
-        self.console = console or Console()
+        self.console = console or Console(file=sys.stdout)
         self.steps: list[InteractiveStep] = []
         self.context: dict[str, Any] = {}
         self.session_start_time: datetime | None = None

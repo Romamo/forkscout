@@ -1,6 +1,7 @@
 """Interactive Analyzer service for focused fork/branch analysis."""
 
 import logging
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -27,7 +28,7 @@ class InteractiveAnalyzer:
             console: Rich console for output (optional, creates new if None)
         """
         self.github_client = github_client
-        self.console = console or Console()
+        self.console = console or Console(file=sys.stdout)
 
     async def analyze_specific_fork(
         self,

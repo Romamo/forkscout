@@ -1,5 +1,13 @@
 # Implementation Plan
 
+## Task Consolidation Notes
+
+**Duplicate tasks have been consolidated to eliminate redundancy:**
+- Task 19.2 (commits ahead API calls) → Merged into Task 4.6.4 (comprehensive GitHub API verification)
+- Tasks 19.1, 19.3, 19.4 (show-forks --detail) → Consolidated into Task 8.3.1 (enhance existing show-forks)
+- Task 20 (fork data collection) → Merged into Task 4.5 (unified fork data collection system)
+- Task 6.1 enhanced to integrate with all detection and AI systems
+
 - [x] 1. Set up project structure and core dependencies
   - Create directory structure with src/forklift package layout
   - Initialize pyproject.toml with uv package manager configuration
@@ -65,6 +73,18 @@
   - Measure and document performance improvement (target: 60-80% reduction in API calls for typical repositories)
   - _Requirements: 1.4, 1.5_
 
+- [ ] 4.5 Implement unified comprehensive fork data collection system
+  - Create ForkDataCollectionEngine that consolidates all fork data gathering operations
+  - Use only paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) for comprehensive data collection
+  - Extract all available metrics from fork objects: stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, topics, etc.
+  - Implement determine_commits_ahead_status method using created_at >= pushed_at comparison logic
+  - Add automatic exclusion of forks with no commits ahead from expensive analysis operations
+  - Create comprehensive fork data display showing all collected metrics with commits ahead status
+  - Add statistics tracking for API call savings from filtering forks with no commits ahead
+  - Write unit tests for data collection, commits-ahead detection, and organization logic
+  - Write integration tests for complete fork data collection workflow
+  - _Requirements: 1.4, 1.5, 20.2, 20.3, 20.4.1, 20.4.2, 20.4.3, 20.6, 20.7, 20.9, 20.10, 20.12, 20.13_
+
 - [ ] 4.6 Implement comprehensive commits ahead detection system
 - [x] 4.6.1 Create commits ahead detection data models
   - Implement CommitStatus enum with values: HAS_COMMITS, NO_COMMITS, UNKNOWN, VERIFIED_AHEAD, VERIFIED_NONE
@@ -80,19 +100,23 @@
   - Write comprehensive unit tests for timestamp analysis logic and confidence scoring
   - _Requirements: 1.5, 21.5, 21.4.2, 21.4.3_
 
-- [-] 4.6.3 Create commit status classification system
+- [x] 4.6.3 Create commit status classification system
   - Implement CommitStatusClassifier to categorize forks based on timestamp analysis
   - Add status assignment logic with confidence thresholds
   - Create status update and persistence mechanisms
   - Write unit tests for classification accuracy and edge case handling
   - _Requirements: 21.4.2, 21.4.3, 21.10_
 
-- [ ] 4.6.4 Build GitHub API verification engine
-  - Implement CommitVerificationEngine using GitHub Compare API endpoint
+- [-] 4.6.4 Build comprehensive GitHub API verification and commits ahead detection
+  - Implement CommitVerificationEngine using GitHub Compare API endpoint (consolidates duplicate functionality from task 19.2)
   - Add lazy verification that only calls API when explicitly needed
   - Create verification result caching with TTL and invalidation policies
+  - Implement get_commits_ahead method with comprehensive error handling for compare API failures
+  - Add rate limiting and backoff strategies for additional API calls with progress indicators
+  - Support both batch verification and individual fork checking for detailed mode operations
   - Write integration tests with real GitHub API and mock tests for error scenarios
-  - _Requirements: 23.1, 23.4, 23.5, 23.6_
+  - Write unit tests for commits ahead API calls with various repository scenarios
+  - _Requirements: 23.1, 23.4, 23.5, 23.6, 21.4, 21.6, 21.8, 21.9, 21.12_
 
 - [ ] 4.6.5 Implement override and control mechanisms
   - Add --scan-all flag support to bypass all filtering logic
@@ -181,12 +205,16 @@
   - _Requirements: 2.4, 2.5_
 
 - [ ] 6. Build report generation system
-- [-] 6.1 Implement markdown report generator
-  - Create ReportGenerator class to produce human-readable reports
+- [ ] 6.1 Complete comprehensive markdown report generator
+  - Finish ReportGenerator class implementation (currently partial - consolidates existing work)
+  - Integrate with commits ahead detection results from task 4.6 system
+  - Add AI summary integration from requirement 17 for enhanced commit explanations
+  - Include comprehensive fork analysis results with commits ahead status
   - Add feature summaries with code snippets and fork links
   - Implement categorized organization of features in reports
-  - Write tests for report generation and formatting
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - Create summary statistics for explanation categories and impact levels
+  - Write complete integration tests for end-to-end report generation
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 8.3, 8.9, 17.1, 17.10_
 
 - [ ] 6.2 Add comprehensive reporting features
   - Implement top 20 feature display with detailed score explanations
@@ -238,6 +266,18 @@
   - Add show-forks command to display fork summary table with key metrics
   - Write unit tests for repository display formatting and data presentation
   - _Requirements: 6.1, 6.3, 6.8_
+
+- [ ] 8.3.1 Enhance show-forks command with comprehensive --detail flag
+  - Add --detail flag to existing show-forks command (consolidates duplicate functionality from removed tasks)
+  - Integrate with unified fork data collection system from task 4.5
+  - Create detailed fork display table with URL, Stars, Forks, Commits Ahead, Last Push columns
+  - Use commits ahead detection from task 4.6.4 for accurate commit counts when detail mode is enabled
+  - Implement smart filtering to skip compare API calls for forks already identified as "No commits ahead"
+  - Add fallback to "Unknown" when commits ahead cannot be determined
+  - Add detailed mode statistics and API call tracking for performance monitoring
+  - Write unit tests for detailed table formatting and column structure
+  - Write integration tests for detail mode with fork data collection integration
+  - _Requirements: 21.1, 21.2, 21.3, 21.5, 21.7, 21.8, 21.10, 21.11, 21.12_
 
 - [x] 8.4 Add promising forks and detailed fork analysis commands
   - Implement show-promising command with configurable filtering criteria
@@ -1049,7 +1089,14 @@
   - Write unit tests for simple progress display formatting
   - _Requirements: 18.8, 18.10, 18.11_
 
-- [ ] 17.5 Finalize simple formatting integration and testing
+- [ ] 17.5 Fix output redirection for stdout capture
+  - Configure Rich Console to write to stdout instead of stderr by default (Console(file=sys.stdout))
+  - Replace mixed print()/console.print() usage with consistent output method
+  - Add proper output flushing to ensure complete capture during redirection
+  - Test that `command > file.txt` captures all visible program output
+  - _Requirements: Fix issue where only single line captured during redirection_
+
+- [ ] 17.6 Finalize simple formatting integration and testing
   - Ensure all CLI commands use simple formatting by default
   - Test compatibility across different terminal environments
   - Validate that all information remains accessible in plain text mode

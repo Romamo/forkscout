@@ -1,6 +1,7 @@
 """Detailed commit display with comprehensive information including AI summaries."""
 
 import logging
+import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Optional
 
@@ -58,7 +59,7 @@ class DetailedCommitDisplay:
         """
         self.github_client = github_client
         self.ai_engine = ai_engine
-        self.console = console or Console()
+        self.console = console or Console(file=sys.stdout)
         self.fork_status_checker = fork_status_checker
 
     async def should_process_repository(

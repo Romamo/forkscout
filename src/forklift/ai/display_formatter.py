@@ -23,7 +23,7 @@ class AISummaryDisplayFormatter:
         Args:
             console: Rich console for output (optional, creates new if None)
         """
-        self.console = console or Console()
+        self.console = console or Console(file=sys.stdout)
 
     def format_ai_summaries_detailed(
         self,

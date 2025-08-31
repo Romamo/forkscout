@@ -1,1 +1,4 @@
 Skipped 5908 forks with no commits ahead (saved 5908 API calls)
+⠙ Fetching commits for Lavande/ai-hedge-fund ━━━━━━━━━━                                26%
+
+Operation interrupted by user

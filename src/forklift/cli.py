@@ -52,7 +52,7 @@ from forklift.models.github import Commit
 from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
 from forklift.storage.analysis_cache import AnalysisCacheManager
 
-console = Console()
+console = Console(file=sys.stdout)
 logger = logging.getLogger(__name__)
 
 

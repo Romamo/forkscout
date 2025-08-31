@@ -8,7 +8,7 @@ The tool provides both comprehensive batch analysis and step-by-step interactive
 
 ## Example repositories not for testing but for production use with multiple valuable forks
 https://github.com/aarigs/pandas-ta
-https://github.com/xgboosted/pandas-ta-classic
+https://github.com/xgboosted/pandas-ta-classic 18 forks
 https://github.com/NoMore201/googleplay-api
 https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources with free ones)
 
