@@ -99,6 +99,164 @@ The fork data collection system is designed to dramatically reduce GitHub API us
 - **Graceful Degradation**: Handle missing or incomplete fork data without failing the entire collection process
 - **Performance Optimization**: Process large numbers of forks efficiently with minimal memory usage
 
+## Commits Ahead Detection System
+
+The commits ahead detection system is designed to efficiently determine which forks have new commits without expensive API calls, using timestamp-based heuristics with fallback verification mechanisms.
+
+### Commits Ahead Detection Architecture
+
+```mermaid
+graph TD
+    A[Fork Data] --> B[Timestamp Analyzer]
+    B --> C{pushed_at > created_at?}
+    C -->|Yes| D[Mark: Has Commits]
+    C -->|No| E[Mark: No Commits]
+    C -->|Ambiguous| F[Mark: Unknown]
+    
+    G[User Request] --> H{Needs Verification?}
+    H -->|Yes| I[GitHub Compare API]
+    H -->|No| J[Use Cached Status]
+    
+    I --> K[Update Status Cache]
+    K --> L[Return Verified Status]
+    J --> L
+    
+    M[Override Flags] --> N{--scan-all or --force?}
+    N -->|Yes| O[Bypass All Filtering]
+    N -->|No| P[Apply Status Filtering]
+```
+
+### Detection Logic Components
+
+#### 1. Timestamp-Based Heuristic Engine
+- **Primary Logic**: Compare `pushed_at` and `created_at` timestamps from fork data
+- **Fast Classification**: Categorize forks without API calls
+- **Confidence Levels**: Assign confidence scores to classifications
+
+#### 2. Status Classification System
+```python
+class CommitStatus(Enum):
+    HAS_COMMITS = "has_commits"      # pushed_at > created_at
+    NO_COMMITS = "no_commits"        # created_at >= pushed_at  
+    UNKNOWN = "unknown"              # ambiguous or missing data
+    VERIFIED_AHEAD = "verified_ahead" # API-verified commits ahead
+    VERIFIED_NONE = "verified_none"   # API-verified no commits
+```
+
+#### 3. Verification Engine
+- **Lazy Verification**: Only call GitHub API when explicitly needed
+- **Compare API Usage**: Use `/repos/{owner}/{repo}/compare/{base}...{head}` endpoint
+- **Cache Results**: Store verification results to avoid repeat API calls
+- **Fallback Handling**: Graceful degradation when API calls fail
+
+#### 4. Override System
+- **Scan All Mode**: `--scan-all` bypasses all filtering
+- **Force Mode**: `--force` overrides individual fork filtering
+- **Interactive Confirmation**: Prompt users before expensive operations
+
+### Data Models
+
+#### Fork Qualification Model
+```python
+@dataclass
+class ForkQualification:
+    fork_url: str
+    owner: str
+    name: str
+    created_at: datetime
+    pushed_at: datetime
+    commit_status: CommitStatus
+    confidence_score: float
+    last_verified: Optional[datetime]
+    commits_ahead_count: Optional[int]
+    verification_method: str  # "timestamp", "api", "cached"
+```
+
+#### Commit Detection Result
+```python
+@dataclass
+class CommitDetectionResult:
+    total_forks: int
+    has_commits: int
+    no_commits: int
+    unknown_status: int
+    api_calls_saved: int
+    processing_time: float
+    confidence_distribution: Dict[str, int]
+```
+
+### Implementation Strategy
+
+#### Phase 1: Timestamp Analysis
+1. Extract `created_at` and `pushed_at` from fork data
+2. Apply timestamp comparison logic
+3. Assign confidence scores based on timestamp differences
+4. Handle edge cases (same timestamps, missing data)
+
+#### Phase 2: Status Management
+1. Implement status enumeration and tracking
+2. Create status update mechanisms
+3. Add confidence scoring system
+4. Implement status persistence
+
+#### Phase 3: Verification System
+1. Implement GitHub Compare API integration
+2. Add lazy verification triggers
+3. Create verification result caching
+4. Handle API errors and rate limiting
+
+#### Phase 4: Override and Control
+1. Implement command-line override flags
+2. Add interactive confirmation prompts
+3. Create bypass mechanisms for special cases
+4. Add logging and monitoring
+
+### Performance Optimization
+
+#### Batch Processing
+- Process forks in batches to optimize memory usage
+- Implement parallel timestamp analysis
+- Use connection pooling for API calls
+
+#### Caching Strategy
+- Cache timestamp analysis results
+- Store API verification results with TTL
+- Implement cache invalidation policies
+
+#### API Usage Minimization
+- Only verify when explicitly requested
+- Batch API calls when possible
+- Implement intelligent retry logic
+
+### Error Handling
+
+#### Graceful Degradation
+- Continue processing when individual forks fail
+- Provide partial results when API calls fail
+- Log errors without stopping analysis
+
+#### Status Uncertainty
+- Mark ambiguous cases as "unknown"
+- Provide clear indicators of confidence levels
+- Allow user override for uncertain cases
+
+### Testing Strategy
+
+#### Unit Tests
+- Test timestamp comparison logic
+- Verify status classification accuracy
+- Test edge cases and error conditions
+
+#### Integration Tests
+- Test with real GitHub API responses
+- Verify caching behavior
+- Test override mechanisms
+
+#### Performance Tests
+- Measure API call reduction
+- Test with large fork datasets
+- Verify memory usage optimization
+
 ## HTTP Caching System Design Philosophy
 
 The caching system is designed around simplicity and effectiveness using Hishel for HTTP-level caching, replacing the over-engineered custom SQLite cache system with a battle-tested solution that provides better performance with minimal code complexity.

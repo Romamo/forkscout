@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from rich.console import Console
@@ -92,7 +92,11 @@ class RepositoryDisplayService:
 
             # Sort by stars and last push date
             fork_items.sort(
-                key=lambda x: (x.stars, x.last_push_date or datetime.min.replace(tzinfo=timezone.utc)), reverse=True
+                key=lambda x: (
+                    x.stars,
+                    x.last_push_date or datetime.min.replace(tzinfo=UTC),
+                ),
+                reverse=True,
             )
 
             # Convert to dict format for display
@@ -837,10 +841,16 @@ class RepositoryDisplayService:
 
             # Conditionally add Recent Commits column
             if show_commits > 0:
-                # Calculate dynamic width based on content
-                commits_width = max(
-                    20, min(50, show_commits * 15)
-                )  # 15 chars per commit, min 20, max 50
+                # Calculate intelligent width based on expected content
+                # Format: "YYYY-MM-DD abc1234 message..."
+                # Base width: 10 (date) + 1 (space) + 7 (hash) + 1 (space) = 19
+                # Message width: estimate based on show_commits count and typical message length
+                base_width = 19  # Date and hash with spaces
+                estimated_message_width = min(
+                    40, 60 // show_commits
+                )  # Adjust message width based on commit count
+                commits_width = max(30, min(70, base_width + estimated_message_width))
+
                 fork_table.add_column(
                     "Recent Commits", style="dim", width=commits_width
                 )
@@ -869,7 +879,9 @@ class RepositoryDisplayService:
                 if metrics.commits_ahead_status == "None":
                     commits_status = ""  # Empty cell for no commits ahead
                 elif metrics.commits_ahead_status == "Unknown":
-                    commits_status = "[green]+?[/green]"  # Unknown but potentially has commits
+                    commits_status = (
+                        "[green]+?[/green]"  # Unknown but potentially has commits
+                    )
                 else:
                     commits_status = self._format_commits_ahead_detailed(
                         metrics.commits_ahead_status
@@ -953,20 +965,20 @@ class RepositoryDisplayService:
 
     def _get_commits_sort_key(self, fork_data) -> tuple:
         """Get sort key for commits sorting with compact format support.
-        
+
         Implements primary sort by commits ahead, secondary sort by commits behind.
         Handles "Unknown" commit status entries by treating them as having potential commits.
-        
+
         Args:
             fork_data: CollectedForkData object
-            
+
         Returns:
             Tuple for multi-level sorting (commits_ahead, commits_behind)
         """
         # Get commits ahead and behind values
-        commits_ahead = getattr(fork_data, 'exact_commits_ahead', None)
-        commits_behind = getattr(fork_data, 'exact_commits_behind', None)
-        
+        commits_ahead = getattr(fork_data, "exact_commits_ahead", None)
+        commits_behind = getattr(fork_data, "exact_commits_behind", None)
+
         # Handle different data types for commits_ahead
         if commits_ahead is None or commits_ahead == "Unknown":
             # Unknown status - treat as potentially having commits (high priority)
@@ -979,7 +991,7 @@ class RepositoryDisplayService:
                 ahead_sort_value = 0
             else:
                 ahead_sort_value = 999  # Treat as unknown/potential commits
-        
+
         # Handle different data types for commits_behind
         if commits_behind is None or commits_behind == "Unknown":
             # Unknown status - use 0 as neutral value
@@ -989,7 +1001,7 @@ class RepositoryDisplayService:
         else:
             # String values - use 0 as default
             behind_sort_value = 0
-            
+
         # Return tuple for multi-level sorting
         # Positive values since reverse=True will be applied
         return (ahead_sort_value, behind_sort_value)
@@ -1546,10 +1558,16 @@ class RepositoryDisplayService:
 
         # Conditionally add Recent Commits column
         if show_commits > 0:
-            # Calculate dynamic width based on content
-            commits_width = max(
-                20, min(50, show_commits * 15)
-            )  # 15 chars per commit, min 20, max 50
+            # Calculate intelligent width based on expected content
+            # Format: "YYYY-MM-DD abc1234 message..."
+            # Base width: 10 (date) + 1 (space) + 7 (hash) + 1 (space) = 19
+            # Message width: estimate based on show_commits count and typical message length
+            base_width = 19  # Date and hash with spaces
+            estimated_message_width = min(
+                40, 60 // show_commits
+            )  # Adjust message width based on commit count
+            commits_width = max(30, min(70, base_width + estimated_message_width))
+
             fork_table.add_column("Recent Commits", style="dim", width=commits_width)
 
         # Fetch commits concurrently if requested, with optimization
@@ -1572,7 +1590,9 @@ class RepositoryDisplayService:
                 else:
                     commits_display = f"[green]+{fork_data.exact_commits_ahead}[/green]"
             else:
-                commits_display = "[green]+?[/green]"  # Unknown but potentially has commits
+                commits_display = (
+                    "[green]+?[/green]"  # Unknown but potentially has commits
+                )
 
             # Format last push date
             last_push = self._format_datetime(metrics.pushed_at)
@@ -1713,7 +1733,7 @@ class RepositoryDisplayService:
                 score_text = f"[red]{activity_score:.2f}[/red]"
 
             # Use compact format for commits ahead
-            commits_ahead = fork_data['commits_ahead']
+            commits_ahead = fork_data["commits_ahead"]
             if commits_ahead == 0:
                 commits_compact = ""  # Empty cell for no commits ahead
             else:
@@ -1766,6 +1786,7 @@ class RepositoryDisplayService:
         base_owner: str,
         base_repo: str,
         force_all_commits: bool = False,
+        column_width: int = 50,
     ) -> dict[str, str]:
         """Fetch commits ahead for multiple forks concurrently with progress tracking and optimization.
 
@@ -1775,6 +1796,7 @@ class RepositoryDisplayService:
             base_owner: Base repository owner
             base_repo: Base repository name
             force_all_commits: If True, bypass optimization and fetch commits for all forks
+            column_width: Column width for commit formatting
 
         Returns:
             Dictionary mapping fork keys (owner/name) to formatted commit strings
@@ -1844,7 +1866,9 @@ class RepositoryDisplayService:
                         base_repo,
                         count=show_commits,
                     )
-                    formatted_commits = self.format_recent_commits(commits_ahead)
+                    formatted_commits = self.format_recent_commits(
+                        commits_ahead, column_width
+                    )
                     return fork_key, formatted_commits
                 except Exception as e:
                     logger.debug(f"Failed to fetch commits ahead for {fork_key}: {e}")
@@ -1926,39 +1950,209 @@ class RepositoryDisplayService:
             commits_ahead = await self.github_client.get_commits_ahead(
                 fork_owner, fork_repo, base_owner, base_repo, count=count
             )
-            return self.format_recent_commits(commits_ahead)
+            # Calculate column width for formatting (use a reasonable default)
+            column_width = 50  # This will be passed from the calling method
+            return self.format_recent_commits(commits_ahead, column_width)
         except Exception as e:
             logger.debug(
                 f"Failed to fetch commits ahead for {fork_owner}/{fork_repo}: {e}"
             )
             return "[dim]No commits available[/dim]"
 
-    def format_recent_commits(self, commits: list) -> str:
-        """Format recent commits for display in table.
+    def format_recent_commits(self, commits: list, column_width: int = 50) -> str:
+        """Format recent commits for display in table with improved formatting.
+
+        This method provides clear, scannable formatting with consistent date display,
+        proper column width management, and chronological ordering (newest first).
+
+        Args:
+            commits: List of RecentCommit objects
+            column_width: Available column width for formatting (default: 50)
+
+        Returns:
+            Formatted string with each commit on a separate line, chronologically ordered (newest first)
+            Format: "YYYY-MM-DD abc1234 commit message" or "abc1234: commit message" (fallback)
+        """
+        if not commits:
+            return "[dim]No commits[/dim]"
+
+        # Sort commits chronologically (newest first)
+        sorted_commits = self._sort_commits_chronologically(commits)
+
+        # Calculate max message length based on column width
+        # Format: "YYYY-MM-DD abc1234 message"
+        # Base width: 10 (date) + 1 (space) + 7 (hash) + 1 (space) = 19
+        base_width = 19
+        max_message_length = max(
+            10, column_width - base_width - 2
+        )  # Reserve 2 chars for padding
+
+        # Format: YYYY-MM-DD hash commit message for each commit
+        formatted_commits = []
+        for commit in sorted_commits:
+            if commit.date:
+                # Use consistent YYYY-MM-DD date format
+                date_str = self._format_commit_date(commit.date)
+                # Truncate message for table display if needed
+                truncated_message = self._truncate_commit_message(
+                    commit.message, max_message_length
+                )
+                formatted_commits.append(
+                    f"{date_str} {commit.short_sha} {truncated_message}"
+                )
+            else:
+                # Fallback to old format if date is not available
+                # Format: "abc1234: message"
+                # Base width: 7 (hash) + 2 (colon and space) = 9
+                fallback_base_width = 9
+                fallback_max_message_length = max(
+                    10, column_width - fallback_base_width - 2
+                )
+                truncated_message = self._truncate_commit_message(
+                    commit.message, fallback_max_message_length
+                )
+                formatted_commits.append(f"{commit.short_sha}: {truncated_message}")
+
+        # Join with newlines for multi-line display in table cell
+        return "\n".join(formatted_commits)
+
+    def _format_commit_date(self, date: datetime) -> str:
+        """Format commit date consistently as YYYY-MM-DD.
+
+        Args:
+            date: Commit datetime
+
+        Returns:
+            Formatted date string in YYYY-MM-DD format
+        """
+        return date.strftime("%Y-%m-%d")
+
+    def _sort_commits_chronologically(self, commits: list) -> list:
+        """Sort commits chronologically with newest first.
 
         Args:
             commits: List of RecentCommit objects
 
         Returns:
-            Formatted string with each commit on a separate line
+            List of commits sorted by date (newest first), with commits without dates at the end
         """
-        if not commits:
-            return "[dim]No commits[/dim]"
+        # Separate commits with and without dates
+        commits_with_dates = [c for c in commits if c.date is not None]
+        commits_without_dates = [c for c in commits if c.date is None]
 
-        # Format: YYYY-MM-DD hash commit message for each commit
-        formatted_commits = []
-        for commit in commits:
-            if commit.date:
-                date_str = commit.date.strftime("%Y-%m-%d")
-                formatted_commits.append(
-                    f"{date_str} {commit.short_sha} {commit.message}"
+        # Sort commits with dates (newest first)
+        commits_with_dates.sort(key=lambda c: c.date, reverse=True)
+
+        # Return sorted commits with dates first, then commits without dates
+        return commits_with_dates + commits_without_dates
+
+    def _truncate_commit_message(self, message: str, max_length: int) -> str:
+        """Truncate commit message for table display while preserving readability.
+
+        This method intelligently truncates commit messages by:
+        1. Preserving complete words when possible
+        2. Using ellipsis to indicate truncation
+        3. Handling edge cases for very short max lengths
+
+        Args:
+            message: Original commit message
+            max_length: Maximum allowed length
+
+        Returns:
+            Truncated message with ellipsis if needed, preserving word boundaries
+        """
+        if not message:
+            return ""
+
+        if len(message) <= max_length:
+            return message
+
+        # Handle very short max_length cases
+        if max_length <= 3:
+            return message[:max_length]
+
+        # Reserve space for ellipsis
+        truncate_at = max_length - 3
+
+        # Look for a good break point (space) to avoid breaking words
+        # Search within the last 15 characters or half the truncate length, whichever is smaller
+        search_range = min(15, truncate_at // 2)
+        space_search_start = max(0, truncate_at - search_range)
+        last_space = message.rfind(" ", space_search_start, truncate_at)
+
+        if last_space > space_search_start:
+            # Found a good break point, truncate at the space
+            return message[:last_space] + "..."
+        else:
+            # No good break point found, truncate at character boundary
+            return message[:truncate_at] + "..."
+
+    def calculate_commits_column_width(
+        self,
+        commits_data: dict,
+        show_commits: int,
+        min_width: int = 30,
+        max_width: int = 60,
+    ) -> int:
+        """Calculate optimal width for Recent Commits column based on actual content.
+
+        This method analyzes the actual commit data to determine the best column width
+        that balances readability with table layout constraints.
+
+        Args:
+            commits_data: Dictionary mapping fork keys to commit lists
+            show_commits: Number of commits to show per fork
+            min_width: Minimum column width (default: 30)
+            max_width: Maximum column width (default: 60)
+
+        Returns:
+            Optimal column width for Recent Commits column, bounded by min/max constraints
+        """
+        if not commits_data or show_commits == 0:
+            return min_width
+
+        max_content_width = 0
+        sample_count = 0
+        total_message_length = 0
+
+        for fork_commits in commits_data.values():
+            if fork_commits:
+                # Calculate width needed for this fork's commits
+                sorted_commits = self._sort_commits_chronologically(
+                    fork_commits[:show_commits]
                 )
-            else:
-                # Fallback to old format if date is not available
-                formatted_commits.append(f"{commit.short_sha}: {commit.message}")
+                for commit in sorted_commits:
+                    sample_count += 1
 
-        # Join with newlines for multi-line display in table cell
-        return "\n".join(formatted_commits)
+                    if commit.date:
+                        # Format: "YYYY-MM-DD abc1234 message"
+                        # Date: 10 chars, space: 1, hash: 7, space: 1, message: variable
+                        base_width = 19  # 10 + 1 + 7 + 1
+                        message_width = len(commit.message)
+                        total_width = base_width + message_width
+                        max_content_width = max(max_content_width, total_width)
+                        total_message_length += message_width
+                    else:
+                        # Format: "abc1234: message"
+                        # Hash: 7, colon and space: 2, message: variable
+                        base_width = 9  # 7 + 2
+                        message_width = len(commit.message)
+                        total_width = base_width + message_width
+                        max_content_width = max(max_content_width, total_width)
+                        total_message_length += message_width
+
+        # Calculate average message length for better width estimation
+        if sample_count > 0:
+            avg_message_length = total_message_length / sample_count
+            # Use average + some buffer for more reasonable width
+            estimated_width = 19 + int(avg_message_length * 1.2)  # 20% buffer
+            # Take the smaller of max content width and estimated width
+            optimal_width = min(max_content_width, estimated_width)
+        else:
+            optimal_width = min_width
+
+        # Return width within bounds, accounting for padding
+        return max(min_width, min(max_width, optimal_width + 4))  # 4 chars padding
 
     def _display_forks_preview_table(self, fork_items: list[dict[str, Any]]) -> None:
         """Display forks preview in a lightweight table format with compact commit formatting.
@@ -1987,7 +2181,9 @@ class RepositoryDisplayService:
             if commits_ahead == "None":
                 commits_compact = ""  # Empty cell for no commits ahead
             elif commits_ahead == "Unknown":
-                commits_compact = "[green]+?[/green]"  # Unknown but potentially has commits
+                commits_compact = (
+                    "[green]+?[/green]"  # Unknown but potentially has commits
+                )
             else:
                 commits_compact = self._style_commits_ahead_status(commits_ahead)
 

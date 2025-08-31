@@ -1050,7 +1050,10 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_integer_values(self):
         """Test commits sort key generation with integer commits ahead/behind values."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create fork data with integer commit values
@@ -1064,7 +1067,7 @@ class TestRepositoryDisplayService:
             updated_at=datetime(2023, 12, 1, tzinfo=UTC),
             pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
         )
-        
+
         fork_data = CollectedForkData(metrics=metrics)
         fork_data.exact_commits_ahead = 5
         fork_data.exact_commits_behind = 2
@@ -1077,7 +1080,10 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_unknown_status(self):
         """Test commits sort key generation with unknown commit status."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create fork data with unknown commit status
@@ -1091,7 +1097,7 @@ class TestRepositoryDisplayService:
             updated_at=datetime(2023, 12, 1, tzinfo=UTC),
             pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
         )
-        
+
         fork_data = CollectedForkData(metrics=metrics)
         fork_data.exact_commits_ahead = "Unknown"
         fork_data.exact_commits_behind = "Unknown"
@@ -1104,7 +1110,10 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_no_commits_ahead(self):
         """Test commits sort key generation with no commits ahead."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create fork data with no commits ahead
@@ -1118,7 +1127,7 @@ class TestRepositoryDisplayService:
             updated_at=datetime(2023, 12, 1, tzinfo=UTC),
             pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
         )
-        
+
         fork_data = CollectedForkData(metrics=metrics)
         fork_data.exact_commits_ahead = "None"
         fork_data.exact_commits_behind = 3
@@ -1131,7 +1140,10 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_none_values(self):
         """Test commits sort key generation with None values."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create fork data with None commit values
@@ -1145,7 +1157,7 @@ class TestRepositoryDisplayService:
             updated_at=datetime(2023, 12, 1, tzinfo=UTC),
             pushed_at=datetime(2023, 12, 1, tzinfo=UTC),
         )
-        
+
         fork_data = CollectedForkData(metrics=metrics)
         # exact_commits_ahead and exact_commits_behind are None by default
 
@@ -1157,17 +1169,25 @@ class TestRepositoryDisplayService:
 
     def test_sort_forks_by_commits_with_compact_format(self):
         """Test sorting forks by commits using the new compact format."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create test fork data with different commit statuses
         base_time = datetime(2023, 1, 1, tzinfo=UTC)
-        
+
         # Fork 1: 5 commits ahead, 2 behind
         metrics1 = ForkQualificationMetrics(
-            id=1, name="repo1", owner="user1", full_name="user1/repo1",
+            id=1,
+            name="repo1",
+            owner="user1",
+            full_name="user1/repo1",
             html_url="https://github.com/user1/repo1",
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork1 = CollectedForkData(metrics=metrics1)
         fork1.exact_commits_ahead = 5
@@ -1175,9 +1195,14 @@ class TestRepositoryDisplayService:
 
         # Fork 2: 3 commits ahead, 1 behind
         metrics2 = ForkQualificationMetrics(
-            id=2, name="repo2", owner="user2", full_name="user2/repo2",
+            id=2,
+            name="repo2",
+            owner="user2",
+            full_name="user2/repo2",
             html_url="https://github.com/user2/repo2",
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork2 = CollectedForkData(metrics=metrics2)
         fork2.exact_commits_ahead = 3
@@ -1185,9 +1210,14 @@ class TestRepositoryDisplayService:
 
         # Fork 3: Unknown status
         metrics3 = ForkQualificationMetrics(
-            id=3, name="repo3", owner="user3", full_name="user3/repo3",
+            id=3,
+            name="repo3",
+            owner="user3",
+            full_name="user3/repo3",
             html_url="https://github.com/user3/repo3",
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork3 = CollectedForkData(metrics=metrics3)
         fork3.exact_commits_ahead = "Unknown"
@@ -1195,9 +1225,14 @@ class TestRepositoryDisplayService:
 
         # Fork 4: No commits ahead
         metrics4 = ForkQualificationMetrics(
-            id=4, name="repo4", owner="user4", full_name="user4/repo4",
+            id=4,
+            name="repo4",
+            owner="user4",
+            full_name="user4/repo4",
             html_url="https://github.com/user4/repo4",
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork4 = CollectedForkData(metrics=metrics4)
         fork4.exact_commits_ahead = 0
@@ -1216,17 +1251,25 @@ class TestRepositoryDisplayService:
 
     def test_sort_forks_by_commits_secondary_sort_by_behind(self):
         """Test sorting forks by commits with secondary sort by commits behind."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create test fork data with same commits ahead but different commits behind
         base_time = datetime(2023, 1, 1, tzinfo=UTC)
-        
+
         # Fork 1: 3 commits ahead, 5 behind
         metrics1 = ForkQualificationMetrics(
-            id=1, name="repo1", owner="user1", full_name="user1/repo1",
+            id=1,
+            name="repo1",
+            owner="user1",
+            full_name="user1/repo1",
             html_url="https://github.com/user1/repo1",
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork1 = CollectedForkData(metrics=metrics1)
         fork1.exact_commits_ahead = 3
@@ -1234,9 +1277,14 @@ class TestRepositoryDisplayService:
 
         # Fork 2: 3 commits ahead, 2 behind
         metrics2 = ForkQualificationMetrics(
-            id=2, name="repo2", owner="user2", full_name="user2/repo2",
+            id=2,
+            name="repo2",
+            owner="user2",
+            full_name="user2/repo2",
             html_url="https://github.com/user2/repo2",
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork2 = CollectedForkData(metrics=metrics2)
         fork2.exact_commits_ahead = 3
@@ -1253,35 +1301,59 @@ class TestRepositoryDisplayService:
 
     def test_sort_forks_enhanced_with_compact_format(self):
         """Test enhanced fork sorting with compact commit format support."""
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forklift.models.fork_qualification import (
+            CollectedForkData,
+            ForkQualificationMetrics,
+        )
         from datetime import datetime, UTC
 
         # Create test fork data with different characteristics
         base_time = datetime(2023, 1, 1, tzinfo=UTC)
-        
+
         # Fork 1: Unknown commits, high stars
         metrics1 = ForkQualificationMetrics(
-            id=1, name="repo1", owner="user1", full_name="user1/repo1",
-            html_url="https://github.com/user1/repo1", stargazers_count=100, forks_count=20,
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            id=1,
+            name="repo1",
+            owner="user1",
+            full_name="user1/repo1",
+            html_url="https://github.com/user1/repo1",
+            stargazers_count=100,
+            forks_count=20,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork1 = CollectedForkData(metrics=metrics1)
         fork1.exact_commits_ahead = "Unknown"
 
         # Fork 2: 5 commits ahead, low stars
         metrics2 = ForkQualificationMetrics(
-            id=2, name="repo2", owner="user2", full_name="user2/repo2",
-            html_url="https://github.com/user2/repo2", stargazers_count=10, forks_count=5,
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            id=2,
+            name="repo2",
+            owner="user2",
+            full_name="user2/repo2",
+            html_url="https://github.com/user2/repo2",
+            stargazers_count=10,
+            forks_count=5,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork2 = CollectedForkData(metrics=metrics2)
         fork2.exact_commits_ahead = 5
 
         # Fork 3: No commits ahead, high stars
         metrics3 = ForkQualificationMetrics(
-            id=3, name="repo3", owner="user3", full_name="user3/repo3",
-            html_url="https://github.com/user3/repo3", stargazers_count=50, forks_count=15,
-            created_at=base_time, updated_at=base_time, pushed_at=base_time,
+            id=3,
+            name="repo3",
+            owner="user3",
+            full_name="user3/repo3",
+            html_url="https://github.com/user3/repo3",
+            stargazers_count=50,
+            forks_count=15,
+            created_at=base_time,
+            updated_at=base_time,
+            pushed_at=base_time,
         )
         fork3 = CollectedForkData(metrics=metrics3)
         fork3.exact_commits_ahead = 0
@@ -1295,7 +1367,7 @@ class TestRepositoryDisplayService:
         # Unknown (fork1) and 5 ahead (fork2) should come before 0 ahead (fork3)
         # Between fork1 and fork2, fork1 should come first due to higher stars
         assert sorted_forks[0].metrics.id == 1  # Unknown commits, high stars
-        assert sorted_forks[1].metrics.id == 2  # 5 commits ahead, low stars  
+        assert sorted_forks[1].metrics.id == 2  # 5 commits ahead, low stars
         assert sorted_forks[2].metrics.id == 3  # 0 commits ahead, high stars
 
     def test_display_filter_criteria(self):
@@ -1786,3 +1858,274 @@ class TestRepositoryDisplayService:
         """Test format_commits_compact with mixed unknown values."""
         result = self.service.format_commits_compact(5, -1)
         assert result == "Unknown"
+
+    # Tests for improved Recent Commits column formatting (Task 22.4)
+
+    def test_format_commit_date_consistent_format(self):
+        """Test _format_commit_date returns consistent YYYY-MM-DD format."""
+        from datetime import datetime
+
+        test_date = datetime(2024, 1, 15, 10, 30, 45)
+        result = self.service._format_commit_date(test_date)
+        assert result == "2024-01-15"
+
+    def test_format_commit_date_different_months(self):
+        """Test _format_commit_date with different months."""
+        from datetime import datetime
+
+        # Test single digit month
+        test_date = datetime(2024, 3, 5)
+        result = self.service._format_commit_date(test_date)
+        assert result == "2024-03-05"
+
+        # Test double digit month
+        test_date = datetime(2024, 12, 25)
+        result = self.service._format_commit_date(test_date)
+        assert result == "2024-12-25"
+
+    def test_sort_commits_chronologically_newest_first(self):
+        """Test _sort_commits_chronologically sorts newest first."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="Older commit",
+                date=datetime(2024, 1, 10, 10, 0),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Newer commit",
+                date=datetime(2024, 1, 15, 10, 0),
+            ),
+            RecentCommit(
+                short_sha="1234567",
+                message="Oldest commit",
+                date=datetime(2024, 1, 5, 10, 0),
+            ),
+        ]
+
+        result = self.service._sort_commits_chronologically(commits)
+
+        # Should be sorted newest first
+        assert result[0].message == "Newer commit"
+        assert result[1].message == "Older commit"
+        assert result[2].message == "Oldest commit"
+
+    def test_sort_commits_chronologically_with_none_dates(self):
+        """Test _sort_commits_chronologically handles None dates correctly."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        commits = [
+            RecentCommit(short_sha="abc1234", message="No date commit"),  # No date
+            RecentCommit(
+                short_sha="def5678",
+                message="With date commit",
+                date=datetime(2024, 1, 15, 10, 0),
+            ),
+            RecentCommit(short_sha="1234567", message="Another no date"),  # No date
+        ]
+
+        result = self.service._sort_commits_chronologically(commits)
+
+        # Commits with dates should come first, then commits without dates
+        assert result[0].message == "With date commit"
+        assert result[1].message == "No date commit"
+        assert result[2].message == "Another no date"
+
+    def test_truncate_commit_message_no_truncation_needed(self):
+        """Test _truncate_commit_message when message fits within limit."""
+        message = "Short message"
+        result = self.service._truncate_commit_message(message, 50)
+        assert result == "Short message"
+
+    def test_truncate_commit_message_empty_message(self):
+        """Test _truncate_commit_message with empty message."""
+        result = self.service._truncate_commit_message("", 50)
+        assert result == ""
+
+    def test_truncate_commit_message_at_word_boundary(self):
+        """Test _truncate_commit_message truncates at word boundary when possible."""
+        message = "This is a very long commit message that needs truncation"
+        result = self.service._truncate_commit_message(message, 25)
+
+        # Should truncate at word boundary and add ellipsis
+        assert result.endswith("...")
+        assert len(result) <= 25
+        # Should not break words if possible
+        assert not result.replace("...", "").endswith("ver")  # Shouldn't break "very"
+
+    def test_truncate_commit_message_no_good_break_point(self):
+        """Test _truncate_commit_message when no good word boundary exists."""
+        message = "Verylongwordwithoutspaces"
+        result = self.service._truncate_commit_message(message, 15)
+
+        assert result.endswith("...")
+        assert len(result) == 15
+
+    def test_truncate_commit_message_very_short_limit(self):
+        """Test _truncate_commit_message with very short max_length."""
+        message = "Long message"
+        result = self.service._truncate_commit_message(message, 3)
+
+        assert len(result) == 3
+        assert result == "Lon"  # No ellipsis for very short limits
+
+    def test_truncate_commit_message_preserves_readability(self):
+        """Test _truncate_commit_message preserves readability by avoiding mid-word breaks."""
+        message = "Fix critical bug in authentication system"
+        result = self.service._truncate_commit_message(message, 20)
+
+        # Should find a good break point
+        assert result.endswith("...")
+        assert len(result) <= 20
+        # Should break at a space, not mid-word
+        words_in_result = result.replace("...", "").strip().split()
+        # Last word should be complete (not broken)
+        if words_in_result:
+            last_word = words_in_result[-1]
+            assert last_word in message  # Last word should exist completely in original
+
+    def test_calculate_commits_column_width_empty_data(self):
+        """Test calculate_commits_column_width with empty commits data."""
+        result = self.service.calculate_commits_column_width({}, 3)
+        assert result == 30  # Should return min_width
+
+    def test_calculate_commits_column_width_zero_show_commits(self):
+        """Test calculate_commits_column_width with zero show_commits."""
+        commits_data = {"fork1": []}
+        result = self.service.calculate_commits_column_width(commits_data, 0)
+        assert result == 30  # Should return min_width
+
+    def test_calculate_commits_column_width_with_commits(self):
+        """Test calculate_commits_column_width calculates appropriate width."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="Short msg",
+                date=datetime(2024, 1, 15),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="This is a much longer commit message that needs more space",
+                date=datetime(2024, 1, 14),
+            ),
+        ]
+
+        commits_data = {"fork1": commits}
+        result = self.service.calculate_commits_column_width(
+            commits_data, 2, min_width=30, max_width=80
+        )
+
+        # Should be between min and max, accounting for content
+        assert 30 <= result <= 80
+        # Should be reasonable for the content (not just min_width)
+        assert result > 30
+
+    def test_calculate_commits_column_width_respects_bounds(self):
+        """Test calculate_commits_column_width respects min/max bounds."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        # Very long message that would exceed max_width
+        long_message = "This is an extremely long commit message " * 5
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message=long_message,
+                date=datetime(2024, 1, 15),
+            ),
+        ]
+
+        commits_data = {"fork1": commits}
+        result = self.service.calculate_commits_column_width(
+            commits_data, 1, min_width=30, max_width=60
+        )
+
+        # Should not exceed max_width
+        assert result <= 60
+
+    def test_format_recent_commits_improved_formatting(self):
+        """Test format_recent_commits uses improved formatting with consistent dates."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="Fix authentication bug",
+                date=datetime(2024, 1, 15, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Add new feature for users",
+                date=datetime(2024, 1, 14, 9, 15),
+            ),
+        ]
+
+        result = self.service.format_recent_commits(commits, column_width=50)
+
+        # Should use YYYY-MM-DD format and be chronologically ordered (newest first)
+        lines = result.split("\n")
+        assert len(lines) == 2
+        assert lines[0].startswith("2024-01-15 abc1234")
+        assert lines[1].startswith("2024-01-14 def5678")
+        assert "Fix authentication bug" in lines[0]
+        assert "Add new feature for users" in lines[1]
+
+    def test_format_recent_commits_handles_long_messages(self):
+        """Test format_recent_commits properly truncates long commit messages."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        long_message = "This is a very long commit message that should be truncated to fit within the column width constraints"
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message=long_message,
+                date=datetime(2024, 1, 15),
+            ),
+        ]
+
+        result = self.service.format_recent_commits(commits, column_width=40)
+
+        # Should be truncated to fit within column width
+        lines = result.split("\n")
+        assert len(lines) == 1
+        # Total line length should be reasonable for the column width
+        assert len(lines[0]) <= 40
+        # Should contain ellipsis if truncated
+        if len(long_message) > (40 - 19):  # 19 is base width for date and hash
+            assert "..." in lines[0]
+
+    def test_format_recent_commits_mixed_date_availability(self):
+        """Test format_recent_commits handles mixed date availability correctly."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="With date",
+                date=datetime(2024, 1, 15),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Without date",
+            ),  # No date
+        ]
+
+        result = self.service.format_recent_commits(commits, column_width=50)
+
+        lines = result.split("\n")
+        assert len(lines) == 2
+        # First line (with date) should use new format
+        assert lines[0].startswith("2024-01-15 abc1234")
+        # Second line (without date) should use fallback format
+        assert lines[1].startswith("def5678:")
+        assert "Without date" in lines[1]

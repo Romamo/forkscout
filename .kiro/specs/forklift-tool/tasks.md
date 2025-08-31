@@ -65,6 +65,56 @@
   - Measure and document performance improvement (target: 60-80% reduction in API calls for typical repositories)
   - _Requirements: 1.4, 1.5_
 
+- [ ] 4.6 Implement comprehensive commits ahead detection system
+- [ ] 4.6.1 Create commits ahead detection data models
+  - Implement CommitStatus enum with values: HAS_COMMITS, NO_COMMITS, UNKNOWN, VERIFIED_AHEAD, VERIFIED_NONE
+  - Create ForkQualification dataclass with fork metadata, commit status, confidence score, and verification details
+  - Add CommitDetectionResult dataclass for tracking analysis results and performance metrics
+  - Write unit tests for all data models including serialization and validation
+  - _Requirements: 1.2, 1.5, 21.5_
+
+- [ ] 4.6.2 Build timestamp-based heuristic engine
+  - Implement TimestampAnalyzer class to compare created_at and pushed_at timestamps
+  - Add confidence scoring based on timestamp differences and data quality
+  - Create edge case handling for same timestamps, missing data, and timezone issues
+  - Write comprehensive unit tests for timestamp analysis logic and confidence scoring
+  - _Requirements: 1.5, 21.5, 21.4.2, 21.4.3_
+
+- [ ] 4.6.3 Create commit status classification system
+  - Implement CommitStatusClassifier to categorize forks based on timestamp analysis
+  - Add status assignment logic with confidence thresholds
+  - Create status update and persistence mechanisms
+  - Write unit tests for classification accuracy and edge case handling
+  - _Requirements: 21.4.2, 21.4.3, 21.10_
+
+- [ ] 4.6.4 Build GitHub API verification engine
+  - Implement CommitVerificationEngine using GitHub Compare API endpoint
+  - Add lazy verification that only calls API when explicitly needed
+  - Create verification result caching with TTL and invalidation policies
+  - Write integration tests with real GitHub API and mock tests for error scenarios
+  - _Requirements: 23.1, 23.4, 23.5, 23.6_
+
+- [ ] 4.6.5 Implement override and control mechanisms
+  - Add --scan-all flag support to bypass all filtering logic
+  - Implement --force flag for individual fork override capabilities
+  - Create interactive confirmation prompts for expensive operations
+  - Write tests for override mechanisms and user interaction flows
+  - _Requirements: 1.7, 21.10, 15.10, 15.11_
+
+- [ ] 4.6.6 Create commits ahead detection orchestrator
+  - Implement CommitsAheadDetector class that coordinates all detection components
+  - Add batch processing capabilities for large fork datasets
+  - Create performance monitoring and API usage tracking
+  - Write integration tests for complete detection workflow
+  - _Requirements: 21.11, 21.12, 14.1, 14.9_
+
+- [ ] 4.6.7 Integrate detection system with existing fork processing
+  - Update ForkDiscoveryService to use new commits ahead detection
+  - Modify fork qualification logic to leverage timestamp analysis
+  - Add detection results to fork display and reporting systems
+  - Write integration tests to verify seamless integration with existing workflows
+  - _Requirements: 21.1, 21.4, 22.1, 22.4_
+
 - [x] 4.2 Build repository analyzer for feature extraction
   - Implement RepositoryAnalyzer to analyze individual forks
   - Add commit analysis to extract meaningful features
@@ -1140,7 +1190,7 @@
   - Write documentation tests to verify help text accuracy
   - _Requirements: 22.12_
 
-- [-] 20.6 Add comprehensive testing for compact commit display
+- [x] 20.6 Add comprehensive testing for compact commit display
   - Write integration tests for the complete fork display workflow with new format
   - Test edge cases: repos with no forks, forks with various commit statuses
   - Test performance impact of the formatting changes
@@ -1333,7 +1383,7 @@
   - Write integration tests for optimized commit fetching with real GitHub data
   - _Requirements: 22.5, 22.8_
 
-- [ ] 22.4 Improve Recent Commits column formatting and display
+- [-] 22.4 Improve Recent Commits column formatting and display
   - Design clear, scannable format for commit date, hash, and message display in table columns
   - Implement proper column width management to accommodate date and message information
   - Add chronological ordering of commits (newest first) within the specified limit
