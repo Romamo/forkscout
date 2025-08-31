@@ -886,7 +886,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 0, False
+            mock_config, "owner/repo", None, False, False, 0, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -902,7 +902,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, True, 0, False
+            mock_config, "owner/repo", None, False, True, 0, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -918,7 +918,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", 50, False, True, 0, False
+            mock_config, "owner/repo", 50, False, True, 0, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -934,7 +934,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, True, True, 0, False
+            mock_config, "owner/repo", None, True, True, 0, False, False
         )
 
     def test_show_forks_help_includes_detail_flag(self):
@@ -1002,7 +1002,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 0, False
+            mock_config, "owner/repo", None, False, False, 0, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -1018,7 +1018,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 5, False
+            mock_config, "owner/repo", None, False, False, 5, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -1034,7 +1034,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 10, False
+            mock_config, "owner/repo", None, False, False, 10, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -1050,7 +1050,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", 25, False, True, 3, False
+            mock_config, "owner/repo", 25, False, True, 3, False, False
         )
 
     @patch("forklift.cli.load_config")
@@ -1066,7 +1066,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 3, True
+            mock_config, "owner/repo", None, False, False, 3, True, False
         )
 
     @patch("forklift.cli.load_config")
@@ -1101,3 +1101,82 @@ class TestShowForksCommand:
         assert "--show-commits" in result.output
         assert "Show last N commits for each fork" in result.output or "Recent Commits column" in result.output
         assert "default: 0" in result.output
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_forks_summary")
+    def test_show_forks_with_ahead_only_flag(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --ahead-only flag."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--ahead-only"])
+
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, False, False, 0, False, True
+        )
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_forks_summary")
+    def test_show_forks_with_ahead_only_and_detail_flags(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --ahead-only and --detail flags."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--ahead-only", "--detail"])
+
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, False, True, 0, False, True
+        )
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_forks_summary")
+    def test_show_forks_with_ahead_only_and_show_commits(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --ahead-only and --show-commits flags."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+
+        result = self.runner.invoke(cli, ["show-forks", "owner/repo", "--ahead-only", "--show-commits", "5"])
+
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", None, False, False, 5, False, True
+        )
+
+    @patch("forklift.cli.load_config")
+    @patch("forklift.cli._show_forks_summary")
+    def test_show_forks_with_all_flags_combined(self, mock_show_forks_summary, mock_load_config):
+        """Test show-forks command with --ahead-only combined with all other flags."""
+        # Setup mocks
+        mock_config = create_mock_config()
+        mock_load_config.return_value = mock_config
+        mock_show_forks_summary.return_value = None
+
+        result = self.runner.invoke(cli, [
+            "show-forks", "owner/repo", 
+            "--ahead-only", 
+            "--detail", 
+            "--max-forks", "25", 
+            "--show-commits", "3", 
+            "--force-all-commits"
+        ])
+
+        assert result.exit_code == 0
+        mock_show_forks_summary.assert_called_once_with(
+            mock_config, "owner/repo", 25, False, True, 3, True, True
+        )
+
+    def test_show_forks_help_includes_ahead_only_flag(self):
+        """Test that show-forks help includes --ahead-only flag documentation."""
+        result = self.runner.invoke(cli, ["show-forks", "--help"])
+
+        assert result.exit_code == 0
+        assert "--ahead-only" in result.output
+        assert "Show only forks that have commits ahead" in result.output

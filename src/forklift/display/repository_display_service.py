@@ -19,6 +19,7 @@ from rich.progress import (
 from rich.table import Table
 
 from forklift.github.client import GitHubClient
+from forklift.models.ahead_only_filter import AheadOnlyFilter, create_default_ahead_only_filter
 from forklift.models.analysis import ForkPreviewItem, ForksPreview
 from forklift.models.filters import PromisingForksFilter
 from forklift.models.github import Repository
@@ -1272,6 +1273,7 @@ class RepositoryDisplayService:
         disable_cache: bool = False,
         show_commits: int = 0,
         force_all_commits: bool = False,
+        ahead_only: bool = False,
     ) -> dict[str, Any]:
         """Display comprehensive fork data with all collected metrics.
 
@@ -1284,6 +1286,7 @@ class RepositoryDisplayService:
             disable_cache: Whether to bypass cache for fresh data
             show_commits: Number of recent commits to show for each fork (0-10)
             force_all_commits: If True, bypass optimization and download commits for all forks
+            ahead_only: If True, filter to show only forks with commits ahead
 
         Returns:
             Dictionary containing comprehensive fork data
@@ -1334,6 +1337,24 @@ class RepositoryDisplayService:
                     fork for fork in filtered_forks if not fork.metrics.disabled
                 ]
 
+            # Apply ahead-only filtering if requested
+            if ahead_only:
+                ahead_only_filter = create_default_ahead_only_filter()
+                # Convert collected fork data to Repository objects for filtering
+                repositories = [fork.repository for fork in filtered_forks]
+                filter_result = ahead_only_filter.filter_forks(repositories)
+                
+                # Filter the collected forks to match the filtered repositories
+                filtered_repo_urls = {repo.html_url for repo in filter_result.forks}
+                filtered_forks = [
+                    fork for fork in filtered_forks 
+                    if fork.repository.html_url in filtered_repo_urls
+                ]
+                
+                # Display filtering statistics
+                if filter_result.total_excluded > 0:
+                    self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
+
             # Create qualification result
             qualification_result = data_engine.create_qualification_result(
                 repository_owner=owner,
@@ -1380,6 +1401,7 @@ class RepositoryDisplayService:
         disable_cache: bool = False,
         show_commits: int = 0,
         force_all_commits: bool = False,
+        ahead_only: bool = False,
     ) -> dict[str, Any]:
         """Display detailed fork data with exact commit counts ahead.
 
@@ -1392,6 +1414,7 @@ class RepositoryDisplayService:
             disable_cache: Whether to bypass cache for fresh data
             show_commits: Number of recent commits to show for each fork (0-10)
             force_all_commits: If True, bypass optimization and download commits for all forks
+            ahead_only: If True, filter to show only forks with commits ahead
 
         Returns:
             Dictionary containing detailed fork data with exact commit counts
@@ -1453,6 +1476,24 @@ class RepositoryDisplayService:
                 for fork in collected_forks
                 if not fork.metrics.archived and not fork.metrics.disabled
             ]
+
+            # Apply ahead-only filtering if requested
+            if ahead_only:
+                ahead_only_filter = create_default_ahead_only_filter()
+                # Convert collected fork data to Repository objects for filtering
+                repositories = [fork.repository for fork in active_forks]
+                filter_result = ahead_only_filter.filter_forks(repositories)
+                
+                # Filter the collected forks to match the filtered repositories
+                filtered_repo_urls = {repo.html_url for repo in filter_result.forks}
+                active_forks = [
+                    fork for fork in active_forks 
+                    if fork.repository.html_url in filtered_repo_urls
+                ]
+                
+                # Display filtering statistics
+                if filter_result.total_excluded > 0:
+                    self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
 
             # Separate forks that can be skipped from those needing API calls
             forks_to_skip = []

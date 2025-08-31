@@ -976,6 +976,11 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
     is_flag=True,
     help="Bypass optimization and download commits for all forks when using --show-commits",
 )
+@click.option(
+    "--ahead-only",
+    is_flag=True,
+    help="Show only forks that have commits ahead of the upstream repository",
+)
 @click.pass_context
 def show_forks(
     ctx: click.Context,
@@ -984,6 +989,7 @@ def show_forks(
     detail: bool,
     show_commits: int,
     force_all_commits: bool,
+    ahead_only: bool,
 ) -> None:
     """Display a summary table of repository forks with key metrics.
 
@@ -1007,6 +1013,9 @@ def show_forks(
 
     Use --force-all-commits to bypass optimization and download commits for all forks,
     even those with no commits ahead (normally skipped to save API calls).
+
+    Use --ahead-only to filter and show only forks that have commits ahead of the
+    upstream repository. This excludes forks with no new commits and private forks.
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
@@ -1036,6 +1045,7 @@ def show_forks(
                 detail,
                 show_commits,
                 force_all_commits,
+                ahead_only,
             )
         )
 
@@ -1824,6 +1834,7 @@ async def _show_forks_summary(
     detail: bool = False,
     show_commits: int = 0,
     force_all_commits: bool = False,
+    ahead_only: bool = False,
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -1835,6 +1846,7 @@ async def _show_forks_summary(
         detail: Whether to fetch exact commit counts ahead using additional API requests
         show_commits: Number of recent commits to show for each fork (0-10)
         force_all_commits: If True, bypass optimization and download commits for all forks
+        ahead_only: If True, filter to show only forks with commits ahead
     """
     async with GitHubClient(config.github) as github_client:
         display_service = RepositoryDisplayService(github_client, console)
@@ -1848,6 +1860,7 @@ async def _show_forks_summary(
                     disable_cache=False,
                     show_commits=show_commits,
                     force_all_commits=force_all_commits,
+                    ahead_only=ahead_only,
                 )
 
                 if verbose:
@@ -1871,6 +1884,7 @@ async def _show_forks_summary(
                     disable_cache=False,
                     show_commits=show_commits,
                     force_all_commits=force_all_commits,
+                    ahead_only=ahead_only,
                 )
 
                 if verbose:

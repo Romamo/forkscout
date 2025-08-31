@@ -300,7 +300,7 @@
   - Write integration tests to verify consistent behavior across standard and detailed modes
   - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7_
 
-- [-] 8.3.4 Implement improved fork sorting algorithm
+- [x] 8.3.4 Implement improved fork sorting algorithm
   - Enhance `_sort_forks_enhanced` method to implement proper multi-level priority sorting
   - Implement commits ahead status as primary sort key (forks with commits first, then forks without commits)
   - Add stars count as secondary sort key (descending order - highest stars first)
@@ -1505,7 +1505,7 @@
   - Write unit tests for filtering logic with various fork scenarios (private, no commits, has commits)
   - _Requirements: 22.1, 22.2, 22.3, 22.7_
 
-- [ ] 23.2 Add --ahead-only CLI flag to show-forks command
+- [-] 23.2 Add --ahead-only CLI flag to show-forks command
   - Add --ahead-only click option to existing show-forks command
   - Update command function signature to accept ahead_only parameter
   - Integrate AheadOnlyFilter into fork processing workflow
