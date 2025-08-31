@@ -1505,7 +1505,7 @@
   - Write unit tests for filtering logic with various fork scenarios (private, no commits, has commits)
   - _Requirements: 22.1, 22.2, 22.3, 22.7_
 
-- [-] 23.2 Add --ahead-only CLI flag to show-forks command
+- [x] 23.2 Add --ahead-only CLI flag to show-forks command
   - Add --ahead-only click option to existing show-forks command
   - Update command function signature to accept ahead_only parameter
   - Integrate AheadOnlyFilter into fork processing workflow
@@ -1549,3 +1549,11 @@
   - Create user experience tests for error messages and help text
   - Write end-to-end tests for complete ahead-only filtering workflow
   - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
+
+- [-] 24. Optimize get_commits_ahead method to eliminate redundant parent repository fetching
+  - Add simple in-memory cache to GitHubClient for parent repository data (repository info + default branch)
+  - Modify get_commits_ahead method to check cache before calling get_repository(parent_owner, parent_repo)
+  - Cache parent repository data on first fetch and reuse for subsequent fork comparisons
+  - Add logging to track API call savings when using cached parent data
+  - Write unit tests for caching behavior and API call reduction
+  - _Requirements: 25.1, 25.2, 25.3_

@@ -49,6 +49,11 @@ class GitHubClient:
             timeout_seconds=config.timeout_seconds
         )
 
+        # In-memory cache for parent repository data to reduce API calls
+        # Key: (owner, repo), Value: (Repository, timestamp)
+        self._parent_repo_cache: dict[tuple[str, str], tuple[Repository, float]] = {}
+        self._cache_ttl = 300  # 5 minutes TTL for cached parent repository data
+
     def _build_headers(self) -> dict[str, str]:
         """Build HTTP headers for GitHub API requests."""
         headers = {
@@ -61,6 +66,76 @@ class GitHubClient:
             headers["Authorization"] = f"Bearer {self.config.token}"
 
         return headers
+
+    def _get_cached_parent_repo(self, owner: str, repo: str) -> Repository | None:
+        """Get cached parent repository data if available and not expired.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Cached Repository object or None if not cached or expired
+        """
+        cache_key = (owner, repo)
+        if cache_key not in self._parent_repo_cache:
+            return None
+
+        cached_repo, timestamp = self._parent_repo_cache[cache_key]
+        current_time = time.time()
+
+        # Check if cache entry has expired
+        if current_time - timestamp > self._cache_ttl:
+            # Remove expired entry
+            del self._parent_repo_cache[cache_key]
+            logger.debug(f"Expired cache entry removed for parent repository {owner}/{repo}")
+            return None
+
+        logger.debug(f"Using cached parent repository data for {owner}/{repo}")
+        return cached_repo
+
+    def _cache_parent_repo(self, owner: str, repo: str, repository: Repository) -> None:
+        """Cache parent repository data.
+        
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            repository: Repository object to cache
+        """
+        cache_key = (owner, repo)
+        current_time = time.time()
+        self._parent_repo_cache[cache_key] = (repository, current_time)
+        logger.debug(f"Cached parent repository data for {owner}/{repo}")
+
+    def clear_parent_repo_cache(self) -> None:
+        """Clear the parent repository cache."""
+        cache_size = len(self._parent_repo_cache)
+        self._parent_repo_cache.clear()
+        if cache_size > 0:
+            logger.info(f"Cleared parent repository cache ({cache_size} entries)")
+
+    def get_parent_repo_cache_stats(self) -> dict[str, Any]:
+        """Get statistics about the parent repository cache.
+        
+        Returns:
+            Dictionary with cache statistics
+        """
+        current_time = time.time()
+        valid_entries = 0
+        expired_entries = 0
+
+        for _, timestamp in self._parent_repo_cache.values():
+            if current_time - timestamp <= self._cache_ttl:
+                valid_entries += 1
+            else:
+                expired_entries += 1
+
+        return {
+            "total_entries": len(self._parent_repo_cache),
+            "valid_entries": valid_entries,
+            "expired_entries": expired_entries,
+            "cache_ttl_seconds": self._cache_ttl
+        }
 
     async def __aenter__(self) -> "GitHubClient":
         """Async context manager entry."""
@@ -87,6 +162,8 @@ class GitHubClient:
         if self._client:
             await self._client.aclose()
             self._client = None
+        # Clear cache on close
+        self._parent_repo_cache.clear()
 
     async def _request(
         self,
@@ -457,9 +534,22 @@ class GitHubClient:
         logger.debug(f"Fetching {count} commits ahead from {fork_owner}/{fork_repo} vs {parent_owner}/{parent_repo}")
 
         try:
-            # Get repository info to find default branches
+            # Get fork repository info (always fetch fresh)
             fork_info = await self.get_repository(fork_owner, fork_repo)
-            parent_info = await self.get_repository(parent_owner, parent_repo)
+
+            # Try to get parent repository info from cache first
+            parent_info = self._get_cached_parent_repo(parent_owner, parent_repo)
+            api_call_saved = False
+
+            if parent_info is None:
+                # Cache miss - fetch from API and cache the result
+                logger.debug(f"Cache miss for parent repository {parent_owner}/{parent_repo}, fetching from API")
+                parent_info = await self.get_repository(parent_owner, parent_repo)
+                self._cache_parent_repo(parent_owner, parent_repo, parent_info)
+            else:
+                # Cache hit - log the API call savings
+                api_call_saved = True
+                logger.debug(f"Cache hit for parent repository {parent_owner}/{parent_repo}, API call saved")
 
             # Compare fork's default branch with parent's default branch
             comparison = await self.compare_commits(
@@ -486,6 +576,10 @@ class GitHubClient:
                     logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
                     continue
 
+            # Log API call savings
+            if api_call_saved:
+                logger.info(f"API call saved using cached parent repository data for {parent_owner}/{parent_repo}")
+
             logger.debug(f"Successfully fetched {len(recent_commits)} commits ahead from {fork_owner}/{fork_repo}")
             return recent_commits
 
@@ -494,7 +588,7 @@ class GitHubClient:
             raise
         except Exception as e:
             logger.error(f"Failed to fetch commits ahead from {fork_owner}/{fork_repo}: {e}")
-            raise GitHubAPIError(f"Failed to fetch commits ahead: {e}")
+            raise GitHubAPIError(f"Failed to fetch commits ahead: {e}") from e
 
     # User operations
 

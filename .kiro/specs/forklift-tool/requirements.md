@@ -618,3 +618,13 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 8. WHEN sorting is applied THEN forks with unknown commit status SHALL be treated as potentially having commits and sorted with high priority
 9. WHEN sorting forks THEN the system SHALL handle edge cases gracefully including missing timestamps, null values, and identical metrics
 10. WHEN sorting large numbers of forks THEN the system SHALL maintain consistent sorting performance without degradation
+
+### Requirement 25
+
+**User Story:** As a repository maintainer, I want the `get_commits_ahead` method to avoid redundant main repository fetching, so that show-forks --detail runs faster with fewer API calls.
+
+#### Acceptance Criteria
+
+1. WHEN the `get_commits_ahead` method is called multiple times for the same parent repository THEN the system SHALL cache and reuse the parent repository data instead of fetching it repeatedly
+2. WHEN caching parent repository data THEN the system SHALL store the repository metadata and default branch information needed for commit comparisons
+3. WHEN the cached parent data is used THEN the system SHALL log the API call savings achieved
