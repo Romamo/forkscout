@@ -34,6 +34,8 @@ class RepositoryDisplayService:
         github_client: GitHubClient,
         console: Console | None = None,
         cache_manager: AnalysisCacheManager | None = None,
+        should_exclude_language_distribution: bool = True,
+        should_exclude_fork_insights: bool = True,
     ):
         """Initialize the repository display service.
 
@@ -41,10 +43,16 @@ class RepositoryDisplayService:
             github_client: GitHub API client for fetching data
             console: Rich console for output (optional, creates new if None)
             cache_manager: Cache manager for caching repository data (optional)
+            should_exclude_language_distribution: Whether to exclude language distribution table
+            should_exclude_fork_insights: Whether to exclude fork insights section
         """
         self.github_client = github_client
         self.console = console or Console()
         self.cache_manager = cache_manager
+        self._should_exclude_language_distribution = (
+            should_exclude_language_distribution
+        )
+        self._should_exclude_fork_insights = should_exclude_fork_insights
 
     async def list_forks_preview(self, repo_url: str) -> dict[str, Any]:
         """Display a lightweight preview of repository forks using minimal API calls.
@@ -923,8 +931,9 @@ class RepositoryDisplayService:
             # Show filtering information
             self._display_filtering_info(exclude_archived, exclude_disabled, stats)
 
-            # Show additional insights
-            self._display_fork_insights(qualification_result)
+            # Show additional insights (only if not excluded)
+            if not self._should_exclude_fork_insights:
+                self._display_fork_insights(qualification_result)
 
         else:
             self.console.print("[yellow]No forks found matching the criteria.[/yellow]")
@@ -1149,27 +1158,28 @@ class RepositoryDisplayService:
 
         self.console.print(insights_table)
 
-        # Show language distribution
-        languages = {}
-        for fork_data in qualification_result.collected_forks:
-            lang = fork_data.metrics.language or "Unknown"
-            languages[lang] = languages.get(lang, 0) + 1
+        # Show language distribution (only if not excluded)
+        if not self._should_exclude_language_distribution:
+            languages = {}
+            for fork_data in qualification_result.collected_forks:
+                lang = fork_data.metrics.language or "Unknown"
+                languages[lang] = languages.get(lang, 0) + 1
 
-        if languages:
-            self.console.print("\n[bold blue]Language Distribution:[/bold blue]")
-            lang_table = Table()
-            lang_table.add_column("Language", style="cyan")
-            lang_table.add_column("Fork Count", style="green", justify="right")
-            lang_table.add_column("Percentage", style="yellow", justify="right")
+            if languages:
+                self.console.print("\n[bold blue]Language Distribution:[/bold blue]")
+                lang_table = Table()
+                lang_table.add_column("Language", style="cyan")
+                lang_table.add_column("Fork Count", style="green", justify="right")
+                lang_table.add_column("Percentage", style="yellow", justify="right")
 
-            total_forks = len(qualification_result.collected_forks)
-            for lang, count in sorted(
-                languages.items(), key=lambda x: x[1], reverse=True
-            )[:10]:
-                percentage = (count / total_forks) * 100
-                lang_table.add_row(lang, str(count), f"{percentage:.1f}%")
+                total_forks = len(qualification_result.collected_forks)
+                for lang, count in sorted(
+                    languages.items(), key=lambda x: x[1], reverse=True
+                )[:10]:
+                    percentage = (count / total_forks) * 100
+                    lang_table.add_row(lang, str(count), f"{percentage:.1f}%")
 
-            self.console.print(lang_table)
+                self.console.print(lang_table)
 
     async def show_fork_data(
         self,

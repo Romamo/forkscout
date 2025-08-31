@@ -35,6 +35,22 @@ class TestRepositoryDisplayService:
         assert service.github_client == self.mock_github_client
         assert service.console is not None
 
+    def test_init_with_configuration_flags_default(self):
+        """Test initialization with default configuration flags."""
+        service = RepositoryDisplayService(self.mock_github_client)
+        assert service._should_exclude_language_distribution is True
+        assert service._should_exclude_fork_insights is True
+
+    def test_init_with_configuration_flags_custom(self):
+        """Test initialization with custom configuration flags."""
+        service = RepositoryDisplayService(
+            self.mock_github_client,
+            should_exclude_language_distribution=False,
+            should_exclude_fork_insights=False,
+        )
+        assert service._should_exclude_language_distribution is False
+        assert service._should_exclude_fork_insights is False
+
     def test_parse_repository_url_https(self):
         """Test parsing HTTPS GitHub URLs."""
         owner, repo = self.service._parse_repository_url(
@@ -2129,3 +2145,184 @@ class TestRepositoryDisplayService:
         # Second line (without date) should use fallback format
         assert lines[1].startswith("def5678:")
         assert "Without date" in lines[1]
+    def test_display_fork_insights_excluded_by_default(self):
+        """Test that fork insights section is excluded by default."""
+        from unittest.mock import Mock, patch
+        
+        # Create service with default configuration (should exclude fork insights)
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Verify the configuration flag is set correctly
+        assert service._should_exclude_fork_insights is True
+
+    def test_display_fork_insights_included_when_enabled(self):
+        """Test that fork insights section is included when enabled."""
+        from unittest.mock import Mock
+        
+        # Create service with fork insights enabled
+        service = RepositoryDisplayService(
+            self.mock_github_client, 
+            self.mock_console,
+            should_exclude_fork_insights=False
+        )
+        
+        # Verify the configuration flag is set correctly
+        assert service._should_exclude_fork_insights is False
+
+    def test_display_language_distribution_excluded_by_default(self):
+        """Test that language distribution table is excluded by default."""
+        from unittest.mock import Mock
+        
+        # Create service with default configuration (should exclude language distribution)
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Verify the configuration flag is set correctly
+        assert service._should_exclude_language_distribution is True
+
+    def test_display_language_distribution_included_when_enabled(self):
+        """Test that language distribution table is included when enabled."""
+        from unittest.mock import Mock
+        
+        # Create service with language distribution enabled
+        service = RepositoryDisplayService(
+            self.mock_github_client, 
+            self.mock_console,
+            should_exclude_language_distribution=False
+        )
+        
+        # Verify the configuration flag is set correctly
+        assert service._should_exclude_language_distribution is False
+
+    @pytest.mark.asyncio
+    async def test_display_fork_data_table_excludes_fork_insights_by_default(self):
+        """Test that _display_fork_data_table excludes fork insights section by default."""
+        from unittest.mock import Mock, AsyncMock, patch
+        
+        # Create service with default configuration
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Mock qualification result
+        mock_stats = Mock()
+        mock_stats.total_forks_discovered = 10
+        mock_stats.forks_with_commits = 5
+        mock_stats.forks_with_no_commits = 5
+        mock_stats.analysis_candidate_percentage = 50.0
+        mock_stats.skip_rate_percentage = 50.0
+        mock_stats.archived_forks = 0
+        mock_stats.disabled_forks = 0
+        
+        mock_qualification_result = Mock()
+        mock_qualification_result.repository_owner = "test_owner"
+        mock_qualification_result.repository_name = "test_repo"
+        mock_qualification_result.stats = mock_stats
+        mock_qualification_result.collected_forks = []
+        
+        # Mock the _display_fork_insights method to track if it's called
+        with patch.object(service, '_display_fork_insights') as mock_display_insights:
+            await service._display_fork_data_table(mock_qualification_result)
+            
+            # Should not call _display_fork_insights
+            mock_display_insights.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_display_fork_data_table_includes_fork_insights_when_enabled(self):
+        """Test that _display_fork_data_table includes fork insights section when enabled."""
+        from unittest.mock import Mock, AsyncMock, patch
+        
+        # Create service with fork insights enabled
+        service = RepositoryDisplayService(
+            self.mock_github_client, 
+            self.mock_console,
+            should_exclude_fork_insights=False
+        )
+        
+        # Mock qualification result
+        mock_stats = Mock()
+        mock_stats.total_forks_discovered = 10
+        mock_stats.forks_with_commits = 5
+        mock_stats.forks_with_no_commits = 5
+        mock_stats.analysis_candidate_percentage = 50.0
+        mock_stats.skip_rate_percentage = 50.0
+        mock_stats.archived_forks = 0
+        mock_stats.disabled_forks = 0
+        
+        mock_qualification_result = Mock()
+        mock_qualification_result.repository_owner = "test_owner"
+        mock_qualification_result.repository_name = "test_repo"
+        mock_qualification_result.stats = mock_stats
+        # Add some mock fork data so the insights section is displayed
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.owner = "test_owner"
+        mock_fork_data.metrics.name = "test_repo"
+        mock_fork_data.metrics.stargazers_count = 5
+        mock_fork_data.metrics.forks_count = 2
+        mock_fork_data.metrics.commits_ahead_status = "Unknown"
+        mock_fork_data.metrics.pushed_at = None
+        mock_qualification_result.collected_forks = [mock_fork_data]
+        
+        # Mock the _display_fork_insights method to track if it's called
+        with patch.object(service, '_display_fork_insights') as mock_display_insights:
+            await service._display_fork_data_table(mock_qualification_result)
+            
+            # Should call _display_fork_insights
+            mock_display_insights.assert_called_once_with(mock_qualification_result)
+
+    def test_display_fork_insights_shows_language_distribution_when_enabled(self):
+        """Test that _display_fork_insights shows language distribution when enabled."""
+        from unittest.mock import Mock
+        
+        # Create service with language distribution enabled
+        service = RepositoryDisplayService(
+            self.mock_github_client, 
+            self.mock_console,
+            should_exclude_language_distribution=False
+        )
+        
+        # Mock qualification result with fork data that has languages
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.language = "Python"
+        
+        mock_qualification_result = Mock()
+        mock_qualification_result.active_forks = []
+        mock_qualification_result.popular_forks = []
+        mock_qualification_result.forks_needing_analysis = []
+        mock_qualification_result.forks_to_skip = []
+        mock_qualification_result.collected_forks = [mock_fork_data]
+        
+        # Call the method
+        service._display_fork_insights(mock_qualification_result)
+        
+        # Should print Language Distribution section
+        printed_calls = [call for call in self.mock_console.print.call_args_list]
+        language_dist_calls = [call for call in printed_calls if "Language Distribution" in str(call)]
+        assert len(language_dist_calls) > 0
+
+    def test_display_fork_insights_hides_language_distribution_when_disabled(self):
+        """Test that _display_fork_insights hides language distribution when disabled."""
+        from unittest.mock import Mock
+        
+        # Create service with language distribution disabled (default)
+        service = RepositoryDisplayService(
+            self.mock_github_client, 
+            self.mock_console,
+            should_exclude_language_distribution=True
+        )
+        
+        # Mock qualification result with fork data that has languages
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.language = "Python"
+        
+        mock_qualification_result = Mock()
+        mock_qualification_result.active_forks = []
+        mock_qualification_result.popular_forks = []
+        mock_qualification_result.forks_needing_analysis = []
+        mock_qualification_result.forks_to_skip = []
+        mock_qualification_result.collected_forks = [mock_fork_data]
+        
+        # Call the method
+        service._display_fork_insights(mock_qualification_result)
+        
+        # Should not print Language Distribution section
+        printed_calls = [call for call in self.mock_console.print.call_args_list]
+        language_dist_calls = [call for call in printed_calls if "Language Distribution" in str(call)]
+        assert len(language_dist_calls) == 0

@@ -73,7 +73,7 @@
   - Write unit tests for all data models including serialization and validation
   - _Requirements: 1.2, 1.5, 21.5_
 
-- [-] 4.6.2 Build timestamp-based heuristic engine
+- [x] 4.6.2 Build timestamp-based heuristic engine
   - Implement TimestampAnalyzer class to compare created_at and pushed_at timestamps
   - Add confidence scoring based on timestamp differences and data quality
   - Create edge case handling for same timestamps, missing data, and timezone issues
@@ -1080,7 +1080,7 @@
   - Write unit tests for simplified commits ahead display format
   - _Requirements: 21.4_
 
-- [ ] 18.4 Remove redundant display sections
+- [-] 18.4 Remove redundant display sections
   - Remove "Language Distribution" table from fork data display
   - Remove "Fork Insights" section that duplicates Collection Summary information
   - Update _display_fork_data_table method to exclude redundant sections
