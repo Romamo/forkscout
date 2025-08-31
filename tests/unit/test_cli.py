@@ -732,7 +732,7 @@ class TestShowCommitsCommand:
 
         assert result.exit_code == 0
         mock_show_commits.assert_called_once()
-        
+
         # Verify detail flag was passed (positional argument 14)
         call_args = mock_show_commits.call_args[0]
         assert len(call_args) >= 15  # Should have at least 15 positional arguments
@@ -752,7 +752,7 @@ class TestShowCommitsCommand:
 
         assert result.exit_code == 0
         mock_show_commits.assert_called_once()
-        
+
         # Verify flags were passed (positional arguments 14 and 15)
         call_args = mock_show_commits.call_args[0]
         assert len(call_args) >= 16  # Should have at least 16 positional arguments
@@ -849,7 +849,7 @@ class TestShowCommitsCommand:
 
         assert result.exit_code == 0
         mock_show_commits.assert_called_once()
-        
+
         # Verify all flags were passed correctly as positional arguments
         call_args = mock_show_commits.call_args[0]
         assert len(call_args) >= 16  # Should have at least 16 positional arguments
@@ -1160,11 +1160,11 @@ class TestShowForksCommand:
         mock_show_forks_summary.return_value = None
 
         result = self.runner.invoke(cli, [
-            "show-forks", "owner/repo", 
-            "--ahead-only", 
-            "--detail", 
-            "--max-forks", "25", 
-            "--show-commits", "3", 
+            "show-forks", "owner/repo",
+            "--ahead-only",
+            "--detail",
+            "--max-forks", "25",
+            "--show-commits", "3",
             "--force-all-commits"
         ])
 

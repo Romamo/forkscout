@@ -19,7 +19,9 @@ from rich.progress import (
 from rich.table import Table
 
 from forklift.github.client import GitHubClient
-from forklift.models.ahead_only_filter import AheadOnlyFilter, create_default_ahead_only_filter
+from forklift.models.ahead_only_filter import (
+    create_default_ahead_only_filter,
+)
 from forklift.models.analysis import ForkPreviewItem, ForksPreview
 from forklift.models.filters import PromisingForksFilter
 from forklift.models.github import Repository
@@ -1343,14 +1345,14 @@ class RepositoryDisplayService:
                 # Convert collected fork data to Repository objects for filtering
                 repositories = [fork.repository for fork in filtered_forks]
                 filter_result = ahead_only_filter.filter_forks(repositories)
-                
+
                 # Filter the collected forks to match the filtered repositories
                 filtered_repo_urls = {repo.html_url for repo in filter_result.forks}
                 filtered_forks = [
-                    fork for fork in filtered_forks 
+                    fork for fork in filtered_forks
                     if fork.repository.html_url in filtered_repo_urls
                 ]
-                
+
                 # Display filtering statistics
                 if filter_result.total_excluded > 0:
                     self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
@@ -1483,14 +1485,14 @@ class RepositoryDisplayService:
                 # Convert collected fork data to Repository objects for filtering
                 repositories = [fork.repository for fork in active_forks]
                 filter_result = ahead_only_filter.filter_forks(repositories)
-                
+
                 # Filter the collected forks to match the filtered repositories
                 filtered_repo_urls = {repo.html_url for repo in filter_result.forks}
                 active_forks = [
-                    fork for fork in active_forks 
+                    fork for fork in active_forks
                     if fork.repository.html_url in filtered_repo_urls
                 ]
-                
+
                 # Display filtering statistics
                 if filter_result.total_excluded > 0:
                     self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")

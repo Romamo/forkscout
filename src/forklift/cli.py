@@ -995,7 +995,7 @@ def show_forks(
 
     This command shows a table of all forks with key information including:
     - Fork name and owner
-    - Stars, forks, and activity information  
+    - Stars, forks, and activity information
     - Commits status (basic detection or exact counts with --detail)
     - Last activity date and programming language
 
