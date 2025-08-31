@@ -11,7 +11,8 @@ https://github.com/aarigs/pandas-ta
 https://github.com/xgboosted/pandas-ta-classic 18 forks
 https://github.com/NoMore201/googleplay-api
 https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources with free ones)
-
+https://github.com/newmarcel/KeepingYouAwake 232 forks
+https://github.com/sanila2007/youtube-bot-telegram 19 forks
 ## Requirements
 
 ### Requirement 1
@@ -325,7 +326,49 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 #### Acceptance Criteria
 
 1. WHEN discovering forks THEN the system SHALL use only the paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) to collect all available fork data without making individual repository API calls
-2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, topics, watchers_count, archived, and disabled status
+2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, archived, disabled, fork, topics
+3. WHEN using --show-commits flag THEN the system SHALL optimize by skipping commit downloads for forks with no commits ahead (created_at >= pushed_at)
+4. WHEN --force-all-commits flag is provided THEN the system SHALL bypass optimization and download commits for all forks regardless of commits ahead status
+5. WHEN displaying forks with --show-commits THEN the system SHALL show recent commits in a dedicated column with commit date, hash, and message
+6. WHEN commits cannot be fetched THEN the system SHALL display appropriate fallback message in the Recent Commits column
+7. WHEN using --show-commits THEN the system SHALL limit displayed commits to specified number (default 0, max 10 for readability)
+8. WHEN processing large numbers of forks THEN the system SHALL provide progress indicators for commit fetching operations
+9. WHEN --show-commits is combined with --detail THEN the system SHALL show both exact commit counts and recent commit messages
+10. WHEN optimization is applied THEN the system SHALL log statistics about API calls saved by skipping forks with no commits ahead
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want an --ahead-only flag for the show-forks command that displays only forks with commits ahead and excludes private forks, so that I can focus on forks that contain potential contributions without being distracted by inactive or inaccessible forks.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url> --ahead-only` THEN the system SHALL display only forks that have commits ahead of the upstream repository
+2. WHEN using --ahead-only flag THEN the system SHALL automatically exclude all private forks from the results regardless of their commit status
+3. WHEN filtering with --ahead-only THEN the system SHALL use the created_at < pushed_at comparison to identify forks with commits ahead
+4. WHEN --ahead-only is specified THEN the system SHALL display a summary showing total forks found vs forks displayed after filtering
+5. WHEN --ahead-only is combined with other flags THEN the system SHALL apply ahead-only filtering first, then apply other display options (--detail, --show-commits, --max-forks)
+6. WHEN no forks have commits ahead THEN the system SHALL display a clear message indicating no qualifying forks were found
+7. WHEN --ahead-only filtering is applied THEN the system SHALL show filtering statistics including number of private forks excluded and forks with no commits excluded
+8. WHEN using --ahead-only with --detail THEN the system SHALL fetch exact commit counts only for the filtered ahead-only forks
+9. WHEN --ahead-only is used with --show-commits THEN the system SHALL display recent commits only for forks that have commits ahead
+10. WHEN --ahead-only filtering results in a small number of forks THEN the system SHALL display all qualifying forks without additional pagination limitsn_issues_count, topics, watchers_count, archived, and disabled
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want to disable progress bars and visual indicators when running forklift commands, so that I can get clean text output suitable for scripting, logging, or environments where progress bars don't display properly.
+
+#### Acceptance Criteria
+
+1. WHEN I run any forklift command with `--no-progressbar` flag THEN the system SHALL disable all Rich progress bars, spinners, and visual progress indicators
+2. WHEN --no-progressbar is specified THEN the system SHALL output simple text messages instead of progress bars for long-running operations
+3. WHEN progress bars are disabled THEN the system SHALL still provide status updates using plain text messages at key milestones
+4. WHEN --no-progressbar is used THEN the system SHALL maintain all functionality while providing text-only feedback
+5. WHEN progress bars are disabled THEN the system SHALL ensure output is suitable for redirection to files or piping to other commands
+6. WHEN using --no-progressbar with any command THEN the system SHALL work consistently across all CLI commands (analyze, show-forks, show-commits, etc.)
+7. WHEN progress bars are disabled THEN the system SHALL use simple console.print() statements instead of Rich progress components
+8. WHEN --no-progressbar is specified THEN the system SHALL disable Rich console features that may interfere with plain text output
+9. WHEN running in environments with limited terminal capabilities THEN the system SHALL automatically detect and disable progress bars
+10. WHEN --no-progressbar is combined with other flags THEN the system SHALL respect the no-progress setting while maintaining all other functionalityled status
 3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
 4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since
 
@@ -543,3 +586,18 @@ https://github.com/virattt/ai-hedge-fund (Find forks replaced paid data sources 
 8. WHEN commits ahead exist THEN the system SHALL display up to the specified number of recent commits with dates in chronological order (newest first)
 9. WHEN formatting commit information THEN the system SHALL ensure the date and message fit within reasonable column width for table readability
 10. WHEN using --show-commits with --force-all-commits THEN the system SHALL still only show commits ahead, but fetch them for all forks regardless of optimization
+11. WHEN displaying the Recent Commits column THEN the system SHALL prevent soft wrapping of commit text to maintain clean table formatting and readability
+
+### Requirement 23
+
+**User Story:** As a repository maintainer, I want consistent table formatting between standard and detailed fork displays, so that I have a unified user experience regardless of which mode I use.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url>` and `forklift show-forks <repo-url> --detail` THEN both commands SHALL use the same table structure, column widths, and formatting styles for consistency
+2. WHEN displaying fork tables THEN the system SHALL use a universal rendering method that adapts the commit data presentation based on available information (status vs exact counts)
+3. WHEN using the universal renderer THEN column widths SHALL be consistent across both modes (URL: 35, Stars: 8, Forks: 8, Commits: 15, Last Push: 14)
+4. WHEN displaying commit information THEN the system SHALL show exact counts when available (--detail mode) or status indicators when not available (standard mode) in the same column format
+5. WHEN rendering tables THEN the system SHALL use consistent titles, headers, and styling regardless of the data source (pagination-only vs API-enhanced)
+6. WHEN showing additional information THEN summary statistics and insights SHALL be displayed consistently in both modes
+7. WHEN using --show-commits THEN the Recent Commits column SHALL have identical formatting and behavior in both standard and detailed modes

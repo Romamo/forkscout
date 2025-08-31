@@ -598,6 +598,304 @@ The detailed commit view (`--detail` flag) is designed to provide comprehensive 
 6. **Display Results**: Format AI summaries with clear visual distinction from standard explanations
 7. **Track Usage**: Monitor API usage and costs for transparency
 
+## Progress Bar Control System Design Philosophy
+
+The progress bar control system is designed to provide flexible output modes that accommodate different usage scenarios, from interactive terminal use to automated scripting and logging environments. The system prioritizes clean, parseable output when progress bars are disabled while maintaining full functionality.
+
+### Progress Bar Control Design Principles
+
+- **Environment Adaptability**: Automatically detect terminal capabilities and adjust output accordingly
+- **Scripting Compatibility**: Provide clean text output suitable for redirection, piping, and automated processing
+- **Consistent Behavior**: Maintain identical functionality regardless of progress display mode
+- **User Control**: Allow explicit control over progress display through command-line flags
+- **Graceful Fallback**: Seamlessly switch between rich visual indicators and plain text messages
+- **Information Preservation**: Ensure all important status information is communicated in both modes
+
+### Progress Display Architecture
+
+```mermaid
+graph TD
+    A[CLI Command] --> B[ProgressBarController]
+    B --> C{--no-progressbar flag?}
+    C -->|Yes| D[PlainTextProgressReporter]
+    C -->|No| E{Terminal Capabilities?}
+    E -->|Limited| D
+    E -->|Full| F[RichProgressReporter]
+    
+    D --> G[Simple Text Messages]
+    F --> H[Rich Progress Bars]
+    
+    I[Progress Events] --> B
+    J[Status Updates] --> B
+    K[Completion Events] --> B
+    
+    G --> L[Console Output]
+    H --> L
+```
+
+### Component Design
+
+#### ProgressBarController
+
+```python
+class ProgressBarController:
+    """Central controller for managing progress display modes."""
+    
+    def __init__(self, disable_progress: bool = False, auto_detect: bool = True):
+        self.disable_progress = disable_progress
+        self.auto_detect = auto_detect
+        self.reporter = self._create_reporter()
+    
+    def _create_reporter(self) -> ProgressReporter:
+        """Create appropriate progress reporter based on settings and environment."""
+        if self.disable_progress:
+            return PlainTextProgressReporter()
+        
+        if self.auto_detect and not self._has_rich_terminal_support():
+            return PlainTextProgressReporter()
+        
+        return RichProgressReporter()
+    
+    def _has_rich_terminal_support(self) -> bool:
+        """Detect if terminal supports Rich formatting."""
+        # Check for CI environments, redirected output, etc.
+        pass
+```
+
+#### Progress Reporter Interface
+
+```python
+from abc import ABC, abstractmethod
+
+class ProgressReporter(ABC):
+    """Abstract interface for progress reporting."""
+    
+    @abstractmethod
+    def start_operation(self, description: str, total: Optional[int] = None) -> str:
+        """Start a new operation and return operation ID."""
+        pass
+    
+    @abstractmethod
+    def update_progress(self, operation_id: str, advance: int = 1, description: str = None):
+        """Update progress for an operation."""
+        pass
+    
+    @abstractmethod
+    def complete_operation(self, operation_id: str, message: str = None):
+        """Mark operation as complete."""
+        pass
+    
+    @abstractmethod
+    def report_milestone(self, message: str):
+        """Report a significant milestone or status update."""
+        pass
+```
+
+#### Plain Text Progress Reporter
+
+```python
+class PlainTextProgressReporter(ProgressReporter):
+    """Simple text-based progress reporting for scripting environments."""
+    
+    def __init__(self):
+        self.operations = {}
+        self.console = Console(file=sys.stdout, force_terminal=False)
+    
+    def start_operation(self, description: str, total: Optional[int] = None) -> str:
+        operation_id = str(uuid.uuid4())
+        self.operations[operation_id] = {
+            'description': description,
+            'total': total,
+            'current': 0,
+            'start_time': time.time()
+        }
+        
+        if total:
+            self.console.print(f"Starting {description} (0/{total})")
+        else:
+            self.console.print(f"Starting {description}")
+        
+        return operation_id
+    
+    def update_progress(self, operation_id: str, advance: int = 1, description: str = None):
+        if operation_id not in self.operations:
+            return
+        
+        op = self.operations[operation_id]
+        op['current'] += advance
+        
+        if description:
+            op['description'] = description
+        
+        if op['total']:
+            percentage = (op['current'] / op['total']) * 100
+            self.console.print(f"{op['description']}: {op['current']}/{op['total']} ({percentage:.1f}%)")
+        else:
+            self.console.print(f"{op['description']}: {op['current']} items processed")
+    
+    def complete_operation(self, operation_id: str, message: str = None):
+        if operation_id not in self.operations:
+            return
+        
+        op = self.operations[operation_id]
+        duration = time.time() - op['start_time']
+        
+        if message:
+            self.console.print(f"✓ {message} (completed in {duration:.1f}s)")
+        else:
+            self.console.print(f"✓ {op['description']} completed ({op['current']} items, {duration:.1f}s)")
+        
+        del self.operations[operation_id]
+    
+    def report_milestone(self, message: str):
+        self.console.print(f"• {message}")
+```
+
+#### Rich Progress Reporter
+
+```python
+class RichProgressReporter(ProgressReporter):
+    """Rich terminal progress reporting with visual indicators."""
+    
+    def __init__(self):
+        self.progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            MofNCompleteColumn(),
+            console=console
+        )
+        self.tasks = {}
+        self.active = False
+    
+    def start_operation(self, description: str, total: Optional[int] = None) -> str:
+        if not self.active:
+            self.progress.start()
+            self.active = True
+        
+        task_id = self.progress.add_task(description, total=total)
+        operation_id = str(uuid.uuid4())
+        self.tasks[operation_id] = task_id
+        
+        return operation_id
+    
+    def update_progress(self, operation_id: str, advance: int = 1, description: str = None):
+        if operation_id not in self.tasks:
+            return
+        
+        task_id = self.tasks[operation_id]
+        self.progress.update(task_id, advance=advance, description=description)
+    
+    def complete_operation(self, operation_id: str, message: str = None):
+        if operation_id not in self.tasks:
+            return
+        
+        task_id = self.tasks[operation_id]
+        if message:
+            self.progress.update(task_id, description=f"✓ {message}")
+        
+        del self.tasks[operation_id]
+        
+        if not self.tasks and self.active:
+            self.progress.stop()
+            self.active = False
+    
+    def report_milestone(self, message: str):
+        console.print(f"[blue]• {message}[/blue]")
+```
+
+### Integration Strategy
+
+#### CLI Command Integration
+
+All CLI commands will be updated to support the `--no-progressbar` flag:
+
+```python
+@cli.command()
+@click.argument("repository_url")
+@click.option("--no-progressbar", is_flag=True, help="Disable progress bars and use plain text output")
+@click.pass_context
+def analyze(ctx: click.Context, repository_url: str, no_progressbar: bool) -> None:
+    """Analyze repository with optional progress bar control."""
+    
+    # Create progress controller
+    progress_controller = ProgressBarController(
+        disable_progress=no_progressbar,
+        auto_detect=True
+    )
+    
+    # Pass to analysis services
+    await run_analysis(repository_url, progress_controller)
+```
+
+#### Service Layer Integration
+
+Services will accept and use the progress controller:
+
+```python
+class ForkDiscoveryService:
+    def __init__(self, github_client: GitHubClient, progress_controller: ProgressBarController):
+        self.github_client = github_client
+        self.progress = progress_controller.reporter
+    
+    async def discover_forks(self, owner: str, repo: str) -> List[Fork]:
+        operation_id = self.progress.start_operation("Discovering forks")
+        
+        try:
+            forks = await self._fetch_forks(owner, repo)
+            self.progress.complete_operation(operation_id, f"Found {len(forks)} forks")
+            return forks
+        except Exception as e:
+            self.progress.complete_operation(operation_id, f"Failed: {e}")
+            raise
+```
+
+### Environment Detection
+
+The system will automatically detect environments where progress bars should be disabled:
+
+```python
+def _has_rich_terminal_support() -> bool:
+    """Detect if terminal supports Rich formatting."""
+    
+    # Check for CI environments
+    ci_indicators = ['CI', 'CONTINUOUS_INTEGRATION', 'GITHUB_ACTIONS', 'JENKINS_URL']
+    if any(os.getenv(var) for var in ci_indicators):
+        return False
+    
+    # Check if output is redirected
+    if not sys.stdout.isatty():
+        return False
+    
+    # Check terminal capabilities
+    if os.getenv('TERM') in ['dumb', 'unknown']:
+        return False
+    
+    # Check for specific environments that don't support Rich
+    if os.getenv('INSIDE_EMACS') or os.getenv('VSCODE_INJECTION'):
+        return False
+    
+    return True
+```
+
+### Configuration Integration
+
+The progress bar preference can be configured globally:
+
+```python
+class DisplayConfig(BaseModel):
+    """Configuration for display and output formatting."""
+    
+    disable_progress_bars: bool = False
+    auto_detect_terminal: bool = True
+    use_colors: bool = True
+    simple_tables: bool = False
+    max_table_width: Optional[int] = None
+```
+
+This design ensures that the forklift tool provides appropriate output for both interactive use and automated environments while maintaining full functionality in all modes.
+
 ## Components and Interfaces
 
 ### Smart Fork Filtering Components
@@ -2396,4 +2694,219 @@ CLI Input (--limit=50)
 - **Clarity**: Purpose is immediately clear from argument name
 
 This design provides a clean, straightforward rename that improves the CLI interface while maintaining all existing functionality and validation rules.
+
+## Ahead-Only Fork Filtering System Design Philosophy
+
+The ahead-only filtering system is designed to help maintainers focus on forks that contain potential contributions by automatically filtering out inactive forks and private forks that cannot be analyzed. This feature builds on the existing commits ahead detection system to provide a curated view of meaningful forks.
+
+### Ahead-Only Filtering Design Principles
+
+- **Focus on Contributions**: Show only forks that have commits ahead and could contain valuable contributions
+- **Exclude Inaccessible Content**: Automatically filter out private forks that cannot be analyzed
+- **Transparent Filtering**: Clearly communicate what was filtered and why
+- **Composable Filtering**: Work seamlessly with existing flags like --detail and --show-commits
+- **Performance Optimization**: Reduce API calls by focusing only on relevant forks
+- **Clear Statistics**: Provide filtering statistics to show the impact of the filter
+
+### Ahead-Only Filtering Architecture
+
+The ahead-only filtering system integrates with existing fork processing components:
+
+```mermaid
+graph TD
+    A[show-forks --ahead-only] --> B[Fork Data Collection]
+    B --> C[AheadOnlyFilter]
+    C --> D{Fork is Private?}
+    D -->|Yes| E[Exclude Fork]
+    D -->|No| F{Has Commits Ahead?}
+    F -->|No| E
+    F -->|Yes| G[Include Fork]
+    F -->|Unknown| H{Apply Conservative Filter?}
+    H -->|Yes| G
+    H -->|No| E
+    
+    G --> I[Filtered Fork List]
+    E --> J[Exclusion Statistics]
+    I --> K[Apply Other Filters]
+    K --> L[Display Results]
+    J --> M[Display Filter Summary]
+```
+
+#### Component Integration
+
+1. **AheadOnlyFilter**: New filtering component that applies ahead-only logic
+2. **Fork Privacy Detection**: Uses existing fork data to identify private repositories
+3. **Commits Ahead Integration**: Leverages existing commits ahead detection system
+4. **Statistics Tracking**: Tracks filtering decisions for transparency
+5. **Display Integration**: Updates existing display components to show filtered results
+
+#### Filtering Logic
+
+```python
+class AheadOnlyFilter:
+    """Filter forks to show only those with commits ahead and exclude private forks."""
+    
+    def filter_forks(self, forks: List[Fork]) -> FilteredForkResult:
+        """Apply ahead-only filtering to fork list."""
+        included_forks = []
+        excluded_private = 0
+        excluded_no_commits = 0
+        
+        for fork in forks:
+            # Always exclude private forks
+            if fork.private:
+                excluded_private += 1
+                continue
+            
+            # Check commits ahead status
+            if self._has_commits_ahead(fork):
+                included_forks.append(fork)
+            else:
+                excluded_no_commits += 1
+        
+        return FilteredForkResult(
+            forks=included_forks,
+            total_processed=len(forks),
+            excluded_private=excluded_private,
+            excluded_no_commits=excluded_no_commits
+        )
+    
+    def _has_commits_ahead(self, fork: Fork) -> bool:
+        """Determine if fork has commits ahead using timestamp comparison."""
+        # Use created_at < pushed_at to identify forks with commits ahead
+        return fork.pushed_at > fork.created_at
+```
+
+#### Data Models
+
+```python
+@dataclass
+class FilteredForkResult:
+    """Result of ahead-only filtering operation."""
+    forks: List[Fork]
+    total_processed: int
+    excluded_private: int
+    excluded_no_commits: int
+    
+    @property
+    def included_count(self) -> int:
+        return len(self.forks)
+    
+    @property
+    def exclusion_summary(self) -> str:
+        return f"Filtered {self.total_processed} forks: {self.included_count} included, {self.excluded_private} private excluded, {self.excluded_no_commits} no commits excluded"
+
+@dataclass
+class AheadOnlyConfig:
+    """Configuration for ahead-only filtering."""
+    enabled: bool = False
+    include_uncertain: bool = True  # Include forks with unknown commit status
+    conservative_filtering: bool = False  # More aggressive filtering
+```
+
+### Implementation Strategy
+
+#### Phase 1: Core Filtering Logic
+1. Implement AheadOnlyFilter class with basic filtering logic
+2. Add FilteredForkResult data model for tracking results
+3. Create unit tests for filtering logic with various fork scenarios
+4. Test private fork detection and commits ahead logic
+
+#### Phase 2: CLI Integration
+1. Add --ahead-only flag to show-forks command
+2. Integrate filtering into existing fork display workflow
+3. Update command help text and documentation
+4. Add filtering statistics to command output
+
+#### Phase 3: Display Enhancement
+1. Update fork display to show filtering summary
+2. Modify table headers and statistics for filtered results
+3. Ensure consistent behavior with other flags (--detail, --show-commits)
+4. Add clear messaging when no forks match criteria
+
+#### Phase 4: Performance Optimization
+1. Optimize filtering to reduce unnecessary API calls
+2. Integrate with existing commits ahead detection system
+3. Add caching for filtering results
+4. Monitor and report API usage savings
+
+### Error Handling and Edge Cases
+
+#### Private Fork Handling
+- **Detection**: Use `private` field from fork data to identify private repositories
+- **Exclusion**: Always exclude private forks regardless of other criteria
+- **Statistics**: Track and report number of private forks excluded
+
+#### Commits Ahead Detection
+- **Primary Logic**: Use `pushed_at > created_at` comparison for fast detection
+- **Uncertain Cases**: Handle forks where commit status cannot be determined
+- **Fallback**: Include uncertain forks by default to avoid missing contributions
+
+#### Empty Results
+- **No Qualifying Forks**: Display clear message when no forks match criteria
+- **Helpful Suggestions**: Suggest removing --ahead-only flag or checking filter criteria
+- **Statistics Display**: Show what was filtered to help users understand results
+
+### Integration with Existing Features
+
+#### Compatibility with --detail Flag
+```bash
+# Combines ahead-only filtering with detailed commit counts
+forklift show-forks repo-url --ahead-only --detail
+```
+- Apply ahead-only filtering first
+- Fetch detailed commit counts only for qualifying forks
+- Display exact commit counts in filtered results
+
+#### Compatibility with --show-commits Flag
+```bash
+# Shows recent commits only for forks with commits ahead
+forklift show-forks repo-url --ahead-only --show-commits 5
+```
+- Filter to ahead-only forks first
+- Fetch recent commits only for qualifying forks
+- Display commit information in Recent Commits column
+
+#### Compatibility with --max-forks Flag
+```bash
+# Limits display after ahead-only filtering is applied
+forklift show-forks repo-url --ahead-only --max-forks 20
+```
+- Apply ahead-only filtering first
+- Apply max-forks limit to filtered results
+- Ensure most relevant forks are shown within limit
+
+### Performance Benefits
+
+#### API Call Reduction
+- **Fewer Detail Requests**: Only fetch detailed data for qualifying forks
+- **Optimized Commit Fetching**: Skip commit downloads for excluded forks
+- **Reduced Rate Limiting**: Lower API usage leads to fewer rate limit issues
+
+#### User Experience Improvements
+- **Focused Results**: Users see only forks with potential contributions
+- **Faster Analysis**: Reduced data processing and display time
+- **Clear Intent**: Filtering matches user's analytical goals
+
+### Testing Strategy
+
+#### Unit Tests
+- Test filtering logic with various fork combinations
+- Verify private fork exclusion works correctly
+- Test commits ahead detection accuracy
+- Validate statistics tracking and reporting
+
+#### Integration Tests
+- Test --ahead-only flag with real repository data
+- Verify compatibility with other command flags
+- Test edge cases like all-private or no-commits scenarios
+- Validate performance improvements with large fork sets
+
+#### User Experience Tests
+- Test command help text and documentation
+- Verify filtering statistics are clear and helpful
+- Test error messages and edge case handling
+- Validate output formatting and readability
+
+This design provides a focused, efficient way for maintainers to identify forks with potential contributions while maintaining compatibility with existing features and providing clear feedback about filtering decisions.
 ```

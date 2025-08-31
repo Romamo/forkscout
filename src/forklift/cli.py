@@ -28,6 +28,7 @@ from forklift.analysis.explanation_generator import ExplanationGenerator
 from forklift.analysis.fork_discovery import ForkDiscoveryService
 from forklift.analysis.impact_assessor import ImpactAssessor
 from forklift.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
+from forklift.analysis.override_control import create_override_controller
 from forklift.analysis.interactive_steps import (
     FeatureRankingStep,
     ForkAnalysisStep,
@@ -681,6 +682,9 @@ def analyze(
                 console.print(
                     "[yellow]Analysis complete. No high-value features found.[/yellow]"
                 )
+        
+        # Ensure all output is flushed for redirection
+        sys.stdout.flush()
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -986,17 +990,17 @@ def show_forks(
     This command shows a table of all forks with key information including:
     - Fork name and owner
     - Stars, forks, and activity information  
-    - Commits status in compact "+X -Y" format (X=ahead, Y=behind)
+    - Commits status (basic detection or exact counts with --detail)
     - Last activity date and programming language
 
-    The Commits column uses a compact format:
-    - "+5 -2" means 5 commits ahead, 2 commits behind
-    - "+3" means 3 commits ahead, up-to-date
-    - "-1" means 1 commit behind, no new commits
-    - Empty cell means completely up-to-date
+    The Commits column shows:
+    - "0 commits" = Fork has no commits ahead of upstream
+    - "Has commits" = Fork likely has commits ahead (use --detail for exact count)
+    - "+5" = Exact count when using --detail flag (5 commits ahead)
+    - Empty cell = No commits ahead (when using --detail)
 
     Use --detail flag to fetch exact commit counts ahead for each fork.
-    This makes additional API requests but provides precise commit information.
+    This makes additional API requests but provides precise "+X" commit counts.
 
     Use --show-commits N to display the last N commits for each fork.
     This adds a "Recent Commits" column showing commit messages (max 10 commits).
@@ -1034,6 +1038,9 @@ def show_forks(
                 force_all_commits,
             )
         )
+        
+        # Ensure all output is flushed for redirection
+        sys.stdout.flush()
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1080,6 +1087,9 @@ def list_forks(ctx: click.Context, repository_url: str) -> None:
 
         # Run forks preview display
         asyncio.run(_list_forks_preview(config, repository_url, verbose))
+        
+        # Ensure all output is flushed for redirection
+        sys.stdout.flush()
 
     except CLIError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1904,6 +1914,17 @@ async def _run_analysis(
             "GitHub token not configured. Use 'forklift configure' to set it up."
         )
 
+    # Initialize override controller
+    override_controller = create_override_controller(
+        console=console,
+        scan_all=scan_all,
+        force=False,  # Force flag is for individual operations, not batch analysis
+        interactive_confirmations=True,  # Enable confirmations for expensive operations
+    )
+
+    # Display override settings if any are active
+    override_controller.display_override_summary()
+
     # Initialize services
     github_client = GitHubClient(config.github)
 
@@ -1954,9 +1975,10 @@ async def _run_analysis(
             )
             results["total_forks"] = len(all_forks)
 
-            if scan_all:
+            # Apply override filtering logic
+            if override_controller.filtering_override.should_bypass_filtering():
                 # Skip filtering - analyze all forks
-                forks = all_forks
+                forks = override_controller.apply_filtering_overrides(all_forks)
                 progress.update(
                     task1,
                     completed=True,
@@ -1995,6 +2017,27 @@ async def _run_analysis(
 
         # Step 3: Analyze forks
         forks_to_analyze = forks[: config.analysis.max_forks_to_analyze]
+        
+        # Check for expensive operation approval
+        if len(forks_to_analyze) > 0:
+            operation_description = f"analysis of {len(forks_to_analyze)} forks"
+            if explain:
+                operation_description += " with commit explanations"
+            
+            approval = await override_controller.check_expensive_operation_approval(
+                "fork_analysis", 
+                forks=forks_to_analyze, 
+                description=operation_description
+            )
+            
+            if not approval:
+                console.print("[yellow]Analysis cancelled by user.[/yellow]")
+                results["analyzed_forks"] = 0
+                results["total_features"] = 0
+                results["high_value_features"] = 0
+                results["fork_analyses"] = []
+                return results
+        
         task2 = progress.add_task("Analyzing forks...", total=len(forks_to_analyze))
         analyzed_count = 0
         total_features = 0
@@ -2121,6 +2164,17 @@ async def _run_interactive_analysis(
         raise CLIError(
             "GitHub token not configured. Use 'forklift configure' to set it up."
         )
+
+    # Initialize override controller for interactive mode
+    override_controller = create_override_controller(
+        console=console,
+        scan_all=scan_all,
+        force=False,  # Force flag is for individual operations
+        interactive_confirmations=True,  # Always enable confirmations in interactive mode
+    )
+
+    # Display override settings if any are active
+    override_controller.display_override_summary()
 
     # Warn about cache disabling in interactive mode
     if disable_cache:
@@ -2422,8 +2476,16 @@ async def _show_commits(
             # Parse repository URL
             owner, repo_name = validate_repository_url(fork_url)
 
+            # Initialize override controller for individual fork analysis
+            override_controller = create_override_controller(
+                console=console,
+                scan_all=False,  # Not applicable for individual fork analysis
+                force=force,
+                interactive_confirmations=True,
+            )
+
             # Check fork status before expensive operations if using --detail flag
-            if detail and not force:
+            if detail and not override_controller.should_force_individual_analysis(None):
                 from forklift.analysis.fork_commit_status_checker import (
                     ForkCommitStatusChecker,
                 )
@@ -2474,11 +2536,17 @@ async def _show_commits(
                     )
 
                     if has_commits is False:
-                        console.print(
-                            "[yellow]Fork has no commits ahead of upstream - skipping detailed analysis[/yellow]"
-                        )
-                        console.print("[dim]Use --force flag to analyze anyway[/dim]")
-                        return
+                        # Check if force override should allow analysis
+                        if not override_controller.should_force_individual_analysis(None, has_commits_ahead=False):
+                            console.print(
+                                "[yellow]Fork has no commits ahead of upstream - skipping detailed analysis[/yellow]"
+                            )
+                            console.print("[dim]Use --force flag to analyze anyway[/dim]")
+                            return
+                        else:
+                            console.print(
+                                "[yellow]Fork has no commits ahead, but --force flag enabled - proceeding with analysis[/yellow]"
+                            )
                     elif has_commits is None:
                         if verbose:
                             console.print(
@@ -2503,6 +2571,18 @@ async def _show_commits(
                             await cache_manager.close()
                         except Exception as e:
                             logger.warning(f"Failed to close cache manager: {e}")
+
+            # Check for expensive operation approval if using detail mode or AI summaries
+            if detail or ai_summary:
+                approval = await override_controller.check_expensive_operation_approval(
+                    "detailed_analysis",
+                    fork_url=fork_url,
+                    has_commits_ahead=None,  # We don't know at this point
+                )
+                
+                if not approval:
+                    console.print("[yellow]Detailed analysis cancelled by user.[/yellow]")
+                    return
 
             with Progress(
                 SpinnerColumn(),

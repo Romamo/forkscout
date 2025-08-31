@@ -107,7 +107,7 @@
   - Write unit tests for classification accuracy and edge case handling
   - _Requirements: 21.4.2, 21.4.3, 21.10_
 
-- [-] 4.6.4 Build comprehensive GitHub API verification and commits ahead detection
+- [x] 4.6.4 Build comprehensive GitHub API verification and commits ahead detection
   - Implement CommitVerificationEngine using GitHub Compare API endpoint (consolidates duplicate functionality from task 19.2)
   - Add lazy verification that only calls API when explicitly needed
   - Create verification result caching with TTL and invalidation policies
@@ -118,7 +118,7 @@
   - Write unit tests for commits ahead API calls with various repository scenarios
   - _Requirements: 23.1, 23.4, 23.5, 23.6, 21.4, 21.6, 21.8, 21.9, 21.12_
 
-- [ ] 4.6.5 Implement override and control mechanisms
+- [x] 4.6.5 Implement override and control mechanisms
   - Add --scan-all flag support to bypass all filtering logic
   - Implement --force flag for individual fork override capabilities
   - Create interactive confirmation prompts for expensive operations
@@ -277,7 +277,28 @@
   - Add detailed mode statistics and API call tracking for performance monitoring
   - Write unit tests for detailed table formatting and column structure
   - Write integration tests for detail mode with fork data collection integration
-  - _Requirements: 21.1, 21.2, 21.3, 21.5, 21.7, 21.8, 21.10, 21.11, 21.12_
+  - Prevent soft wrapping in Recent Commits column by configuring Rich table column properties to maintain clean table formatting
+  - _Requirements: 21.1, 21.2, 21.3, 21.5, 21.7, 21.8, 21.10, 21.11, 21.12, 22.11_
+
+- [x] 8.3.2 Fix soft wrapping in Detailed Forks table Recent Commits column
+  - Modify `_display_detailed_fork_table` method in RepositoryDisplayService to prevent soft wrapping in Recent Commits column
+  - Configure Rich Table column with `no_wrap=True` parameter for Recent Commits column
+  - Update column width calculation to ensure proper text truncation instead of wrapping
+  - Test with various commit message lengths to ensure clean table formatting
+  - Write unit tests for table formatting with long commit messages
+  - _Requirements: 22.11_
+
+- [ ] 8.3.3 Implement universal fork table rendering method
+  - Create unified `_render_fork_table` method that consolidates `_display_fork_data_table` and `_display_detailed_fork_table` functionality
+  - Design flexible table configuration system that adapts column content based on available data (status vs exact commit counts)
+  - Standardize column widths across both modes (URL: 35, Stars: 8, Forks: 8, Commits: 15, Last Push: 14, Recent Commits: dynamic)
+  - Implement adaptive commit data formatting that shows exact counts when available or status indicators when not
+  - Create consistent table titles, headers, and styling regardless of data source
+  - Refactor both `show_fork_data` and `show_fork_data_detailed` methods to use the universal renderer
+  - Ensure summary statistics and insights display consistently in both modes
+  - Write comprehensive unit tests for universal rendering with various data scenarios
+  - Write integration tests to verify consistent behavior across standard and detailed modes
+  - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7_
 
 - [x] 8.4 Add promising forks and detailed fork analysis commands
   - Implement show-promising command with configurable filtering criteria
@@ -527,6 +548,18 @@
   - Create optimization recommendations based on repository characteristics
   - Write integration tests with repositories having thousands of forks
   - _Requirements: 14.1, 14.2, 14.6, 14.7_
+
+- [ ] 13.10 Implement --no-progressbar option for clean text output
+  - Add --no-progressbar flag to all CLI commands (analyze, show-forks, show-commits, list-forks, etc.)
+  - Create ProgressBarController class to manage progress display modes (rich vs plain text)
+  - Modify all Rich progress bars, spinners, and visual indicators to respect the --no-progressbar flag
+  - Implement plain text progress messages as fallback for disabled progress bars
+  - Update CLI command handlers to pass progress bar preference to underlying services
+  - Add automatic detection of limited terminal capabilities to disable progress bars when needed
+  - Ensure output is suitable for redirection, piping, and scripting when progress bars are disabled
+  - Write unit tests for progress bar control and plain text output modes
+  - Write integration tests to verify --no-progressbar works across all commands
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
 
 - [x] 14. Add interactive mode to analyze command with user confirmation stops
 - [x] 14.1 Create interactive analysis orchestrator
@@ -1447,3 +1480,58 @@
   - Create performance tests measuring API call reduction from commit optimization
   - Write end-to-end tests for complete enhanced show-forks workflow
   - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.10_
+
+- [ ] 23. Implement ahead-only fork filtering for show-forks command
+- [-] 23.1 Create ahead-only filtering data models and core logic
+  - Implement AheadOnlyFilter class with filtering logic for forks with commits ahead
+  - Create FilteredForkResult dataclass to track filtering results and statistics
+  - Add AheadOnlyConfig model for filtering configuration options
+  - Implement private fork detection using fork.private field from GitHub API data
+  - Create commits ahead detection using pushed_at > created_at timestamp comparison
+  - Write unit tests for filtering logic with various fork scenarios (private, no commits, has commits)
+  - _Requirements: 22.1, 22.2, 22.3, 22.7_
+
+- [ ] 23.2 Add --ahead-only CLI flag to show-forks command
+  - Add --ahead-only click option to existing show-forks command
+  - Update command function signature to accept ahead_only parameter
+  - Integrate AheadOnlyFilter into fork processing workflow
+  - Update command help text to document --ahead-only functionality
+  - Ensure --ahead-only works with existing flags (--detail, --show-commits, --max-forks)
+  - Write unit tests for CLI flag parsing and parameter passing
+  - _Requirements: 22.1, 22.5, 22.10_
+
+- [ ] 23.3 Implement filtering statistics and user feedback
+  - Add filtering summary display showing total forks vs included forks
+  - Create statistics tracking for private forks excluded and no-commits forks excluded
+  - Implement clear messaging when no forks match ahead-only criteria
+  - Add filtering statistics to command output with breakdown of exclusions
+  - Create helpful suggestions when filtering results in empty results
+  - Write unit tests for statistics calculation and display formatting
+  - _Requirements: 22.4, 22.6, 22.7_
+
+- [ ] 23.4 Integrate ahead-only filtering with existing display systems
+  - Update RepositoryDisplayService to support filtered fork results
+  - Modify fork table display to show filtering summary and statistics
+  - Ensure filtered results work correctly with --detail flag for exact commit counts
+  - Integrate with --show-commits to fetch commits only for qualifying forks
+  - Update table headers and summaries to reflect filtered results
+  - Write integration tests for ahead-only filtering with existing display features
+  - _Requirements: 22.5, 22.8, 22.9_
+
+- [ ] 23.5 Add performance optimization for ahead-only filtering
+  - Optimize filtering to reduce API calls by processing only qualifying forks
+  - Integrate with existing commits ahead detection system for efficiency
+  - Add caching for filtering results to avoid repeated processing
+  - Implement batch processing for large fork datasets with ahead-only filtering
+  - Monitor and report API usage savings from filtering optimization
+  - Write performance tests measuring API call reduction and processing time improvements
+  - _Requirements: 22.8, 22.10_
+
+- [ ] 23.6 Add comprehensive testing for ahead-only filtering
+  - Write unit tests for AheadOnlyFilter with various fork combinations
+  - Create integration tests for --ahead-only flag with real repository data
+  - Add tests for compatibility with other command flags (--detail, --show-commits)
+  - Implement edge case tests (all private forks, no qualifying forks, mixed scenarios)
+  - Create user experience tests for error messages and help text
+  - Write end-to-end tests for complete ahead-only filtering workflow
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_

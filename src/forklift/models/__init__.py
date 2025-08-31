@@ -29,9 +29,17 @@ from .fork_qualification import (
     QualificationStats,
     QualifiedForksResult,
 )
+from .ahead_only_filter import (
+    AheadOnlyConfig,
+    AheadOnlyFilter,
+    FilteredForkResult,
+    create_default_ahead_only_filter,
+)
 from .github import Commit, Fork, Repository, User
 
 __all__ = [
+    "AheadOnlyConfig",
+    "AheadOnlyFilter",
     "AIError",
     "AIErrorType",
     "AISummary",
@@ -45,8 +53,10 @@ __all__ = [
     "CommitDetails",
     "CommitExplanation",
     "CommitWithExplanation",
+    "create_default_ahead_only_filter",
     "Feature",
     "FileChange",
+    "FilteredForkResult",
     "Fork",
     "ForkAnalysis",
     "ForkMetrics",

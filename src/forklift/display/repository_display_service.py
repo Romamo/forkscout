@@ -5,6 +5,7 @@ import logging
 import sys
 from datetime import UTC, datetime
 from typing import Any
+from dataclasses import dataclass
 
 from rich.console import Console
 from rich.panel import Panel
@@ -25,6 +26,64 @@ from forklift.storage.analysis_cache import AnalysisCacheManager
 from forklift.storage.cache_validation import CacheValidationError, CacheValidator
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ForkTableConfig:
+    """Configuration for universal fork table rendering."""
+    
+    # Standard column widths (consistent across modes)
+    COLUMN_WIDTHS = {
+        'url': 35,
+        'stars': 8,
+        'forks': 8,
+        'commits': 15,  # Unified width for both status and exact counts
+        'last_push': 14,  # Accommodate "11 months ago"
+        'recent_commits_base': 30,  # Minimum width, calculated dynamically
+    }
+    
+    # Column styles
+    COLUMN_STYLES = {
+        'url': 'cyan',
+        'stars': 'yellow',
+        'forks': 'green',
+        'commits': 'magenta',
+        'last_push': 'blue',
+        'recent_commits': 'dim'
+    }
+
+
+class CommitDataFormatter:
+    """Handles adaptive formatting of commit information."""
+    
+    @staticmethod
+    def format_commit_info(fork_data, has_exact_counts: bool) -> str:
+        """Format commit information based on available data.
+        
+        Args:
+            fork_data: Fork data object (CollectedForkData or similar)
+            has_exact_counts: Whether exact commit counts are available
+            
+        Returns:
+            Formatted commit information string
+        """
+        if has_exact_counts:
+            # Detailed mode: show exact counts
+            exact_count = getattr(fork_data, 'exact_commits_ahead', None)
+            if isinstance(exact_count, int):
+                return f"[green]+{exact_count}[/green]" if exact_count > 0 else ""
+            else:
+                return "[yellow]Unknown[/yellow]"
+        else:
+            # Standard mode: show status indicators
+            metrics = getattr(fork_data, 'metrics', fork_data)
+            status = getattr(metrics, 'commits_ahead_status', 'Unknown')
+            if status == "No commits ahead":
+                return "0 commits"
+            elif status == "Has commits":
+                return "Has commits"
+            else:
+                return "[yellow]Unknown[/yellow]"
 
 
 class RepositoryDisplayService:
@@ -885,12 +944,10 @@ class RepositoryDisplayService:
                 metrics = fork_data.metrics
 
                 # Use compact format for commits ahead status
-                if metrics.commits_ahead_status == "None":
-                    commits_status = ""  # Empty cell for no commits ahead
-                elif metrics.commits_ahead_status == "Unknown":
-                    commits_status = (
-                        "[green]+?[/green]"  # Unknown but potentially has commits
-                    )
+                if metrics.commits_ahead_status == "No commits ahead":
+                    commits_status = "0 commits"  # Clear indication of no commits ahead
+                elif metrics.commits_ahead_status == "Has commits":
+                    commits_status = "Has commits"  # Indicates commits exist, use --detail for exact count
                 else:
                     commits_status = self._format_commits_ahead_detailed(
                         metrics.commits_ahead_status
@@ -1264,15 +1321,20 @@ class RepositoryDisplayService:
                 api_calls_saved=0,
             )
 
-            # Display comprehensive fork data
-            await self._display_fork_data_table(
-                qualification_result,
-                sort_by,
-                show_all,
-                exclude_archived,
-                exclude_disabled,
-                show_commits,
-                force_all_commits,
+            # Display comprehensive fork data using universal renderer
+            table_context = {
+                'owner': owner,
+                'repo': repo_name,
+                'has_exact_counts': False,
+                'mode': 'standard',
+                'api_calls_made': len(forks_list_data),
+                'api_calls_saved': 0,
+                'qualification_result': qualification_result,
+                'fork_data_list': filtered_forks
+            }
+            
+            await self._render_fork_table(
+                filtered_forks, table_context, show_commits, force_all_commits
             )
 
             return {
@@ -1447,15 +1509,19 @@ class RepositoryDisplayService:
                     "[dim]No forks require API calls for commit count analysis[/dim]"
                 )
 
-            # Display detailed fork data table
-            await self._display_detailed_fork_table(
-                detailed_forks,
-                owner,
-                repo_name,
-                api_calls_made,
-                skipped_count,
-                show_commits,
-                force_all_commits,
+            # Display detailed fork data using universal renderer
+            table_context = {
+                'owner': owner,
+                'repo': repo_name,
+                'has_exact_counts': True,
+                'mode': 'detailed',
+                'api_calls_made': api_calls_made,
+                'api_calls_saved': skipped_count,
+                'fork_data_list': detailed_forks
+            }
+            
+            await self._render_fork_table(
+                detailed_forks, table_context, show_commits, force_all_commits
             )
 
             return {
@@ -1565,7 +1631,7 @@ class RepositoryDisplayService:
         fork_table.add_column(
             "Commits Ahead", style="magenta", justify="right", width=15
         )
-        fork_table.add_column("Last Push", style="blue", width=12)
+        fork_table.add_column("Last Push", style="blue", width=14)
 
         # Conditionally add Recent Commits column
         if show_commits > 0:
@@ -1579,7 +1645,7 @@ class RepositoryDisplayService:
             )  # Adjust message width based on commit count
             commits_width = max(30, min(70, base_width + estimated_message_width))
 
-            fork_table.add_column("Recent Commits", style="dim", width=commits_width)
+            fork_table.add_column("Recent Commits", style="dim", width=commits_width, no_wrap=True)
 
         # Fetch commits concurrently if requested, with optimization
         commits_cache = {}
@@ -2208,3 +2274,327 @@ class RepositoryDisplayService:
             )
 
         self.console.print(table)
+    async def _render_fork_table(
+        self,
+        fork_data_list: list,
+        table_context: dict,
+        show_commits: int = 0,
+        force_all_commits: bool = False
+    ) -> None:
+        """Universal fork table rendering method.
+        
+        Args:
+            fork_data_list: List of fork data objects
+            table_context: Context information (owner, repo, mode, etc.)
+            show_commits: Number of recent commits to show
+            force_all_commits: Whether to fetch commits for all forks
+        """
+        if not fork_data_list:
+            self.console.print("[yellow]No forks found for display.[/yellow]")
+            return
+        
+        # 1. Determine rendering mode and capabilities
+        has_exact_counts = table_context.get('has_exact_counts', False)
+        owner = table_context['owner']
+        repo = table_context['repo']
+        
+        # 2. Sort data consistently
+        sorted_forks = self._sort_forks_universal(fork_data_list, has_exact_counts)
+        
+        # 3. Create consistent table structure
+        table_title = self._build_table_title(sorted_forks, table_context, show_commits)
+        fork_table = Table(title=table_title)
+        
+        # 4. Add standard columns with unified widths
+        self._add_standard_columns(fork_table)
+        
+        # 5. Conditionally add Recent Commits column
+        if show_commits > 0:
+            commits_width = self._calculate_commits_column_width_universal(
+                fork_data_list, show_commits
+            )
+            fork_table.add_column(
+                "Recent Commits", 
+                style=ForkTableConfig.COLUMN_STYLES['recent_commits'], 
+                width=commits_width, 
+                no_wrap=True
+            )
+        
+        # 6. Fetch commits if needed
+        commits_cache = {}
+        if show_commits > 0:
+            commits_cache = await self._fetch_commits_concurrently(
+                sorted_forks, show_commits, owner, repo, force_all_commits
+            )
+        
+        # 7. Populate table rows
+        for fork_data in sorted_forks:
+            row_data = self._build_table_row(
+                fork_data, has_exact_counts, commits_cache, show_commits
+            )
+            fork_table.add_row(*row_data)
+        
+        # 8. Display table and summary
+        self._display_table_with_context(fork_table, table_context)
+
+    def _sort_forks_universal(self, fork_data_list: list, has_exact_counts: bool) -> list:
+        """Universal fork sorting that handles both data types.
+        
+        Args:
+            fork_data_list: List of fork data objects
+            has_exact_counts: Whether exact commit counts are available
+            
+        Returns:
+            Sorted list of fork data
+        """
+        if has_exact_counts:
+            # Detailed mode: sort by exact commits ahead, then by stars
+            return sorted(
+                fork_data_list,
+                key=lambda x: (
+                    x.exact_commits_ahead if isinstance(x.exact_commits_ahead, int) else -1,
+                    x.metrics.stargazers_count,
+                ),
+                reverse=True,
+            )
+        else:
+            # Standard mode: use enhanced multi-level sorting
+            return self._sort_forks_enhanced(fork_data_list)
+
+    def _build_table_title(self, sorted_forks: list, table_context: dict, show_commits: int) -> str:
+        """Build consistent table title based on context.
+        
+        Args:
+            sorted_forks: Sorted list of fork data
+            table_context: Context information
+            show_commits: Number of recent commits to show
+            
+        Returns:
+            Formatted table title string
+        """
+        has_exact_counts = table_context.get('has_exact_counts', False)
+        title_suffix = f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
+        
+        if has_exact_counts:
+            return f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts){title_suffix}"
+        else:
+            return f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity){title_suffix}"
+
+    def _add_standard_columns(self, fork_table: Table) -> None:
+        """Add standard columns with unified configuration.
+        
+        Args:
+            fork_table: Rich Table object to configure
+        """
+        config = ForkTableConfig
+        
+        fork_table.add_column(
+            "URL", 
+            style=config.COLUMN_STYLES['url'], 
+            min_width=config.COLUMN_WIDTHS['url']
+        )
+        fork_table.add_column(
+            "Stars", 
+            style=config.COLUMN_STYLES['stars'], 
+            justify="right", 
+            width=config.COLUMN_WIDTHS['stars']
+        )
+        fork_table.add_column(
+            "Forks", 
+            style=config.COLUMN_STYLES['forks'], 
+            justify="right", 
+            width=config.COLUMN_WIDTHS['forks']
+        )
+        fork_table.add_column(
+            "Commits", 
+            style=config.COLUMN_STYLES['commits'], 
+            justify="right", 
+            width=config.COLUMN_WIDTHS['commits']
+        )
+        fork_table.add_column(
+            "Last Push", 
+            style=config.COLUMN_STYLES['last_push'], 
+            width=config.COLUMN_WIDTHS['last_push']
+        )
+
+    def _calculate_commits_column_width_universal(
+        self, fork_data_list: list, show_commits: int
+    ) -> int:
+        """Calculate optimal width for Recent Commits column (universal version).
+        
+        Args:
+            fork_data_list: List of fork data objects
+            show_commits: Number of commits to show
+            
+        Returns:
+            Optimal column width
+        """
+        # Use existing calculation method but with universal data handling
+        min_width = ForkTableConfig.COLUMN_WIDTHS['recent_commits_base']
+        max_width = 70
+        
+        # For now, use a reasonable default based on show_commits
+        # This can be enhanced later with actual commit data analysis
+        base_width = 19  # Date and hash with spaces
+        estimated_message_width = min(40, 60 // max(1, show_commits))
+        commits_width = max(min_width, min(max_width, base_width + estimated_message_width))
+        
+        return commits_width
+
+    def _build_table_row(
+        self, 
+        fork_data, 
+        has_exact_counts: bool, 
+        commits_cache: dict, 
+        show_commits: int
+    ) -> list:
+        """Build table row data for a fork.
+        
+        Args:
+            fork_data: Fork data object
+            has_exact_counts: Whether exact commit counts are available
+            commits_cache: Cache of commit data
+            show_commits: Number of recent commits to show
+            
+        Returns:
+            List of formatted row data
+        """
+        # Get metrics (handle both data structures)
+        metrics = getattr(fork_data, 'metrics', fork_data)
+        
+        # Format URL
+        fork_url = self._format_fork_url(metrics.owner, metrics.name)
+        
+        # Format commit information using adaptive formatter
+        commits_display = CommitDataFormatter.format_commit_info(fork_data, has_exact_counts)
+        
+        # Format last push date
+        last_push = self._format_datetime(metrics.pushed_at)
+        
+        # Prepare row data
+        row_data = [
+            fork_url,
+            str(metrics.stargazers_count),
+            str(metrics.forks_count),
+            commits_display,
+            last_push,
+        ]
+        
+        # Add recent commits data from cache if requested
+        if show_commits > 0:
+            fork_key = f"{metrics.owner}/{metrics.name}"
+            recent_commits_text = commits_cache.get(
+                fork_key, "[dim]No commits available[/dim]"
+            )
+            row_data.append(recent_commits_text)
+        
+        return row_data
+
+    def _display_table_with_context(self, fork_table: Table, table_context: dict) -> None:
+        """Display table with consistent context and summary information.
+        
+        Args:
+            fork_table: Configured Rich Table object
+            table_context: Context information for display
+        """
+        owner = table_context['owner']
+        repo = table_context['repo']
+        has_exact_counts = table_context.get('has_exact_counts', False)
+        api_calls_made = table_context.get('api_calls_made', 0)
+        api_calls_saved = table_context.get('api_calls_saved', 0)
+        
+        # Display header
+        mode_name = "Detailed" if has_exact_counts else "Fork Data Summary"
+        self.console.print(f"\n[bold blue]{mode_name} for {owner}/{repo}[/bold blue]")
+        self.console.print("=" * 80)
+        
+        # Display the table
+        self.console.print(fork_table)
+        
+        # Display summary information
+        if has_exact_counts:
+            # Detailed mode summary
+            self._display_detailed_summary(table_context)
+        else:
+            # Standard mode summary (if qualification_result is available)
+            qualification_result = table_context.get('qualification_result')
+            if qualification_result:
+                self._display_standard_summary(qualification_result)
+
+    def _display_detailed_summary(self, table_context: dict) -> None:
+        """Display summary for detailed mode.
+        
+        Args:
+            table_context: Context information
+        """
+        api_calls_made = table_context.get('api_calls_made', 0)
+        api_calls_saved = table_context.get('api_calls_saved', 0)
+        
+        # Calculate summary statistics from the context if available
+        detailed_forks = table_context.get('fork_data_list', [])
+        
+        total_commits_ahead = sum(
+            fork.exact_commits_ahead
+            for fork in detailed_forks
+            if hasattr(fork, 'exact_commits_ahead') and isinstance(fork.exact_commits_ahead, int)
+        )
+        forks_with_commits = len(
+            [
+                fork
+                for fork in detailed_forks
+                if hasattr(fork, 'exact_commits_ahead') 
+                and isinstance(fork.exact_commits_ahead, int)
+                and fork.exact_commits_ahead > 0
+            ]
+        )
+        
+        self.console.print("\n[bold]Summary:[/bold]")
+        self.console.print(f"• {forks_with_commits} forks have commits ahead")
+        self.console.print(f"• {total_commits_ahead} total commits ahead across all forks")
+        self.console.print(f"• {api_calls_made} API calls made for exact commit counts")
+        
+        if api_calls_saved > 0:
+            self.console.print(f"• {api_calls_saved} API calls saved by smart filtering")
+            efficiency_percent = (api_calls_saved / (api_calls_made + api_calls_saved)) * 100
+            self.console.print(f"• {efficiency_percent:.1f}% API efficiency improvement")
+        
+        self.console.print("• Exact commit counts fetched using GitHub compare API")
+
+    def _display_standard_summary(self, qualification_result) -> None:
+        """Display summary for standard mode.
+        
+        Args:
+            qualification_result: QualifiedForksResult object
+        """
+        # Display summary statistics (existing logic from _display_fork_data_table)
+        stats = qualification_result.stats
+        
+        summary_table = Table(title="Collection Summary")
+        summary_table.add_column("Metric", style="cyan", width=25)
+        summary_table.add_column("Count", style="green", justify="right", width=10)
+        summary_table.add_column("Percentage", style="yellow", justify="right", width=12)
+
+        total = stats.total_forks_discovered
+        summary_table.add_row("Total Forks", str(total), "100.0%")
+        summary_table.add_row(
+            "Need Analysis",
+            str(stats.forks_with_commits),
+            f"{stats.analysis_candidate_percentage:.1f}%",
+        )
+        summary_table.add_row(
+            "Can Skip",
+            str(stats.forks_with_no_commits),
+            f"{stats.skip_rate_percentage:.1f}%",
+        )
+        summary_table.add_row(
+            "Archived",
+            str(stats.archived_forks),
+            f"{(stats.archived_forks/total*100) if total > 0 else 0:.1f}%",
+        )
+        summary_table.add_row(
+            "Disabled",
+            str(stats.disabled_forks),
+            f"{(stats.disabled_forks/total*100) if total > 0 else 0:.1f}%",
+        )
+
+        self.console.print(summary_table)
