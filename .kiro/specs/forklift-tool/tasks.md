@@ -80,7 +80,7 @@
   - Write comprehensive unit tests for timestamp analysis logic and confidence scoring
   - _Requirements: 1.5, 21.5, 21.4.2, 21.4.3_
 
-- [ ] 4.6.3 Create commit status classification system
+- [-] 4.6.3 Create commit status classification system
   - Implement CommitStatusClassifier to categorize forks based on timestamp analysis
   - Add status assignment logic with confidence thresholds
   - Create status update and persistence mechanisms
@@ -1080,7 +1080,7 @@
   - Write unit tests for simplified commits ahead display format
   - _Requirements: 21.4_
 
-- [-] 18.4 Remove redundant display sections
+- [x] 18.4 Remove redundant display sections
   - Remove "Language Distribution" table from fork data display
   - Remove "Fork Insights" section that duplicates Collection Summary information
   - Update _display_fork_data_table method to exclude redundant sections
