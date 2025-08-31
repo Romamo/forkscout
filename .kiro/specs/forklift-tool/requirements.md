@@ -601,3 +601,20 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 5. WHEN rendering tables THEN the system SHALL use consistent titles, headers, and styling regardless of the data source (pagination-only vs API-enhanced)
 6. WHEN showing additional information THEN summary statistics and insights SHALL be displayed consistently in both modes
 7. WHEN using --show-commits THEN the Recent Commits column SHALL have identical formatting and behavior in both standard and detailed modes
+
+### Requirement 24
+
+**User Story:** As a repository maintainer, I want improved fork sorting that prioritizes the most valuable forks first, so that I can quickly identify the most promising forks without scrolling through less relevant ones.
+
+#### Acceptance Criteria
+
+1. WHEN displaying forks THEN the system SHALL sort forks using a multi-level priority system that puts the most valuable forks first
+2. WHEN sorting forks THEN the system SHALL use the following priority order: (1) Commits ahead status (forks with commits first), (2) Stars count (descending), (3) Forks count (descending), (4) Last push date (most recent first)
+3. WHEN comparing commits ahead status THEN forks with "Has commits" SHALL be sorted before forks with "0 commits" or "No commits ahead"
+4. WHEN forks have the same commits ahead status THEN they SHALL be sorted by stars count in descending order (highest stars first)
+5. WHEN forks have the same commits ahead status and stars count THEN they SHALL be sorted by forks count in descending order (most forked first)
+6. WHEN forks have the same commits ahead status, stars count, and forks count THEN they SHALL be sorted by last push date in descending order (most recently active first)
+7. WHEN displaying sorted forks THEN the table title SHALL clearly indicate the sorting criteria being used
+8. WHEN sorting is applied THEN forks with unknown commit status SHALL be treated as potentially having commits and sorted with high priority
+9. WHEN sorting forks THEN the system SHALL handle edge cases gracefully including missing timestamps, null values, and identical metrics
+10. WHEN sorting large numbers of forks THEN the system SHALL maintain consistent sorting performance without degradation

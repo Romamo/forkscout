@@ -113,31 +113,36 @@ class TestEnhancedForkSorting:
             assert sorted_forks[i].metrics.commits_ahead_status == "No commits ahead", \
                 f"Fork at position {i} should not have commits"
 
-    def test_enhanced_sorting_forks_count_secondary(self, service, sample_fork_data):
-        """Test that within commits status groups, forks are sorted by forks count descending."""
+    def test_enhanced_sorting_stars_count_secondary(self, service, sample_fork_data):
+        """Test that within commits status groups, forks are sorted by stars count descending."""
         sorted_forks = service._sort_forks_enhanced(sample_fork_data)
 
-        # Among forks with commits (first 4), check forks count descending
+        # Among forks with commits (first 4), check stars count descending
         has_commits_forks = [f for f in sorted_forks if f.metrics.commits_ahead_status == "Has commits"]
 
         for i in range(len(has_commits_forks) - 1):
-            current_forks = has_commits_forks[i].metrics.forks_count
-            next_forks = has_commits_forks[i + 1].metrics.forks_count
-            assert current_forks >= next_forks, \
-                f"Fork {i} should have >= forks than fork {i+1} ({current_forks} vs {next_forks})"
+            current_stars = has_commits_forks[i].metrics.stargazers_count
+            next_stars = has_commits_forks[i + 1].metrics.stargazers_count
+            assert current_stars >= next_stars, \
+                f"Fork {i} should have >= stars than fork {i+1} ({current_stars} vs {next_stars})"
 
-    def test_enhanced_sorting_stars_count_tertiary(self, service, sample_fork_data):
-        """Test that forks with same forks count are sorted by stars count descending."""
+    def test_enhanced_sorting_forks_count_tertiary(self, service, sample_fork_data):
+        """Test that forks with same stars count are sorted by forks count descending."""
         sorted_forks = service._sort_forks_enhanced(sample_fork_data)
 
-        # Find forks with same forks count (metrics2 and metrics6 both have 30 forks)
+        # Find forks with same stars count (if any exist in test data)
         has_commits_forks = [f for f in sorted_forks if f.metrics.commits_ahead_status == "Has commits"]
 
-        # Among forks with 30 forks, the one with more stars should come first
-        forks_30_count = [f for f in has_commits_forks if f.metrics.forks_count == 30]
-        if len(forks_30_count) >= 2:
-            assert forks_30_count[0].metrics.stargazers_count >= forks_30_count[1].metrics.stargazers_count, \
-                "Fork with same forks count should be sorted by stars descending"
+        # Check that among forks with same stars, forks count is descending
+        # This is a general check since our test data doesn't have exact star matches
+        for i in range(len(has_commits_forks) - 1):
+            current_fork = has_commits_forks[i]
+            next_fork = has_commits_forks[i + 1]
+            
+            # If stars are equal, forks count should be descending
+            if current_fork.metrics.stargazers_count == next_fork.metrics.stargazers_count:
+                assert current_fork.metrics.forks_count >= next_fork.metrics.forks_count, \
+                    "Forks with same stars count should be sorted by forks count descending"
 
     def test_enhanced_sorting_last_push_quaternary(self, service, sample_fork_data):
         """Test that forks with same forks and stars are sorted by last push date descending."""
@@ -181,18 +186,19 @@ class TestEnhancedForkSorting:
         """Test the complete sorting order with all criteria."""
         sorted_forks = service._sort_forks_enhanced(sample_fork_data)
 
-        # Expected order based on multi-level sorting:
-        # 1. fork-high-all (has commits, 50 forks, 100 stars)
-        # 2. fork-medium-forks (has commits, 30 forks, 150 stars)
-        # 3. fork-same-forks-lower-stars (has commits, 30 forks, 120 stars)
-        # 4. fork-low-forks (has commits, 10 forks, 75 stars)
-        # 5. fork-no-commits-high (no commits, 80 forks, 200 stars)
-        # 6. fork-no-commits-medium (no commits, 25 forks, 50 stars)
+        # Expected order based on improved multi-level sorting:
+        # Priority: commits status, then stars (desc), then forks (desc), then activity (desc)
+        # 1. fork-medium-forks (has commits, 150 stars, 30 forks)
+        # 2. fork-same-forks-lower-stars (has commits, 120 stars, 30 forks)
+        # 3. fork-high-all (has commits, 100 stars, 50 forks)
+        # 4. fork-low-forks (has commits, 75 stars, 10 forks)
+        # 5. fork-no-commits-high (no commits, 200 stars, 80 forks)
+        # 6. fork-no-commits-medium (no commits, 50 stars, 25 forks)
 
         expected_names = [
-            "fork-high-all",
             "fork-medium-forks",
-            "fork-same-forks-lower-stars",
+            "fork-same-forks-lower-stars", 
+            "fork-high-all",
             "fork-low-forks",
             "fork-no-commits-high",
             "fork-no-commits-medium"

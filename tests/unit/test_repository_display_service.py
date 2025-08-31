@@ -2588,3 +2588,184 @@ class TestRepositoryDisplayService:
         assert ForkTableConfig.COLUMN_STYLES['forks'] == 'green'
         assert ForkTableConfig.COLUMN_STYLES['commits'] == 'magenta'
         assert ForkTableConfig.COLUMN_STYLES['last_push'] == 'blue'
+
+    def test_universal_fork_table_rendering_detailed_mode(self):
+        """Test universal fork table rendering in detailed mode (exact counts)."""
+        from unittest.mock import Mock, patch
+        from rich.table import Table
+        
+        # Create service
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Mock detailed fork data
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.owner = "test_owner"
+        mock_fork_data.metrics.name = "test_repo"
+        mock_fork_data.metrics.stargazers_count = 100
+        mock_fork_data.metrics.forks_count = 50
+        mock_fork_data.metrics.pushed_at = datetime.now(UTC)
+        mock_fork_data.exact_commits_ahead = 5
+        
+        fork_data_list = [mock_fork_data]
+        
+        # Patch Table to capture column configuration
+        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+            mock_table_instance = Mock()
+            mock_table_class.return_value = mock_table_instance
+            
+            # Call universal method in detailed mode
+            asyncio.run(service._display_fork_table(
+                fork_data_list,
+                "base_owner",
+                "base_repo",
+                table_title="Test Detailed Forks",
+                show_exact_counts=True,
+                show_commits=0,
+                show_insights=False
+            ))
+            
+            # Verify table columns were added with correct configuration
+            add_column_calls = mock_table_instance.add_column.call_args_list
+            
+            # Check column names and widths
+            expected_columns = [
+                ("URL", {"style": "cyan", "min_width": 35}),
+                ("Stars", {"style": "yellow", "justify": "right", "width": 8}),
+                ("Forks", {"style": "green", "justify": "right", "width": 8}),
+                ("Commits Ahead", {"style": "magenta", "justify": "right", "width": 15}),
+                ("Last Push", {"style": "blue", "width": 14})
+            ]
+            
+            assert len(add_column_calls) == len(expected_columns), f"Expected {len(expected_columns)} columns, got {len(add_column_calls)}"
+            
+            for i, (expected_name, expected_kwargs) in enumerate(expected_columns):
+                args, kwargs = add_column_calls[i]
+                assert args[0] == expected_name, f"Column {i}: expected '{expected_name}', got '{args[0]}'"
+                for key, value in expected_kwargs.items():
+                    assert kwargs.get(key) == value, f"Column {i} ({expected_name}): expected {key}={value}, got {kwargs.get(key)}"
+
+    def test_universal_fork_table_rendering_standard_mode(self):
+        """Test universal fork table rendering in standard mode (status text)."""
+        from unittest.mock import Mock, patch
+        from rich.table import Table
+        
+        # Create service
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Mock standard fork data
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.owner = "test_owner"
+        mock_fork_data.metrics.name = "test_repo"
+        mock_fork_data.metrics.stargazers_count = 100
+        mock_fork_data.metrics.forks_count = 50
+        mock_fork_data.metrics.pushed_at = datetime.now(UTC)
+        mock_fork_data.metrics.commits_ahead_status = "Has commits"
+        
+        fork_data_list = [mock_fork_data]
+        
+        # Patch Table to capture column configuration
+        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+            mock_table_instance = Mock()
+            mock_table_class.return_value = mock_table_instance
+            
+            # Call universal method in standard mode
+            asyncio.run(service._display_fork_table(
+                fork_data_list,
+                "base_owner",
+                "base_repo",
+                table_title="Test All Forks",
+                show_exact_counts=False,
+                show_commits=0,
+                show_insights=True
+            ))
+            
+            # Verify same column structure is used
+            add_column_calls = mock_table_instance.add_column.call_args_list
+            assert len(add_column_calls) == 5, "Should have 5 columns in standard mode"
+            
+            # Verify "Commits Ahead" column (not "Commits")
+            commits_column_call = add_column_calls[3]
+            args, kwargs = commits_column_call
+            assert args[0] == "Commits Ahead", "Should use 'Commits Ahead' column name in both modes"
+            assert kwargs.get('width') == 15, "Should use width 15 for Commits Ahead column"
+
+    def test_format_commits_display_exact_counts(self):
+        """Test _format_commits_display method with exact counts."""
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Test with exact commits ahead
+        mock_fork_data = Mock()
+        mock_fork_data.exact_commits_ahead = 5
+        
+        result = service._format_commits_display(mock_fork_data, show_exact_counts=True)
+        assert "[green]+5[/green]" in result
+        
+        # Test with zero commits ahead
+        mock_fork_data.exact_commits_ahead = 0
+        result = service._format_commits_display(mock_fork_data, show_exact_counts=True)
+        assert result == ""
+
+    def test_format_commits_display_status_text(self):
+        """Test _format_commits_display method with status text."""
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Test with "Has commits" status
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.commits_ahead_status = "Has commits"
+        
+        result = service._format_commits_display(mock_fork_data, show_exact_counts=False)
+        assert result == "Has commits"
+        
+        # Test with "No commits ahead" status
+        mock_fork_data.metrics.commits_ahead_status = "No commits ahead"
+        result = service._format_commits_display(mock_fork_data, show_exact_counts=False)
+        assert result == "0 commits"
+
+    def test_universal_fork_table_with_recent_commits(self):
+        """Test universal fork table rendering with Recent Commits column."""
+        from unittest.mock import Mock, patch, AsyncMock
+        from rich.table import Table
+        
+        # Create service
+        service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
+        
+        # Mock fork data
+        mock_fork_data = Mock()
+        mock_fork_data.metrics.owner = "test_owner"
+        mock_fork_data.metrics.name = "test_repo"
+        mock_fork_data.metrics.stargazers_count = 100
+        mock_fork_data.metrics.forks_count = 50
+        mock_fork_data.metrics.pushed_at = datetime.now(UTC)
+        mock_fork_data.exact_commits_ahead = 3
+        
+        fork_data_list = [mock_fork_data]
+        
+        # Mock commits cache
+        commits_cache = {"test_owner/test_repo": "Recent commit info"}
+        
+        # Patch methods
+        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+            with patch.object(service, '_fetch_commits_concurrently', new=AsyncMock(return_value=commits_cache)):
+                mock_table_instance = Mock()
+                mock_table_class.return_value = mock_table_instance
+                
+                # Call universal method with show_commits > 0
+                asyncio.run(service._display_fork_table(
+                    fork_data_list,
+                    "base_owner",
+                    "base_repo",
+                    table_title="Test Forks with Commits",
+                    show_exact_counts=True,
+                    show_commits=3,
+                    show_insights=False
+                ))
+                
+                # Verify Recent Commits column was added
+                add_column_calls = mock_table_instance.add_column.call_args_list
+                assert len(add_column_calls) == 6, "Should have 6 columns when show_commits > 0"
+                
+                # Check Recent Commits column
+                recent_commits_call = add_column_calls[5]
+                args, kwargs = recent_commits_call
+                assert args[0] == "Recent Commits"
+                assert kwargs.get('no_wrap') is True, "Recent Commits column should have no_wrap=True"

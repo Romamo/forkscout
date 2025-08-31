@@ -288,7 +288,7 @@
   - Write unit tests for table formatting with long commit messages
   - _Requirements: 22.11_
 
-- [ ] 8.3.3 Implement universal fork table rendering method
+- [x] 8.3.3 Implement universal fork table rendering method
   - Create unified `_render_fork_table` method that consolidates `_display_fork_data_table` and `_display_detailed_fork_table` functionality
   - Design flexible table configuration system that adapts column content based on available data (status vs exact commit counts)
   - Standardize column widths across both modes (URL: 35, Stars: 8, Forks: 8, Commits: 15, Last Push: 14, Recent Commits: dynamic)
@@ -299,6 +299,20 @@
   - Write comprehensive unit tests for universal rendering with various data scenarios
   - Write integration tests to verify consistent behavior across standard and detailed modes
   - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7_
+
+- [-] 8.3.4 Implement improved fork sorting algorithm
+  - Enhance `_sort_forks_enhanced` method to implement proper multi-level priority sorting
+  - Implement commits ahead status as primary sort key (forks with commits first, then forks without commits)
+  - Add stars count as secondary sort key (descending order - highest stars first)
+  - Add forks count as tertiary sort key (descending order - most forked first)  
+  - Add last push date as quaternary sort key (descending order - most recent first)
+  - Handle edge cases including unknown commit status, missing timestamps, and null values gracefully
+  - Treat forks with unknown commit status as potentially having commits (high priority)
+  - Update table title to clearly indicate the sorting criteria being used
+  - Optimize sorting performance for large numbers of forks without degradation
+  - Write comprehensive unit tests for multi-level sorting with various fork data scenarios
+  - Write integration tests to verify correct sorting behavior with real repository data
+  - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6, 24.7, 24.8, 24.9, 24.10_
 
 - [x] 8.4 Add promising forks and detailed fork analysis commands
   - Implement show-promising command with configurable filtering criteria
@@ -1482,7 +1496,7 @@
   - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.10_
 
 - [ ] 23. Implement ahead-only fork filtering for show-forks command
-- [-] 23.1 Create ahead-only filtering data models and core logic
+- [x] 23.1 Create ahead-only filtering data models and core logic
   - Implement AheadOnlyFilter class with filtering logic for forks with commits ahead
   - Create FilteredForkResult dataclass to track filtering results and statistics
   - Add AheadOnlyConfig model for filtering configuration options

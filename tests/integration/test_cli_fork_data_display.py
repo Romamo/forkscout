@@ -611,8 +611,8 @@ def test_repository_display_service_enhanced_sort_forks():
 
     fork_data = [
         CollectedForkData(metrics=metrics_no_commits),      # Should be last despite high stats
-        CollectedForkData(metrics=metrics_has_commits_low), # Should be second (lower forks)
-        CollectedForkData(metrics=metrics_has_commits_high) # Should be first (higher forks)
+        CollectedForkData(metrics=metrics_has_commits_low), # Should be first (higher stars)
+        CollectedForkData(metrics=metrics_has_commits_high) # Should be second (lower stars)
     ]
 
     service = RepositoryDisplayService(AsyncMock(), MagicMock())
@@ -620,11 +620,11 @@ def test_repository_display_service_enhanced_sort_forks():
     # Test enhanced sorting
     sorted_enhanced = service._sort_forks_enhanced(fork_data)
 
-    # Verify commits-first sorting
-    assert sorted_enhanced[0].metrics.name == "fork-has-commits-high", \
-        "Fork with commits and high forks should be first"
-    assert sorted_enhanced[1].metrics.name == "fork-has-commits-low", \
-        "Fork with commits and low forks should be second"
+    # Verify improved sorting: commits status, then stars, then forks, then activity
+    assert sorted_enhanced[0].metrics.name == "fork-has-commits-low", \
+        "Fork with commits and high stars should be first"
+    assert sorted_enhanced[1].metrics.name == "fork-has-commits-high", \
+        "Fork with commits and lower stars should be second"
     assert sorted_enhanced[2].metrics.name == "fork-no-commits", \
         "Fork without commits should be last despite high stats"
 

@@ -4,7 +4,7 @@ import asyncio
 import logging
 import sys
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass
 
 from rich.console import Console
@@ -899,7 +899,7 @@ class RepositoryDisplayService:
                 f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
             )
             fork_table = Table(
-                title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity){title_suffix}"
+                title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, stars, forks, activity){title_suffix}"
             )
             fork_table.add_column("URL", style="cyan", min_width=35)
             fork_table.add_column("Stars", style="yellow", justify="right", width=8)
@@ -1076,32 +1076,58 @@ class RepositoryDisplayService:
     def _sort_forks_enhanced(self, collected_forks: list) -> list:
         """Sort forks with enhanced multi-level sorting logic.
 
-        Implements commits-first sorting with multi-level criteria:
-        1. Commits status (has commits first, with compact format support)
-        2. Forks count (descending)
-        3. Stars count (descending)
+        Implements improved multi-level sorting with proper priority order:
+        1. Commits ahead status (forks with commits first)
+        2. Stars count (descending - highest stars first)
+        3. Forks count (descending - most forked first)
         4. Last push date (descending - most recent first)
 
         Args:
             collected_forks: List of CollectedForkData objects
 
         Returns:
-            Sorted list of forks with enhanced sorting criteria
+            Sorted list of forks with improved sorting criteria
         """
 
         def sort_key(fork_data):
-            """Multi-level sort key for enhanced fork sorting with compact commit format."""
+            """Multi-level sort key for improved fork sorting."""
             metrics = fork_data.metrics
 
-            # 1. Commits status - use compact format sorting logic
-            commits_sort_key = self._get_commits_sort_key(fork_data)
-            commits_ahead_priority = -commits_sort_key[0]  # Negate for descending order
+            # 1. Commits ahead status - primary sort criterion
+            # Use exact_commits_ahead if available, otherwise fall back to computed status
+            exact_commits = getattr(fork_data, 'exact_commits_ahead', None)
+            
+            if exact_commits is not None:
+                # Use exact commit information when available
+                if isinstance(exact_commits, int):
+                    if exact_commits > 0:
+                        commits_priority = 0  # Has commits - highest priority
+                    else:
+                        commits_priority = 1  # No commits - lower priority
+                elif exact_commits == "Unknown":
+                    commits_priority = 0  # Unknown - treat as potentially having commits
+                else:
+                    # String values like "No commits ahead" or "Has commits"
+                    if exact_commits in ["None", "No commits ahead"]:
+                        commits_priority = 1  # No commits
+                    else:
+                        commits_priority = 0  # Treat as having commits
+            else:
+                # Fall back to computed status from timestamps
+                commits_status = metrics.commits_ahead_status
+                if commits_status == "Has commits":
+                    commits_priority = 0  # Highest priority
+                elif commits_status == "No commits ahead":
+                    commits_priority = 1  # Lower priority
+                else:
+                    # Handle unknown/other statuses - treat as potentially having commits
+                    commits_priority = 0  # High priority for unknown status
 
-            # 2. Forks count (descending)
-            forks_count = metrics.forks_count
-
-            # 3. Stars count (descending)
+            # 2. Stars count (descending - highest stars first)
             stars_count = metrics.stargazers_count
+
+            # 3. Forks count (descending - most forked first)
+            forks_count = metrics.forks_count
 
             # 4. Last push date (descending - most recent first)
             # Use negative timestamp for descending order
@@ -1115,10 +1141,10 @@ class RepositoryDisplayService:
             # Note: Python sorts tuples lexicographically, so we need to negate
             # numeric values for descending order
             return (
-                commits_ahead_priority,  # Already negative for descending order
-                -forks_count,  # Negative for descending order
-                -stars_count,  # Negative for descending order
-                push_timestamp,  # Already negative for descending order
+                commits_priority,     # 0 for "Has commits", 1 for "No commits ahead"
+                -stars_count,        # Negative for descending order (highest stars first)
+                -forks_count,        # Negative for descending order (most forked first)
+                push_timestamp,      # Already negative for descending order (most recent first)
             )
 
         return sorted(collected_forks, key=sort_key)
@@ -1575,6 +1601,173 @@ class RepositoryDisplayService:
             )
             # Re-raise the exception so caller can handle it properly
             raise
+
+    async def _display_fork_table(
+        self,
+        fork_data_list: List[Any],
+        base_owner: str,
+        base_repo: str,
+        *,
+        table_title: str,
+        show_exact_counts: bool = False,
+        show_commits: int = 0,
+        show_insights: bool = False,
+        api_calls_made: int = 0,
+        api_calls_saved: int = 0,
+        force_all_commits: bool = False
+    ) -> None:
+        """Universal fork table rendering method.
+        
+        Args:
+            fork_data_list: List of fork data (CollectedForkData with optional exact_commits_ahead)
+            base_owner: Base repository owner
+            base_repo: Base repository name
+            table_title: Title to display above the table
+            show_exact_counts: Whether to show exact commit counts vs status text
+            show_commits: Number of recent commits to show (0 = none)
+            show_insights: Whether to show additional fork insights
+            api_calls_made: Number of API calls made (for summary)
+            api_calls_saved: Number of API calls saved (for summary)
+            force_all_commits: Whether all commits were forced to be fetched
+        """
+        if not fork_data_list:
+            self.console.print("[yellow]No forks found.[/yellow]")
+            return
+
+        # Display header
+        self.console.print(f"\n[bold blue]Detailed Fork Information for {base_owner}/{base_repo}[/bold blue]")
+        self.console.print("=" * 80)
+
+        # Create table with universal column configuration
+        fork_table = Table(show_header=True, header_style="bold magenta")
+        
+        # Standard columns with consistent widths
+        fork_table.add_column("URL", style="cyan", min_width=35)
+        fork_table.add_column("Stars", style="yellow", justify="right", width=8)
+        fork_table.add_column("Forks", style="green", justify="right", width=8)
+        fork_table.add_column("Commits Ahead", style="magenta", justify="right", width=15)
+        fork_table.add_column("Last Push", style="blue", width=14)
+
+        # Conditionally add Recent Commits column
+        commits_cache = {}
+        if show_commits > 0:
+            # Calculate intelligent width based on expected content
+            base_width = 19  # Date and hash with spaces
+            estimated_message_width = min(40, 60 // show_commits)
+            commits_width = max(30, min(70, base_width + estimated_message_width))
+            fork_table.add_column("Recent Commits", style="dim", width=commits_width, no_wrap=True)
+            
+            # Fetch commits concurrently if needed
+            commits_cache = await self._fetch_commits_concurrently(
+                fork_data_list, base_owner, base_repo, show_commits, force_all_commits
+            )
+
+        # Add rows to table
+        for fork_data in fork_data_list:
+            # Get metrics (works for both standard and detailed fork data)
+            metrics = getattr(fork_data, 'metrics', fork_data)
+            
+            # Format URL
+            fork_url = self._format_fork_url(metrics.owner, metrics.name)
+            
+            # Format commits display based on mode
+            commits_display = self._format_commits_display(fork_data, show_exact_counts)
+            
+            # Format last push date
+            last_push = self._format_datetime(metrics.pushed_at)
+            
+            # Prepare row data
+            row_data = [
+                fork_url,
+                str(metrics.stargazers_count),
+                str(metrics.forks_count),
+                commits_display,
+                last_push
+            ]
+            
+            # Add recent commits if requested
+            if show_commits > 0:
+                fork_key = f"{metrics.owner}/{metrics.name}"
+                recent_commits = commits_cache.get(fork_key, "")
+                row_data.append(recent_commits)
+            
+            fork_table.add_row(*row_data)
+
+        # Display table with title
+        self.console.print(f"\n[bold]{table_title}[/bold]")
+        self.console.print(fork_table)
+
+        # Display summary
+        self._display_fork_summary(fork_data_list, show_exact_counts, api_calls_made, api_calls_saved)
+        
+        # Display insights if requested
+        if show_insights:
+            await self._display_fork_insights(fork_data_list)
+
+    def _format_commits_display(self, fork_data, show_exact_counts: bool) -> str:
+        """Format commits display based on available data and display mode."""
+        if show_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+            # Use exact counts from compare API
+            if isinstance(fork_data.exact_commits_ahead, int):
+                if fork_data.exact_commits_ahead == 0:
+                    return ""
+                else:
+                    return f"[green]+{fork_data.exact_commits_ahead}[/green]"
+        else:
+            # Use status from timestamp analysis
+            metrics = getattr(fork_data, 'metrics', fork_data)
+            if hasattr(metrics, 'commits_ahead_status'):
+                status = metrics.commits_ahead_status
+                if status == "No commits ahead":
+                    return "0 commits"
+                elif status == "Has commits":
+                    return "Has commits"
+        return "Unknown"
+
+    def _display_fork_summary(self, fork_data_list, show_exact_counts: bool, api_calls_made: int, api_calls_saved: int) -> None:
+        """Display summary statistics for fork data."""
+        if show_exact_counts:
+            # Summary for detailed mode
+            forks_with_commits = sum(
+                1 for fork in fork_data_list 
+                if hasattr(fork, 'exact_commits_ahead') and 
+                isinstance(fork.exact_commits_ahead, int) and 
+                fork.exact_commits_ahead > 0
+            )
+            total_commits = sum(
+                fork.exact_commits_ahead for fork in fork_data_list 
+                if hasattr(fork, 'exact_commits_ahead') and 
+                isinstance(fork.exact_commits_ahead, int)
+            )
+            
+            self.console.print(f"\nSummary:")
+            self.console.print(f"• {forks_with_commits} forks have commits ahead")
+            self.console.print(f"• {total_commits} total commits ahead across all forks")
+            self.console.print(f"• {api_calls_made} API calls made for exact commit counts")
+            if api_calls_saved > 0:
+                self.console.print(f"• {api_calls_saved} API calls saved through optimization")
+            self.console.print("• Exact commit counts fetched using GitHub compare API")
+        else:
+            # Summary for standard mode
+            forks_with_commits = sum(
+                1 for fork in fork_data_list 
+                if hasattr(fork, 'metrics') and 
+                getattr(fork.metrics, 'commits_ahead_status', '') == "Has commits"
+            )
+            
+            self.console.print(f"\nSummary:")
+            self.console.print(f"• {len(fork_data_list)} forks displayed")
+            self.console.print(f"• {forks_with_commits} forks likely have commits ahead")
+            self.console.print("• Commit status determined by timestamp analysis")
+
+    async def _display_fork_insights(self, fork_data_list) -> None:
+        """Display additional fork insights and analysis."""
+        if not fork_data_list:
+            return
+            
+        # This method can be expanded to show additional insights
+        # For now, it's a placeholder that maintains compatibility
+        pass
 
     async def _display_detailed_fork_table(
         self,
@@ -2378,7 +2571,7 @@ class RepositoryDisplayService:
         if has_exact_counts:
             return f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts){title_suffix}"
         else:
-            return f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, forks, stars, activity){title_suffix}"
+            return f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, stars, forks, activity){title_suffix}"
 
     def _add_standard_columns(self, fork_table: Table) -> None:
         """Add standard columns with unified configuration.
