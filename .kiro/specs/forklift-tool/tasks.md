@@ -66,14 +66,14 @@
   - _Requirements: 1.4, 1.5_
 
 - [ ] 4.6 Implement comprehensive commits ahead detection system
-- [ ] 4.6.1 Create commits ahead detection data models
+- [x] 4.6.1 Create commits ahead detection data models
   - Implement CommitStatus enum with values: HAS_COMMITS, NO_COMMITS, UNKNOWN, VERIFIED_AHEAD, VERIFIED_NONE
   - Create ForkQualification dataclass with fork metadata, commit status, confidence score, and verification details
   - Add CommitDetectionResult dataclass for tracking analysis results and performance metrics
   - Write unit tests for all data models including serialization and validation
   - _Requirements: 1.2, 1.5, 21.5_
 
-- [ ] 4.6.2 Build timestamp-based heuristic engine
+- [-] 4.6.2 Build timestamp-based heuristic engine
   - Implement TimestampAnalyzer class to compare created_at and pushed_at timestamps
   - Add confidence scoring based on timestamp differences and data quality
   - Create edge case handling for same timestamps, missing data, and timezone issues
