@@ -1383,7 +1383,7 @@
   - Write integration tests for optimized commit fetching with real GitHub data
   - _Requirements: 22.5, 22.8_
 
-- [-] 22.4 Improve Recent Commits column formatting and display
+- [x] 22.4 Improve Recent Commits column formatting and display
   - Design clear, scannable format for commit date, hash, and message display in table columns
   - Implement proper column width management to accommodate date and message information
   - Add chronological ordering of commits (newest first) within the specified limit
