@@ -1549,7 +1549,7 @@
   - _Requirements: 25.1, 25.2, 25.3_
 
 - [ ] 25. Implement automatic interactive mode detection system
-- [-] 25.1 Create terminal and environment detection components
+- [x] 25.1 Create terminal and environment detection components
   - Implement TerminalDetector class with TTY status checking for stdin, stdout, stderr
   - Create EnvironmentDetector class to identify CI/automation environments using common environment variables
   - Add terminal size detection and capability checking methods
@@ -1557,7 +1557,7 @@
   - Write unit tests for all detection methods with mocked system states
   - _Requirements: 22.1, 22.2, 22.3, 22.9_
 
-- [ ] 25.2 Build interactive mode classification system
+- [-] 25.2 Build interactive mode classification system
   - Create InteractionMode enum with FULLY_INTERACTIVE, OUTPUT_REDIRECTED, INPUT_REDIRECTED, NON_INTERACTIVE, PIPED modes
   - Implement InteractiveModeDetector class that combines terminal and environment detection
   - Add mode detection logic with priority-based decision making (CI environment > TTY status)
