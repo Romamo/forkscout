@@ -326,7 +326,30 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 #### Acceptance Criteria
 
 1. WHEN discovering forks THEN the system SHALL use only the paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) to collect all available fork data without making individual repository API calls
-2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, archived, disabled, fork, topics
+2. WHEN processing forks list pages THEN the system SHALL extract all available metrics from each fork object including stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, open_issues_count, archived, disabled, and topics
+3. WHEN using --show-commits flag THEN the system SHALL skip commit fetching for forks identified as having no commits ahead using created_at >= pushed_at comparison
+4. WHEN commits ahead status cannot be determined THEN the system SHALL err on the side of inclusion and fetch commits for analysis
+5. WHEN displaying fork information THEN the system SHALL show "No commits ahead" for filtered forks and actual commit counts for analyzed forks
+6. WHEN --force flag is provided THEN the system SHALL bypass commit filtering and fetch commits for all forks regardless of status
+7. WHEN filtering saves API calls THEN the system SHALL log the number of API calls saved and performance improvement achieved
+8. WHEN using optimized show-forks THEN the system SHALL maintain the same output format and information quality as non-optimized mode
+
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want automatic interactive mode detection that disables progress bars when output is redirected, so that I get clean text output for scripting and automation without needing manual flags.
+
+#### Acceptance Criteria
+
+1. WHEN running any forklift command THEN the system SHALL automatically detect if output is being redirected or piped
+2. WHEN stdout is redirected (e.g., `forklift analyze repo > output.txt`) THEN the system SHALL automatically disable progress bars and rich formatting
+3. WHEN running in a non-TTY environment THEN the system SHALL use plain text output without progress indicators
+4. WHEN running in CI/automation environments THEN the system SHALL detect common CI environment variables and disable interactive features
+5. WHEN stdin and stdout are both connected to a terminal THEN the system SHALL enable full interactive mode with progress bars and rich formatting
+6. WHEN only stdout is redirected but stderr is still a TTY THEN the system SHALL send progress information to stderr while keeping data output clean on stdout
+7. WHEN interactive mode is disabled THEN the system SHALL use simple text status messages instead of progress bars
+8. WHEN interactive mode is disabled THEN the system SHALL automatically proceed with default options instead of prompting for user input
+9. WHEN the system detects interactive mode THEN it SHALL log the detection result for debugging purposes
+10. WHEN running commands in different environments THEN the system SHALL maintain consistent functionality regardless of interactive mode statusn_issues_count, archived, disabled, fork, topics
 3. WHEN using --show-commits flag THEN the system SHALL optimize by skipping commit downloads for forks with no commits ahead (created_at >= pushed_at)
 4. WHEN --force-all-commits flag is provided THEN the system SHALL bypass optimization and download commits for all forks regardless of commits ahead status
 5. WHEN displaying forks with --show-commits THEN the system SHALL show recent commits in a dedicated column with commit date, hash, and message
@@ -351,26 +374,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 7. WHEN --ahead-only filtering is applied THEN the system SHALL show filtering statistics including number of private forks excluded and forks with no commits excluded
 8. WHEN using --ahead-only with --detail THEN the system SHALL fetch exact commit counts only for the filtered ahead-only forks
 9. WHEN --ahead-only is used with --show-commits THEN the system SHALL display recent commits only for forks that have commits ahead
-10. WHEN --ahead-only filtering results in a small number of forks THEN the system SHALL display all qualifying forks without additional pagination limitsn_issues_count, topics, watchers_count, archived, and disabled
-
-### Requirement 22
-
-**User Story:** As a repository maintainer, I want to disable progress bars and visual indicators when running forklift commands, so that I can get clean text output suitable for scripting, logging, or environments where progress bars don't display properly.
-
-#### Acceptance Criteria
-
-1. WHEN I run any forklift command with `--no-progressbar` flag THEN the system SHALL disable all Rich progress bars, spinners, and visual progress indicators
-2. WHEN --no-progressbar is specified THEN the system SHALL output simple text messages instead of progress bars for long-running operations
-3. WHEN progress bars are disabled THEN the system SHALL still provide status updates using plain text messages at key milestones
-4. WHEN --no-progressbar is used THEN the system SHALL maintain all functionality while providing text-only feedback
-5. WHEN progress bars are disabled THEN the system SHALL ensure output is suitable for redirection to files or piping to other commands
-6. WHEN using --no-progressbar with any command THEN the system SHALL work consistently across all CLI commands (analyze, show-forks, show-commits, etc.)
-7. WHEN progress bars are disabled THEN the system SHALL use simple console.print() statements instead of Rich progress components
-8. WHEN --no-progressbar is specified THEN the system SHALL disable Rich console features that may interfere with plain text output
-9. WHEN running in environments with limited terminal capabilities THEN the system SHALL automatically detect and disable progress bars
-10. WHEN --no-progressbar is combined with other flags THEN the system SHALL respect the no-progress setting while maintaining all other functionalityled status
-3. WHEN collecting fork data THEN the system SHALL organize and present all information without scoring or automatic filtering, allowing users to make their own decisions
-4. WHEN analyzing fork activity patterns THEN the system SHALL calculate and display activity metrics like days since creation, days since last update, days since
+10. WHEN --ahead-only filtering results in a small number of forks THEN the system SHALL display all qualifying forks without additional pagination limits
 
 ### Requirement 21
 

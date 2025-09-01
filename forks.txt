@@ -1,0 +1,46 @@
+Filtered 37 forks: 19 included, 0 private excluded, 18 no commits excluded
+  Fetching exact commit counts... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%
+
+Detailed for sanila2007/youtube-bot-telegram
+================================================================================
+                                         Detailed Forks (19 active forks with exact commit counts) (showing 2 recent commits)                                         
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ URL                                                   ┃    Stars ┃    Forks ┃         Commits ┃ Last Push      ┃ Recent Commits                                    ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ https://github.com/MDAltantawy/youtube-bot-telegram   │        0 │        0 │              +1 │ 7 months ago   │ 2025-01-28 ee4cda1 Update README.md               │
+│                                                       │          │          │                 │                │ 2025-01-28 e159ada Update README.md               │
+│ https://github.com/XXF91/youtube-bot-telegram         │        0 │        0 │              +1 │ 8 months ago   │ 2024-12-15 3496d91 Update config.py               │
+│                                                       │          │          │                 │                │ 2024-12-15 4a1045e Update config.py               │
+│ https://github.com/RvC12345/youtube-bot-telegram      │        0 │        0 │              +1 │ 9 months ago   │ 2024-11-10 e4e2d53 Update requirements.txt        │
+│                                                       │          │          │                 │                │ 2024-11-10 47b8828 Update config.py               │
+│ https://github.com/Hetlr88/youtube-bot-telegram       │        0 │        0 │              +1 │ 1 year ago     │ 2024-08-25 d9dbb5c Create Dockerfile              │
+│                                                       │          │          │                 │                │ 2024-08-25 11edb60 Update config.py               │
+│ https://github.com/ramanj2266/youtube-bot-telegram    │        0 │        0 │              +1 │ 1 year ago     │ 2024-04-26 0b29e50 Update _yt_playlist.py         │
+│ https://github.com/KINGSKR/youtube-bot-telegram       │        0 │        1 │              +1 │ 1 year ago     │ 2024-04-24 9938d92 Update app.json                │
+│                                                       │          │          │                 │                │ 2024-04-24 520669d Update config.py               │
+│ https://github.com/yahyabassa/youtube-bot-telegram    │        0 │        0 │              +1 │ 1 year ago     │ 2024-01-04 4599e21 Update requirements.txt        │
+│                                                       │          │          │                 │                │ 2024-01-04 35d803a Update requirements.txt        │
+│ https://github.com/mahcopration/youtube-bot-telegram  │        0 │        0 │              +1 │ 1 year ago     │ 2023-12-04 b86c39b Update README.md               │
+│ https://github.com/AnonymousX0408/youtubebottelegram  │        0 │        0 │              +1 │ 1 year ago     │ 2023-10-28 c516925 Update README.md               │
+│ https://github.com/Shivamvermaaa/youtube-bot-telegram │        0 │        0 │              +1 │ 2 years ago    │ 2023-06-26 7717c15 Create app.py                  │
+│                                                       │          │          │                 │                │ 2023-06-26 18f6593 Update requirements.txt        │
+│ https://github.com/Xelio/tg-youtube-bot-docker        │        0 │        0 │              +1 │ 2 years ago    │ 2023-06-19 3d76b95 Add Dockerfile                 │
+│                                                       │          │          │                 │                │ 2023-06-19 0459d28 Add moviepy and TgCrypto...    │
+│ https://github.com/hshdeujd/YouTube_bot_telegramhh    │        0 │        0 │              +1 │ 2 years ago    │ 2023-03-13 3a60809 Update README.md               │
+│ https://github.com/GreatBots/YouTube_bot_telegram     │        0 │        1 │              +1 │ 2 years ago    │ 2023-03-03 79e6134 Update README.md               │
+│                                                       │          │          │                 │                │ 2023-03-03 e38848a Update _start.py               │
+│ https://github.com/onxen/YouTube_bot_telegram         │        0 │        0 │              +1 │ 2 years ago    │ 2023-01-20 a5be56c Update requirements.txt        │
+│                                                       │          │          │                 │                │ 2023-01-20 3cd0a1c Update config.py               │
+│ https://github.com/sholoomail/YouTube_bot_telegram    │        0 │        0 │              +1 │ 2 years ago    │ 2022-12-27 47ce9ba Update render.yaml             │
+│                                                       │          │          │                 │                │ 2022-12-27 0ea782d Create render.yaml             │
+│ https://github.com/KrishaVV44/youtube-bot-telegram    │        0 │        0 │                 │ 1 year ago     │ No commits                                        │
+│ https://github.com/koniya113/youtube-bot-telegram     │        0 │        0 │         Unknown │ 2 years ago    │ No commits                                        │
+│ https://github.com/oshada12345/youtube-bot-telegram   │        0 │        0 │         Unknown │ 2 years ago    │ No commits                                        │
+│ https://github.com/ananth-28/YouTube_bot_telegram     │        0 │        0 │         Unknown │ 2 years ago    │ No commits                                        │
+└───────────────────────────────────────────────────────┴──────────┴──────────┴─────────────────┴────────────────┴───────────────────────────────────────────────────┘
+
+Summary:
+• 15 forks have commits ahead
+• 15 total commits ahead across all forks
+• 33 API calls made for exact commit counts
+• Exact commit counts fetched using GitHub compare API

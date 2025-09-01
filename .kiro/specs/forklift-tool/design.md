@@ -598,16 +598,173 @@ The detailed commit view (`--detail` flag) is designed to provide comprehensive 
 6. **Display Results**: Format AI summaries with clear visual distinction from standard explanations
 7. **Track Usage**: Monitor API usage and costs for transparency
 
-## Progress Bar Control System Design Philosophy
+## Interactive Mode Detection System Design Philosophy
 
-The progress bar control system is designed to provide flexible output modes that accommodate different usage scenarios, from interactive terminal use to automated scripting and logging environments. The system prioritizes clean, parseable output when progress bars are disabled while maintaining full functionality.
+The interactive mode detection system automatically determines the appropriate output mode based on the execution environment, eliminating the need for manual flags while ensuring optimal user experience in both interactive and automated scenarios.
+
+### Interactive Mode Detection Design Principles
+
+- **Automatic Detection**: Detect terminal capabilities and execution context without user intervention
+- **Environment Awareness**: Recognize CI/automation environments, output redirection, and piping scenarios
+- **Clean Output Guarantee**: Ensure redirected output is always clean and parseable for automation
+- **Progressive Enhancement**: Provide rich interactive features when available, graceful degradation when not
+- **Zero Configuration**: Work optimally out-of-the-box without requiring user configuration
+- **Consistent Behavior**: Maintain identical functionality across all execution modes
+
+### Interactive Mode Detection Architecture
+
+```mermaid
+graph TD
+    A[CLI Command Start] --> B[InteractiveModeDetector]
+    B --> C[Check TTY Status]
+    C --> D[Check CI Environment]
+    D --> E[Check Output Redirection]
+    E --> F[Determine Mode]
+    
+    F --> G{Mode Type}
+    G -->|Interactive| H[RichProgressReporter]
+    G -->|Output Redirected| I[StderrProgressReporter]
+    G -->|Non-Interactive| J[PlainTextReporter]
+    
+    H --> K[Rich Progress Bars]
+    I --> L[Progress to stderr, Data to stdout]
+    J --> M[Simple Text Messages]
+    
+    N[Progress Events] --> O[Active Reporter]
+    O --> P[Appropriate Output Stream]
+```
+
+### Detection Logic Components
+
+#### 1. Terminal Detection Engine
+```python
+class TerminalDetector:
+    """Detect terminal capabilities and connection status."""
+    
+    @staticmethod
+    def is_stdin_tty() -> bool:
+        """Check if stdin is connected to a terminal."""
+        return sys.stdin.isatty()
+    
+    @staticmethod
+    def is_stdout_tty() -> bool:
+        """Check if stdout is connected to a terminal."""
+        return sys.stdout.isatty()
+    
+    @staticmethod
+    def is_stderr_tty() -> bool:
+        """Check if stderr is connected to a terminal."""
+        return sys.stderr.isatty()
+    
+    @staticmethod
+    def get_terminal_size() -> Optional[Tuple[int, int]]:
+        """Get terminal dimensions if available."""
+        try:
+            size = os.get_terminal_size()
+            return (size.columns, size.lines)
+        except OSError:
+            return None
+```
+
+#### 2. Environment Detection Engine
+```python
+class EnvironmentDetector:
+    """Detect execution environment characteristics."""
+    
+    CI_ENVIRONMENT_VARS = [
+        'CI', 'CONTINUOUS_INTEGRATION', 'BUILD_NUMBER',
+        'GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL',
+        'TRAVIS', 'CIRCLECI', 'BUILDKITE', 'TF_BUILD'
+    ]
+    
+    @classmethod
+    def is_ci_environment(cls) -> bool:
+        """Check if running in CI/automation environment."""
+        return any(os.getenv(var) for var in cls.CI_ENVIRONMENT_VARS)
+    
+    @staticmethod
+    def is_docker_container() -> bool:
+        """Check if running inside Docker container."""
+        return os.path.exists('/.dockerenv') or os.getenv('DOCKER_CONTAINER') == 'true'
+    
+    @staticmethod
+    def get_parent_process() -> Optional[str]:
+        """Get parent process name for context."""
+        try:
+            import psutil
+            return psutil.Process(os.getppid()).name()
+        except (ImportError, psutil.Error):
+            return None
+```
+
+#### 3. Interactive Mode Classifier
+```python
+from enum import Enum
+
+class InteractionMode(Enum):
+    FULLY_INTERACTIVE = "fully_interactive"      # Terminal, no redirection
+    OUTPUT_REDIRECTED = "output_redirected"      # stdout redirected, stderr TTY
+    INPUT_REDIRECTED = "input_redirected"        # stdin redirected, stdout TTY
+    NON_INTERACTIVE = "non_interactive"          # No TTY or CI environment
+    PIPED = "piped"                             # Output piped to another command
+
+class InteractiveModeDetector:
+    """Central detector for determining interaction mode."""
+    
+    def __init__(self):
+        self.terminal_detector = TerminalDetector()
+        self.env_detector = EnvironmentDetector()
+        self._cached_mode: Optional[InteractionMode] = None
+    
+    def detect_mode(self, force_refresh: bool = False) -> InteractionMode:
+        """Detect the current interaction mode."""
+        if self._cached_mode is not None and not force_refresh:
+            return self._cached_mode
+        
+        # Priority 1: CI/automation environment
+        if self.env_detector.is_ci_environment():
+            self._cached_mode = InteractionMode.NON_INTERACTIVE
+            return self._cached_mode
+        
+        # Priority 2: TTY status analysis
+        stdin_tty = self.terminal_detector.is_stdin_tty()
+        stdout_tty = self.terminal_detector.is_stdout_tty()
+        stderr_tty = self.terminal_detector.is_stderr_tty()
+        
+        if stdin_tty and stdout_tty and stderr_tty:
+            self._cached_mode = InteractionMode.FULLY_INTERACTIVE
+        elif stdin_tty and stderr_tty and not stdout_tty:
+            self._cached_mode = InteractionMode.OUTPUT_REDIRECTED
+        elif stdout_tty and stderr_tty and not stdin_tty:
+            self._cached_mode = InteractionMode.INPUT_REDIRECTED
+        else:
+            self._cached_mode = InteractionMode.NON_INTERACTIVE
+        
+        return self._cached_mode
+    
+    def should_show_progress_bars(self) -> bool:
+        """Determine if progress bars should be displayed."""
+        mode = self.detect_mode()
+        return mode in [InteractionMode.FULLY_INTERACTIVE, InteractionMode.INPUT_REDIRECTED]
+    
+    def should_prompt_user(self) -> bool:
+        """Determine if user prompts are appropriate."""
+        mode = self.detect_mode()
+        return mode in [InteractionMode.FULLY_INTERACTIVE, InteractionMode.OUTPUT_REDIRECTED]
+    
+    def get_progress_stream(self) -> TextIO:
+        """Get appropriate stream for progress information."""
+        mode = self.detect_mode()
+        if mode == InteractionMode.OUTPUT_REDIRECTED:
+            return sys.stderr  # Progress to stderr when stdout is redirected
+        return sys.stdout
+```
 
 ### Progress Bar Control Design Principles
 
 - **Environment Adaptability**: Automatically detect terminal capabilities and adjust output accordingly
 - **Scripting Compatibility**: Provide clean text output suitable for redirection, piping, and automated processing
 - **Consistent Behavior**: Maintain identical functionality regardless of progress display mode
-- **User Control**: Allow explicit control over progress display through command-line flags
 - **Graceful Fallback**: Seamlessly switch between rich visual indicators and plain text messages
 - **Information Preservation**: Ensure all important status information is communicated in both modes
 
@@ -615,51 +772,55 @@ The progress bar control system is designed to provide flexible output modes tha
 
 ```mermaid
 graph TD
-    A[CLI Command] --> B[ProgressBarController]
-    B --> C{--no-progressbar flag?}
-    C -->|Yes| D[PlainTextProgressReporter]
-    C -->|No| E{Terminal Capabilities?}
-    E -->|Limited| D
-    E -->|Full| F[RichProgressReporter]
+    A[CLI Command Start] --> B[InteractiveModeDetector]
+    B --> C[Check TTY Status]
+    C --> D[Check CI Environment]
+    D --> E[Check Output Redirection]
+    E --> F[Determine Mode]
     
-    D --> G[Simple Text Messages]
-    F --> H[Rich Progress Bars]
+    F --> G{Mode Type}
+    G -->|Interactive| H[RichProgressReporter]
+    G -->|Output Redirected| I[StderrProgressReporter]
+    G -->|Non-Interactive| J[PlainTextReporter]
     
-    I[Progress Events] --> B
-    J[Status Updates] --> B
-    K[Completion Events] --> B
+    H --> K[Rich Progress Bars]
+    I --> L[Progress to stderr, Data to stdout]
+    J --> M[Simple Text Messages]
     
-    G --> L[Console Output]
-    H --> L
+    N[Progress Events] --> O[Active Reporter]
+    O --> P[Appropriate Output Stream]
 ```
 
 ### Component Design
 
-#### ProgressBarController
+#### Progress Reporter Controller
 
 ```python
-class ProgressBarController:
-    """Central controller for managing progress display modes."""
+class ProgressReporterController:
+    """Central controller for managing progress display based on detected interaction mode."""
     
-    def __init__(self, disable_progress: bool = False, auto_detect: bool = True):
-        self.disable_progress = disable_progress
-        self.auto_detect = auto_detect
+    def __init__(self):
+        self.mode_detector = InteractiveModeDetector()
         self.reporter = self._create_reporter()
     
     def _create_reporter(self) -> ProgressReporter:
-        """Create appropriate progress reporter based on settings and environment."""
-        if self.disable_progress:
-            return PlainTextProgressReporter()
+        """Create appropriate progress reporter based on detected interaction mode."""
+        mode = self.mode_detector.detect_mode()
         
-        if self.auto_detect and not self._has_rich_terminal_support():
+        if mode == InteractionMode.FULLY_INTERACTIVE:
+            return RichProgressReporter()
+        elif mode == InteractionMode.OUTPUT_REDIRECTED:
+            return StderrProgressReporter()
+        else:
             return PlainTextProgressReporter()
-        
-        return RichProgressReporter()
     
-    def _has_rich_terminal_support(self) -> bool:
-        """Detect if terminal supports Rich formatting."""
-        # Check for CI environments, redirected output, etc.
-        pass
+    def should_show_progress_bars(self) -> bool:
+        """Determine if progress bars should be displayed."""
+        return self.mode_detector.should_show_progress_bars()
+    
+    def should_prompt_user(self) -> bool:
+        """Determine if user prompts are appropriate."""
+        return self.mode_detector.should_prompt_user()
 ```
 
 #### Progress Reporter Interface
@@ -809,21 +970,21 @@ class RichProgressReporter(ProgressReporter):
 
 #### CLI Command Integration
 
-All CLI commands will be updated to support the `--no-progressbar` flag:
+All CLI commands will automatically detect interaction mode and configure appropriate progress reporting:
 
 ```python
 @cli.command()
 @click.argument("repository_url")
-@click.option("--no-progressbar", is_flag=True, help="Disable progress bars and use plain text output")
 @click.pass_context
-def analyze(ctx: click.Context, repository_url: str, no_progressbar: bool) -> None:
-    """Analyze repository with optional progress bar control."""
+def analyze(ctx: click.Context, repository_url: str) -> None:
+    """Analyze repository with automatic progress mode detection."""
     
-    # Create progress controller
-    progress_controller = ProgressBarController(
-        disable_progress=no_progressbar,
-        auto_detect=True
-    )
+    # Create progress controller with automatic detection
+    progress_controller = ProgressReporterController()
+    
+    # Log detected mode for debugging
+    mode = progress_controller.mode_detector.detect_mode()
+    logger.debug(f"Detected interaction mode: {mode.value}")
     
     # Pass to analysis services
     await run_analysis(repository_url, progress_controller)
@@ -835,7 +996,7 @@ Services will accept and use the progress controller:
 
 ```python
 class ForkDiscoveryService:
-    def __init__(self, github_client: GitHubClient, progress_controller: ProgressBarController):
+    def __init__(self, github_client: GitHubClient, progress_controller: ProgressReporterController):
         self.github_client = github_client
         self.progress = progress_controller.reporter
     

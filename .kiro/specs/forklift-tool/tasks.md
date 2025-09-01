@@ -73,7 +73,7 @@
   - Measure and document performance improvement (target: 60-80% reduction in API calls for typical repositories)
   - _Requirements: 1.4, 1.5_
 
-- [ ] 4.5 Implement unified comprehensive fork data collection system
+- [x] 4.5 Implement unified comprehensive fork data collection system
   - Create ForkDataCollectionEngine that consolidates all fork data gathering operations
   - Use only paginated forks list endpoint (`/repos/{owner}/{repo}/forks?per_page=100&page=N`) for comprehensive data collection
   - Extract all available metrics from fork objects: stargazers_count, forks_count, size, language, created_at, updated_at, pushed_at, topics, etc.
@@ -563,17 +563,7 @@
   - Write integration tests with repositories having thousands of forks
   - _Requirements: 14.1, 14.2, 14.6, 14.7_
 
-- [ ] 13.10 Implement --no-progressbar option for clean text output
-  - Add --no-progressbar flag to all CLI commands (analyze, show-forks, show-commits, list-forks, etc.)
-  - Create ProgressBarController class to manage progress display modes (rich vs plain text)
-  - Modify all Rich progress bars, spinners, and visual indicators to respect the --no-progressbar flag
-  - Implement plain text progress messages as fallback for disabled progress bars
-  - Update CLI command handlers to pass progress bar preference to underlying services
-  - Add automatic detection of limited terminal capabilities to disable progress bars when needed
-  - Ensure output is suitable for redirection, piping, and scripting when progress bars are disabled
-  - Write unit tests for progress bar control and plain text output modes
-  - Write integration tests to verify --no-progressbar works across all commands
-  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
+
 
 - [x] 14. Add interactive mode to analyze command with user confirmation stops
 - [x] 14.1 Create interactive analysis orchestrator
@@ -1550,10 +1540,55 @@
   - Write end-to-end tests for complete ahead-only filtering workflow
   - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
 
-- [-] 24. Optimize get_commits_ahead method to eliminate redundant parent repository fetching
+- [x] 24. Optimize get_commits_ahead method to eliminate redundant parent repository fetching
   - Add simple in-memory cache to GitHubClient for parent repository data (repository info + default branch)
   - Modify get_commits_ahead method to check cache before calling get_repository(parent_owner, parent_repo)
   - Cache parent repository data on first fetch and reuse for subsequent fork comparisons
   - Add logging to track API call savings when using cached parent data
   - Write unit tests for caching behavior and API call reduction
   - _Requirements: 25.1, 25.2, 25.3_
+
+- [ ] 25. Implement automatic interactive mode detection system
+- [-] 25.1 Create terminal and environment detection components
+  - Implement TerminalDetector class with TTY status checking for stdin, stdout, stderr
+  - Create EnvironmentDetector class to identify CI/automation environments using common environment variables
+  - Add terminal size detection and capability checking methods
+  - Implement parent process detection for additional context
+  - Write unit tests for all detection methods with mocked system states
+  - _Requirements: 22.1, 22.2, 22.3, 22.9_
+
+- [ ] 25.2 Build interactive mode classification system
+  - Create InteractionMode enum with FULLY_INTERACTIVE, OUTPUT_REDIRECTED, INPUT_REDIRECTED, NON_INTERACTIVE, PIPED modes
+  - Implement InteractiveModeDetector class that combines terminal and environment detection
+  - Add mode detection logic with priority-based decision making (CI environment > TTY status)
+  - Create caching mechanism for detected mode to avoid repeated system calls
+  - Add helper methods for progress bar and user prompt decisions
+  - Write unit tests for mode classification with various system configurations
+  - _Requirements: 22.1, 22.2, 22.4, 22.5, 22.6_
+
+- [ ] 25.3 Create adaptive progress reporting system
+  - Implement ProgressReporter interface with start_operation, update_progress, complete_operation methods
+  - Create RichProgressReporter for fully interactive mode with rich progress bars
+  - Implement PlainTextProgressReporter for non-interactive mode with simple text messages
+  - Create StderrProgressReporter for output-redirected mode (progress to stderr, data to stdout)
+  - Add automatic reporter selection based on detected interaction mode
+  - Write unit tests for all progress reporter implementations
+  - _Requirements: 22.6, 22.7, 22.8_
+
+- [ ] 25.4 Integrate interactive mode detection with CLI commands
+  - Update CLI initialization to detect interaction mode and configure appropriate progress reporting
+  - Modify all commands to use adaptive progress reporting instead of fixed progress bars
+  - Update user prompt handling to respect interaction mode (auto-proceed in non-interactive)
+  - Add logging of detected interaction mode for debugging purposes
+  - Ensure consistent behavior across all CLI commands (analyze, show-forks, show-commits, etc.)
+  - Write integration tests for CLI commands in different interaction modes
+  - _Requirements: 22.1, 22.8, 22.9, 22.10_
+
+- [ ] 25.5 Add comprehensive testing for interactive mode detection
+  - Write unit tests for terminal detection with mocked TTY states
+  - Create tests for environment detection with various CI environment variables
+  - Add integration tests for mode detection in different execution scenarios
+  - Implement tests for progress reporting adaptation based on detected mode
+  - Create end-to-end tests for output redirection scenarios (> file, | pipe)
+  - Write tests for CI environment behavior and automation compatibility
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_

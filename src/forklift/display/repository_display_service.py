@@ -1343,14 +1343,14 @@ class RepositoryDisplayService:
             if ahead_only:
                 ahead_only_filter = create_default_ahead_only_filter()
                 # Convert collected fork data to Repository objects for filtering
-                repositories = [fork.repository for fork in filtered_forks]
+                repositories = [self._convert_collected_fork_to_repository(fork) for fork in filtered_forks]
                 filter_result = ahead_only_filter.filter_forks(repositories)
 
                 # Filter the collected forks to match the filtered repositories
                 filtered_repo_urls = {repo.html_url for repo in filter_result.forks}
                 filtered_forks = [
                     fork for fork in filtered_forks
-                    if fork.repository.html_url in filtered_repo_urls
+                    if fork.metrics.html_url in filtered_repo_urls
                 ]
 
                 # Display filtering statistics
@@ -1483,14 +1483,14 @@ class RepositoryDisplayService:
             if ahead_only:
                 ahead_only_filter = create_default_ahead_only_filter()
                 # Convert collected fork data to Repository objects for filtering
-                repositories = [fork.repository for fork in active_forks]
+                repositories = [self._convert_collected_fork_to_repository(fork) for fork in active_forks]
                 filter_result = ahead_only_filter.filter_forks(repositories)
 
                 # Filter the collected forks to match the filtered repositories
                 filtered_repo_urls = {repo.html_url for repo in filter_result.forks}
                 active_forks = [
                     fork for fork in active_forks
-                    if fork.repository.html_url in filtered_repo_urls
+                    if fork.metrics.html_url in filtered_repo_urls
                 ]
 
                 # Display filtering statistics
@@ -1522,7 +1522,7 @@ class RepositoryDisplayService:
                     f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]"
                 )
 
-            # Fetch exact commit counts with progress indicator for remaining forks
+            # Fetch exact commit counts using optimized batch processing
             api_calls_made = 0
             detailed_forks = list(forks_to_skip)  # Start with skipped forks
 
@@ -1538,38 +1538,87 @@ class RepositoryDisplayService:
                         "Fetching exact commit counts...", total=len(forks_needing_api)
                     )
 
-                    for fork_data in forks_needing_api:
-                        try:
-                            # Get exact commits ahead count using compare API
-                            commits_ahead = await self._get_exact_commits_ahead(
-                                owner,
-                                repo_name,
-                                fork_data.metrics.owner,
-                                fork_data.metrics.name,
-                            )
-
-                            # Count successful API calls (including those that return "Unknown" due to data issues)
-                            api_calls_made += 1
-
-                            # Update fork data with exact commit count
-                            fork_data.exact_commits_ahead = commits_ahead
-                            detailed_forks.append(fork_data)
-
-                            progress.update(
-                                task,
-                                advance=1,
-                                description=f"Fetching commits for {fork_data.metrics.owner}/{fork_data.metrics.name}",
-                            )
-
-                        except Exception as e:
-                            logger.warning(
-                                f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {e}"
-                            )
-                            # Don't count failed API calls
-                            # Set to unknown and continue
-                            fork_data.exact_commits_ahead = "Unknown"
+                    try:
+                        # Use optimized batch processing to eliminate redundant parent repo requests
+                        fork_data_list = [
+                            (fork_data.metrics.owner, fork_data.metrics.name)
+                            for fork_data in forks_needing_api
+                        ]
+                        
+                        logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
+                        
+                        # Batch process all forks against the same parent repository
+                        batch_results = await self.github_client.get_commits_ahead_batch(
+                            fork_data_list, owner, repo_name, count=1  # Minimum count to get commit info
+                        )
+                        
+                        # Count API calls made by batch processing
+                        # Batch processing makes: 1 parent repo call + N fork repo calls + N comparison calls
+                        successful_forks = 0
+                        parent_calls_saved = 0
+                        
+                        # Process batch results
+                        for fork_data in forks_needing_api:
+                            fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
+                            
+                            if fork_full_name in batch_results:
+                                # Successfully processed
+                                commits_ahead_list = batch_results[fork_full_name]
+                                commits_ahead = len(commits_ahead_list) if commits_ahead_list else 0
+                                fork_data.exact_commits_ahead = commits_ahead
+                                successful_forks += 1
+                                parent_calls_saved += 1  # Each fork would have needed a parent repo call
+                            else:
+                                # Failed to process (e.g., 404 error)
+                                fork_data.exact_commits_ahead = "Unknown"
+                            
                             detailed_forks.append(fork_data)
                             progress.update(task, advance=1)
+                        
+                        # Calculate API calls made by batch processing
+                        # 1 parent repo call + successful_forks fork repo calls + successful_forks comparison calls
+                        api_calls_made = 1 + (successful_forks * 2)
+                        
+                        # Log optimization results
+                        logger.info(f"Batch processing completed: {successful_forks}/{len(forks_needing_api)} forks processed")
+                        logger.info(f"API optimization: {parent_calls_saved} parent repository calls saved")
+                        
+                    except Exception as e:
+                        logger.warning(f"Batch processing failed, falling back to individual requests: {e}")
+                        
+                        # Fallback to individual API calls if batch processing fails
+                        for fork_data in forks_needing_api:
+                            try:
+                                # Get exact commits ahead count using compare API
+                                commits_ahead = await self._get_exact_commits_ahead(
+                                    owner,
+                                    repo_name,
+                                    fork_data.metrics.owner,
+                                    fork_data.metrics.name,
+                                )
+
+                                # Count successful API calls (including those that return "Unknown" due to data issues)
+                                api_calls_made += 1
+
+                                # Update fork data with exact commit count
+                                fork_data.exact_commits_ahead = commits_ahead
+                                detailed_forks.append(fork_data)
+
+                                progress.update(
+                                    task,
+                                    advance=1,
+                                    description=f"Fetching commits for {fork_data.metrics.owner}/{fork_data.metrics.name}",
+                                )
+
+                            except Exception as e:
+                                logger.warning(
+                                    f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {e}"
+                                )
+                                # Don't count failed API calls
+                                # Set to unknown and continue
+                                fork_data.exact_commits_ahead = "Unknown"
+                                detailed_forks.append(fork_data)
+                                progress.update(task, advance=1)
             else:
                 self.console.print(
                     "[dim]No forks require API calls for commit count analysis[/dim]"
@@ -2157,72 +2206,101 @@ class RepositoryDisplayService:
             return commits_cache
 
         # Create semaphore to limit concurrent requests (respect rate limits)
-        semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
-
-        async def fetch_fork_commits(
-            fork_key: str, fork_data, base_owner: str, base_repo: str
-        ) -> tuple[str, str]:
-            """Fetch commits ahead for a single fork with rate limiting."""
-            async with semaphore:
-                try:
-                    # Add small delay to respect rate limits
-                    await asyncio.sleep(0.1)
-
-                    # Get commits ahead instead of recent commits
-                    commits_ahead = await self.github_client.get_commits_ahead(
-                        fork_data.metrics.owner,
-                        fork_data.metrics.name,
-                        base_owner,
-                        base_repo,
-                        count=show_commits,
-                    )
-                    formatted_commits = self.format_recent_commits(
-                        commits_ahead, column_width
-                    )
-                    return fork_key, formatted_commits
-                except Exception as e:
-                    logger.debug(f"Failed to fetch commits ahead for {fork_key}: {e}")
-                    return fork_key, "[dim]No commits available[/dim]"
-
-        # Show progress indicator for commit fetching
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task(
-                f"Fetching recent commits for {processing_count} forks (skipped {skipped_count})...",
-                total=processing_count,
+        # Use optimized batch processing to eliminate redundant parent repo requests
+        try:
+            # Prepare fork data for batch processing
+            fork_data_list = [
+                (fork_data.metrics.owner, fork_data.metrics.name)
+                for fork_key, fork_data in forks_needing_commits
+            ]
+            
+            logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
+            
+            # Batch process all forks against the same parent repository
+            batch_results = await self.github_client.get_commits_ahead_batch(
+                fork_data_list, base_owner, base_repo, count=show_commits
             )
-
-            # Create tasks for concurrent execution
-            tasks = []
+            
+            # Format results for display
             for fork_key, fork_data in forks_needing_commits:
-                task_coro = fetch_fork_commits(
-                    fork_key, fork_data, base_owner, base_repo
+                fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
+                commits_ahead = batch_results.get(fork_full_name, [])
+                
+                formatted_commits = self.format_recent_commits(
+                    commits_ahead, column_width
                 )
-                tasks.append(task_coro)
+                commits_cache[fork_key] = formatted_commits
+                
+        except Exception as e:
+            logger.warning(f"Batch processing failed, falling back to individual requests: {e}")
+            
+            # Fallback to original method if batch processing fails
+            semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
 
-            # Execute tasks concurrently with progress updates
-            completed_count = 0
-            for coro in asyncio.as_completed(tasks):
-                try:
-                    fork_key, formatted_commits = await coro
-                    commits_cache[fork_key] = formatted_commits
-                    completed_count += 1
+            async def fetch_fork_commits(
+                fork_key: str, fork_data, base_owner: str, base_repo: str
+            ) -> tuple[str, str]:
+                """Fetch commits ahead for a single fork with rate limiting."""
+                async with semaphore:
+                    try:
+                        # Add small delay to respect rate limits
+                        await asyncio.sleep(0.1)
 
-                    # Update progress
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"Fetched commits for {completed_count}/{processing_count} forks (skipped {skipped_count})",
+                        # Get commits ahead instead of recent commits
+                        commits_ahead = await self.github_client.get_commits_ahead(
+                            fork_data.metrics.owner,
+                            fork_data.metrics.name,
+                            base_owner,
+                            base_repo,
+                            count=show_commits,
+                        )
+                        formatted_commits = self.format_recent_commits(
+                            commits_ahead, column_width
+                        )
+                        return fork_key, formatted_commits
+                    except Exception as e:
+                        logger.debug(f"Failed to fetch commits ahead for {fork_key}: {e}")
+                        return fork_key, "[dim]No commits available[/dim]"
+
+            # Show progress indicator for commit fetching (fallback mode)
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task(
+                    f"Fetching recent commits for {processing_count} forks (skipped {skipped_count})...",
+                    total=processing_count,
+                )
+
+                # Create tasks for concurrent execution
+                tasks = []
+                for fork_key, fork_data in forks_needing_commits:
+                    task_coro = fetch_fork_commits(
+                        fork_key, fork_data, base_owner, base_repo
                     )
-                except Exception as e:
-                    logger.warning(f"Failed to fetch commits for fork: {e}")
-                    completed_count += 1
-                    progress.update(task, advance=1)
+                    tasks.append(task_coro)
+
+                # Execute tasks concurrently with progress updates
+                completed_count = 0
+                for coro in asyncio.as_completed(tasks):
+                    try:
+                        fork_key, formatted_commits = await coro
+                        commits_cache[fork_key] = formatted_commits
+                        completed_count += 1
+
+                        # Update progress
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"Fetched commits for {completed_count}/{processing_count} forks (skipped {skipped_count})",
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch commits for fork: {e}")
+                        completed_count += 1
+                        progress.update(task, advance=1)
 
         # Log final statistics
         api_calls_saved = skipped_count
@@ -2831,3 +2909,40 @@ class RepositoryDisplayService:
         )
 
         self.console.print(summary_table)
+    def _convert_collected_fork_to_repository(self, collected_fork) -> Repository:
+        """Convert CollectedForkData to Repository object for filtering.
+        
+        Args:
+            collected_fork: CollectedForkData object
+            
+        Returns:
+            Repository object compatible with ahead-only filter
+        """
+        metrics = collected_fork.metrics
+        
+        return Repository(
+            id=metrics.id,
+            owner=metrics.owner,
+            name=metrics.name,
+            full_name=metrics.full_name,
+            url=f"https://api.github.com/repos/{metrics.full_name}",
+            html_url=metrics.html_url,
+            clone_url=f"https://github.com/{metrics.full_name}.git",
+            default_branch=metrics.default_branch,
+            stars=metrics.stargazers_count,
+            forks_count=metrics.forks_count,
+            watchers_count=metrics.watchers_count,
+            open_issues_count=metrics.open_issues_count,
+            size=metrics.size,
+            language=metrics.language,
+            description=metrics.description,
+            topics=metrics.topics,
+            license_name=metrics.license_name,
+            is_private=False,  # Forks are typically public
+            is_fork=metrics.fork,
+            is_archived=metrics.archived,
+            is_disabled=metrics.disabled,
+            created_at=metrics.created_at,
+            updated_at=metrics.updated_at,
+            pushed_at=metrics.pushed_at,
+        )

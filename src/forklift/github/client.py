@@ -49,10 +49,11 @@ class GitHubClient:
             timeout_seconds=config.timeout_seconds
         )
 
-        # In-memory cache for parent repository data to reduce API calls
+        # In-memory cache for repository data to reduce API calls
         # Key: (owner, repo), Value: (Repository, timestamp)
         self._parent_repo_cache: dict[tuple[str, str], tuple[Repository, float]] = {}
-        self._cache_ttl = 300  # 5 minutes TTL for cached parent repository data
+        self._repo_cache: dict[tuple[str, str], tuple[Repository, float]] = {}
+        self._cache_ttl = 300  # 5 minutes TTL for cached repository data
 
     def _build_headers(self) -> dict[str, str]:
         """Build HTTP headers for GitHub API requests."""
@@ -67,45 +68,58 @@ class GitHubClient:
 
         return headers
 
-    def _get_cached_parent_repo(self, owner: str, repo: str) -> Repository | None:
-        """Get cached parent repository data if available and not expired.
+    def _get_cached_repo(self, owner: str, repo: str, cache_type: str = "general") -> Repository | None:
+        """Get cached repository data if available and not expired.
 
         Args:
             owner: Repository owner
             repo: Repository name
+            cache_type: Type of cache ("parent" or "general")
 
         Returns:
             Cached Repository object or None if not cached or expired
         """
+        cache = self._parent_repo_cache if cache_type == "parent" else self._repo_cache
         cache_key = (owner, repo)
-        if cache_key not in self._parent_repo_cache:
+        
+        if cache_key not in cache:
             return None
 
-        cached_repo, timestamp = self._parent_repo_cache[cache_key]
+        cached_repo, timestamp = cache[cache_key]
         current_time = time.time()
 
         # Check if cache entry has expired
         if current_time - timestamp > self._cache_ttl:
             # Remove expired entry
-            del self._parent_repo_cache[cache_key]
-            logger.debug(f"Expired cache entry removed for parent repository {owner}/{repo}")
+            del cache[cache_key]
+            logger.debug(f"Expired cache entry removed for {cache_type} repository {owner}/{repo}")
             return None
 
-        logger.debug(f"Using cached parent repository data for {owner}/{repo}")
+        logger.debug(f"Using cached {cache_type} repository data for {owner}/{repo}")
         return cached_repo
 
-    def _cache_parent_repo(self, owner: str, repo: str, repository: Repository) -> None:
-        """Cache parent repository data.
+    def _get_cached_parent_repo(self, owner: str, repo: str) -> Repository | None:
+        """Get cached parent repository data if available and not expired."""
+        return self._get_cached_repo(owner, repo, "parent")
+
+    def _cache_repo(self, owner: str, repo: str, repository: Repository, cache_type: str = "general") -> None:
+        """Cache repository data.
         
         Args:
             owner: Repository owner
             repo: Repository name
             repository: Repository object to cache
+            cache_type: Type of cache ("parent" or "general")
         """
+        cache = self._parent_repo_cache if cache_type == "parent" else self._repo_cache
         cache_key = (owner, repo)
         current_time = time.time()
-        self._parent_repo_cache[cache_key] = (repository, current_time)
-        logger.debug(f"Cached parent repository data for {owner}/{repo}")
+        cache[cache_key] = (repository, current_time)
+        logger.debug(f"Cached {cache_type} repository data for {owner}/{repo}")
+
+    def _cache_parent_repo(self, owner: str, repo: str, repository: Repository) -> None:
+        """Cache parent repository data."""
+        self._cache_repo(owner, repo, repository, "parent")
 
     def clear_parent_repo_cache(self) -> None:
         """Clear the parent repository cache."""
@@ -114,8 +128,28 @@ class GitHubClient:
         if cache_size > 0:
             logger.info(f"Cleared parent repository cache ({cache_size} entries)")
 
+    def clear_repo_cache(self) -> None:
+        """Clear the general repository cache."""
+        cache_size = len(self._repo_cache)
+        self._repo_cache.clear()
+        if cache_size > 0:
+            logger.info(f"Cleared general repository cache ({cache_size} entries)")
+
+    def clear_all_caches(self) -> None:
+        """Clear all repository caches."""
+        self.clear_parent_repo_cache()
+        self.clear_repo_cache()
+
     def get_parent_repo_cache_stats(self) -> dict[str, Any]:
-        """Get statistics about the parent repository cache.
+        """Get statistics about the parent repository cache."""
+        return self._get_cache_stats(self._parent_repo_cache, "parent")
+
+    def get_repo_cache_stats(self) -> dict[str, Any]:
+        """Get statistics about the general repository cache."""
+        return self._get_cache_stats(self._repo_cache, "general")
+
+    def _get_cache_stats(self, cache: dict, cache_type: str) -> dict[str, Any]:
+        """Get statistics about a specific cache.
         
         Returns:
             Dictionary with cache statistics
@@ -124,14 +158,15 @@ class GitHubClient:
         valid_entries = 0
         expired_entries = 0
 
-        for _, timestamp in self._parent_repo_cache.values():
+        for _, timestamp in cache.values():
             if current_time - timestamp <= self._cache_ttl:
                 valid_entries += 1
             else:
                 expired_entries += 1
 
         return {
-            "total_entries": len(self._parent_repo_cache),
+            "cache_type": cache_type,
+            "total_entries": len(cache),
             "valid_entries": valid_entries,
             "expired_entries": expired_entries,
             "cache_ttl_seconds": self._cache_ttl
@@ -162,8 +197,9 @@ class GitHubClient:
         if self._client:
             await self._client.aclose()
             self._client = None
-        # Clear cache on close
+        # Clear caches on close
         self._parent_repo_cache.clear()
+        self._repo_cache.clear()
 
     async def _request(
         self,
@@ -582,6 +618,161 @@ class GitHubClient:
 
             logger.debug(f"Successfully fetched {len(recent_commits)} commits ahead from {fork_owner}/{fork_repo}")
             return recent_commits
+
+        except GitHubAPIError:
+            # Re-raise GitHub API errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to fetch commits ahead from {fork_owner}/{fork_repo}: {e}")
+            raise GitHubAPIError(f"Failed to fetch commits ahead: {e}") from e
+
+    async def get_commits_ahead_batch(
+        self, 
+        fork_data_list: list[tuple[str, str]], 
+        parent_owner: str, 
+        parent_repo: str, 
+        count: int = 10
+    ) -> dict[str, list[RecentCommit]]:
+        """Get commits ahead for multiple forks against the same parent repository.
+        
+        This method optimizes API usage by:
+        1. Pre-fetching the parent repository once
+        2. Fetching all fork repositories in batch
+        3. Performing comparisons without redundant parent repo calls
+        
+        Args:
+            fork_data_list: List of (fork_owner, fork_repo) tuples
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            count: Maximum number of commits to fetch per fork (1-10)
+            
+        Returns:
+            Dictionary mapping "owner/repo" to list of RecentCommit objects
+            
+        Raises:
+            GitHubAPIError: If API request fails
+            ValueError: If count is not between 1 and 10
+        """
+        if not (1 <= count <= 10):
+            raise ValueError("Count must be between 1 and 10")
+
+        if not fork_data_list:
+            return {}
+
+        logger.info(f"Batch processing {len(fork_data_list)} forks against {parent_owner}/{parent_repo}")
+
+        try:
+            # Step 1: Pre-fetch parent repository once
+            logger.debug(f"Pre-fetching parent repository {parent_owner}/{parent_repo}")
+            parent_info = await self.get_repository(parent_owner, parent_repo)
+            logger.info(f"Parent repository {parent_owner}/{parent_repo} fetched once for {len(fork_data_list)} forks")
+
+            # Step 2: Batch fetch all fork repositories
+            logger.debug(f"Batch fetching {len(fork_data_list)} fork repositories")
+            fork_repos = {}
+            
+            # Use semaphore to limit concurrent requests
+            semaphore = asyncio.Semaphore(5)
+            
+            async def fetch_single_fork(fork_owner: str, fork_repo: str):
+                async with semaphore:
+                    try:
+                        fork_info = await self.get_repository(fork_owner, fork_repo)
+                        return f"{fork_owner}/{fork_repo}", fork_info
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch fork repository {fork_owner}/{fork_repo}: {e}")
+                        return f"{fork_owner}/{fork_repo}", None
+
+            # Fetch all fork repositories concurrently
+            fork_tasks = [
+                fetch_single_fork(fork_owner, fork_repo) 
+                for fork_owner, fork_repo in fork_data_list
+            ]
+            
+            fork_results = await asyncio.gather(*fork_tasks, return_exceptions=True)
+            
+            # Process results
+            for result in fork_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Fork fetch task failed: {result}")
+                    continue
+                    
+                fork_key, fork_info = result
+                if fork_info is not None:
+                    fork_repos[fork_key] = fork_info
+
+            logger.info(f"Successfully fetched {len(fork_repos)} out of {len(fork_data_list)} fork repositories")
+
+            # Step 3: Perform comparisons using pre-fetched data
+            results = {}
+            
+            async def compare_single_fork(fork_key: str, fork_info: Repository):
+                async with semaphore:
+                    try:
+                        fork_owner, fork_repo = fork_key.split('/', 1)
+                        
+                        # Use pre-fetched parent info for comparison
+                        comparison = await self.compare_commits(
+                            parent_owner,
+                            parent_repo,
+                            parent_info.default_branch,
+                            f"{fork_owner}:{fork_info.default_branch}",
+                        )
+
+                        if not comparison or "commits" not in comparison:
+                            logger.debug(f"No commits found in comparison for {fork_key}")
+                            return fork_key, []
+
+                        # Get the commits that are ahead (limited by count)
+                        ahead_commits = comparison["commits"][:count]
+
+                        # Convert to RecentCommit objects
+                        recent_commits = []
+                        for commit_data in ahead_commits:
+                            try:
+                                recent_commit = RecentCommit.from_github_api(commit_data)
+                                recent_commits.append(recent_commit)
+                            except Exception as e:
+                                logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
+                                continue
+
+                        logger.debug(f"Successfully fetched {len(recent_commits)} commits ahead for {fork_key}")
+                        return fork_key, recent_commits
+
+                    except Exception as e:
+                        logger.warning(f"Failed to compare commits for {fork_key}: {e}")
+                        return fork_key, []
+
+            # Perform all comparisons concurrently
+            comparison_tasks = [
+                compare_single_fork(fork_key, fork_info)
+                for fork_key, fork_info in fork_repos.items()
+            ]
+            
+            comparison_results = await asyncio.gather(*comparison_tasks, return_exceptions=True)
+            
+            # Process comparison results
+            for result in comparison_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Comparison task failed: {result}")
+                    continue
+                    
+                fork_key, commits = result
+                results[fork_key] = commits
+
+            # Log optimization results
+            total_forks = len(fork_data_list)
+            successful_comparisons = len(results)
+            api_calls_saved = total_forks - 1  # We fetched parent repo once instead of N times
+            
+            logger.info(f"Batch processing completed: {successful_comparisons}/{total_forks} forks processed")
+            logger.info(f"API optimization: {api_calls_saved} parent repository calls saved")
+            
+            return results
+
+        except Exception as e:
+            logger.error(f"Batch processing failed: {e}")
+            raise GitHubAPIError(f"Failed to batch process commits ahead: {e}") from e
 
         except GitHubAPIError:
             # Re-raise GitHub API errors
