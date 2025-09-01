@@ -41,6 +41,15 @@ from forklift.config.settings import ForkliftConfig, load_config
 from forklift.display.detailed_commit_display import (
     DetailedCommitDisplay,
 )
+from forklift.display.interaction_mode import (
+    InteractionMode,
+    get_interaction_mode_detector,
+)
+from forklift.display.progress_reporter import (
+    ProgressReporterFactory,
+    get_progress_reporter,
+    reset_progress_reporter,
+)
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
 from forklift.github.exceptions import (
@@ -61,6 +70,78 @@ class CLIError(Exception):
     """Base exception for CLI errors."""
 
     pass
+
+
+def initialize_cli_environment() -> tuple[InteractionMode, bool]:
+    """Initialize CLI environment with interactive mode detection.
+    
+    Returns:
+        Tuple of (interaction_mode, supports_user_prompts)
+    """
+    # Get interaction mode detector
+    detector = get_interaction_mode_detector()
+    interaction_mode = detector.get_interaction_mode()
+    
+    # Log detected interaction mode for debugging
+    logger.debug(f"Detected interaction mode: {interaction_mode.value}")
+    
+    # Configure console based on interaction mode
+    global console
+    if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
+        # When output is redirected, use stderr for interactive elements
+        console = Console(file=sys.stderr)
+    elif interaction_mode == InteractionMode.NON_INTERACTIVE:
+        # For non-interactive mode, disable colors and fancy formatting
+        console = Console(file=sys.stdout, force_terminal=False, no_color=True)
+    else:
+        # Default console configuration
+        console = Console(file=sys.stdout)
+    
+    # Reset progress reporter to ensure it uses the correct mode
+    reset_progress_reporter()
+    
+    # Determine if user prompts should be supported
+    supports_prompts = detector.supports_user_prompts()
+    
+    # Log configuration for debugging
+    logger.debug(f"CLI environment initialized:")
+    logger.debug(f"  - Interaction mode: {interaction_mode.value}")
+    logger.debug(f"  - Supports user prompts: {supports_prompts}")
+    logger.debug(f"  - Supports progress bars: {detector.supports_progress_bars()}")
+    logger.debug(f"  - Should use colors: {detector.should_use_colors()}")
+    
+    return interaction_mode, supports_prompts
+
+
+def handle_user_prompt(
+    message: str,
+    default: bool = True,
+    supports_prompts: bool = True,
+    interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE
+) -> bool:
+    """Handle user prompts based on interaction mode.
+    
+    Args:
+        message: The prompt message to display
+        default: Default value to use in non-interactive mode
+        supports_prompts: Whether the current mode supports prompts
+        interaction_mode: Current interaction mode
+        
+    Returns:
+        User's choice or default value
+    """
+    if not supports_prompts or interaction_mode == InteractionMode.NON_INTERACTIVE:
+        # In non-interactive mode, use default and log the decision
+        logger.info(f"Auto-proceeding with default choice ({default}) for: {message}")
+        return default
+    
+    # In interactive mode, show the prompt
+    try:
+        return Confirm.ask(message, default=default)
+    except (KeyboardInterrupt, EOFError):
+        # Handle interruption gracefully
+        logger.info("User interrupted prompt, using default")
+        return default
 
 
 def setup_logging(
@@ -346,10 +427,20 @@ def display_fork_details(fork, fork_metrics=None) -> None:
     console.print(table)
 
 
-async def interactive_fork_selection(forks: list, config: ForkliftConfig) -> None:
+async def interactive_fork_selection(
+    forks: list, 
+    config: ForkliftConfig,
+    interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
+    supports_prompts: bool = True
+) -> None:
     """Interactive mode for selecting and analyzing specific forks."""
     if not forks:
         console.print("[yellow]No forks available for selection.[/yellow]")
+        return
+
+    # In non-interactive mode, just display summary and exit
+    if not supports_prompts:
+        display_forks_summary(forks)
         return
 
     while True:
@@ -507,8 +598,11 @@ async def interactive_fork_selection(forks: list, config: ForkliftConfig) -> Non
 
         # Ask if user wants to continue
         if choice != "5":
-            if not Confirm.ask(
-                "\n[dim]Continue with interactive mode?[/dim]", default=True
+            if not handle_user_prompt(
+                "\n[dim]Continue with interactive mode?[/dim]", 
+                default=True,
+                supports_prompts=supports_prompts,
+                interaction_mode=interaction_mode
             ):
                 break
 
@@ -529,6 +623,9 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
     # Ensure context object exists
     ctx.ensure_object(dict)
 
+    # Initialize CLI environment with interactive mode detection
+    interaction_mode, supports_prompts = initialize_cli_environment()
+
     # Load configuration
     try:
         loaded_config = load_config(config) if config else load_config()
@@ -540,9 +637,11 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
     # Setup logging with configuration
     setup_logging(verbose, debug, loaded_config)
 
-    # Store CLI options
+    # Store CLI options and environment info
     ctx.obj["verbose"] = verbose
     ctx.obj["debug"] = debug
+    ctx.obj["interaction_mode"] = interaction_mode
+    ctx.obj["supports_prompts"] = supports_prompts
 
 
 @cli.command()
@@ -620,6 +719,8 @@ def analyze(
     """
     config: ForkliftConfig = ctx.obj["config"]
     verbose: bool = ctx.obj["verbose"]
+    interaction_mode: InteractionMode = ctx.obj["interaction_mode"]
+    supports_prompts: bool = ctx.obj["supports_prompts"]
 
     # Override config with CLI options
     if min_score is not None:
@@ -644,14 +745,16 @@ def analyze(
             # Run interactive analysis
             results = asyncio.run(
                 _run_interactive_analysis(
-                    config, owner, repo_name, verbose, scan_all, explain, disable_cache
+                    config, owner, repo_name, verbose, scan_all, explain, disable_cache,
+                    interaction_mode, supports_prompts
                 )
             )
         else:
             # Run standard analysis
             results = asyncio.run(
                 _run_analysis(
-                    config, owner, repo_name, verbose, scan_all, explain, disable_cache
+                    config, owner, repo_name, verbose, scan_all, explain, disable_cache,
+                    interaction_mode, supports_prompts
                 )
             )
 
@@ -1024,6 +1127,8 @@ def show_forks(
     """
     config: ForkliftConfig = ctx.obj["config"]
     verbose: bool = ctx.obj["verbose"]
+    interaction_mode: InteractionMode = ctx.obj["interaction_mode"]
+    supports_prompts: bool = ctx.obj["supports_prompts"]
 
     try:
         # Validate GitHub token
@@ -1046,6 +1151,8 @@ def show_forks(
                 show_commits,
                 force_all_commits,
                 ahead_only,
+                interaction_mode,
+                supports_prompts,
             )
         )
 
@@ -1519,6 +1626,8 @@ def show_commits(
     """
     config: ForkliftConfig = ctx.obj["config"]
     verbose: bool = ctx.obj["verbose"]
+    interaction_mode: InteractionMode = ctx.obj["interaction_mode"]
+    supports_prompts: bool = ctx.obj["supports_prompts"]
 
     try:
         # Validate GitHub token
@@ -1580,6 +1689,8 @@ def show_commits(
                 detail,
                 force,
                 disable_cache,
+                interaction_mode,
+                supports_prompts,
             )
         )
 
@@ -1835,6 +1946,8 @@ async def _show_forks_summary(
     show_commits: int = 0,
     force_all_commits: bool = False,
     ahead_only: bool = False,
+    interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
+    supports_prompts: bool = True,
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -1850,6 +1963,9 @@ async def _show_forks_summary(
     """
     async with GitHubClient(config.github) as github_client:
         display_service = RepositoryDisplayService(github_client, console)
+        
+        # Log interaction mode for debugging
+        logger.debug(f"show-forks using interaction mode: {interaction_mode.value}")
 
         try:
             if detail:
@@ -1907,6 +2023,8 @@ async def _run_analysis(
     scan_all: bool = False,
     explain: bool = False,
     disable_cache: bool = False,
+    interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
+    supports_prompts: bool = True,
 ) -> dict:
     """Run the actual repository analysis.
 
@@ -1971,17 +2089,13 @@ async def _run_analysis(
         "report": "",
     }
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        console=console,
-        transient=not verbose,
-    ) as progress:
+    # Use adaptive progress reporting
+    progress_reporter = get_progress_reporter()
+    
+    try:
 
         # Step 1: Discover and filter forks
-        task1 = progress.add_task("Discovering forks...", total=None)
+        progress_reporter.start_operation("Discovering forks")
         try:
             repository_url = f"https://github.com/{owner}/{repo_name}"
             all_forks = await fork_discovery.discover_forks(
@@ -1993,40 +2107,32 @@ async def _run_analysis(
             if override_controller.filtering_override.should_bypass_filtering():
                 # Skip filtering - analyze all forks
                 forks = override_controller.apply_filtering_overrides(all_forks)
-                progress.update(
-                    task1,
-                    completed=True,
-                    description=f"Found {len(all_forks)} forks, scanning all (--scan-all enabled)",
+                progress_reporter.complete_operation(
+                    f"Found {len(all_forks)} forks, scanning all (--scan-all enabled)"
                 )
             else:
                 # Apply default filtering - skip forks with no commits ahead
-                progress.update(
-                    task1, description=f"Found {len(all_forks)} forks, filtering..."
+                progress_reporter.update_progress(
+                    len(all_forks), f"Found {len(all_forks)} forks, filtering..."
                 )
                 forks = await fork_discovery.filter_active_forks(all_forks)
                 skipped_count = len(all_forks) - len(forks)
-                progress.update(
-                    task1,
-                    completed=True,
-                    description=f"Found {len(all_forks)} forks, {skipped_count} skipped (no commits ahead), {len(forks)} to analyze",
+                progress_reporter.complete_operation(
+                    f"Found {len(all_forks)} forks, {skipped_count} skipped (no commits ahead), {len(forks)} to analyze"
                 )
         except Exception as e:
-            progress.update(task1, description=f"Failed to discover forks: {e}")
+            progress_reporter.log_message(f"Failed to discover forks: {e}", "error")
             raise CLIError(f"Failed to discover forks: {e}")
 
         # Step 2: Get base repository for comparison
-        base_repo_task = progress.add_task("Getting base repository...", total=None)
+        progress_reporter.start_operation("Getting base repository")
         try:
             base_repo = await github_client.get_repository(
                 owner, repo_name, disable_cache=disable_cache
             )
-            progress.update(
-                base_repo_task, completed=True, description="Base repository retrieved"
-            )
+            progress_reporter.complete_operation("Base repository retrieved")
         except Exception as e:
-            progress.update(
-                base_repo_task, description=f"Failed to get base repository: {e}"
-            )
+            progress_reporter.log_message(f"Failed to get base repository: {e}", "error")
             raise CLIError(f"Failed to get base repository: {e}")
 
         # Step 3: Analyze forks
@@ -2052,7 +2158,7 @@ async def _run_analysis(
                 results["fork_analyses"] = []
                 return results
 
-        task2 = progress.add_task("Analyzing forks...", total=len(forks_to_analyze))
+        progress_reporter.start_operation("Analyzing forks", len(forks_to_analyze))
         analyzed_count = 0
         total_features = 0
         high_value_features = 0
@@ -2063,13 +2169,11 @@ async def _run_analysis(
                 # Update progress with current fork and explanation status
                 fork_name = fork.repository.full_name
                 if explain:
-                    description = f"Analyzing fork {i+1}/{len(forks_to_analyze)}: {fork_name} (with explanations)"
+                    message = f"Analyzing {fork_name} (with explanations)"
                 else:
-                    description = (
-                        f"Analyzing fork {i+1}/{len(forks_to_analyze)}: {fork_name}"
-                    )
+                    message = f"Analyzing {fork_name}"
 
-                progress.update(task2, description=description)
+                progress_reporter.update_progress(i + 1, message)
 
                 # Perform actual fork analysis
                 fork_analysis = await repository_analyzer.analyze_fork(
@@ -2085,22 +2189,21 @@ async def _run_analysis(
                     if len(feature.commits) >= 2:  # Simple heuristic for now
                         high_value_features += 1
 
-                progress.update(task2, advance=1)
-
             except Exception as e:
                 if verbose:
-                    console.print(
-                        f"[yellow]Warning: Failed to analyze fork {fork.repository.full_name}: {e}[/yellow]"
+                    progress_reporter.log_message(
+                        f"Failed to analyze fork {fork.repository.full_name}: {e}", "warning"
                     )
-                progress.update(task2, advance=1)
 
+        progress_reporter.complete_operation(f"Analyzed {analyzed_count} forks")
+        
         results["analyzed_forks"] = analyzed_count
         results["total_features"] = total_features
         results["high_value_features"] = high_value_features
         results["fork_analyses"] = fork_analyses
 
         # Step 4: Generate report
-        task3 = progress.add_task("Generating report...", total=None)
+        progress_reporter.start_operation("Generating report")
 
         # Create analysis report
         report_lines = [
@@ -2145,7 +2248,11 @@ async def _run_analysis(
         )
 
         results["report"] = "\n".join(report_lines)
-        progress.update(task3, completed=True, description="Report generated")
+        progress_reporter.complete_operation("Report generated")
+
+    except Exception as e:
+        progress_reporter.log_message(f"Analysis failed: {e}", "error")
+        raise
 
     return results
 
@@ -2158,6 +2265,8 @@ async def _run_interactive_analysis(
     scan_all: bool = False,
     explain: bool = False,
     disable_cache: bool = False,
+    interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
+    supports_prompts: bool = True,
 ) -> dict:
     """Run interactive repository analysis with user confirmation stops.
 
@@ -2463,6 +2572,8 @@ async def _show_commits(
     detail: bool = False,
     force: bool = False,
     disable_cache: bool = False,
+    interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
+    supports_prompts: bool = True,
 ) -> None:
     """Show detailed commit information for a repository or branch.
 
@@ -2598,22 +2709,18 @@ async def _show_commits(
                     console.print("[yellow]Detailed analysis cancelled by user.[/yellow]")
                     return
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task(
-                    "Fetching repository information...", total=None
-                )
+            # Use adaptive progress reporting
+            progress_reporter = get_progress_reporter()
+            
+            try:
+                progress_reporter.start_operation("Fetching repository information")
 
                 # Get repository to determine default branch if needed
                 repo = await github_client.get_repository(owner, repo_name)
                 target_branch = branch or repo.default_branch
 
-                progress.update(
-                    task,
-                    description=f"Fetching commits from branch '{target_branch}'...",
+                progress_reporter.update_progress(
+                    1, f"Fetching commits from branch '{target_branch}'"
                 )
 
                 # Get commits for the specified branch
@@ -2633,7 +2740,7 @@ async def _show_commits(
                         until=until_date,
                     )
 
-                progress.update(task, description="Processing commits...")
+                progress_reporter.update_progress(2, "Processing commits")
 
                 # Convert to Commit objects and apply filters
                 commits = []
@@ -2664,7 +2771,10 @@ async def _show_commits(
                             f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}"
                         )
 
-                progress.update(task, description="Complete!")
+                progress_reporter.complete_operation("Repository data fetched")
+            except Exception as e:
+                progress_reporter.log_message(f"Failed to fetch commits: {e}", "error")
+                raise
 
             # Generate explanations if requested
             if explain and commits:
@@ -3016,19 +3126,13 @@ async def _display_ai_summaries_for_commits(
             # Prepare commits with diffs for AI processing
             commits_with_diffs = []
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                console=console,
-            ) as progress:
-                # Fetch diffs for commits
-                diff_task = progress.add_task(
-                    "Fetching commit diffs...", total=len(commits)
-                )
+            # Use adaptive progress reporting for AI summary generation
+            progress_reporter = get_progress_reporter()
+            
+            try:
+                progress_reporter.start_operation("Fetching commit diffs", len(commits))
 
-                for commit in commits:
+                for i, commit in enumerate(commits):
                     try:
                         # Get commit diff from GitHub API
                         commit_details = await github_client.get_commit_details(
@@ -3048,32 +3152,37 @@ async def _display_ai_summaries_for_commits(
                         commits_with_diffs.append((commit, diff_text))
 
                     except Exception as e:
-                        logger.warning(
-                            f"Failed to fetch diff for commit {commit.sha[:8]}: {e}"
+                        progress_reporter.log_message(
+                            f"Failed to fetch diff for commit {commit.sha[:8]}: {e}", "warning"
                         )
                         # Add commit with empty diff to still attempt summary
                         commits_with_diffs.append((commit, ""))
 
-                    progress.advance(diff_task)
+                    progress_reporter.update_progress(i + 1, f"Fetched diff for {commit.sha[:8]}")
+
+                progress_reporter.complete_operation("Commit diffs fetched")
 
                 # Generate AI summaries
                 summary_task_desc = (
-                    "Generating compact AI summaries..."
+                    "Generating compact AI summaries"
                     if compact_mode
-                    else "Generating AI summaries..."
+                    else "Generating AI summaries"
                 )
-                summary_task = progress.add_task(
-                    summary_task_desc, total=len(commits_with_diffs)
-                )
+                progress_reporter.start_operation(summary_task_desc, len(commits_with_diffs))
 
                 def progress_callback(progress_pct: float, completed: int, total: int):
-                    progress.update(summary_task, completed=completed)
+                    progress_reporter.update_progress(completed, f"Generated {completed}/{total} summaries")
 
                 summaries = await summary_engine.generate_batch_summaries(
                     commits_with_diffs,
                     repository=repository,
                     progress_callback=progress_callback,
                 )
+                
+                progress_reporter.complete_operation("AI summaries generated")
+            except Exception as e:
+                progress_reporter.log_message(f"Failed to generate AI summaries: {e}", "error")
+                raise
 
             # Detect plain text mode (no Rich formatting support)
             plain_text_mode = (
@@ -3193,26 +3302,28 @@ async def _display_detailed_commits(
                     )
 
                     # Generate detailed view for all commits
-                    with Progress(
-                        SpinnerColumn(),
-                        TextColumn("[progress.description]{task.description}"),
-                        BarColumn(),
-                        MofNCompleteColumn(),
-                        console=console,
-                    ) as progress:
-                        task = progress.add_task(
-                            "Generating detailed commit information...",
-                            total=len(commits),
+                    progress_reporter = get_progress_reporter()
+                    
+                    try:
+                        progress_reporter.start_operation(
+                            "Generating detailed commit information", len(commits)
                         )
 
                         def progress_callback(completed: int, total: int):
-                            progress.update(task, completed=completed)
+                            progress_reporter.update_progress(
+                                completed, f"Processed {completed}/{total} commits"
+                            )
 
                         detailed_commits = (
                             await detailed_display.generate_detailed_view(
                                 commits, repo_obj, progress_callback, force=force
                             )
                         )
+                        
+                        progress_reporter.complete_operation("Detailed commit information generated")
+                    except Exception as e:
+                        progress_reporter.log_message(f"Failed to generate detailed view: {e}", "error")
+                        raise
 
                     # Display each detailed commit
                     for i, detailed_commit in enumerate(detailed_commits, 1):
@@ -3261,23 +3372,26 @@ async def _display_detailed_commits(
             )
 
             # Generate detailed view without AI summaries
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                console=console,
-            ) as progress:
-                task = progress.add_task(
-                    "Generating detailed commit information...", total=len(commits)
+            progress_reporter = get_progress_reporter()
+            
+            try:
+                progress_reporter.start_operation(
+                    "Generating detailed commit information", len(commits)
                 )
 
                 def progress_callback(completed: int, total: int):
-                    progress.update(task, completed=completed)
+                    progress_reporter.update_progress(
+                        completed, f"Processed {completed}/{total} commits"
+                    )
 
                 detailed_commits = await detailed_display.generate_detailed_view(
                     commits, repo_obj, progress_callback, force=force
                 )
+                
+                progress_reporter.complete_operation("Detailed commit information generated")
+            except Exception as e:
+                progress_reporter.log_message(f"Failed to generate detailed view: {e}", "error")
+                raise
 
             # Display each detailed commit
             for i, detailed_commit in enumerate(detailed_commits, 1):

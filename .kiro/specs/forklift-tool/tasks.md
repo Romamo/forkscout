@@ -1566,7 +1566,7 @@
   - Write unit tests for mode classification with various system configurations
   - _Requirements: 22.1, 22.2, 22.4, 22.5, 22.6_
 
-- [-] 25.3 Create adaptive progress reporting system
+- [x] 25.3 Create adaptive progress reporting system
   - Implement ProgressReporter interface with start_operation, update_progress, complete_operation methods
   - Create RichProgressReporter for fully interactive mode with rich progress bars
   - Implement PlainTextProgressReporter for non-interactive mode with simple text messages
@@ -1575,7 +1575,7 @@
   - Write unit tests for all progress reporter implementations
   - _Requirements: 22.6, 22.7, 22.8_
 
-- [ ] 25.4 Integrate interactive mode detection with CLI commands
+- [-] 25.4 Integrate interactive mode detection with CLI commands
   - Update CLI initialization to detect interaction mode and configure appropriate progress reporting
   - Modify all commands to use adaptive progress reporting instead of fixed progress bars
   - Update user prompt handling to respect interaction mode (auto-proceed in non-interactive)
