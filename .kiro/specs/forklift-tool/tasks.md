@@ -1557,7 +1557,7 @@
   - Write unit tests for all detection methods with mocked system states
   - _Requirements: 22.1, 22.2, 22.3, 22.9_
 
-- [-] 25.2 Build interactive mode classification system
+- [x] 25.2 Build interactive mode classification system
   - Create InteractionMode enum with FULLY_INTERACTIVE, OUTPUT_REDIRECTED, INPUT_REDIRECTED, NON_INTERACTIVE, PIPED modes
   - Implement InteractiveModeDetector class that combines terminal and environment detection
   - Add mode detection logic with priority-based decision making (CI environment > TTY status)
@@ -1566,7 +1566,7 @@
   - Write unit tests for mode classification with various system configurations
   - _Requirements: 22.1, 22.2, 22.4, 22.5, 22.6_
 
-- [ ] 25.3 Create adaptive progress reporting system
+- [-] 25.3 Create adaptive progress reporting system
   - Implement ProgressReporter interface with start_operation, update_progress, complete_operation methods
   - Create RichProgressReporter for fully interactive mode with rich progress bars
   - Implement PlainTextProgressReporter for non-interactive mode with simple text messages
