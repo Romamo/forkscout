@@ -252,6 +252,151 @@ class TestGitHubClientCommitsAhead:
         assert parent_mock.call_count == 2
 
     @pytest.mark.asyncio
+    async def test_get_commits_ahead_invalid_count(self, client):
+        """Test get_commits_ahead with invalid count values."""
+        async with client:
+            # Test count too low (zero)
+            with pytest.raises(ValueError, match="Count must be a positive integer"):
+                await client.get_commits_ahead("fork-owner", "test-repo", "parent-owner", "test-repo", count=0)
+            
+            # Test negative count
+            with pytest.raises(ValueError, match="Count must be a positive integer"):
+                await client.get_commits_ahead("fork-owner", "test-repo", "parent-owner", "test-repo", count=-1)
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_commits_ahead_various_count_values(self, client, fork_repo_data, parent_repo_data):
+        """Test get_commits_ahead with various valid count values."""
+        # Generate test commits data
+        def generate_commits_data(count):
+            return {
+                "ahead_by": count,
+                "behind_by": 0,
+                "commits": [
+                    {
+                        "sha": f"abc123456789012345678901234567890123456{i:02d}",
+                        "commit": {
+                            "message": f"Test commit {i}",
+                            "author": {"date": "2024-01-15T10:30:00Z"}
+                        }
+                    }
+                    for i in range(count)
+                ]
+            }
+
+        # Mock API calls
+        respx.get("https://api.github.com/repos/fork-owner/test-repo").mock(
+            return_value=httpx.Response(200, json=fork_repo_data)
+        )
+        respx.get("https://api.github.com/repos/parent-owner/test-repo").mock(
+            return_value=httpx.Response(200, json=parent_repo_data)
+        )
+
+        async with client:
+            # Test various count values
+            test_counts = [1, 100, 1000, 5000]
+            
+            for count in test_counts:
+                comparison_data = generate_commits_data(count)
+                
+                # Mock the comparison endpoint
+                respx.get("https://api.github.com/repos/parent-owner/test-repo/compare/main...fork-owner:main").mock(
+                    return_value=httpx.Response(200, json=comparison_data)
+                )
+                
+                result = await client.get_commits_ahead("fork-owner", "test-repo", "parent-owner", "test-repo", count=count)
+                assert len(result) == count
+                
+                # Verify each commit has the expected structure
+                for i, commit in enumerate(result):
+                    expected_full_sha = f"abc123456789012345678901234567890123456{i:02d}"
+                    assert commit.short_sha == expected_full_sha[:7]  # First 7 characters
+                    assert commit.message == f"Test commit {i}"
+
+    @pytest.mark.asyncio
+    async def test_get_commits_ahead_batch_invalid_count(self, client):
+        """Test get_commits_ahead_batch with invalid count values."""
+        fork_data_list = [("fork1-owner", "test-repo"), ("fork2-owner", "test-repo")]
+        
+        async with client:
+            # Test count too low (zero)
+            with pytest.raises(ValueError, match="Count must be a positive integer"):
+                await client.get_commits_ahead_batch(fork_data_list, "parent-owner", "test-repo", count=0)
+            
+            # Test negative count
+            with pytest.raises(ValueError, match="Count must be a positive integer"):
+                await client.get_commits_ahead_batch(fork_data_list, "parent-owner", "test-repo", count=-1)
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_commits_ahead_batch_various_count_values(self, client, parent_repo_data):
+        """Test get_commits_ahead_batch with various valid count values."""
+        # Create fork data
+        fork1_data = {**parent_repo_data, "full_name": "fork1-owner/test-repo", "owner": {"login": "fork1-owner"}}
+        fork2_data = {**parent_repo_data, "full_name": "fork2-owner/test-repo", "owner": {"login": "fork2-owner"}}
+        fork_data_list = [("fork1-owner", "test-repo"), ("fork2-owner", "test-repo")]
+
+        # Generate test commits data
+        def generate_commits_data(count):
+            return {
+                "ahead_by": count,
+                "behind_by": 0,
+                "commits": [
+                    {
+                        "sha": f"abc123456789012345678901234567890123456{i:02d}",
+                        "commit": {
+                            "message": f"Test commit {i}",
+                            "author": {"date": "2024-01-15T10:30:00Z"}
+                        }
+                    }
+                    for i in range(count)
+                ]
+            }
+
+        # Mock API calls
+        respx.get("https://api.github.com/repos/fork1-owner/test-repo").mock(
+            return_value=httpx.Response(200, json=fork1_data)
+        )
+        respx.get("https://api.github.com/repos/fork2-owner/test-repo").mock(
+            return_value=httpx.Response(200, json=fork2_data)
+        )
+        respx.get("https://api.github.com/repos/parent-owner/test-repo").mock(
+            return_value=httpx.Response(200, json=parent_repo_data)
+        )
+
+        async with client:
+            # Test various count values
+            test_counts = [1, 100, 1000, 5000]
+            
+            for count in test_counts:
+                comparison_data = generate_commits_data(count)
+                
+                # Mock comparison endpoints for both forks
+                respx.get("https://api.github.com/repos/parent-owner/test-repo/compare/main...fork1-owner:main").mock(
+                    return_value=httpx.Response(200, json=comparison_data)
+                )
+                respx.get("https://api.github.com/repos/parent-owner/test-repo/compare/main...fork2-owner:main").mock(
+                    return_value=httpx.Response(200, json=comparison_data)
+                )
+                
+                result = await client.get_commits_ahead_batch(fork_data_list, "parent-owner", "test-repo", count=count)
+                
+                # Verify results for both forks
+                assert len(result) == 2
+                assert "fork1-owner/test-repo" in result
+                assert "fork2-owner/test-repo" in result
+                
+                for fork_key in result:
+                    commits = result[fork_key]
+                    assert len(commits) == count
+                    
+                    # Verify each commit has the expected structure
+                    for i, commit in enumerate(commits):
+                        expected_full_sha = f"abc123456789012345678901234567890123456{i:02d}"
+                        assert commit.short_sha == expected_full_sha[:7]  # First 7 characters
+                        assert commit.message == f"Test commit {i}"
+
+    @pytest.mark.asyncio
     async def test_cache_cleared_on_close(self, client):
         """Test that cache is cleared when client is closed."""
         # Manually add something to cache

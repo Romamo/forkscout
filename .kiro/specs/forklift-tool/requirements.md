@@ -399,6 +399,24 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 **Note:** This requirement replaces the over-engineered custom SQLite cache system (tasks 9.1-9.2) with Hishel's HTTP-level caching. The existing custom cache system provides little value compared to using a battle-tested HTTP caching library that handles caching automatically at the transport level.
 
+### Requirement 23
+
+**User Story:** As a repository maintainer, I want to specify any reasonable commit count for the --show-commits flag without artificial limitations, so that I can view the full commit history when analyzing forks with extensive changes.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url> --show-commits=N` THEN the system SHALL accept any positive integer value for N without artificial upper limits
+2. WHEN --show-commits value is very large (>1000) THEN the system SHALL inform the user about potential performance impact but still proceed
+3. WHEN fetching commits THEN the system SHALL use GitHub Compare API pagination to retrieve all requested commits regardless of count, using multiple paginated requests when needed
+4. WHEN GitHub Compare API returns 250 commits but more are requested THEN the system SHALL automatically use pagination to fetch additional pages until the requested count is reached
+5. WHEN GitHub API limits are reached THEN the system SHALL implement proper rate limiting and backoff strategies to continue fetching
+6. WHEN commit fetching encounters API errors THEN the system SHALL retry with exponential backoff and continue with partial results if necessary
+7. WHEN displaying large numbers of commits THEN the system SHALL use dynamic column width calculations and consider output formatting for readability
+8. WHEN processing many commits per fork THEN the system SHALL provide progress indicators showing current pagination progress and estimated completion
+9. WHEN --show-commits is set to large values THEN the system SHALL respect only GitHub API rate limits, not arbitrary application limits
+10. WHEN memory usage becomes high due to large commit counts THEN the system SHALL use streaming or batched processing to manage memory efficiently
+11. WHEN validation fails for --show-commits THEN the system SHALL only reject negative values or zero, accepting all positive integers
+
 #### Acceptance Criteria
 
 1. WHEN implementing caching THEN the system SHALL use Hishel HTTP caching instead of the custom SQLite cache system

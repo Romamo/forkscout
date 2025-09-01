@@ -555,17 +555,20 @@ class GitHubClient:
             fork_repo: Fork repository name
             parent_owner: Parent repository owner
             parent_repo: Parent repository name
-            count: Maximum number of commits to fetch (1-10)
+            count: Maximum number of commits to fetch (any positive integer)
             
         Returns:
             List of RecentCommit objects representing commits ahead
             
         Raises:
             GitHubAPIError: If API request fails
-            ValueError: If count is not between 1 and 10
+            ValueError: If count is not a positive integer
         """
-        if not (1 <= count <= 10):
-            raise ValueError("Count must be between 1 and 10")
+        if count <= 0:
+            raise ValueError("Count must be a positive integer")
+        
+        if count > 1000:
+            logger.info(f"Large commit count requested ({count}), this may take longer to process")
 
         logger.debug(f"Fetching {count} commits ahead from {fork_owner}/{fork_repo} vs {parent_owner}/{parent_repo}")
 
@@ -644,17 +647,20 @@ class GitHubClient:
             fork_data_list: List of (fork_owner, fork_repo) tuples
             parent_owner: Parent repository owner
             parent_repo: Parent repository name
-            count: Maximum number of commits to fetch per fork (1-10)
+            count: Maximum number of commits to fetch per fork (any positive integer)
             
         Returns:
             Dictionary mapping "owner/repo" to list of RecentCommit objects
             
         Raises:
             GitHubAPIError: If API request fails
-            ValueError: If count is not between 1 and 10
+            ValueError: If count is not a positive integer
         """
-        if not (1 <= count <= 10):
-            raise ValueError("Count must be between 1 and 10")
+        if count <= 0:
+            raise ValueError("Count must be a positive integer")
+        
+        if count > 1000:
+            logger.info(f"Large commit count requested ({count}) for batch processing, this may take longer to process")
 
         if not fork_data_list:
             return {}
@@ -1096,17 +1102,20 @@ class GitHubClient:
             owner: Repository owner
             repo: Repository name
             branch: Branch name (defaults to repository's default branch)
-            count: Number of recent commits to fetch (1-10)
+            count: Number of recent commits to fetch (any positive integer)
             
         Returns:
             List of RecentCommit objects with short SHA and truncated message
             
         Raises:
             GitHubAPIError: If API request fails
-            ValueError: If count is not between 1 and 10
+            ValueError: If count is not a positive integer
         """
-        if not (1 <= count <= 10):
-            raise ValueError("Count must be between 1 and 10")
+        if count <= 0:
+            raise ValueError("Count must be a positive integer")
+        
+        if count > 1000:
+            logger.info(f"Large commit count requested ({count}) for {owner}/{repo}, this may take longer to process")
 
         logger.debug(f"Fetching {count} recent commits from {owner}/{repo} branch {branch or 'default'}")
 
@@ -1330,19 +1339,22 @@ class GitHubClient:
         Args:
             owner: Repository owner
             repo: Repository name
-            count: Number of recent commits to fetch (default: 5)
+            count: Number of recent commits to fetch (any positive integer, default: 5)
             branch: Branch to fetch commits from (default: repository's default branch)
 
         Returns:
             List of RecentCommit objects with short SHA and truncated messages
 
         Raises:
-            ValueError: If count is not between 1 and 10
+            ValueError: If count is not a positive integer
             GitHubAPIError: If commits cannot be fetched
         """
         # Validate input parameters
-        if not (1 <= count <= 10):
-            raise ValueError("Count must be between 1 and 10")
+        if count <= 0:
+            raise ValueError("Count must be a positive integer")
+        
+        if count > 1000:
+            logger.info(f"Large commit count requested ({count}) for {owner}/{repo}, this may take longer to process")
 
         logger.debug(f"Fetching {count} recent commits from {owner}/{repo}")
 

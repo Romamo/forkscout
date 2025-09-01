@@ -275,13 +275,18 @@ The caching system is designed around simplicity and effectiveness using Hishel 
 The existing custom cache system (tasks 9.1-9.2) will be completely replaced with Hishel:
 
 **Removed Components:**
-- `CacheManager` class with complex cache warming and cleanup (~200 lines)
-- `CacheWarmingConfig` and `CacheCleanupConfig` classes (~100 lines)
-- `AnalysisCacheManager` for application-level caching (~150 lines)
-- Custom SQLite cache implementation (`cache.py`, `cache_manager.py`) (~300 lines)
+- `CacheManager` class with complex cache warming and cleanup (~200 lines) - `src/forklift/storage/cache_manager.py`
+- `CacheWarmingConfig` and `CacheCleanupConfig` classes (~100 lines) - `src/forklift/storage/cache_manager.py`
+- `AnalysisCacheManager` for application-level caching (~150 lines) - `src/forklift/storage/analysis_cache.py`
+- Custom SQLite cache implementation (~300 lines) - `src/forklift/storage/cache.py`
+- Cache validation utilities (~50 lines) - `src/forklift/storage/cache_validation.py`
+- Cache data models (~50 lines) - `src/forklift/models/cache.py`
 - Complex cache monitoring and metrics collection (~100 lines)
+- Entire `src/forklift/storage/` directory will be removed
+- Cache-related unit tests (~200 lines) - `tests/unit/test_cache*.py`
+- Cache integration tests (~100 lines) - `tests/integration/test_cache_integration.py`
 
-**Total Code Reduction:** ~850 lines of complex cache management code
+**Total Code Reduction:** ~1,150 lines of complex cache management code
 
 **Replaced With:**
 - Hishel HTTP client wrapper for automatic caching (~20 lines)

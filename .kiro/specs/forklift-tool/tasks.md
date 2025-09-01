@@ -414,19 +414,21 @@
   - Write integration tests for enhanced CLI output
   - _Requirements: 12.2, 12.3, 12.6_
 
-- [x] 9. Implement caching and storage layer
-- [x] 9.1 Create SQLite-based caching system
-  - Implement database schema for caching fork analysis results
-  - Add cache invalidation based on repository activity
-  - Create data access layer for cached analysis retrieval
-  - Write tests for cache operations and data persistence
+- [x] 9. Implement caching and storage layer (DEPRECATED - TO BE REPLACED WITH HISHEL)
+- [x] 9.1 Create SQLite-based caching system (DEPRECATED - TO BE REMOVED)
+  - ~~Implement database schema for caching fork analysis results~~ (TO BE REMOVED)
+  - ~~Add cache invalidation based on repository activity~~ (TO BE REMOVED)
+  - ~~Create data access layer for cached analysis retrieval~~ (TO BE REMOVED)
+  - ~~Write tests for cache operations and data persistence~~ (TO BE REMOVED)
+  - **NOTE: This custom cache system will be completely replaced with Hishel HTTP caching**
   - _Requirements: 1.5, 6.3_
 
-- [x] 9.2 Add cache management features
-  - Implement cache warming for frequently analyzed repositories
-  - Add cache cleanup and maintenance operations
-  - Create cache statistics and monitoring capabilities
-  - Write tests for cache management and cleanup operations
+- [x] 9.2 Add cache management features (DEPRECATED - TO BE REMOVED)
+  - ~~Implement cache warming for frequently analyzed repositories~~ (TO BE REMOVED)
+  - ~~Add cache cleanup and maintenance operations~~ (TO BE REMOVED)
+  - ~~Create cache statistics and monitoring capabilities~~ (TO BE REMOVED)
+  - ~~Write tests for cache management and cleanup operations~~ (TO BE REMOVED)
+  - **NOTE: All cache management will be handled automatically by Hishel**
   - _Requirements: 6.5_
 
 - [ ] 10. Add comprehensive error handling and logging
@@ -667,15 +669,25 @@
 - [ ] 16. Replace custom cache system with Hishel HTTP caching (HIGH PRIORITY)
 - [ ] 16.1 Remove custom cache system and add Hishel dependency
   - Add hishel dependency to pyproject.toml for HTTP caching
-  - Remove custom cache management code (CacheManager, CacheWarmingConfig, CacheCleanupConfig, etc.)
-  - Remove custom SQLite cache implementation (cache.py, cache_manager.py)
-  - Update imports and dependencies to remove custom cache references
-  - Write migration notes documenting the simplification
+  - Remove custom cache models (CacheConfig, CacheEntry, CacheStats, CacheKey) from src/forklift/models/cache.py
+  - Remove custom cache management code (CacheManager, CacheWarmingConfig, CacheCleanupConfig, etc.) from src/forklift/storage/cache_manager.py
+  - Remove custom SQLite cache implementation from src/forklift/storage/cache.py
+  - Remove cache validation utilities from src/forklift/storage/cache_validation.py
+  - Remove analysis cache manager from src/forklift/storage/analysis_cache.py
+  - Remove entire src/forklift/storage/ directory as it will no longer be needed
+  - Update imports throughout codebase to remove cache dependencies
+  - Remove cache-related tests from tests/unit/test_cache*.py files
+  - Write migration notes documenting the simplification (~850 lines of code removed)
   - _Requirements: 21.1, 21.8_
 
 - [ ] 16.2 Integrate Hishel with GitHub client
-  - Update GitHubClient to use Hishel-wrapped httpx client for automatic HTTP caching
+  - Update GitHubClient in src/forklift/github/client.py to use Hishel-wrapped httpx client for automatic HTTP caching
   - Configure Hishel with SQLite storage backend and appropriate cache settings
+  - Set default TTL of 30 minutes for GitHub API responses
+  - Remove all custom cache integration code from GitHub client
+  - Update GitHubClient constructor to accept cache_enabled parameter
+  - Write unit tests for Hishel integration with mocked HTTP responses
+  - _Requirements: 21.2, 21.3, 21.5, 21.10_
 
 - [ ] 17. Rename --max-forks argument to --limit for improved CLI consistency
 - [ ] 17.1 Update CLI argument definitions and validation
@@ -724,30 +736,28 @@
   - Ensure all help text and documentation is consistent
   - Write end-to-end tests for complete workflows using --limit
   - _Requirements: 21.1, 21.2, 21.7, 21.8, 21.9, 21.10_
-  - Set default TTL of 30 minutes for GitHub API responses
-  - Remove all custom cache integration code from GitHub client
-  - Write unit tests for Hishel integration with mocked HTTP responses
-  - _Requirements: 21.2, 21.3, 21.5, 21.10_
 
 - [ ] 16.3 Implement cache bypass functionality with Hishel
   - Replace custom disable_cache logic with Hishel cache bypass configuration
-  - Update --disable-cache flag to configure Hishel to bypass cache for the session
+  - Update --disable-cache flag in CLI commands to configure Hishel to bypass cache for the session
   - Remove custom cache bypass code and use Hishel's built-in bypass functionality
   - Update all CLI commands to support cache bypass through Hishel configuration
+  - Remove disable_cache parameters from service methods
   - Write unit tests for simplified cache bypass functionality
   - _Requirements: 21.4, 21.12_
 
 - [ ] 16.4 Simplify cache configuration and remove custom config
-  - Remove complex CacheConfig and replace with simple Hishel configuration
-  - Update ForkliftConfig to use minimal cache settings for Hishel
+  - Remove complex CacheConfig from src/forklift/models/cache.py and replace with simple Hishel configuration
+  - Update ForkliftConfig in src/forklift/config/settings.py to use minimal cache settings for Hishel
   - Remove cache warming, cleanup, and monitoring configuration classes
   - Add basic cache location and size limit configuration for Hishel
   - Write unit tests for simplified cache configuration
   - _Requirements: 21.5, 21.10, 21.11_
 
 - [ ] 16.5 Update all service classes to remove custom cache dependencies
-  - Remove CacheManager and AnalysisCacheManager dependencies from all services
-  - Update CLI commands to remove custom cache initialization code
+  - Remove CacheManager and AnalysisCacheManager dependencies from RepositoryDisplayService in src/forklift/display/repository_display_service.py
+  - Remove cache_manager parameters from service constructors
+  - Update CLI commands in src/forklift/cli.py to remove custom cache initialization code
   - Ensure all services use the simplified Hishel-enabled GitHub client
   - Remove cache management complexity from service constructors
   - Write integration tests for simplified service initialization
@@ -757,9 +767,8 @@
   - Implement simple cache hit/miss statistics collection from Hishel
   - Add basic cache performance logging (much simpler than custom system)
   - Remove complex cache monitoring and metrics code
-  - Add simple cache size and storage monitoring
-  - Write unit tests for simplified cache statistics
-  - _Requirements: 21.6, 21.7_
+  - Write unit tests for simplified cache monitoring
+  - _Requirements: 21.9, 21.11_
 
 - [ ] 16.7 Implement comprehensive testing for simplified cache system
   - Write integration tests for Hishel HTTP caching with real GitHub API calls
@@ -767,6 +776,8 @@
   - Remove complex cache management tests and replace with simple Hishel tests
   - Test cache persistence across application restarts
   - Write end-to-end tests for complete workflows with Hishel caching enabled
+  - Remove tests/unit/test_cache.py, tests/unit/test_cache_manager.py, tests/unit/test_analysis_cache.py
+  - Remove tests/integration/test_cache_integration.py
   - _Requirements: 21.1, 21.2, 21.3, 21.7, 21.9_
 
 - [ ] 17. Implement fork qualification data collection for user decision-making
@@ -1575,7 +1586,7 @@
   - Write unit tests for all progress reporter implementations
   - _Requirements: 22.6, 22.7, 22.8_
 
-- [-] 25.4 Integrate interactive mode detection with CLI commands
+- [x] 25.4 Integrate interactive mode detection with CLI commands
   - Update CLI initialization to detect interaction mode and configure appropriate progress reporting
   - Modify all commands to use adaptive progress reporting instead of fixed progress bars
   - Update user prompt handling to respect interaction mode (auto-proceed in non-interactive)
@@ -1592,3 +1603,62 @@
   - Create end-to-end tests for output redirection scenarios (> file, | pipe)
   - Write tests for CI environment behavior and automation compatibility
   - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
+
+- [ ] 26. Remove artificial commit count limits and implement proper GitHub API usage
+- [-] 26.1 Remove all artificial commit count limits in GitHub client methods
+  - Remove validation logic that restricts count to 1-10 range in get_commits_ahead method
+  - Remove validation logic that restricts count to 1-10 range in get_commits_ahead_batch method
+  - Accept any positive integer value for commit count parameters
+  - Add informational logging for large commit counts (>1000) about potential processing time
+  - Write unit tests for validation with various count values (1, 100, 1000, 5000)
+  - _Requirements: 23.1, 23.2, 23.8_
+
+- [ ] 26.2 Implement GitHub Compare API pagination for unlimited commit counts
+  - Research GitHub Compare API pagination: `/repos/{owner}/{repo}/compare/{base}...{head}?page=N&per_page=100`
+  - Update compare_commits method to support pagination parameters (page, per_page)
+  - Implement paginated commit fetching that continues until requested count is reached
+  - Add logic to handle Compare API's default 250 commit limit by using pagination
+  - Implement streaming/batched processing for very large commit counts to manage memory efficiently
+  - Add proper rate limiting and backoff strategies for multiple paginated API requests
+  - Handle GitHub API errors gracefully with retry logic and return partial results when needed
+  - Write unit tests for Compare API pagination logic and memory management
+  - _Requirements: 23.3, 23.4, 23.5, 23.9_
+
+- [ ] 26.3 Update CLI parameter validation to accept unlimited commit counts
+  - Modify show-forks command --show-commits parameter to accept any positive integer
+  - Update CLI help text: "Show last N commits for each fork (any positive number, default: 0)"
+  - Remove upper bound validation, only reject negative values and zero
+  - Add informational messages for very large values about processing time
+  - Write unit tests for CLI parameter validation with edge cases
+  - _Requirements: 23.1, 23.10_
+
+- [ ] 26.4 Update batch processing methods to support unlimited commits with pagination
+  - Modify get_commits_ahead_batch method to use paginated Compare API calls
+  - Implement logic to determine how many pages needed based on requested commit count
+  - Add concurrent pagination handling for multiple forks while respecting rate limits
+  - Update batch processing to handle partial results when some forks hit API limits
+  - Implement efficient memory management for large batch operations with many commits
+  - Add progress tracking for paginated batch operations showing pages fetched per fork
+  - Write unit tests for batch pagination logic and concurrent API handling
+  - _Requirements: 23.3, 23.4, 23.5, 23.9_
+
+- [ ] 26.5 Enhance performance monitoring and user feedback for large operations
+  - Add progress indicators that show current progress for large commit fetching operations
+  - Display pagination progress: "Fetching page 3/12 for fork owner/repo (750/1000 commits)"
+  - Implement memory usage monitoring and warnings for very large commit counts
+  - Add timing information to help users understand performance impact of large requests
+  - Provide clear feedback about GitHub API rate limiting when it occurs during pagination
+  - Show estimated completion time based on current pagination progress
+  - Write integration tests for performance monitoring and user feedback
+  - _Requirements: 23.6, 23.7, 23.9_
+
+- [ ] 26.6 Add comprehensive testing for unlimited commit count functionality
+  - Write unit tests for removed validation limits and new Compare API pagination logic
+  - Create integration tests with real GitHub repositories using various large commit counts (100, 500, 1000+)
+  - Test Compare API pagination with repositories that have many commits ahead
+  - Test memory management and performance with very large commit counts (1000+)
+  - Add tests for GitHub API rate limiting scenarios and recovery during pagination
+  - Write end-to-end tests for complete workflow: `--show-commits=1000` should fetch 1000 commits
+  - Test edge cases: repositories with exactly 250, 500, 1000 commits ahead
+  - Verify that pagination correctly handles partial pages and API errors
+  - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7, 23.8, 23.9, 23.10_

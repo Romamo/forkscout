@@ -116,6 +116,19 @@ class RepositoryDisplayService:
             should_exclude_language_distribution
         )
         self._should_exclude_fork_insights = should_exclude_fork_insights
+        
+        # Create a separate console for progress bars that always goes to stderr
+        # This ensures progress bars don't interfere with output redirection
+        from .interaction_mode import get_interaction_mode_detector, InteractionMode
+        detector = get_interaction_mode_detector()
+        interaction_mode = detector.get_interaction_mode()
+        
+        if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
+            # When output is redirected, progress should go to stderr
+            self.progress_console = Console(file=sys.stderr)
+        else:
+            # For other modes, use the same console as content
+            self.progress_console = self.console
 
     async def list_forks_preview(self, repo_url: str) -> dict[str, Any]:
         """Display a lightweight preview of repository forks using minimal API calls.
@@ -1532,7 +1545,7 @@ class RepositoryDisplayService:
                     TextColumn("[progress.description]{task.description}"),
                     BarColumn(),
                     TaskProgressColumn(),
-                    console=self.console,
+                    console=self.progress_console,
                 ) as progress:
                     task = progress.add_task(
                         "Fetching exact commit counts...", total=len(forks_needing_api)
@@ -2268,7 +2281,7 @@ class RepositoryDisplayService:
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
                 TaskProgressColumn(),
-                console=self.console,
+                console=self.progress_console,
             ) as progress:
                 task = progress.add_task(
                     f"Fetching recent commits for {processing_count} forks (skipped {skipped_count})...",

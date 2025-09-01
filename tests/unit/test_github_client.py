@@ -500,13 +500,53 @@ class TestGitHubClientRepositoryOperations:
     async def test_get_recent_commits_invalid_count(self, client):
         """Test get_recent_commits with invalid count values."""
         async with client:
-            # Test count too low
-            with pytest.raises(ValueError, match="Count must be between 1 and 10"):
+            # Test count too low (zero)
+            with pytest.raises(ValueError, match="Count must be a positive integer"):
                 await client.get_recent_commits("testowner", "test-repo", count=0)
             
-            # Test count too high
-            with pytest.raises(ValueError, match="Count must be between 1 and 10"):
-                await client.get_recent_commits("testowner", "test-repo", count=11)
+            # Test negative count
+            with pytest.raises(ValueError, match="Count must be a positive integer"):
+                await client.get_recent_commits("testowner", "test-repo", count=-1)
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_recent_commits_various_count_values(self, client, mock_repository_data):
+        """Test get_recent_commits with various valid count values."""
+        # Mock repository info
+        respx.get("https://api.github.com/repos/testowner/test-repo").mock(
+            return_value=httpx.Response(200, json=mock_repository_data)
+        )
+        
+        # Mock commits response
+        commits_data = [
+            {
+                "sha": f"abc123456789012345678901234567890123456{i:02d}",
+                "commit": {
+                    "message": f"Test commit {i}",
+                    "author": {"date": "2024-01-15T10:30:00Z"}
+                }
+            }
+            for i in range(5000)  # Generate enough commits for testing
+        ]
+        
+        async with client:
+            # Test various count values
+            test_counts = [1, 100, 1000, 5000]
+            
+            for count in test_counts:
+                # Mock the commits endpoint to return the requested number
+                respx.get("https://api.github.com/repos/testowner/test-repo/commits").mock(
+                    return_value=httpx.Response(200, json=commits_data[:count])
+                )
+                
+                result = await client.get_recent_commits("testowner", "test-repo", count=count)
+                assert len(result) == count
+                
+                # Verify each commit has the expected structure
+                for i, commit in enumerate(result):
+                    expected_full_sha = f"abc123456789012345678901234567890123456{i:02d}"
+                    assert commit.short_sha == expected_full_sha[:7]  # First 7 characters
+                    assert commit.message == f"Test commit {i}"
 
     @pytest.mark.asyncio
     @respx.mock

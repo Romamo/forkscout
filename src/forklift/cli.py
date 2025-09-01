@@ -87,14 +87,12 @@ def initialize_cli_environment() -> tuple[InteractionMode, bool]:
     
     # Configure console based on interaction mode
     global console
-    if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
-        # When output is redirected, use stderr for interactive elements
-        console = Console(file=sys.stderr)
-    elif interaction_mode == InteractionMode.NON_INTERACTIVE:
+    if interaction_mode == InteractionMode.NON_INTERACTIVE:
         # For non-interactive mode, disable colors and fancy formatting
         console = Console(file=sys.stdout, force_terminal=False, no_color=True)
     else:
-        # Default console configuration
+        # For all other modes, keep console on stdout
+        # Interactive elements (progress bars, prompts) will be handled separately
         console = Console(file=sys.stdout)
     
     # Reset progress reporter to ensure it uses the correct mode
@@ -1138,7 +1136,9 @@ def show_forks(
             )
 
         if verbose:
-            console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
+            # Use stderr for verbose messages when output might be redirected
+            verbose_console = Console(file=sys.stderr) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
+            verbose_console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Run forks summary display
         asyncio.run(
@@ -1962,7 +1962,10 @@ async def _show_forks_summary(
         ahead_only: If True, filter to show only forks with commits ahead
     """
     async with GitHubClient(config.github) as github_client:
-        display_service = RepositoryDisplayService(github_client, console)
+        # Create appropriate console for main content output
+        # Always use stdout for main content, regardless of interaction mode
+        content_console = Console(file=sys.stdout)
+        display_service = RepositoryDisplayService(github_client, content_console)
         
         # Log interaction mode for debugging
         logger.debug(f"show-forks using interaction mode: {interaction_mode.value}")
@@ -1983,10 +1986,10 @@ async def _show_forks_summary(
                     total_forks = fork_data_result["total_forks"]
                     displayed_forks = fork_data_result["displayed_forks"]
                     api_calls_made = fork_data_result.get("api_calls_made", 0)
-                    console.print(
+                    content_console.print(
                         f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks with detailed commit information[/green]"
                     )
-                    console.print(
+                    content_console.print(
                         f"[blue]Made {api_calls_made} additional API calls for commit comparison[/blue]"
                     )
             else:
@@ -2006,7 +2009,7 @@ async def _show_forks_summary(
                 if verbose:
                     total_forks = fork_data_result["total_forks"]
                     displayed_forks = fork_data_result["displayed_forks"]
-                    console.print(
+                    content_console.print(
                         f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks using pagination-only requests[/green]"
                     )
 
