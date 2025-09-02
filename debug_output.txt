@@ -1,0 +1,559 @@
+2025-09-01 12:22:18,657 - forklift.display.repository_display_service - INFO - Collecting detailed fork data with exact commit counts for sanila2007/youtube-bot-telegram
+2025-09-01 12:22:18,657 - forklift.github.fork_list_processor - INFO - Starting fork list data collection for sanila2007/youtube-bot-telegram
+2025-09-01 12:22:19,338 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/forks?sort=newest&per_page=100&page=1 "HTTP/1.1 200 OK"
+2025-09-01 12:22:19,402 - forklift.github.fork_list_processor - INFO - Collected 37 forks in 0.74s using 1 API calls
+2025-09-01 12:22:19,402 - forklift.analysis.fork_data_collection_engine - INFO - Collecting fork data from 37 forks
+2025-09-01 12:22:19,402 - forklift.analysis.fork_data_collection_engine - INFO - Collected data for 37 forks in 0.00s
+Filtered 37 forks: 19 included, 0 private excluded, 18 no commits excluded
+2025-09-01 12:22:19,404 - forklift.display.repository_display_service - INFO - Using optimized batch processing for 19 forks
+2025-09-01 12:22:19,404 - forklift.github.client - INFO - Batch processing 19 forks against sanila2007/youtube-bot-telegram
+2025-09-01 12:22:19,404 - forklift.github.client - INFO - Fetching repository sanila2007/youtube-bot-telegram
+2025-09-01 12:22:19,725 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:19,725 - forklift.github.client - INFO - Parent repository sanila2007/youtube-bot-telegram fetched once for 19 forks
+2025-09-01 12:22:19,726 - forklift.github.client - INFO - Fetching repository MDAltantawy/youtube-bot-telegram
+2025-09-01 12:22:19,726 - forklift.github.client - INFO - Fetching repository XXF91/youtube-bot-telegram
+2025-09-01 12:22:19,726 - forklift.github.client - INFO - Fetching repository RvC12345/youtube-bot-telegram
+2025-09-01 12:22:19,726 - forklift.github.client - INFO - Fetching repository Hetlr88/youtube-bot-telegram
+2025-09-01 12:22:19,726 - forklift.github.client - INFO - Fetching repository ramanj2266/youtube-bot-telegram
+2025-09-01 12:22:20,076 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/MDAltantawy/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,077 - forklift.github.client - INFO - Fetching repository KINGSKR/youtube-bot-telegram
+2025-09-01 12:22:20,386 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/RvC12345/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,388 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/ramanj2266/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,389 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/Hetlr88/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,389 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/XXF91/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,389 - forklift.github.client - INFO - Fetching repository yahyabassa/youtube-bot-telegram
+2025-09-01 12:22:20,391 - forklift.github.client - INFO - Fetching repository mahcopration/youtube-bot-telegram
+2025-09-01 12:22:20,391 - forklift.github.client - INFO - Fetching repository AnonymousX0408/youtubebottelegram
+2025-09-01 12:22:20,391 - forklift.github.client - INFO - Fetching repository KrishaVV44/youtube-bot-telegram
+2025-09-01 12:22:20,406 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/KINGSKR/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,407 - forklift.github.client - INFO - Fetching repository koniya113/youtube-bot-telegram
+2025-09-01 12:22:20,638 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/koniya113/youtube-bot-telegram "HTTP/1.1 404 Not Found"
+2025-09-01 12:22:20,639 - forklift.github.rate_limiter - ERROR - Non-retryable error in GET repos/koniya113/youtube-bot-telegram: Resource not found. This may be a permanent failure if the repository or resource doesn't exist, or temporary if it's a network issue.
+2025-09-01 12:22:20,639 - forklift.github.client - WARNING - Failed to fetch fork repository koniya113/youtube-bot-telegram: Repository 'koniya113/youtube-bot-telegram' not found or is private
+2025-09-01 12:22:20,640 - forklift.github.client - INFO - Fetching repository Shivamvermaaa/youtube-bot-telegram
+2025-09-01 12:22:20,724 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/mahcopration/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,725 - forklift.github.client - INFO - Fetching repository Xelio/tg-youtube-bot-docker
+2025-09-01 12:22:20,755 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/yahyabassa/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,756 - forklift.github.client - INFO - Fetching repository oshada12345/youtube-bot-telegram
+2025-09-01 12:22:20,761 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/AnonymousX0408/youtubebottelegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,762 - forklift.github.client - INFO - Fetching repository hshdeujd/YouTube_bot_telegramhh
+2025-09-01 12:22:20,792 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/KrishaVV44/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:20,793 - forklift.github.client - INFO - Fetching repository GreatBots/YouTube_bot_telegram
+2025-09-01 12:22:20,966 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/oshada12345/youtube-bot-telegram "HTTP/1.1 404 Not Found"
+2025-09-01 12:22:20,967 - forklift.github.rate_limiter - ERROR - Non-retryable error in GET repos/oshada12345/youtube-bot-telegram: Resource not found. This may be a permanent failure if the repository or resource doesn't exist, or temporary if it's a network issue.
+2025-09-01 12:22:20,967 - forklift.github.client - WARNING - Failed to fetch fork repository oshada12345/youtube-bot-telegram: Repository 'oshada12345/youtube-bot-telegram' not found or is private
+2025-09-01 12:22:20,967 - forklift.github.client - INFO - Fetching repository onxen/YouTube_bot_telegram
+2025-09-01 12:22:21,101 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/Shivamvermaaa/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,103 - forklift.github.client - INFO - Fetching repository ananth-28/YouTube_bot_telegram
+2025-09-01 12:22:21,103 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/Xelio/tg-youtube-bot-docker "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,104 - forklift.github.client - INFO - Fetching repository sholoomail/YouTube_bot_telegram
+2025-09-01 12:22:21,137 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/hshdeujd/YouTube_bot_telegramhh "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,146 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/GreatBots/YouTube_bot_telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,309 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/onxen/YouTube_bot_telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,311 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/ananth-28/YouTube_bot_telegram "HTTP/1.1 404 Not Found"
+2025-09-01 12:22:21,311 - forklift.github.rate_limiter - ERROR - Non-retryable error in GET repos/ananth-28/YouTube_bot_telegram: Resource not found. This may be a permanent failure if the repository or resource doesn't exist, or temporary if it's a network issue.
+2025-09-01 12:22:21,311 - forklift.github.client - WARNING - Failed to fetch fork repository ananth-28/YouTube_bot_telegram: Repository 'ananth-28/YouTube_bot_telegram' not found or is private
+2025-09-01 12:22:21,527 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sholoomail/YouTube_bot_telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,528 - forklift.github.client - INFO - Successfully fetched 16 out of 19 fork repositories
+2025-09-01 12:22:21,528 - forklift.github.client - INFO - Comparing mai...MDAltantawy:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,529 - forklift.github.client - INFO - Comparing mai...XXF91:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,529 - forklift.github.client - INFO - Comparing mai...RvC12345:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,530 - forklift.github.client - INFO - Comparing mai...Hetlr88:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,530 - forklift.github.client - INFO - Comparing mai...ramanj2266:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,854 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...XXF91:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,855 - forklift.github.client - INFO - Comparing mai...KINGSKR:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,961 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...Hetlr88:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,963 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...ramanj2266:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,963 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...RvC12345:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,963 - forklift.github.client - INFO - Comparing mai...yahyabassa:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,964 - forklift.github.client - INFO - Comparing mai...mahcopration:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,965 - forklift.github.client - INFO - Comparing mai...AnonymousX0408:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:21,970 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...MDAltantawy:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:21,970 - forklift.github.client - INFO - Comparing mai...KrishaVV44:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,260 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...KINGSKR:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,262 - forklift.github.client - INFO - Comparing mai...Shivamvermaaa:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,312 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...yahyabassa:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,313 - forklift.github.client - INFO - Comparing mai...Xelio:main in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,333 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...KrishaVV44:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,334 - forklift.github.client - INFO - Comparing mai...hshdeujd:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,345 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...mahcopration:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,346 - forklift.github.client - INFO - Comparing mai...GreatBots:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,351 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...AnonymousX0408:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,352 - forklift.github.client - INFO - Comparing mai...onxen:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,660 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...Shivamvermaaa:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,661 - forklift.github.client - INFO - Comparing mai...sholoomail:main in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:22,685 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...hshdeujd:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,720 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...onxen:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,731 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...Xelio:main "HTTP/1.1 200 OK"
+2025-09-01 12:22:22,739 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...GreatBots:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,032 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...sholoomail:main "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,034 - forklift.github.client - INFO - Batch processing completed: 16/19 forks processed
+2025-09-01 12:22:23,034 - forklift.github.client - INFO - API optimization: 18 parent repository calls saved
+2025-09-01 12:22:23,035 - forklift.display.repository_display_service - INFO - Batch processing completed: 16/19 forks processed
+2025-09-01 12:22:23,035 - forklift.display.repository_display_service - INFO - API optimization: 16 parent repository calls saved
+  Fetching exact commit counts... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%
+2025-09-01 12:22:23,036 - forklift.display.repository_display_service - INFO - Using optimized batch processing for 19 forks
+2025-09-01 12:22:23,036 - forklift.github.client - INFO - Batch processing 19 forks against sanila2007/youtube-bot-telegram
+2025-09-01 12:22:23,036 - forklift.github.client - INFO - Fetching repository sanila2007/youtube-bot-telegram
+2025-09-01 12:22:23,353 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,354 - forklift.github.client - INFO - Parent repository sanila2007/youtube-bot-telegram fetched once for 19 forks
+2025-09-01 12:22:23,354 - forklift.github.client - INFO - Fetching repository MDAltantawy/youtube-bot-telegram
+2025-09-01 12:22:23,355 - forklift.github.client - INFO - Fetching repository XXF91/youtube-bot-telegram
+2025-09-01 12:22:23,355 - forklift.github.client - INFO - Fetching repository RvC12345/youtube-bot-telegram
+2025-09-01 12:22:23,356 - forklift.github.client - INFO - Fetching repository Hetlr88/youtube-bot-telegram
+2025-09-01 12:22:23,356 - forklift.github.client - INFO - Fetching repository ramanj2266/youtube-bot-telegram
+2025-09-01 12:22:23,685 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/ramanj2266/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,686 - forklift.github.client - INFO - Fetching repository KINGSKR/youtube-bot-telegram
+2025-09-01 12:22:23,716 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/MDAltantawy/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,717 - forklift.github.client - INFO - Fetching repository yahyabassa/youtube-bot-telegram
+2025-09-01 12:22:23,758 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/XXF91/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,761 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/Hetlr88/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,762 - forklift.github.client - INFO - Fetching repository mahcopration/youtube-bot-telegram
+2025-09-01 12:22:23,763 - forklift.github.client - INFO - Fetching repository AnonymousX0408/youtubebottelegram
+2025-09-01 12:22:23,776 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/RvC12345/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:23,777 - forklift.github.client - INFO - Fetching repository Shivamvermaaa/youtube-bot-telegram
+2025-09-01 12:22:24,057 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/KINGSKR/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,058 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/yahyabassa/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,059 - forklift.github.client - INFO - Fetching repository Xelio/tg-youtube-bot-docker
+2025-09-01 12:22:24,060 - forklift.github.client - INFO - Fetching repository hshdeujd/YouTube_bot_telegramhh
+2025-09-01 12:22:24,118 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/AnonymousX0408/youtubebottelegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,119 - forklift.github.client - INFO - Fetching repository GreatBots/YouTube_bot_telegram
+2025-09-01 12:22:24,129 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/mahcopration/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,130 - forklift.github.client - INFO - Fetching repository onxen/YouTube_bot_telegram
+2025-09-01 12:22:24,152 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/Shivamvermaaa/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,153 - forklift.github.client - INFO - Fetching repository sholoomail/YouTube_bot_telegram
+2025-09-01 12:22:24,419 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/Xelio/tg-youtube-bot-docker "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,421 - forklift.github.client - INFO - Fetching repository KrishaVV44/youtube-bot-telegram
+2025-09-01 12:22:24,432 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/hshdeujd/YouTube_bot_telegramhh "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,433 - forklift.github.client - INFO - Fetching repository koniya113/youtube-bot-telegram
+2025-09-01 12:22:24,581 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/GreatBots/YouTube_bot_telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,583 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/onxen/YouTube_bot_telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,584 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sholoomail/YouTube_bot_telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,584 - forklift.github.client - INFO - Fetching repository oshada12345/youtube-bot-telegram
+2025-09-01 12:22:24,587 - forklift.github.client - INFO - Fetching repository ananth-28/YouTube_bot_telegram
+2025-09-01 12:22:24,632 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/koniya113/youtube-bot-telegram "HTTP/1.1 404 Not Found"
+2025-09-01 12:22:24,634 - forklift.github.rate_limiter - ERROR - Non-retryable error in GET repos/koniya113/youtube-bot-telegram: Resource not found. This may be a permanent failure if the repository or resource doesn't exist, or temporary if it's a network issue.
+2025-09-01 12:22:24,635 - forklift.github.client - WARNING - Failed to fetch fork repository koniya113/youtube-bot-telegram: Repository 'koniya113/youtube-bot-telegram' not found or is private
+2025-09-01 12:22:24,748 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/KrishaVV44/youtube-bot-telegram "HTTP/1.1 200 OK"
+2025-09-01 12:22:24,802 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/oshada12345/youtube-bot-telegram "HTTP/1.1 404 Not Found"
+2025-09-01 12:22:24,803 - forklift.github.rate_limiter - ERROR - Non-retryable error in GET repos/oshada12345/youtube-bot-telegram: Resource not found. This may be a permanent failure if the repository or resource doesn't exist, or temporary if it's a network issue.
+2025-09-01 12:22:24,803 - forklift.github.client - WARNING - Failed to fetch fork repository oshada12345/youtube-bot-telegram: Repository 'oshada12345/youtube-bot-telegram' not found or is private
+2025-09-01 12:22:24,824 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/ananth-28/YouTube_bot_telegram "HTTP/1.1 404 Not Found"
+2025-09-01 12:22:24,825 - forklift.github.rate_limiter - ERROR - Non-retryable error in GET repos/ananth-28/YouTube_bot_telegram: Resource not found. This may be a permanent failure if the repository or resource doesn't exist, or temporary if it's a network issue.
+2025-09-01 12:22:24,826 - forklift.github.client - WARNING - Failed to fetch fork repository ananth-28/YouTube_bot_telegram: Repository 'ananth-28/YouTube_bot_telegram' not found or is private
+2025-09-01 12:22:24,826 - forklift.github.client - INFO - Successfully fetched 16 out of 19 fork repositories
+2025-09-01 12:22:24,826 - forklift.github.client - INFO - Comparing mai...MDAltantawy:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:24,827 - forklift.github.client - INFO - Comparing mai...XXF91:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:24,829 - forklift.github.client - INFO - Comparing mai...RvC12345:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:24,830 - forklift.github.client - INFO - Comparing mai...Hetlr88:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:24,830 - forklift.github.client - INFO - Comparing mai...ramanj2266:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,181 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...RvC12345:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,182 - forklift.github.client - INFO - Comparing mai...KINGSKR:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,220 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...XXF91:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,220 - forklift.github.client - INFO - Comparing mai...yahyabassa:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,228 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...MDAltantawy:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,229 - forklift.github.client - INFO - Comparing mai...mahcopration:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,234 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...Hetlr88:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,235 - forklift.github.client - INFO - Comparing mai...AnonymousX0408:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,241 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...ramanj2266:mai "HTTP/1.1 200 OK"
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update _yt_playlist.py' (length: 22)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update _yt_playlist.py' (length: 22)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update _yt_playlist.py' (length: 22)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update _start.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update _start.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update _start.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Create render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Create render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Create render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Create Dockerfile' (length: 17)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Create Dockerfile' (length: 17)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Create Dockerfile' (length: 17)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update _yt_playlist.py' (length: 22)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update _yt_playlist.py' (length: 22)2025-09-01 12:22:25,242 - forklift.github.client - INFO - Comparing mai...Shivamvermaaa:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,500 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...KINGSKR:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,501 - forklift.github.client - INFO - Comparing mai...Xelio:main in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,630 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...yahyabassa:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,631 - forklift.github.client - INFO - Comparing mai...hshdeujd:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,643 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...mahcopration:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,644 - forklift.github.client - INFO - Comparing mai...GreatBots:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,663 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...AnonymousX0408:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,664 - forklift.github.client - INFO - Comparing mai...onxen:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,724 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...Shivamvermaaa:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,725 - forklift.github.client - INFO - Comparing mai...sholoomail:main in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,928 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...Xelio:main "HTTP/1.1 200 OK"
+2025-09-01 12:22:25,929 - forklift.github.client - INFO - Comparing mai...KrishaVV44:mai in sanila2007/youtube-bot-telegram
+2025-09-01 12:22:25,970 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...hshdeujd:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:26,042 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...GreatBots:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:26,046 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...onxen:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:26,155 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...sholoomail:main "HTTP/1.1 200 OK"
+2025-09-01 12:22:26,315 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/sanila2007/youtube-bot-telegram/compare/mai...KrishaVV44:mai "HTTP/1.1 200 OK"
+2025-09-01 12:22:26,316 - forklift.github.client - INFO - Batch processing completed: 16/19 forks processed
+2025-09-01 12:22:26,316 - forklift.github.client - INFO - API optimization: 18 parent repository calls saved
+
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update _yt_playlist.py' (length: 22)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update app.json' (length: 15)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update app.json' (length: 15)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update app.json' (length: 15)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Create app.py' (length: 13)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Create app.py' (length: 13)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Create app.py' (length: 13)
+DEBUG: RecentCommit.from_github_api - Original message: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: RecentCommit.from_github_api - Original message: 'Add Dockerfile' (length: 14)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Add Dockerfile' (length: 14)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Add Dockerfile' (length: 14)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update _start.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update _start.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update _start.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update README.md' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update config.py' (length: 16)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update requirements.txt' (length: 23)
+DEBUG: RecentCommit.from_github_api - Original message: 'Create render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Create render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Create render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - Original message: 'Update render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - max_message_length: 500
+DEBUG: RecentCommit.from_github_api - Message not truncated: 'Update render.yaml' (length: 18)
+DEBUG: RecentCommit.from_github_api - After whitespace cleanup: 'Update render.yaml' (length: 18)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update README.md' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update README.md' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update README.md' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update README.md' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update README.md' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update config.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update config.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update config.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update config.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update config.py' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update requirements.txt' (length: 23), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update requirements.txt' (length: 23)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update config.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update config.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update config.py' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Create Dockerfile' (length: 17)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Create Dockerfile' (length: 17), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Create Dockerfile' (length: 17)
+DEBUG: After _truncate_commit_message - truncated_message: 'Create Dockerfile' (length: 17)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update config.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update config.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update config.py' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update _yt_playlist.py' (length: 22)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update _yt_playlist.py' (length: 22), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update _yt_playlist.py' (length: 22)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update _yt_playlist.py' (length: 22)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update app.json' (length: 15)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update app.json' (length: 15), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update app.json' (length: 15)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update app.json' (length: 15)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update config.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update config.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update config.py' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update requirements.txt' (length: 23), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update requirements.txt' (length: 23)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update requirements.txt' (length: 23), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update requirements.txt' (length: 23)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update requirements.txt' (length: 23)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update README.md' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update README.md' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update README.md' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update README.md' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update README.md' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update README.md' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Create app.py' (length: 13)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Create app.py' (length: 13), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Create app.py' (length: 13)
+DEBUG: After _truncate_commit_message - truncated_message: 'Create app.py' (length: 13)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update requirements.txt' (length: 23), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update requirements.txt' (length: 23)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update requirements.txt' (length: 23)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Add Dockerfile' (length: 14)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Add Dockerfile' (length: 14), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Add Dockerfile' (length: 14)
+DEBUG: After _truncate_commit_message - truncated_message: 'Add Dockerfile' (length: 14)
+DEBUG: Before _truncate_commit_message - commit.message: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Add moviepy and TgCrypto to requirements.txt' (length: 44), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: After _truncate_commit_message - truncated_message: 'Add moviepy and TgCrypto to requirements.txt' (length: 44)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update README.md' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update README.md' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update README.md' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update README.md' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update README.md' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update README.md' (length: 16)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update _start.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update _start.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update _start.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update _start.py' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update requirements.txt' (length: 23), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update requirements.txt' (length: 23)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update requirements.txt' (length: 23)
+DEBUG: Before _truncate_commit_message - commit.message: 'Update config.py' (length: 16)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update config.py' (length: 16), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update config.py' (length: 16)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update config.py' (length: 16)
+DEBUG: Column width calculation - column_width: 50, base_width: 19, max_message_length: 29
+DEBUG: Before _truncate_commit_message - commit.message: 'Update render.yaml' (length: 18)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Update render.yaml' (length: 18), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Update render.yaml' (length: 18)
+DEBUG: After _truncate_commit_message - truncated_message: 'Update render.yaml' (length: 18)
+DEBUG: Before _truncate_commit_message - commit.message: 'Create render.yaml' (length: 18)
+DEBUG: Before _truncate_commit_message - max_message_length: 29
+DEBUG: _truncate_commit_message called with message: 'Create render.yaml' (length: 18), max_length: 29
+DEBUG: _truncate_commit_message - Returning full message: 'Create render.yaml' (length: 18)
+DEBUG: After _truncate_commit_message - truncated_message: 'Create render.yaml' (length: 18)
+
+Detailed for sanila2007/youtube-bot-telegram
+================================================================================
+                        Detailed Forks (19 active forks with exact commit counts) (showing 2 recent commits)                        
+┏┳┳┳━━━━━━┳━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃┃┃┃      ┃ La… ┃                                                                                                                  ┃
+┃┃┃┃ Com… ┃ Pu… ┃ Recent Commits                                                                                                   ┃
+┡╇╇╇━━━━━━╇━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+││││   +1 │ 7   │ 2025-01-28 ee4cda1 Update README.md                                                                              │
+││││      │ mo… │ 2025-01-28 e159ada Update README.md                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 8   │ 2024-12-15 3496d91 Update config.py                                                                              │
+││││      │ mo… │ 2024-12-15 4a1045e Update config.py                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 9   │ 2024-11-10 e4e2d53 Update requirements.txt                                                                       │
+││││      │ mo… │ 2024-11-10 47b8828 Update config.py                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 1   │ 2024-08-25 d9dbb5c Create Dockerfile                                                                             │
+││││      │ ye… │ 2024-08-25 11edb60 Update config.py                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 1   │ 2024-04-26 0b29e50 Update _yt_playlist.py                                                                        │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 1   │ 2024-04-24 9938d92 Update app.json                                                                               │
+││││      │ ye… │ 2024-04-24 520669d Update config.py                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 1   │ 2024-01-04 4599e21 Update requirements.txt                                                                       │
+││││      │ ye… │ 2024-01-04 35d803a Update requirements.txt                                                                       │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 1   │ 2023-12-04 b86c39b Update README.md                                                                              │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 1   │ 2023-10-28 c516925 Update README.md                                                                              │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 2   │ 2023-06-26 7717c15 Create app.py                                                                                 │
+││││      │ ye… │ 2023-06-26 18f6593 Update requirements.txt                                                                       │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 2   │ 2023-06-19 3d76b95 Add Dockerfile                                                                                │
+││││      │ ye… │ 2023-06-19 0459d28 Add moviepy and TgCrypto to requirements.txt                                                  │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 2   │ 2023-03-13 3a60809 Update README.md                                                                              │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 2   │ 2023-03-03 79e6134 Update README.md                                                                              │
+││││      │ ye… │ 2023-03-03 e38848a Update _start.py                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 2   │ 2023-01-20 a5be56c Update requirements.txt                                                                       │
+││││      │ ye… │ 2023-01-20 3cd0a1c Update config.py                                                                              │
+││││      │ ago │                                                                                                                  │
+││││   +1 │ 2   │ 2022-12-27 47ce9ba Update render.yaml                                                                            │
+││││      │ ye… │ 2022-12-27 0ea782d Create render.yaml                                                                            │
+││││      │ ago │                                                                                                                  │
+││││      │ 1   │ No commits                                                                                                       │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││ Unk… │ 2   │ No commits                                                                                                       │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││ Unk… │ 2   │ No commits                                                                                                       │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+││││ Unk… │ 2   │ No commits                                                                                                       │
+││││      │ ye… │                                                                                                                  │
+││││      │ ago │                                                                                                                  │
+└┴┴┴──────┴─────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Summary:
+• 15 forks have commits ahead
+• 15 total commits ahead across all forks
+• 33 API calls made for exact commit counts
+• Exact commit counts fetched using GitHub compare API

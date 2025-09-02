@@ -288,6 +288,15 @@
   - Write unit tests for table formatting with long commit messages
   - _Requirements: 22.11_
 
+- [x] 8.3.5 Fix commit message truncation in Recent Commits column
+  - Remove commit message truncation entirely from _truncate_commit_message method
+  - Increase the Recent Commits column width significantly to accommodate full commit messages
+  - Update all estimated_message_width calculations to use much larger values (100-120 characters)
+  - Increase maximum column width from 70 to 150 characters to show full commit messages
+  - Test with real repository data to ensure commit messages are displayed in full
+  - Verified that commit messages like "Update requirements.txt with new dependencies" are no longer truncated
+  - _Requirements: 22.11_
+
 - [x] 8.3.3 Implement universal fork table rendering method
   - Create unified `_render_fork_table` method that consolidates `_display_fork_data_table` and `_display_detailed_fork_table` functionality
   - Design flexible table configuration system that adapts column content based on available data (status vs exact commit counts)
@@ -1605,7 +1614,7 @@
   - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
 
 - [ ] 26. Remove artificial commit count limits and implement proper GitHub API usage
-- [-] 26.1 Remove all artificial commit count limits in GitHub client methods
+- [x] 26.1 Remove all artificial commit count limits in GitHub client methods
   - Remove validation logic that restricts count to 1-10 range in get_commits_ahead method
   - Remove validation logic that restricts count to 1-10 range in get_commits_ahead_batch method
   - Accept any positive integer value for commit count parameters
@@ -1662,3 +1671,72 @@
   - Test edge cases: repositories with exactly 250, 500, 1000 commits ahead
   - Verify that pagination correctly handles partial pages and API errors
   - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7, 23.8, 23.9, 23.10_
+
+- [ ] 27. Implement CSV export functionality for show-forks command
+- [x] 27.1 Add --csv flag to show-forks CLI command
+  - Add --csv click option to existing show-forks command in src/forklift/cli.py
+  - Update command function signature to accept csv_export parameter
+  - Modify command help text to document --csv flag functionality and usage examples
+  - Add CSV export mode detection early in command processing
+  - Configure output mode to suppress all interactive elements when --csv is used
+  - Write unit tests for CLI parameter parsing and CSV mode detection
+  - _Requirements: 26.1, 26.10_
+
+- [x] 27.2 Create CSV export data models and core functionality
+  - Implement CSVExporter class in new src/forklift/reporting/csv_exporter.py module
+  - Create CSVExportConfig dataclass for export configuration (include_commits, detail_mode, etc.)
+  - Add generate_headers method that creates appropriate CSV headers based on configuration
+  - Implement format_row method with proper CSV escaping for special characters
+  - Add export_to_csv method using Python's built-in csv module for RFC 4180 compliance
+  - Write comprehensive unit tests for CSV formatting, escaping, and header generation
+  - _Requirements: 26.2, 26.3, 26.8, 26.9_
+
+- [x] 27.3 Integrate CSV export with existing fork data processing
+  - Update _show_forks_summary function to detect CSV export mode and route to CSV processing
+  - Create _export_forks_csv function that handles CSV export workflow
+  - Integrate CSV export with existing fork data collection from RepositoryDisplayService
+  - Ensure CSV export respects all existing filtering options (--ahead-only, --max-forks)
+  - Maintain the same fork sorting order in CSV export as table display
+  - Add proper error handling that sends errors to stderr while keeping stdout clean
+  - Write integration tests for CSV export with various flag combinations
+  - _Requirements: 26.6, 26.7, 26.11, 26.12_
+
+- [-] 27.4 Add support for --show-commits in CSV export
+  - Enhance CSVExporter to handle Recent Commits column when include_commits is enabled
+  - Implement proper escaping for commit messages containing commas, quotes, and newlines
+  - Format commit data consistently with table display (date, hash, message format)
+  - Add logic to include Recent Commits header only when --show-commits is specified
+  - Ensure CSV export works with commit optimization (skipping forks with no commits ahead)
+  - Write unit tests for commit data formatting and escaping in CSV output
+  - Write integration tests for --csv combined with --show-commits flag
+  - _Requirements: 26.4_
+
+- [ ] 27.5 Add support for --detail mode in CSV export
+  - Enhance CSV export to use exact commit counts when --detail flag is combined with --csv
+  - Modify Commits Ahead column to show precise "+X" format instead of status indicators
+  - Ensure CSV export triggers the same API calls as table display for exact counts
+  - Add proper handling of empty cells for forks with no commits ahead in detail mode
+  - Write unit tests for detail mode CSV formatting and exact commit count display
+  - Write integration tests for --csv combined with --detail flag
+  - _Requirements: 26.5_
+
+- [ ] 27.6 Implement comprehensive error handling and output management
+  - Add clean error reporting that sends all error messages to stderr
+  - Implement graceful exit codes (0 for success, non-zero for failure)
+  - Ensure no partial CSV output is generated when errors occur
+  - Add handling for common error scenarios (API failures, authentication issues, network timeouts)
+  - Implement proper Unicode handling for international repository names and commit messages
+  - Create error handling tests for various failure scenarios
+  - Write tests to verify clean stdout output and proper stderr error reporting
+  - _Requirements: 26.10, 26.11_
+
+- [ ] 27.7 Add comprehensive testing for CSV export functionality
+  - Write unit tests for CSVExporter class with various fork data scenarios
+  - Create tests for special character escaping (commas, quotes, newlines, Unicode)
+  - Add integration tests using real repository data to verify CSV output quality
+  - Test CSV export compatibility with all existing show-forks flags and combinations
+  - Write tests for output redirection and piping scenarios
+  - Add tests to validate spreadsheet application import compatibility (Excel, Google Sheets)
+  - Create performance tests for CSV export with large numbers of forks
+  - Write end-to-end tests covering complete CSV export workflows
+  - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5, 26.6, 26.7, 26.8, 26.9, 26.10, 26.11, 26.12_

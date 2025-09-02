@@ -3075,4 +3075,184 @@ forklift show-forks repo-url --ahead-only --max-forks 20
 - Validate output formatting and readability
 
 This design provides a focused, efficient way for maintainers to identify forks with potential contributions while maintaining compatibility with existing features and providing clear feedback about filtering decisions.
+
+## CSV Export System Design Philosophy
+
+The CSV export system is designed to provide seamless data export functionality for the show-forks command, enabling users to analyze fork data in external tools while maintaining compatibility with all existing filtering and display options.
+
+### CSV Export Design Principles
+
+- **Clean Output**: Suppress all interactive elements (progress bars, status messages, formatting) when exporting CSV
+- **Standard Compliance**: Follow RFC 4180 CSV standards for maximum compatibility with spreadsheet applications
+- **Feature Compatibility**: Work seamlessly with all existing show-forks flags (--detail, --show-commits, --ahead-only, --max-forks)
+- **Data Integrity**: Preserve all fork data and sorting order in the CSV export
+- **Error Handling**: Provide clear error messages without corrupting CSV output
+- **Escape Handling**: Properly handle special characters, quotes, commas, and newlines in fork data
+
+### CSV Export Architecture
+
+```mermaid
+graph TD
+    A[show-forks --csv] --> B[CSV Export Mode Detection]
+    B --> C[Suppress Interactive Elements]
+    C --> D[Fork Data Collection]
+    D --> E[Apply Existing Filters]
+    E --> F[Sort Fork Data]
+    F --> G[CSV Formatter]
+    G --> H[Header Generation]
+    H --> I[Row Data Processing]
+    I --> J[Special Character Escaping]
+    J --> K[CSV Output to stdout]
+    
+    L[Error Handling] --> M[Clean Error Messages]
+    M --> N[Exit Without Output Corruption]
+```
+
+### Component Integration
+
+#### CSV Export Mode Detection
+- Detect --csv flag early in command processing
+- Configure output mode to suppress all interactive elements
+- Set up clean stdout-only output stream
+
+#### Data Processing Pipeline
+1. **Fork Collection**: Use existing fork data collection system
+2. **Filter Application**: Apply all existing filters (--ahead-only, --max-forks, etc.)
+3. **Data Enhancement**: Add commit data if --show-commits is specified
+4. **Detail Processing**: Fetch exact commit counts if --detail is specified
+5. **Sorting**: Apply standard fork sorting (commits ahead first, then stars, forks, last push)
+
+#### CSV Formatting System
+```python
+class CSVExporter:
+    """Handles CSV export for fork data."""
+    
+    def __init__(self, include_commits: bool = False, detail_mode: bool = False):
+        self.include_commits = include_commits
+        self.detail_mode = detail_mode
+    
+    def generate_headers(self) -> List[str]:
+        """Generate CSV headers based on export configuration."""
+        headers = ["Fork URL", "Stars", "Forks", "Commits Ahead", "Last Push", "Language"]
+        if self.include_commits:
+            headers.append("Recent Commits")
+        return headers
+    
+    def format_row(self, fork_data: ForkData) -> List[str]:
+        """Format fork data into CSV row with proper escaping."""
+        # Implementation with proper CSV escaping
+        pass
+    
+    def export_to_csv(self, fork_data_list: List[ForkData]) -> str:
+        """Export fork data to CSV format."""
+        # Implementation using Python's csv module for standards compliance
+        pass
+```
+
+#### Special Character Handling
+- Use Python's built-in `csv` module for RFC 4180 compliance
+- Properly escape quotes by doubling them ("" for literal ")
+- Quote fields containing commas, newlines, or quotes
+- Handle Unicode characters correctly for international repository names
+
+#### Output Stream Management
+```python
+def configure_csv_output_mode():
+    """Configure output for clean CSV export."""
+    # Suppress all Rich formatting and progress indicators
+    # Direct output to stdout only
+    # Disable color codes and interactive elements
+    # Set up error handling to use stderr
+```
+
+### Error Handling Strategy
+
+#### Clean Error Reporting
+- All error messages go to stderr, never stdout
+- Exit codes indicate success (0) or failure (non-zero)
+- No partial CSV output on errors
+- Clear error messages for common issues (API failures, authentication, etc.)
+
+#### Graceful Degradation
+- Continue processing when individual forks fail
+- Include error indicators in CSV for failed forks
+- Log detailed errors to stderr while maintaining clean CSV output
+
+### Testing Strategy
+
+#### Unit Tests
+- Test CSV formatting with various fork data scenarios
+- Verify special character escaping (commas, quotes, newlines)
+- Test header generation with different flag combinations
+- Validate RFC 4180 compliance
+
+#### Integration Tests
+- Test CSV export with real repository data
+- Verify compatibility with all existing show-forks flags
+- Test output redirection and piping scenarios
+- Validate spreadsheet import compatibility
+
+#### Edge Case Tests
+- Test with repositories containing special characters in names
+- Verify handling of very long commit messages
+- Test with empty fork lists and error conditions
+- Validate Unicode handling for international repositories
+
+### Implementation Strategy
+
+#### Phase 1: Core CSV Export
+1. Add --csv flag to show-forks command
+2. Implement CSVExporter class with basic functionality
+3. Add output mode detection and suppression of interactive elements
+4. Create basic CSV formatting with proper escaping
+
+#### Phase 2: Feature Integration
+1. Integrate with --show-commits flag for commit data export
+2. Add --detail mode support for exact commit counts
+3. Ensure compatibility with --ahead-only and --max-forks filters
+4. Test all flag combinations
+
+#### Phase 3: Polish and Testing
+1. Add comprehensive error handling
+2. Implement thorough testing suite
+3. Validate spreadsheet application compatibility
+4. Add documentation and usage examples
+
+### Usage Examples
+
+#### Basic CSV Export
+```bash
+forklift show-forks owner/repo --csv > forks.csv
+```
+
+#### Detailed CSV with Commits
+```bash
+forklift show-forks owner/repo --csv --detail --show-commits 5 > detailed_forks.csv
+```
+
+#### Filtered CSV Export
+```bash
+forklift show-forks owner/repo --csv --ahead-only --max-forks 50 > active_forks.csv
+```
+
+### CSV Output Format
+
+#### Standard Headers
+```csv
+Fork URL,Stars,Forks,Commits Ahead,Last Push,Language
+```
+
+#### With Commits Headers
+```csv
+Fork URL,Stars,Forks,Commits Ahead,Last Push,Language,Recent Commits
+```
+
+#### Sample CSV Output
+```csv
+Fork URL,Stars,Forks,Commits Ahead,Last Push,Language,Recent Commits
+https://github.com/user1/repo,15,3,+5,2024-01-15,Python,"2024-01-15 abc1234 Fix bug in parser; 2024-01-14 def5678 Add new feature"
+https://github.com/user2/repo,8,1,+2,2024-01-10,JavaScript,"2024-01-10 ghi9012 Update dependencies"
+```
+
+This design ensures that CSV export integrates seamlessly with existing functionality while providing clean, standards-compliant output suitable for analysis in external tools.
 ```

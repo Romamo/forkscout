@@ -1082,6 +1082,11 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
     is_flag=True,
     help="Show only forks that have commits ahead of the upstream repository",
 )
+@click.option(
+    "--csv",
+    is_flag=True,
+    help="Export fork data in CSV format to stdout (suppresses all interactive elements)",
+)
 @click.pass_context
 def show_forks(
     ctx: click.Context,
@@ -1091,6 +1096,7 @@ def show_forks(
     show_commits: int,
     force_all_commits: bool,
     ahead_only: bool,
+    csv: bool,
 ) -> None:
     """Display a summary table of repository forks with key metrics.
 
@@ -1118,6 +1124,23 @@ def show_forks(
     Use --ahead-only to filter and show only forks that have commits ahead of the
     upstream repository. This excludes forks with no new commits and private forks.
 
+    Use --csv flag to export fork data in CSV format to stdout. This suppresses all
+    interactive elements, progress bars, and formatting to provide clean CSV output
+    suitable for data processing and automation.
+
+    Examples:
+    \b
+    # Basic fork display
+    forklift show-forks owner/repo
+
+    \b
+    # Export to CSV file
+    forklift show-forks owner/repo --csv > forks.csv
+
+    \b
+    # CSV with detailed commit counts
+    forklift show-forks owner/repo --csv --detail > detailed_forks.csv
+
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
     - SSH URL: git@github.com:owner/repo.git
@@ -1140,6 +1163,12 @@ def show_forks(
             verbose_console = Console(file=sys.stderr) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
             verbose_console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
+        # Detect CSV export mode early in processing
+        if csv:
+            # Override interaction mode for CSV export to suppress interactive elements
+            interaction_mode = InteractionMode.NON_INTERACTIVE
+            supports_prompts = False
+
         # Run forks summary display
         asyncio.run(
             _show_forks_summary(
@@ -1151,6 +1180,7 @@ def show_forks(
                 show_commits,
                 force_all_commits,
                 ahead_only,
+                csv,
                 interaction_mode,
                 supports_prompts,
             )
@@ -1946,6 +1976,7 @@ async def _show_forks_summary(
     show_commits: int = 0,
     force_all_commits: bool = False,
     ahead_only: bool = False,
+    csv: bool = False,
     interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
     supports_prompts: bool = True,
 ) -> None:
@@ -1960,6 +1991,9 @@ async def _show_forks_summary(
         show_commits: Number of recent commits to show for each fork (0-10)
         force_all_commits: If True, bypass optimization and download commits for all forks
         ahead_only: If True, filter to show only forks with commits ahead
+        csv: If True, export data in CSV format instead of table format
+        interaction_mode: Current interaction mode for output formatting
+        supports_prompts: Whether user prompts are supported
     """
     async with GitHubClient(config.github) as github_client:
         # Create appropriate console for main content output
@@ -1971,7 +2005,18 @@ async def _show_forks_summary(
         logger.debug(f"show-forks using interaction mode: {interaction_mode.value}")
 
         try:
-            if detail:
+            if csv:
+                # CSV export mode - route to CSV processing
+                await _export_forks_csv(
+                    display_service,
+                    repository_url,
+                    max_forks,
+                    detail,
+                    show_commits,
+                    force_all_commits,
+                    ahead_only
+                )
+            elif detail:
                 # Use detailed fork display with exact commit counts
                 fork_data_result = await display_service.show_fork_data_detailed(
                     repository_url,
@@ -1980,6 +2025,7 @@ async def _show_forks_summary(
                     show_commits=show_commits,
                     force_all_commits=force_all_commits,
                     ahead_only=ahead_only,
+                    csv_export=False,
                 )
 
                 if verbose:
@@ -2004,6 +2050,7 @@ async def _show_forks_summary(
                     show_commits=show_commits,
                     force_all_commits=force_all_commits,
                     ahead_only=ahead_only,
+                    csv_export=False,
                 )
 
                 if verbose:
@@ -2015,7 +2062,66 @@ async def _show_forks_summary(
 
         except Exception as e:
             logger.error(f"Failed to display forks data: {e}")
+            if csv:
+                # In CSV mode, send errors to stderr to keep stdout clean
+                sys.stderr.write(f"Error: Failed to display forks data: {e}\n")
+                sys.stderr.flush()
             raise CLIError(f"Failed to display forks data: {e}")
+
+
+async def _export_forks_csv(
+    display_service: "RepositoryDisplayService",
+    repository_url: str,
+    max_forks: int | None,
+    detail: bool,
+    show_commits: int,
+    force_all_commits: bool,
+    ahead_only: bool
+) -> None:
+    """Export fork data in CSV format with proper error handling.
+    
+    Args:
+        display_service: Repository display service instance
+        repository_url: Repository URL to get forks for
+        max_forks: Maximum number of forks to display
+        detail: Whether to fetch exact commit counts ahead
+        show_commits: Number of recent commits to show for each fork
+        force_all_commits: Whether to fetch commits for all forks
+        ahead_only: Whether to filter to show only forks with commits ahead
+    """
+    import sys
+    
+    try:
+        if detail:
+            # Use detailed fork display with exact commit counts for CSV
+            await display_service.show_fork_data_detailed(
+                repository_url,
+                max_forks=max_forks,
+                disable_cache=False,
+                show_commits=show_commits,
+                force_all_commits=force_all_commits,
+                ahead_only=ahead_only,
+                csv_export=True,
+            )
+        else:
+            # Use standard fork data display for CSV
+            await display_service.show_fork_data(
+                repository_url,
+                exclude_archived=False,
+                exclude_disabled=False,
+                sort_by="stars",
+                show_all=True,
+                disable_cache=False,
+                show_commits=show_commits,
+                force_all_commits=force_all_commits,
+                ahead_only=ahead_only,
+                csv_export=True,
+            )
+    except Exception as e:
+        # Send errors to stderr to keep stdout clean for CSV data
+        sys.stderr.write(f"Error exporting CSV data: {e}\n")
+        sys.stderr.flush()
+        raise
 
 
 async def _run_analysis(

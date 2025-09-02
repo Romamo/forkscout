@@ -18,6 +18,8 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from forklift.display.terminal_detector import TerminalDetector
+
 from forklift.github.client import GitHubClient
 from forklift.models.ahead_only_filter import (
     create_default_ahead_only_filter,
@@ -110,7 +112,21 @@ class RepositoryDisplayService:
             should_exclude_fork_insights: Whether to exclude fork insights section
         """
         self.github_client = github_client
-        self.console = console or Console(file=sys.stdout)
+        # Configure console with appropriate width for file output
+        from .interaction_mode import get_interaction_mode_detector, InteractionMode
+        detector = get_interaction_mode_detector()
+        interaction_mode = detector.get_interaction_mode()
+        
+        if console:
+            self.console = console
+        else:
+            if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
+                # Use a very wide width for file output to prevent table truncation
+                # Force width and disable auto-detection
+                self.console = Console(file=sys.stdout, width=1000, force_terminal=True, _environ={})
+            else:
+                # Use default width for terminal output
+                self.console = Console(file=sys.stdout)
         self.cache_manager = cache_manager
         self._should_exclude_language_distribution = (
             should_exclude_language_distribution
@@ -119,10 +135,6 @@ class RepositoryDisplayService:
         
         # Create a separate console for progress bars that always goes to stderr
         # This ensures progress bars don't interfere with output redirection
-        from .interaction_mode import get_interaction_mode_detector, InteractionMode
-        detector = get_interaction_mode_detector()
-        interaction_mode = detector.get_interaction_mode()
-        
         if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
             # When output is redirected, progress should go to stderr
             self.progress_console = Console(file=sys.stderr)
@@ -931,9 +943,9 @@ class RepositoryDisplayService:
                 # Message width: estimate based on show_commits count and typical message length
                 base_width = 19  # Date and hash with spaces
                 estimated_message_width = min(
-                    40, 60 // show_commits
-                )  # Adjust message width based on commit count
-                commits_width = max(30, min(70, base_width + estimated_message_width))
+                    300, 400 // show_commits
+                )  # Much larger for full commit messages with wide console
+                commits_width = max(50, min(400, base_width + estimated_message_width))
 
                 fork_table.add_column(
                     "Recent Commits", style="dim", width=commits_width
@@ -1289,6 +1301,7 @@ class RepositoryDisplayService:
         show_commits: int = 0,
         force_all_commits: bool = False,
         ahead_only: bool = False,
+        csv_export: bool = False,
     ) -> dict[str, Any]:
         """Display comprehensive fork data with all collected metrics.
 
@@ -1302,6 +1315,7 @@ class RepositoryDisplayService:
             show_commits: Number of recent commits to show for each fork (0-10)
             force_all_commits: If True, bypass optimization and download commits for all forks
             ahead_only: If True, filter to show only forks with commits ahead
+            csv_export: If True, export data in CSV format instead of table format
 
         Returns:
             Dictionary containing comprehensive fork data
@@ -1393,7 +1407,7 @@ class RepositoryDisplayService:
             }
 
             await self._render_fork_table(
-                filtered_forks, table_context, show_commits, force_all_commits
+                filtered_forks, table_context, show_commits, force_all_commits, csv_export
             )
 
             return {
@@ -1417,6 +1431,7 @@ class RepositoryDisplayService:
         show_commits: int = 0,
         force_all_commits: bool = False,
         ahead_only: bool = False,
+        csv_export: bool = False,
     ) -> dict[str, Any]:
         """Display detailed fork data with exact commit counts ahead.
 
@@ -1430,6 +1445,7 @@ class RepositoryDisplayService:
             show_commits: Number of recent commits to show for each fork (0-10)
             force_all_commits: If True, bypass optimization and download commits for all forks
             ahead_only: If True, filter to show only forks with commits ahead
+            csv_export: If True, export data in CSV format instead of table format
 
         Returns:
             Dictionary containing detailed fork data with exact commit counts
@@ -1649,7 +1665,7 @@ class RepositoryDisplayService:
             }
 
             await self._render_fork_table(
-                detailed_forks, table_context, show_commits, force_all_commits
+                detailed_forks, table_context, show_commits, force_all_commits, csv_export
             )
 
             return {
@@ -1743,21 +1759,23 @@ class RepositoryDisplayService:
         # Create table with universal column configuration
         fork_table = Table(show_header=True, header_style="bold magenta")
 
-        # Standard columns with consistent widths
-        fork_table.add_column("URL", style="cyan", min_width=35)
-        fork_table.add_column("Stars", style="yellow", justify="right", width=8)
-        fork_table.add_column("Forks", style="green", justify="right", width=8)
-        fork_table.add_column("Commits Ahead", style="magenta", justify="right", width=15)
-        fork_table.add_column("Last Push", style="blue", width=14)
+        # Standard columns with automatic sizing
+        fork_table.add_column("URL", style="cyan")
+        fork_table.add_column("Stars", style="yellow", justify="right")
+        fork_table.add_column("Forks", style="green", justify="right")
+        fork_table.add_column("Commits Ahead", style="magenta", justify="right")
+        fork_table.add_column("Last Push", style="blue")
 
         # Conditionally add Recent Commits column
         commits_cache = {}
         if show_commits > 0:
-            # Calculate intelligent width based on expected content
-            base_width = 19  # Date and hash with spaces
-            estimated_message_width = min(40, 60 // show_commits)
-            commits_width = max(30, min(70, base_width + estimated_message_width))
-            fork_table.add_column("Recent Commits", style="dim", width=commits_width, no_wrap=True)
+            fork_table.add_column(
+                "Recent Commits", 
+                style="dim", 
+                no_wrap=True,
+                min_width=200,     # Much larger minimum width to prevent truncation
+                overflow="ignore"  # Don't truncate with ...
+            )
 
             # Fetch commits concurrently if needed
             commits_cache = await self._fetch_commits_concurrently(
@@ -1918,7 +1936,8 @@ class RepositoryDisplayService:
             f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
         )
         fork_table = Table(
-            title=f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts){title_suffix}"
+            title=f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts){title_suffix}",
+            expand=True       # Expand to full console width
         )
         fork_table.add_column("URL", style="cyan", min_width=35)
         fork_table.add_column("Stars", style="yellow", justify="right", width=8)
@@ -1930,17 +1949,14 @@ class RepositoryDisplayService:
 
         # Conditionally add Recent Commits column
         if show_commits > 0:
-            # Calculate intelligent width based on expected content
-            # Format: "YYYY-MM-DD abc1234 message..."
-            # Base width: 10 (date) + 1 (space) + 7 (hash) + 1 (space) = 19
-            # Message width: estimate based on show_commits count and typical message length
-            base_width = 19  # Date and hash with spaces
-            estimated_message_width = min(
-                40, 60 // show_commits
-            )  # Adjust message width based on commit count
-            commits_width = max(30, min(70, base_width + estimated_message_width))
-
-            fork_table.add_column("Recent Commits", style="dim", width=commits_width, no_wrap=True)
+            # Add Recent Commits column with no width limits to prevent truncation
+            fork_table.add_column(
+                "Recent Commits", 
+                style="dim", 
+                no_wrap=True,
+                min_width=50,      # Minimum readable width
+                overflow="ignore"  # Don't truncate with ...
+            )
 
         # Fetch commits concurrently if requested, with optimization
         commits_cache = {}
@@ -2448,45 +2464,20 @@ class RepositoryDisplayService:
         return commits_with_dates + commits_without_dates
 
     def _truncate_commit_message(self, message: str, max_length: int) -> str:
-        """Truncate commit message for table display while preserving readability.
-
-        This method intelligently truncates commit messages by:
-        1. Preserving complete words when possible
-        2. Using ellipsis to indicate truncation
-        3. Handling edge cases for very short max lengths
+        """Return the full commit message without truncation.
 
         Args:
             message: Original commit message
-            max_length: Maximum allowed length
+            max_length: Maximum allowed length (ignored - kept for compatibility)
 
         Returns:
-            Truncated message with ellipsis if needed, preserving word boundaries
+            Full commit message without truncation
         """
         if not message:
             return ""
-
-        if len(message) <= max_length:
-            return message
-
-        # Handle very short max_length cases
-        if max_length <= 3:
-            return message[:max_length]
-
-        # Reserve space for ellipsis
-        truncate_at = max_length - 3
-
-        # Look for a good break point (space) to avoid breaking words
-        # Search within the last 15 characters or half the truncate length, whichever is smaller
-        search_range = min(15, truncate_at // 2)
-        space_search_start = max(0, truncate_at - search_range)
-        last_space = message.rfind(" ", space_search_start, truncate_at)
-
-        if last_space > space_search_start:
-            # Found a good break point, truncate at the space
-            return message[:last_space] + "..."
-        else:
-            # No good break point found, truncate at character boundary
-            return message[:truncate_at] + "..."
+        
+        # Return the full message without any truncation
+        return message
 
     def calculate_commits_column_width(
         self,
@@ -2565,7 +2556,10 @@ class RepositoryDisplayService:
             self.console.print("[yellow]No forks found.[/yellow]")
             return
 
-        table = Table(title=f"Forks Preview ({len(fork_items)} forks found)")
+        table = Table(
+            title=f"Forks Preview ({len(fork_items)} forks found)",
+            expand=True       # Expand to full console width
+        )
         table.add_column("#", style="dim", width=4)
         table.add_column("Fork Name", style="cyan", min_width=25)
         table.add_column("Owner", style="blue", min_width=15)
@@ -2603,7 +2597,8 @@ class RepositoryDisplayService:
         fork_data_list: list,
         table_context: dict,
         show_commits: int = 0,
-        force_all_commits: bool = False
+        force_all_commits: bool = False,
+        csv_export: bool = False
     ) -> None:
         """Universal fork table rendering method.
         
@@ -2612,9 +2607,19 @@ class RepositoryDisplayService:
             table_context: Context information (owner, repo, mode, etc.)
             show_commits: Number of recent commits to show
             force_all_commits: Whether to fetch commits for all forks
+            csv_export: If True, export data in CSV format instead of table format
         """
         if not fork_data_list:
-            self.console.print("[yellow]No forks found for display.[/yellow]")
+            if csv_export:
+                # For CSV export, just output empty CSV with headers
+                self._export_csv_data([], table_context, show_commits)
+            else:
+                self.console.print("[yellow]No forks found for display.[/yellow]")
+            return
+
+        # Handle CSV export mode
+        if csv_export:
+            await self._export_csv_data(fork_data_list, table_context, show_commits, force_all_commits)
             return
 
         # 1. Determine rendering mode and capabilities
@@ -2627,7 +2632,10 @@ class RepositoryDisplayService:
 
         # 3. Create consistent table structure
         table_title = self._build_table_title(sorted_forks, table_context, show_commits)
-        fork_table = Table(title=table_title)
+        fork_table = Table(
+            title=table_title,
+            expand=True       # Expand to full console width
+        )
 
         # 4. Add standard columns with unified widths
         self._add_standard_columns(fork_table)
@@ -2755,12 +2763,12 @@ class RepositoryDisplayService:
         """
         # Use existing calculation method but with universal data handling
         min_width = ForkTableConfig.COLUMN_WIDTHS["recent_commits_base"]
-        max_width = 70
+        max_width = 400  # Much larger for wide console output
 
-        # For now, use a reasonable default based on show_commits
+        # For now, use a reasonable default based on show_commits - no truncation
         # This can be enhanced later with actual commit data analysis
         base_width = 19  # Date and hash with spaces
-        estimated_message_width = min(40, 60 // max(1, show_commits))
+        estimated_message_width = min(300, 400 // max(1, show_commits))  # Much larger for full messages
         commits_width = max(min_width, min(max_width, base_width + estimated_message_width))
 
         return commits_width
@@ -2958,4 +2966,263 @@ class RepositoryDisplayService:
             created_at=metrics.created_at,
             updated_at=metrics.updated_at,
             pushed_at=metrics.pushed_at,
+        )
+
+    async def _export_csv_data(
+        self,
+        fork_data_list: list,
+        table_context: dict,
+        show_commits: int = 0,
+        force_all_commits: bool = False
+    ) -> None:
+        """Export fork data in CSV format to stdout using CSVExporter.
+        
+        Args:
+            fork_data_list: List of fork data objects
+            table_context: Context information (owner, repo, mode, etc.)
+            show_commits: Number of recent commits to show
+            force_all_commits: Whether to fetch commits for all forks
+        """
+        from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
+        from forklift.models.analysis import ForksPreview, ForkPreviewItem
+        import sys
+        
+        try:
+            if not fork_data_list:
+                # Output empty CSV with headers only
+                config = CSVExportConfig(
+                    include_commits=(show_commits > 0),
+                    detail_mode=table_context.get("has_exact_counts", False),
+                    include_urls=True
+                )
+                exporter = CSVExporter(config)
+                empty_preview = ForksPreview(total_forks=0, forks=[])
+                csv_content = exporter.export_forks_preview(empty_preview)
+                sys.stdout.write(csv_content)
+                return
+
+            # Determine rendering mode and capabilities
+            has_exact_counts = table_context.get("has_exact_counts", False)
+            owner = table_context["owner"]
+            repo = table_context["repo"]
+
+            # Sort data consistently
+            sorted_forks = self._sort_forks_universal(fork_data_list, has_exact_counts)
+
+            # Fetch commits if needed
+            commits_cache = {}
+            if show_commits > 0:
+                commits_cache = await self._fetch_commits_concurrently(
+                    sorted_forks, show_commits, owner, repo, force_all_commits
+                )
+
+            # Convert fork data to ForkPreviewItem format for CSV export
+            fork_preview_items = []
+            for fork_data in sorted_forks:
+                preview_item = self._convert_fork_data_to_preview_item(
+                    fork_data, has_exact_counts, commits_cache, show_commits
+                )
+                fork_preview_items.append(preview_item)
+
+            # Create ForksPreview object
+            forks_preview = ForksPreview(
+                total_forks=len(fork_preview_items),
+                forks=fork_preview_items
+            )
+
+            # Configure CSV exporter
+            config = CSVExportConfig(
+                include_commits=(show_commits > 0),
+                detail_mode=has_exact_counts,
+                include_urls=True,
+                max_commits_per_fork=show_commits
+            )
+            exporter = CSVExporter(config)
+
+            # Export to CSV and write to stdout
+            csv_content = exporter.export_forks_preview(forks_preview)
+            sys.stdout.write(csv_content)
+
+        except Exception as e:
+            # Send errors to stderr to keep stdout clean for CSV data
+            import sys
+            sys.stderr.write(f"Error exporting CSV data: {e}\n")
+            sys.stderr.flush()
+            raise
+
+    def _build_csv_row(
+        self,
+        fork_data,
+        has_exact_counts: bool,
+        commits_cache: dict,
+        show_commits: int
+    ) -> list:
+        """Build a CSV row for fork data.
+        
+        Args:
+            fork_data: Fork data object
+            has_exact_counts: Whether exact commit counts are available
+            commits_cache: Cache of commit data
+            show_commits: Number of recent commits to show
+            
+        Returns:
+            List of values for CSV row
+        """
+        # Extract basic fork information
+        if hasattr(fork_data, 'metrics'):
+            # Standard fork data
+            metrics = fork_data.metrics
+            fork_url = metrics.html_url
+            owner = metrics.full_name.split('/')[0]
+            stars = metrics.stargazers_count
+            forks = metrics.forks_count
+            language = metrics.language or ""
+            last_push = self._format_datetime(metrics.pushed_at) if metrics.pushed_at else ""
+            
+            # Format commits information
+            if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+                if isinstance(fork_data.exact_commits_ahead, int):
+                    commits = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else ""
+                else:
+                    commits = "Unknown"
+            else:
+                # Use status-based information
+                if hasattr(fork_data, 'commits_ahead_status'):
+                    if fork_data.commits_ahead_status == "no_commits":
+                        commits = "0"
+                    elif fork_data.commits_ahead_status == "has_commits":
+                        commits = "Has commits"
+                    else:
+                        commits = "Unknown"
+                else:
+                    commits = "Unknown"
+        else:
+            # Detailed fork data structure
+            fork_url = getattr(fork_data, 'html_url', '')
+            owner = getattr(fork_data, 'owner', {}).get('login', '') if hasattr(fork_data, 'owner') else ''
+            stars = getattr(fork_data, 'stargazers_count', 0)
+            forks = getattr(fork_data, 'forks_count', 0)
+            language = getattr(fork_data, 'language', '') or ""
+            last_push = self._format_datetime(getattr(fork_data, 'pushed_at', None)) if getattr(fork_data, 'pushed_at', None) else ""
+            
+            # For detailed data, check exact commits ahead
+            if hasattr(fork_data, 'exact_commits_ahead'):
+                if isinstance(fork_data.exact_commits_ahead, int):
+                    commits = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else ""
+                else:
+                    commits = "Unknown"
+            else:
+                commits = "Unknown"
+
+        # Build base row
+        row = [fork_url, owner, stars, forks, commits, last_push, language]
+
+        # Add recent commits if requested
+        if show_commits > 0:
+            fork_key = fork_url
+            if fork_key in commits_cache:
+                commit_messages = []
+                for commit in commits_cache[fork_key][:show_commits]:
+                    # Clean commit message for CSV (remove newlines, quotes)
+                    message = commit.get('message', '').replace('\n', ' ').replace('\r', ' ')
+                    message = message.replace('"', '""')  # Escape quotes for CSV
+                    commit_messages.append(message)
+                recent_commits = "; ".join(commit_messages)
+            else:
+                recent_commits = ""
+            row.append(recent_commits)
+
+        return row
+
+    def _convert_fork_data_to_preview_item(
+        self,
+        fork_data,
+        has_exact_counts: bool,
+        commits_cache: dict,
+        show_commits: int
+    ) -> "ForkPreviewItem":
+        """Convert fork data to ForkPreviewItem for CSV export.
+        
+        Args:
+            fork_data: Fork data object
+            has_exact_counts: Whether exact commit counts are available
+            commits_cache: Cache of commit data
+            show_commits: Number of recent commits to show
+            
+        Returns:
+            ForkPreviewItem object for CSV export
+        """
+        from forklift.models.analysis import ForkPreviewItem
+        
+        # Extract basic fork information
+        if hasattr(fork_data, 'metrics'):
+            # Standard fork data
+            metrics = fork_data.metrics
+            fork_url = metrics.html_url
+            owner = metrics.full_name.split('/')[0]
+            name = metrics.full_name.split('/')[1]
+            stars = metrics.stargazers_count
+            last_push_date = metrics.pushed_at
+            
+            # Format commits information
+            if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+                if isinstance(fork_data.exact_commits_ahead, int):
+                    commits_ahead = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else "None"
+                else:
+                    commits_ahead = "Unknown"
+            else:
+                # Use status-based information from metrics
+                status = metrics.commits_ahead_status
+                if status == "No commits ahead":
+                    commits_ahead = "None"
+                elif status == "Has commits":
+                    commits_ahead = "Unknown"
+                else:
+                    commits_ahead = "Unknown"
+                    
+            # Determine activity status
+            activity_status = getattr(fork_data, 'activity_status', 'Unknown')
+            
+        else:
+            # Detailed fork data structure
+            fork_url = getattr(fork_data, 'html_url', '')
+            owner_obj = getattr(fork_data, 'owner', {})
+            owner = owner_obj.get('login', '') if isinstance(owner_obj, dict) else getattr(owner_obj, 'login', '')
+            name = getattr(fork_data, 'name', '')
+            stars = getattr(fork_data, 'stargazers_count', 0)
+            last_push_date = getattr(fork_data, 'pushed_at', None)
+            
+            # For detailed data, check exact commits ahead
+            if hasattr(fork_data, 'exact_commits_ahead'):
+                if isinstance(fork_data.exact_commits_ahead, int):
+                    commits_ahead = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else "None"
+                else:
+                    commits_ahead = "Unknown"
+            else:
+                commits_ahead = "Unknown"
+                
+            activity_status = "Unknown"
+
+        # Add recent commits if requested
+        recent_commits_text = ""
+        if show_commits > 0:
+            fork_key = fork_url
+            if fork_key in commits_cache:
+                commit_messages = []
+                for commit in commits_cache[fork_key][:show_commits]:
+                    # Clean commit message for CSV (remove newlines, quotes)
+                    message = commit.get('message', '').replace('\n', ' ').replace('\r', ' ')
+                    message = message.replace('"', '""')  # Escape quotes for CSV
+                    commit_messages.append(message)
+                recent_commits_text = "; ".join(commit_messages)
+
+        return ForkPreviewItem(
+            name=name,
+            owner=owner,
+            stars=stars,
+            last_push_date=last_push_date,
+            fork_url=fork_url,
+            activity_status=activity_status,
+            commits_ahead=commits_ahead,
+            recent_commits=recent_commits_text if show_commits > 0 else None
         )

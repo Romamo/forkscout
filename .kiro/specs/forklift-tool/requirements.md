@@ -650,3 +650,22 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 1. WHEN the `get_commits_ahead` method is called multiple times for the same parent repository THEN the system SHALL cache and reuse the parent repository data instead of fetching it repeatedly
 2. WHEN caching parent repository data THEN the system SHALL store the repository metadata and default branch information needed for commit comparisons
 3. WHEN the cached parent data is used THEN the system SHALL log the API call savings achieved
+
+### Requirement 26
+
+**User Story:** As a repository maintainer, I want to export fork data to CSV format, so that I can analyze fork information in spreadsheet applications, create custom reports, and integrate fork data with other tools.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo-url> --csv` THEN the system SHALL export the main fork table data to CSV format instead of displaying the table
+2. WHEN using --csv flag THEN the system SHALL output CSV data to stdout with proper comma-separated values and quoted fields containing commas or special characters
+3. WHEN exporting to CSV THEN the system SHALL include all main table columns: Fork URL, Stars, Forks, Commits Ahead, Last Push, and Language
+4. WHEN --csv is combined with --show-commits THEN the system SHALL include the Recent Commits column data in the CSV export with commit messages properly escaped
+5. WHEN --csv is combined with --detail THEN the system SHALL export exact commit counts instead of status indicators
+6. WHEN --csv is combined with --ahead-only THEN the system SHALL export only forks that have commits ahead
+7. WHEN --csv is combined with --max-forks THEN the system SHALL respect the fork limit in the CSV export
+8. WHEN exporting CSV THEN the system SHALL use standard CSV headers that match the table column names for easy import into spreadsheet applications
+9. WHEN CSV export encounters special characters THEN the system SHALL properly escape quotes, commas, and newlines according to CSV standards
+10. WHEN --csv flag is used THEN the system SHALL suppress all progress indicators, status messages, and table formatting to ensure clean CSV output
+11. WHEN CSV export fails THEN the system SHALL provide clear error messages and exit gracefully without corrupting the output
+12. WHEN using --csv THEN the system SHALL maintain the same fork sorting order as the table display (commits ahead first, then by stars, forks, and last push date)

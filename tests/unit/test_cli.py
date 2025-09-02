@@ -9,6 +9,7 @@ from click.testing import CliRunner
 
 from forklift.cli import CLIError, cli, validate_repository_url
 from forklift.config.settings import ForkliftConfig
+from forklift.display.interaction_mode import InteractionMode
 
 
 def create_mock_config():
@@ -886,7 +887,7 @@ class TestShowForksCommand:
 
         assert result.exit_code == 0
         mock_show_forks_summary.assert_called_once_with(
-            mock_config, "owner/repo", None, False, False, 0, False, False
+            mock_config, "owner/repo", None, False, False, 0, False, False, False, InteractionMode.NON_INTERACTIVE, False
         )
 
     @patch("forklift.cli.load_config")

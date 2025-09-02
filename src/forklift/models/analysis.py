@@ -86,6 +86,7 @@ class ForkPreviewItem(BaseModel):
     fork_url: str = Field(..., description="Fork HTML URL")
     activity_status: str = Field(..., description="Activity status: Active, Stale, or No commits")
     commits_ahead: str = Field(..., description="Commits ahead status: None or Unknown")
+    recent_commits: str | None = Field(None, description="Recent commit messages for CSV export")
 
 
 class ForksPreview(BaseModel):
