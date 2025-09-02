@@ -1701,7 +1701,7 @@
   - Write integration tests for CSV export with various flag combinations
   - _Requirements: 26.6, 26.7, 26.11, 26.12_
 
-- [-] 27.4 Add support for --show-commits in CSV export
+- [x] 27.4 Add support for --show-commits in CSV export
   - Enhance CSVExporter to handle Recent Commits column when include_commits is enabled
   - Implement proper escaping for commit messages containing commas, quotes, and newlines
   - Format commit data consistently with table display (date, hash, message format)
@@ -1711,7 +1711,7 @@
   - Write integration tests for --csv combined with --show-commits flag
   - _Requirements: 26.4_
 
-- [ ] 27.5 Add support for --detail mode in CSV export
+- [-] 27.5 Add support for --detail mode in CSV export
   - Enhance CSV export to use exact commit counts when --detail flag is combined with --csv
   - Modify Commits Ahead column to show precise "+X" format instead of status indicators
   - Ensure CSV export triggers the same API calls as table display for exact counts

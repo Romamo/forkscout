@@ -3009,18 +3009,18 @@ class RepositoryDisplayService:
             # Sort data consistently
             sorted_forks = self._sort_forks_universal(fork_data_list, has_exact_counts)
 
-            # Fetch commits if needed
-            commits_cache = {}
+            # Fetch raw commits data if needed (for CSV we need the raw commit objects, not formatted strings)
+            raw_commits_cache = {}
             if show_commits > 0:
-                commits_cache = await self._fetch_commits_concurrently(
+                raw_commits_cache = await self._fetch_raw_commits_for_csv(
                     sorted_forks, show_commits, owner, repo, force_all_commits
                 )
 
             # Convert fork data to ForkPreviewItem format for CSV export
             fork_preview_items = []
             for fork_data in sorted_forks:
-                preview_item = self._convert_fork_data_to_preview_item(
-                    fork_data, has_exact_counts, commits_cache, show_commits
+                preview_item = self._convert_fork_data_to_preview_item_csv(
+                    fork_data, has_exact_counts, raw_commits_cache, show_commits
                 )
                 fork_preview_items.append(preview_item)
 
@@ -3134,6 +3134,184 @@ class RepositoryDisplayService:
 
         return row
 
+    async def _fetch_raw_commits_for_csv(
+        self,
+        forks_data: list,
+        show_commits: int,
+        base_owner: str,
+        base_repo: str,
+        force_all_commits: bool = False,
+    ) -> dict[str, list]:
+        """Fetch raw commit data for CSV export (returns RecentCommit objects, not formatted strings).
+
+        Args:
+            forks_data: List of fork data objects
+            show_commits: Number of commits ahead to fetch for each fork
+            base_owner: Base repository owner
+            base_repo: Base repository name
+            force_all_commits: If True, bypass optimization and fetch commits for all forks
+
+        Returns:
+            Dictionary mapping fork URLs to lists of RecentCommit objects
+        """
+        if show_commits <= 0 or not forks_data:
+            return {}
+
+        # Separate forks that can be skipped from those needing commit downloads
+        forks_to_skip = []
+        forks_needing_commits = []
+
+        for fork_data in forks_data:
+            fork_url = fork_data.metrics.html_url
+
+            # Check if fork can be skipped (no commits ahead) unless force_all_commits is True
+            if (
+                not force_all_commits
+                and hasattr(fork_data.metrics, "can_skip_analysis")
+                and fork_data.metrics.can_skip_analysis
+            ):
+                forks_to_skip.append((fork_url, fork_data))
+            else:
+                forks_needing_commits.append((fork_url, fork_data))
+
+        # Initialize commits cache with skipped forks
+        raw_commits_cache = {}
+
+        # Add empty list for skipped forks
+        for fork_url, _fork_data in forks_to_skip:
+            raw_commits_cache[fork_url] = []
+
+        # If no forks need commit downloads, return early
+        if not forks_needing_commits:
+            return raw_commits_cache
+
+        try:
+            # Prepare fork data for batch processing
+            fork_data_list = [
+                (fork_data.metrics.owner, fork_data.metrics.name)
+                for fork_url, fork_data in forks_needing_commits
+            ]
+            
+            # Batch process all forks against the same parent repository
+            batch_results = await self.github_client.get_commits_ahead_batch(
+                fork_data_list, base_owner, base_repo, count=show_commits
+            )
+            
+            # Store raw commit objects for CSV processing
+            for fork_url, fork_data in forks_needing_commits:
+                fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
+                commits_ahead = batch_results.get(fork_full_name, [])
+                raw_commits_cache[fork_url] = commits_ahead
+                
+        except Exception as e:
+            logger.warning(f"Batch processing failed for CSV export: {e}")
+            # For CSV export, we'll just return empty commits on failure
+            for fork_url, _fork_data in forks_needing_commits:
+                raw_commits_cache[fork_url] = []
+
+        return raw_commits_cache
+
+    def _convert_fork_data_to_preview_item_csv(
+        self,
+        fork_data,
+        has_exact_counts: bool,
+        raw_commits_cache: dict,
+        show_commits: int
+    ) -> "ForkPreviewItem":
+        """Convert fork data to ForkPreviewItem for CSV export with proper commit formatting.
+        
+        Args:
+            fork_data: Fork data object
+            has_exact_counts: Whether exact commit counts are available
+            raw_commits_cache: Cache of raw RecentCommit objects
+            show_commits: Number of recent commits to show
+            
+        Returns:
+            ForkPreviewItem object for CSV export
+        """
+        from forklift.models.analysis import ForkPreviewItem
+        
+        # Extract basic fork information
+        if hasattr(fork_data, 'metrics'):
+            # Standard fork data
+            metrics = fork_data.metrics
+            fork_url = metrics.html_url
+            owner = metrics.full_name.split('/')[0]
+            name = metrics.full_name.split('/')[1]
+            stars = metrics.stargazers_count
+            last_push_date = metrics.pushed_at
+            
+            # Format commits information for CSV export
+            if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+                if isinstance(fork_data.exact_commits_ahead, int):
+                    # In detail mode CSV, use "+X" format for exact counts, empty for zero
+                    commits_ahead = f"+{fork_data.exact_commits_ahead}" if fork_data.exact_commits_ahead > 0 else ""
+                else:
+                    commits_ahead = "Unknown"
+            else:
+                # Use status-based information from metrics
+                status = metrics.commits_ahead_status
+                if status == "No commits ahead":
+                    commits_ahead = "None"
+                elif status == "Has commits":
+                    commits_ahead = "Unknown"
+                else:
+                    commits_ahead = "Unknown"
+                    
+            # Determine activity status
+            activity_status = getattr(fork_data, 'activity_status', 'Unknown')
+            
+        else:
+            # Detailed fork data structure
+            fork_url = getattr(fork_data, 'html_url', '')
+            owner_obj = getattr(fork_data, 'owner', {})
+            owner = owner_obj.get('login', '') if isinstance(owner_obj, dict) else getattr(owner_obj, 'login', '')
+            name = getattr(fork_data, 'name', '')
+            stars = getattr(fork_data, 'stargazers_count', 0)
+            last_push_date = getattr(fork_data, 'pushed_at', None)
+            
+            # For detailed data, check exact commits ahead
+            if hasattr(fork_data, 'exact_commits_ahead'):
+                if isinstance(fork_data.exact_commits_ahead, int):
+                    # In detail mode CSV, use "+X" format for exact counts, empty for zero
+                    commits_ahead = f"+{fork_data.exact_commits_ahead}" if fork_data.exact_commits_ahead > 0 else ""
+                else:
+                    commits_ahead = "Unknown"
+            else:
+                commits_ahead = "Unknown"
+                
+            activity_status = "Unknown"
+
+        # Format recent commits for CSV export with date, hash, and message
+        recent_commits_text = ""
+        if show_commits > 0:
+            if fork_url in raw_commits_cache:
+                commit_entries = []
+                for commit in raw_commits_cache[fork_url][:show_commits]:
+                    # Format consistently with table display: "YYYY-MM-DD hash message"
+                    if commit.date:
+                        date_str = commit.date.strftime("%Y-%m-%d")
+                        formatted_commit = f"{date_str} {commit.short_sha} {commit.message}"
+                    else:
+                        # Fallback format: "hash: message"
+                        formatted_commit = f"{commit.short_sha}: {commit.message}"
+                    
+                    commit_entries.append(formatted_commit)
+                
+                # Join multiple commits with semicolon separator for CSV
+                recent_commits_text = "; ".join(commit_entries)
+
+        return ForkPreviewItem(
+            name=name,
+            owner=owner,
+            stars=stars,
+            last_push_date=last_push_date,
+            fork_url=fork_url,
+            activity_status=activity_status,
+            commits_ahead=commits_ahead,
+            recent_commits=recent_commits_text if show_commits > 0 else None
+        )
+
     def _convert_fork_data_to_preview_item(
         self,
         fork_data,
@@ -3141,16 +3319,16 @@ class RepositoryDisplayService:
         commits_cache: dict,
         show_commits: int
     ) -> "ForkPreviewItem":
-        """Convert fork data to ForkPreviewItem for CSV export.
+        """Convert fork data to ForkPreviewItem for table display (legacy method).
         
         Args:
             fork_data: Fork data object
             has_exact_counts: Whether exact commit counts are available
-            commits_cache: Cache of commit data
+            commits_cache: Cache of formatted commit strings
             show_commits: Number of recent commits to show
             
         Returns:
-            ForkPreviewItem object for CSV export
+            ForkPreviewItem object for table display
         """
         from forklift.models.analysis import ForkPreviewItem
         
@@ -3203,18 +3381,17 @@ class RepositoryDisplayService:
                 
             activity_status = "Unknown"
 
-        # Add recent commits if requested
+        # For table display, use the formatted commit strings from cache
         recent_commits_text = ""
         if show_commits > 0:
             fork_key = fork_url
             if fork_key in commits_cache:
-                commit_messages = []
-                for commit in commits_cache[fork_key][:show_commits]:
-                    # Clean commit message for CSV (remove newlines, quotes)
-                    message = commit.get('message', '').replace('\n', ' ').replace('\r', ' ')
-                    message = message.replace('"', '""')  # Escape quotes for CSV
-                    commit_messages.append(message)
-                recent_commits_text = "; ".join(commit_messages)
+                # commits_cache contains formatted strings for table display
+                formatted_commits_string = commits_cache[fork_key]
+                # Convert newline-separated commits to semicolon-separated for CSV compatibility
+                if formatted_commits_string and not formatted_commits_string.startswith("[dim]"):
+                    commit_lines = formatted_commits_string.split('\n')
+                    recent_commits_text = "; ".join(commit_lines)
 
         return ForkPreviewItem(
             name=name,

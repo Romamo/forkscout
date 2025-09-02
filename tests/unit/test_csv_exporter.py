@@ -730,6 +730,96 @@ class TestCSVCommitFormatting(TestCSVExporter):
         assert "\n" not in commits
         assert "\r" not in commits
 
+    def test_export_forks_with_date_hash_message_format(self, detailed_exporter):
+        """Test forks export with new date-hash-message format for commits."""
+        # Test the new format: "YYYY-MM-DD hash message; YYYY-MM-DD hash message"
+        fork_item = ForkPreviewItem(
+            name="testrepo",
+            owner="testuser",
+            stars=10,
+            last_push_date=datetime(2023, 6, 15, 12, 0, 0),
+            fork_url="https://github.com/testuser/testrepo",
+            activity_status="Active",
+            commits_ahead="2",
+            recent_commits='2024-01-15 abc1234 Fix authentication bug; 2024-01-14 def5678 Add new feature'
+        )
+
+        preview = ForksPreview(total_forks=1, forks=[fork_item])
+        csv_output = detailed_exporter.export_forks_preview(preview)
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        assert len(rows) == 1
+        row = rows[0]
+
+        # Check that commit data includes date, hash, and message
+        assert "recent_commits" in row
+        commits = row["recent_commits"]
+        assert "2024-01-15 abc1234 Fix authentication bug" in commits
+        assert "2024-01-14 def5678 Add new feature" in commits
+        assert ";" in commits  # Multiple commits separated by semicolon
+
+    def test_export_forks_with_fallback_hash_message_format(self, detailed_exporter):
+        """Test forks export with fallback hash:message format when no date."""
+        # Test the fallback format: "hash: message; hash: message"
+        fork_item = ForkPreviewItem(
+            name="testrepo",
+            owner="testuser",
+            stars=10,
+            last_push_date=datetime(2023, 6, 15, 12, 0, 0),
+            fork_url="https://github.com/testuser/testrepo",
+            activity_status="Active",
+            commits_ahead="2",
+            recent_commits='abc1234: Fix authentication bug; def5678: Add new feature'
+        )
+
+        preview = ForksPreview(total_forks=1, forks=[fork_item])
+        csv_output = detailed_exporter.export_forks_preview(preview)
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        assert len(rows) == 1
+        row = rows[0]
+
+        # Check that commit data includes hash and message in fallback format
+        assert "recent_commits" in row
+        commits = row["recent_commits"]
+        assert "abc1234: Fix authentication bug" in commits
+        assert "def5678: Add new feature" in commits
+        assert ";" in commits  # Multiple commits separated by semicolon
+
+    def test_export_forks_with_mixed_commit_formats(self, detailed_exporter):
+        """Test forks export with mixed date and fallback formats."""
+        # Test mixed format: some commits with dates, some without
+        fork_item = ForkPreviewItem(
+            name="testrepo",
+            owner="testuser",
+            stars=10,
+            last_push_date=datetime(2023, 6, 15, 12, 0, 0),
+            fork_url="https://github.com/testuser/testrepo",
+            activity_status="Active",
+            commits_ahead="3",
+            recent_commits='2024-01-15 abc1234 Fix auth bug; def5678: Add feature; 2024-01-13 ghi9012 Update docs'
+        )
+
+        preview = ForksPreview(total_forks=1, forks=[fork_item])
+        csv_output = detailed_exporter.export_forks_preview(preview)
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        assert len(rows) == 1
+        row = rows[0]
+
+        # Check that both formats are preserved
+        commits = row["recent_commits"]
+        assert "2024-01-15 abc1234 Fix auth bug" in commits
+        assert "def5678: Add feature" in commits
+        assert "2024-01-13 ghi9012 Update docs" in commits
+        assert commits.count(";") == 2  # Two separators for three commits
+
 
 class TestCSVExporterEdgeCases(TestCSVExporter):
     """Test edge cases and error conditions."""

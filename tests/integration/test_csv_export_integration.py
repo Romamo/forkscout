@@ -419,9 +419,26 @@ class TestCSVExportIntegration:
         captured_output = StringIO()
 
         with patch("sys.stdout", captured_output):
-            with patch.object(display_service, "_fetch_commits_concurrently") as mock_fetch_commits:
-                mock_fetch_commits.return_value = {
-                    "https://github.com/user1/test-repo": mock_commits
+            with patch.object(display_service, "_fetch_raw_commits_for_csv") as mock_fetch_raw_commits:
+                # Mock RecentCommit objects for CSV export
+                from forklift.models.github import RecentCommit
+                from datetime import datetime, UTC
+                
+                mock_recent_commits = [
+                    RecentCommit(
+                        short_sha="abc1234",
+                        message="Fix authentication bug",
+                        date=datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
+                    ),
+                    RecentCommit(
+                        short_sha="def4567",
+                        message="Add new feature With detailed description",
+                        date=datetime(2024, 1, 14, 15, 30, 0, tzinfo=UTC)
+                    )
+                ]
+                
+                mock_fetch_raw_commits.return_value = {
+                    "https://github.com/user1/test-repo": mock_recent_commits
                 }
 
                 table_context = {
@@ -448,13 +465,14 @@ class TestCSVExportIntegration:
         # Check that recent_commits header is present
         assert "recent_commits" in reader.fieldnames
 
-        # Check that commit data is properly formatted
+        # Check that commit data is properly formatted with date, hash, and message
         row = rows[0]
         commits_text = row["recent_commits"]
-        assert "Fix authentication bug" in commits_text
-        assert "Add new feature With detailed description" in commits_text
-        # Verify newlines are removed
+        assert "2024-01-15 abc1234 Fix authentication bug" in commits_text
+        assert "2024-01-14 def4567 Add new feature With detailed description" in commits_text
+        # Verify newlines are removed and commits are separated by semicolons
         assert "\n" not in commits_text
+        assert ";" in commits_text  # Multiple commits should be separated by semicolons
 
     @pytest.mark.asyncio
     async def test_csv_export_skips_forks_with_no_commits_ahead(self, mock_github_client):
@@ -501,9 +519,11 @@ class TestCSVExportIntegration:
         captured_output = StringIO()
 
         with patch("sys.stdout", captured_output):
-            with patch.object(display_service, "_fetch_commits_concurrently") as mock_fetch_commits:
-                # Should not be called for forks with no commits ahead
-                mock_fetch_commits.return_value = {}
+            with patch.object(display_service, "_fetch_raw_commits_for_csv") as mock_fetch_raw_commits:
+                # Should not fetch commits for forks with no commits ahead
+                mock_fetch_raw_commits.return_value = {
+                    "https://github.com/user1/test-repo": []  # Empty list for no commits
+                }
 
                 table_context = {
                     "owner": "owner",
