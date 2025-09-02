@@ -752,6 +752,11 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
     is_flag=True,
     help="Bypass cache and fetch fresh data from GitHub API",
 )
+@click.option(
+    "--csv",
+    is_flag=True,
+    help="Export analysis results in CSV format with multi-row commit details to stdout (suppresses all interactive elements)",
+)
 @click.pass_context
 def analyze(
     ctx: click.Context,
@@ -766,13 +771,28 @@ def analyze(
     scan_all: bool,
     explain: bool,
     disable_cache: bool,
+    csv: bool,
 ) -> None:
     """Analyze a repository and its forks for valuable features.
+
+    Use --csv flag to export analysis results in enhanced multi-row CSV format to stdout.
+    Each commit gets its own row with separate columns for commit_date, commit_sha,
+    and commit_description. Repository information is repeated on each commit row
+    for complete context. This suppresses all interactive elements and formatting.
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
     - SSH URL: git@github.com:owner/repo.git
     - Short format: owner/repo
+
+    Examples:
+    \b
+    # Export analysis results to CSV file
+    forklift analyze owner/repo --csv > analysis_results.csv
+
+    \b
+    # CSV with commit explanations
+    forklift analyze owner/repo --csv --explain > analysis_with_explanations.csv
     """
     config: ForkliftConfig = ctx.obj["config"]
     verbose: bool = ctx.obj["verbose"]
@@ -797,10 +817,16 @@ def analyze(
         # Validate repository URL
         owner, repo_name = validate_repository_url(repository_url)
 
-        if verbose:
+        # Detect CSV export mode early in processing
+        if csv:
+            # Override interaction mode for CSV export to suppress interactive elements
+            interaction_mode = InteractionMode.NON_INTERACTIVE
+            supports_prompts = False
+
+        if verbose and not csv:
             console.print(f"[blue]Analyzing repository: {owner}/{repo_name}[/blue]")
 
-        if interactive:
+        if interactive and not csv:
             # Run interactive analysis
             results = asyncio.run(
                 _run_interactive_analysis(
@@ -816,6 +842,11 @@ def analyze(
                     interaction_mode, supports_prompts
                 )
             )
+
+            # Handle CSV export
+            if csv:
+                asyncio.run(_export_analysis_csv(results, explain))
+                return  # Exit early for CSV export
 
             # Display results
             display_analysis_summary(results)
@@ -1158,7 +1189,7 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.option(
     "--csv",
     is_flag=True,
-    help="Export fork data in CSV format to stdout (suppresses all interactive elements)",
+    help="Export fork data in CSV format with multi-row commit details to stdout (suppresses all interactive elements)",
 )
 @click.pass_context
 def show_forks(
@@ -1197,9 +1228,11 @@ def show_forks(
     Use --ahead-only to filter and show only forks that have commits ahead of the
     upstream repository. This excludes forks with no new commits and private forks.
 
-    Use --csv flag to export fork data in CSV format to stdout. This suppresses all
-    interactive elements, progress bars, and formatting to provide clean CSV output
-    suitable for data processing and automation.
+    Use --csv flag to export fork data in enhanced multi-row CSV format to stdout.
+    Each commit gets its own row with separate columns for commit_date, commit_sha,
+    and commit_description. Repository information is repeated on each commit row
+    for complete context. This suppresses all interactive elements, progress bars,
+    and formatting to provide clean CSV output suitable for data processing and automation.
 
     Examples:
     \b
@@ -1207,12 +1240,12 @@ def show_forks(
     forklift show-forks owner/repo
 
     \b
-    # Export to CSV file
-    forklift show-forks owner/repo --csv > forks.csv
+    # Export to multi-row CSV file with commit details
+    forklift show-forks owner/repo --csv > forks_with_commits.csv
 
     \b
-    # CSV with detailed commit counts
-    forklift show-forks owner/repo --csv --detail > detailed_forks.csv
+    # CSV with detailed repository information and commit rows
+    forklift show-forks owner/repo --csv --detail > detailed_forks_with_commits.csv
 
     REPOSITORY_URL can be:
     - Full GitHub URL: https://github.com/owner/repo
@@ -2169,6 +2202,49 @@ async def _show_forks_summary(
                 raise ForkliftOutputError(f"Failed to display forks data: {e}")
 
 
+async def _export_analysis_csv(results: dict, explain: bool) -> None:
+    """Export analysis results in CSV format with proper error handling.
+    
+    Args:
+        results: Analysis results dictionary containing fork_analyses
+        explain: Whether explanations were generated
+        
+    Raises:
+        ForkliftOutputError: If CSV export fails
+        ForkliftUnicodeError: If Unicode handling fails
+    """
+    from forklift.reporting.csv_exporter import CSVExportConfig
+    from forklift.reporting.csv_output_manager import create_csv_context
+    
+    try:
+        # Configure CSV export for analysis results
+        csv_config = CSVExportConfig(
+            include_commits=True,  # Always include commits for analysis
+            detail_mode=True,      # Include detailed information
+            include_explanations=explain,
+            include_urls=True,
+            commit_date_format="%Y-%m-%d"  # Use new format
+        )
+        
+        # Create CSV output context to suppress progress indicators
+        with create_csv_context(suppress_progress=True) as csv_manager:
+            csv_manager.configure_exporter(csv_config)
+            
+            # Export fork analyses to CSV
+            fork_analyses = results.get("fork_analyses", [])
+            if fork_analyses:
+                csv_manager.export_to_stdout(fork_analyses)
+            else:
+                # Export empty CSV with headers
+                csv_manager.export_to_stdout([])
+                
+    except Exception as e:
+        if isinstance(e, (ForkliftOutputError, ForkliftUnicodeError)):
+            raise
+        else:
+            raise ForkliftOutputError(f"Failed to export analysis results to CSV: {e}")
+
+
 async def _export_forks_csv(
     display_service: "RepositoryDisplayService",
     repository_url: str,
@@ -2197,7 +2273,7 @@ async def _export_forks_csv(
     from forklift.reporting.csv_output_manager import create_csv_context
     
     try:
-        # Configure CSV export
+        # Configure CSV export with new multi-row format
         csv_config = CSVExportConfig(
             include_commits=(show_commits > 0),
             detail_mode=detail,
@@ -2205,7 +2281,8 @@ async def _export_forks_csv(
             max_commits_per_fork=min(show_commits, 10) if show_commits > 0 else 0,
             escape_newlines=True,
             include_urls=True,
-            date_format="%Y-%m-%d %H:%M:%S"
+            date_format="%Y-%m-%d %H:%M:%S",
+            commit_date_format="%Y-%m-%d"  # Use new format for commit dates
         )
         
         # Create CSV output context to suppress progress indicators
@@ -2214,7 +2291,7 @@ async def _export_forks_csv(
             
             if detail:
                 # Use detailed fork display with exact commit counts for CSV
-                fork_data = await display_service.get_fork_data_detailed(
+                fork_data = await display_service.show_fork_data_detailed(
                     repository_url,
                     max_forks=max_forks,
                     disable_cache=False,
@@ -2224,7 +2301,7 @@ async def _export_forks_csv(
                 )
             else:
                 # Use standard fork data display for CSV
-                fork_data = await display_service.get_fork_data(
+                fork_data = await display_service.show_fork_data(
                     repository_url,
                     exclude_archived=False,
                     exclude_disabled=False,

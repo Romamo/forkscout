@@ -18,15 +18,23 @@ class CSVOutputManager:
         self._has_output = False
     
     def configure_exporter(self, config: CSVExportConfig) -> None:
-        """Configure the CSV exporter.
+        """Configure the CSV exporter with enhanced multi-row format.
         
         Args:
             config: CSV export configuration
         """
         self.exporter = CSVExporter(config)
+        
+        # Log configuration for new format processing
+        if self.debug:
+            self._log_to_stderr(f"CSV exporter configured with multi-row format")
+            self._log_to_stderr(f"  - Include commits: {config.include_commits}")
+            self._log_to_stderr(f"  - Detail mode: {config.detail_mode}")
+            self._log_to_stderr(f"  - Commit date format: {config.commit_date_format}")
+            self._log_to_stderr(f"  - Include URLs: {config.include_urls}")
     
     def export_to_stdout(self, data: Any, **kwargs) -> None:
-        """Export data to stdout with error handling.
+        """Export data to stdout with error handling and statistics logging.
         
         Args:
             data: Data to export
@@ -38,6 +46,9 @@ class CSVOutputManager:
         try:
             # Generate CSV content
             csv_content = self._generate_csv_safely(data, **kwargs)
+            
+            # Log statistics for new format processing
+            self._log_export_statistics(data, csv_content)
             
             # Write to stdout
             self._write_to_stdout(csv_content)
@@ -171,6 +182,44 @@ class CSVOutputManager:
         if self._has_output:
             self._log_to_stderr("Warning: Partial CSV output may have been generated due to error")
     
+    def _log_export_statistics(self, data: Any, csv_content: str) -> None:
+        """Log statistics for CSV export processing.
+        
+        Args:
+            data: Original data being exported
+            csv_content: Generated CSV content
+        """
+        if not self.debug:
+            return
+            
+        try:
+            # Count rows and estimate data size
+            lines = csv_content.split('\n')
+            row_count = len(lines) - 1  # Subtract header row
+            content_size = len(csv_content.encode('utf-8'))
+            
+            # Log basic statistics
+            self._log_to_stderr(f"CSV export statistics:")
+            self._log_to_stderr(f"  - Rows exported: {row_count}")
+            self._log_to_stderr(f"  - Content size: {content_size} bytes")
+            
+            # Log data type specific statistics
+            if hasattr(data, '__len__'):
+                self._log_to_stderr(f"  - Input items: {len(data)}")
+                
+                # For fork analyses, log commit expansion ratio
+                if hasattr(data, '__iter__') and data:
+                    first_item = next(iter(data), None)
+                    if hasattr(first_item, 'features'):
+                        total_commits = sum(len(feature.commits) for item in data for feature in item.features)
+                        if total_commits > 0:
+                            expansion_ratio = row_count / len(data) if len(data) > 0 else 0
+                            self._log_to_stderr(f"  - Commit expansion ratio: {expansion_ratio:.1f}x")
+                            self._log_to_stderr(f"  - Total commits processed: {total_commits}")
+            
+        except Exception as e:
+            self._log_to_stderr(f"Failed to log export statistics: {e}")
+
     def _log_to_stderr(self, message: str) -> None:
         """Log a message to stderr.
         
