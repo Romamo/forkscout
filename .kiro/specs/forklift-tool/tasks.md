@@ -1711,7 +1711,7 @@
   - Write integration tests for --csv combined with --show-commits flag
   - _Requirements: 26.4_
 
-- [-] 27.5 Add support for --detail mode in CSV export
+- [x] 27.5 Add support for --detail mode in CSV export
   - Enhance CSV export to use exact commit counts when --detail flag is combined with --csv
   - Modify Commits Ahead column to show precise "+X" format instead of status indicators
   - Ensure CSV export triggers the same API calls as table display for exact counts
@@ -1720,7 +1720,7 @@
   - Write integration tests for --csv combined with --detail flag
   - _Requirements: 26.5_
 
-- [ ] 27.6 Implement comprehensive error handling and output management
+- [-] 27.6 Implement comprehensive error handling and output management
   - Add clean error reporting that sends all error messages to stderr
   - Implement graceful exit codes (0 for success, non-zero for failure)
   - Ensure no partial CSV output is generated when errors occur

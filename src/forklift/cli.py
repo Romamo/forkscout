@@ -51,25 +51,51 @@ from forklift.display.progress_reporter import (
     reset_progress_reporter,
 )
 from forklift.display.repository_display_service import RepositoryDisplayService
+from forklift.exceptions import (
+    ErrorHandler,
+    ForkliftAuthenticationError,
+    ForkliftConfigurationError,
+    ForkliftNetworkError,
+    ForkliftOutputError,
+    ForkliftUnicodeError,
+    ForkliftValidationError,
+    create_error_handler,
+)
 from forklift.github.client import GitHubClient
 from forklift.github.exceptions import (
+    GitHubAuthenticationError,
     GitHubEmptyRepositoryError,
     GitHubForkAccessError,
+    GitHubNotFoundError,
     GitHubPrivateRepositoryError,
+    GitHubRateLimitError,
     GitHubTimeoutError,
 )
 from forklift.models.github import Commit
 from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
+from forklift.reporting.csv_output_manager import create_csv_context, create_csv_output_manager
 from forklift.storage.analysis_cache import AnalysisCacheManager
 
 console = Console(file=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
-class CLIError(Exception):
-    """Base exception for CLI errors."""
+# Global error handler instance
+_error_handler: ErrorHandler | None = None
 
-    pass
+
+def get_error_handler() -> ErrorHandler:
+    """Get the global error handler instance."""
+    global _error_handler
+    if _error_handler is None:
+        _error_handler = create_error_handler()
+    return _error_handler
+
+
+def set_error_handler(handler: ErrorHandler) -> None:
+    """Set the global error handler instance."""
+    global _error_handler
+    _error_handler = handler
 
 
 def initialize_cli_environment() -> tuple[InteractionMode, bool]:
@@ -204,9 +230,12 @@ def validate_repository_url(url: str) -> tuple[str, str]:
         Tuple of (owner, repo_name)
 
     Raises:
-        CLIError: If URL is invalid
+        ForkliftValidationError: If URL is invalid
     """
     import re
+
+    if not url or not isinstance(url, str):
+        raise ForkliftValidationError("Repository URL is required")
 
     # Support various GitHub URL formats
     patterns = [
@@ -215,13 +244,29 @@ def validate_repository_url(url: str) -> tuple[str, str]:
         r"^([^/]+)/([^/]+)$",  # Simple owner/repo format
     ]
 
+    url = url.strip()
     for pattern in patterns:
-        match = re.match(pattern, url.strip())
+        match = re.match(pattern, url)
         if match:
             owner, repo = match.groups()
+            
+            # Validate owner and repo names
+            if not owner or not repo:
+                raise ForkliftValidationError(f"Invalid repository format: {url}")
+            
+            # Basic validation for GitHub username/repo name rules
+            if not re.match(r'^[a-zA-Z0-9._-]+$', owner):
+                raise ForkliftValidationError(f"Invalid owner name: {owner}")
+            if not re.match(r'^[a-zA-Z0-9._-]+$', repo):
+                raise ForkliftValidationError(f"Invalid repository name: {repo}")
+            
+            # Additional validation: owner shouldn't contain domain names
+            if '.' in owner and len(owner.split('.')) > 2:
+                raise ForkliftValidationError(f"Invalid owner name (looks like domain): {owner}")
+            
             return owner, repo
 
-    raise CLIError(f"Invalid GitHub repository URL: {url}")
+    raise ForkliftValidationError(f"Invalid GitHub repository URL format: {url}")
 
 
 def display_analysis_summary(results: dict) -> None:
@@ -629,17 +674,31 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
         loaded_config = load_config(config) if config else load_config()
         ctx.obj["config"] = loaded_config
     except Exception as e:
-        console.print(f"[red]Error loading configuration: {e}[/red]")
-        sys.exit(1)
+        error_handler = create_error_handler(debug=debug)
+        if isinstance(e, (FileNotFoundError, PermissionError)):
+            error_handler.handle_error(
+                ForkliftConfigurationError(f"Configuration file error: {e}"),
+                "Loading configuration"
+            )
+        else:
+            error_handler.handle_error(
+                ForkliftConfigurationError(f"Invalid configuration: {e}"),
+                "Loading configuration"
+            )
 
     # Setup logging with configuration
     setup_logging(verbose, debug, loaded_config)
+
+    # Create and store error handler
+    error_handler = create_error_handler(debug=debug)
+    set_error_handler(error_handler)
 
     # Store CLI options and environment info
     ctx.obj["verbose"] = verbose
     ctx.obj["debug"] = debug
     ctx.obj["interaction_mode"] = interaction_mode
     ctx.obj["supports_prompts"] = supports_prompts
+    ctx.obj["error_handler"] = error_handler
 
 
 @cli.command()
@@ -732,6 +791,8 @@ def analyze(
 
     config.output_format = output_format
 
+    error_handler: ErrorHandler = ctx.obj["error_handler"]
+    
     try:
         # Validate repository URL
         owner, repo_name = validate_repository_url(repository_url)
@@ -765,13 +826,16 @@ def analyze(
 
             # Save output if specified
             if output and not dry_run:
-                output_path = Path(output)
-                output_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    output_path = Path(output)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(results.get("report", ""))
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        f.write(results.get("report", ""))
 
-                console.print(f"[green]Report saved to: {output_path}[/green]")
+                    console.print(f"[green]Report saved to: {output_path}[/green]")
+                except Exception as e:
+                    raise ForkliftOutputError(f"Failed to save report to {output}: {e}")
 
             # Success message
             high_value_count = results.get("high_value_features", 0)
@@ -787,30 +851,39 @@ def analyze(
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
-    except CLIError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
-    except (
-        GitHubPrivateRepositoryError,
-        GitHubEmptyRepositoryError,
-        GitHubForkAccessError,
-        GitHubTimeoutError,
-    ) as e:
-        # Display user-friendly error message
-        console.print(f"[yellow]Repository access issue: {e}[/yellow]")
-        console.print(
-            "[dim]Tip: Check repository URL and ensure you have access to the repository[/dim]"
+    except (ForkliftValidationError, ForkliftConfigurationError, ForkliftOutputError, ForkliftUnicodeError) as e:
+        error_handler.handle_error(e, "Repository analysis")
+    except GitHubAuthenticationError as e:
+        error_handler.handle_error(
+            ForkliftAuthenticationError(f"GitHub authentication failed: {e}"),
+            "Repository analysis"
         )
-        sys.exit(1)
+    except GitHubRateLimitError as e:
+        error_handler.handle_error(
+            ForkliftNetworkError(f"GitHub rate limit exceeded: {e}"),
+            "Repository analysis"
+        )
+    except (GitHubNotFoundError, GitHubPrivateRepositoryError, GitHubEmptyRepositoryError, GitHubForkAccessError) as e:
+        error_handler.handle_error(
+            ForkliftValidationError(f"Repository access issue: {e}"),
+            "Repository analysis"
+        )
+    except GitHubTimeoutError as e:
+        error_handler.handle_error(
+            ForkliftNetworkError(f"Network timeout: {e}"),
+            "Repository analysis"
+        )
     except KeyboardInterrupt:
-        console.print("\n[yellow]Analysis interrupted by user[/yellow]")
-        sys.exit(130)
+        error_handler.handle_error(KeyboardInterrupt(), "Repository analysis")
     except Exception as e:
-        if ctx.obj["debug"]:
-            console.print_exception()
+        # Handle unexpected errors
+        if isinstance(e, UnicodeError):
+            error_handler.handle_error(
+                ForkliftUnicodeError(f"Unicode processing error: {e}"),
+                "Repository analysis"
+            )
         else:
-            console.print(f"[red]Unexpected error: {e}[/red]")
-        sys.exit(1)
+            error_handler.handle_error(e, "Repository analysis")
 
 
 @cli.command()
@@ -1151,14 +1224,19 @@ def show_forks(
     interaction_mode: InteractionMode = ctx.obj["interaction_mode"]
     supports_prompts: bool = ctx.obj["supports_prompts"]
 
+    error_handler: ErrorHandler = ctx.obj["error_handler"]
+    
     try:
         # Validate GitHub token
         if not config.github.token:
-            raise CLIError(
+            raise ForkliftAuthenticationError(
                 "GitHub token not configured. Use 'forklift configure' to set it up."
             )
 
-        if verbose:
+        # Validate repository URL
+        validate_repository_url(repository_url)
+
+        if verbose and not csv:
             # Use stderr for verbose messages when output might be redirected
             verbose_console = Console(file=sys.stderr) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
             verbose_console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
@@ -1189,18 +1267,39 @@ def show_forks(
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
-    except CLIError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
+    except (ForkliftValidationError, ForkliftConfigurationError, ForkliftAuthenticationError, ForkliftOutputError, ForkliftUnicodeError) as e:
+        error_handler.handle_error(e, "Show forks")
+    except GitHubAuthenticationError as e:
+        error_handler.handle_error(
+            ForkliftAuthenticationError(f"GitHub authentication failed: {e}"),
+            "Show forks"
+        )
+    except GitHubRateLimitError as e:
+        error_handler.handle_error(
+            ForkliftNetworkError(f"GitHub rate limit exceeded: {e}"),
+            "Show forks"
+        )
+    except (GitHubNotFoundError, GitHubPrivateRepositoryError, GitHubEmptyRepositoryError, GitHubForkAccessError) as e:
+        error_handler.handle_error(
+            ForkliftValidationError(f"Repository access issue: {e}"),
+            "Show forks"
+        )
+    except GitHubTimeoutError as e:
+        error_handler.handle_error(
+            ForkliftNetworkError(f"Network timeout: {e}"),
+            "Show forks"
+        )
     except KeyboardInterrupt:
-        console.print("\n[yellow]Operation interrupted by user[/yellow]")
-        sys.exit(130)
+        error_handler.handle_error(KeyboardInterrupt(), "Show forks")
     except Exception as e:
-        if ctx.obj["debug"]:
-            console.print_exception()
+        # Handle unexpected errors
+        if isinstance(e, UnicodeError):
+            error_handler.handle_error(
+                ForkliftUnicodeError(f"Unicode processing error: {e}"),
+                "Show forks"
+            )
         else:
-            console.print(f"[red]Unexpected error: {e}[/red]")
-        sys.exit(1)
+            error_handler.handle_error(e, "Show forks")
 
 
 @cli.command("list-forks")
@@ -2062,11 +2161,12 @@ async def _show_forks_summary(
 
         except Exception as e:
             logger.error(f"Failed to display forks data: {e}")
-            if csv:
-                # In CSV mode, send errors to stderr to keep stdout clean
-                sys.stderr.write(f"Error: Failed to display forks data: {e}\n")
-                sys.stderr.flush()
-            raise CLIError(f"Failed to display forks data: {e}")
+            if isinstance(e, (ForkliftOutputError, ForkliftUnicodeError)):
+                raise
+            elif isinstance(e, UnicodeError):
+                raise ForkliftUnicodeError(f"Unicode error in fork display: {e}")
+            else:
+                raise ForkliftOutputError(f"Failed to display forks data: {e}")
 
 
 async def _export_forks_csv(
@@ -2088,40 +2188,68 @@ async def _export_forks_csv(
         show_commits: Number of recent commits to show for each fork
         force_all_commits: Whether to fetch commits for all forks
         ahead_only: Whether to filter to show only forks with commits ahead
+        
+    Raises:
+        ForkliftOutputError: If CSV export fails
+        ForkliftUnicodeError: If Unicode handling fails
     """
-    import sys
+    from forklift.reporting.csv_exporter import CSVExportConfig
+    from forklift.reporting.csv_output_manager import create_csv_context
     
     try:
-        if detail:
-            # Use detailed fork display with exact commit counts for CSV
-            await display_service.show_fork_data_detailed(
-                repository_url,
-                max_forks=max_forks,
-                disable_cache=False,
-                show_commits=show_commits,
-                force_all_commits=force_all_commits,
-                ahead_only=ahead_only,
-                csv_export=True,
-            )
-        else:
-            # Use standard fork data display for CSV
-            await display_service.show_fork_data(
-                repository_url,
-                exclude_archived=False,
-                exclude_disabled=False,
-                sort_by="stars",
-                show_all=True,
-                disable_cache=False,
-                show_commits=show_commits,
-                force_all_commits=force_all_commits,
-                ahead_only=ahead_only,
-                csv_export=True,
-            )
+        # Configure CSV export
+        csv_config = CSVExportConfig(
+            include_commits=(show_commits > 0),
+            detail_mode=detail,
+            include_explanations=False,
+            max_commits_per_fork=min(show_commits, 10) if show_commits > 0 else 0,
+            escape_newlines=True,
+            include_urls=True,
+            date_format="%Y-%m-%d %H:%M:%S"
+        )
+        
+        # Create CSV output context to suppress progress indicators
+        with create_csv_context(suppress_progress=True) as csv_manager:
+            csv_manager.configure_exporter(csv_config)
+            
+            if detail:
+                # Use detailed fork display with exact commit counts for CSV
+                fork_data = await display_service.get_fork_data_detailed(
+                    repository_url,
+                    max_forks=max_forks,
+                    disable_cache=False,
+                    show_commits=show_commits,
+                    force_all_commits=force_all_commits,
+                    ahead_only=ahead_only,
+                )
+            else:
+                # Use standard fork data display for CSV
+                fork_data = await display_service.get_fork_data(
+                    repository_url,
+                    exclude_archived=False,
+                    exclude_disabled=False,
+                    sort_by="stars",
+                    show_all=True,
+                    disable_cache=False,
+                    show_commits=show_commits,
+                    force_all_commits=force_all_commits,
+                    ahead_only=ahead_only,
+                )
+            
+            # Export to CSV
+            if fork_data and "forks" in fork_data:
+                csv_manager.export_to_stdout(fork_data["forks"])
+            else:
+                # Export empty CSV with headers
+                csv_manager.export_to_stdout([])
+                
+    except UnicodeError as e:
+        raise ForkliftUnicodeError(f"Unicode error in CSV export: {e}")
     except Exception as e:
-        # Send errors to stderr to keep stdout clean for CSV data
-        sys.stderr.write(f"Error exporting CSV data: {e}\n")
-        sys.stderr.flush()
-        raise
+        if isinstance(e, (ForkliftOutputError, ForkliftUnicodeError)):
+            raise
+        else:
+            raise ForkliftOutputError(f"CSV export failed: {e}")
 
 
 async def _run_analysis(
