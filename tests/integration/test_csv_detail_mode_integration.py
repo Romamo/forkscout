@@ -2,7 +2,7 @@
 
 import csv
 import io
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,7 +11,10 @@ from forklift.cli import _export_forks_csv
 from forklift.config.settings import ForkliftConfig
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forklift.models.fork_qualification import (
+    CollectedForkData,
+    ForkQualificationMetrics,
+)
 
 
 class TestCSVDetailModeIntegration:
@@ -59,7 +62,7 @@ class TestCSVDetailModeIntegration:
             description="Test repository with commits ahead",
             homepage=None,
             default_branch="main",
-            commits_ahead_status="Has commits"
+            commits_ahead_status="Has commits",
         )
 
         # Fork with 0 commits ahead
@@ -87,7 +90,7 @@ class TestCSVDetailModeIntegration:
             description="Test repository with no commits ahead",
             homepage=None,
             default_branch="main",
-            commits_ahead_status="No commits ahead"
+            commits_ahead_status="No commits ahead",
         )
 
         fork1 = CollectedForkData(metrics=metrics1)
@@ -99,34 +102,34 @@ class TestCSVDetailModeIntegration:
         return [fork1, fork2]
 
     @pytest.mark.asyncio
-    async def test_csv_export_with_detail_flag(self, mock_github_client, sample_detailed_fork_data, capsys):
+    async def test_csv_export_with_detail_flag(
+        self, mock_github_client, sample_detailed_fork_data, capsys
+    ):
         """Test CSV export with --detail flag produces exact commit counts."""
         display_service = RepositoryDisplayService(mock_github_client)
 
-        with patch.object(display_service, "show_fork_data_detailed") as mock_show_detailed:
+        with patch.object(
+            display_service, "show_fork_data_detailed"
+        ) as mock_show_detailed:
             # Mock the detailed display to return our sample data
             mock_show_detailed.return_value = {
                 "total_forks": 2,
                 "displayed_forks": 2,
                 "collected_forks": sample_detailed_fork_data,
-                "api_calls_made": 2
+                "api_calls_made": 2,
             }
 
             # Mock the CSV export functionality
             with patch.object(display_service, "_export_csv_data") as mock_export_csv:
-                # Simulate CSV output with detail mode formatting
-                expected_csv = """fork_name,owner,stars,commits_ahead,activity_status,fork_url,last_push_date,created_date,updated_date
-test-repo,user1,15,+3,Active,https://github.com/user1/test-repo,2024-01-22 00:00:00,,
-test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,,
-"""
+                # Mock CSV export functionality
                 mock_export_csv.return_value = None
-                
+
                 # Capture stdout to verify CSV output
-                import sys
                 from io import StringIO
+
                 captured_output = StringIO()
-                
-                with patch('sys.stdout', captured_output):
+
+                with patch("sys.stdout", captured_output):
                     await _export_forks_csv(
                         display_service,
                         "owner/repo",
@@ -134,7 +137,7 @@ test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,
                         detail=True,
                         show_commits=0,
                         force_all_commits=False,
-                        ahead_only=False
+                        ahead_only=False,
                     )
 
                 # Verify detailed CSV export was called
@@ -149,7 +152,9 @@ test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,
                 )
 
     @pytest.mark.asyncio
-    async def test_csv_export_without_detail_flag(self, mock_github_client, sample_detailed_fork_data):
+    async def test_csv_export_without_detail_flag(
+        self, mock_github_client, sample_detailed_fork_data
+    ):
         """Test CSV export without --detail flag uses status indicators."""
         display_service = RepositoryDisplayService(mock_github_client)
 
@@ -158,7 +163,7 @@ test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,
             mock_show_fork_data.return_value = {
                 "total_forks": 2,
                 "displayed_forks": 2,
-                "collected_forks": sample_detailed_fork_data
+                "collected_forks": sample_detailed_fork_data,
             }
 
             await _export_forks_csv(
@@ -168,7 +173,7 @@ test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,
                 detail=False,
                 show_commits=0,
                 force_all_commits=False,
-                ahead_only=False
+                ahead_only=False,
             )
 
             # Verify standard CSV export was called (not detailed)
@@ -186,16 +191,20 @@ test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,
             )
 
     @pytest.mark.asyncio
-    async def test_csv_detail_mode_with_show_commits(self, mock_github_client, sample_detailed_fork_data):
+    async def test_csv_detail_mode_with_show_commits(
+        self, mock_github_client, sample_detailed_fork_data
+    ):
         """Test CSV export with both --detail and --show-commits flags."""
         display_service = RepositoryDisplayService(mock_github_client)
 
-        with patch.object(display_service, "show_fork_data_detailed") as mock_show_detailed:
+        with patch.object(
+            display_service, "show_fork_data_detailed"
+        ) as mock_show_detailed:
             mock_show_detailed.return_value = {
                 "total_forks": 2,
                 "displayed_forks": 2,
                 "collected_forks": sample_detailed_fork_data,
-                "api_calls_made": 2
+                "api_calls_made": 2,
             }
 
             await _export_forks_csv(
@@ -205,7 +214,7 @@ test-repo,user2,7,,Stale,https://github.com/user2/test-repo,2024-01-05 00:00:00,
                 detail=True,
                 show_commits=5,
                 force_all_commits=True,
-                ahead_only=True
+                ahead_only=True,
             )
 
             # Verify all parameters are passed correctly
@@ -227,18 +236,18 @@ test-repo-1,user1,10,+5,Active,https://github.com/user1/test-repo-1
 test-repo-2,user2,3,,Stale,https://github.com/user2/test-repo-2
 test-repo-3,user3,8,+2,Active,https://github.com/user3/test-repo-3
 """
-        
+
         # Parse CSV to verify it's valid
         reader = csv.DictReader(io.StringIO(csv_content))
         rows = list(reader)
-        
+
         assert len(rows) == 3
-        
+
         # Verify detail mode formatting
         assert rows[0]["commits_ahead"] == "+5"  # Exact count with + prefix
-        assert rows[1]["commits_ahead"] == ""    # Empty for zero commits
+        assert rows[1]["commits_ahead"] == ""  # Empty for zero commits
         assert rows[2]["commits_ahead"] == "+2"  # Another exact count
-        
+
         # Verify other fields are preserved
         assert rows[0]["fork_name"] == "test-repo-1"
         assert rows[0]["owner"] == "user1"
@@ -253,18 +262,18 @@ test-repo-1,user1,10,Unknown,Active,https://github.com/user1/test-repo-1
 test-repo-2,user2,3,None,Stale,https://github.com/user2/test-repo-2
 test-repo-3,user3,8,Unknown,Active,https://github.com/user3/test-repo-3
 """
-        
+
         # Parse CSV to verify it's valid
         reader = csv.DictReader(io.StringIO(csv_content))
         rows = list(reader)
-        
+
         assert len(rows) == 3
-        
+
         # Verify non-detail mode formatting
         assert rows[0]["commits_ahead"] == "Unknown"  # Status indicator
-        assert rows[1]["commits_ahead"] == "None"     # Status indicator
+        assert rows[1]["commits_ahead"] == "None"  # Status indicator
         assert rows[2]["commits_ahead"] == "Unknown"  # Status indicator
-        
+
         # Verify other fields are preserved
         assert rows[0]["fork_name"] == "test-repo-1"
         assert rows[0]["owner"] == "user1"

@@ -2,15 +2,18 @@
 
 import csv
 import io
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
 
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.models.analysis import ForkPreviewItem, ForksPreview
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
-from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
+from forklift.models.fork_qualification import (
+    CollectedForkData,
+    ForkQualificationMetrics,
+)
+from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVDetailMode:
@@ -54,7 +57,7 @@ class TestCSVDetailMode:
             description="Test repository",
             homepage=None,
             default_branch="main",
-            commits_ahead_status="Has commits"
+            commits_ahead_status="Has commits",
         )
 
         # Fork with 0 commits ahead
@@ -82,7 +85,7 @@ class TestCSVDetailMode:
             description="Another test repository",
             homepage=None,
             default_branch="main",
-            commits_ahead_status="No commits ahead"
+            commits_ahead_status="No commits ahead",
         )
 
         fork1 = CollectedForkData(metrics=metrics1)
@@ -93,54 +96,60 @@ class TestCSVDetailMode:
 
         return [fork1, fork2]
 
-    def test_convert_fork_data_to_preview_item_csv_detail_mode(self, display_service, sample_fork_data_with_exact_counts):
+    def test_convert_fork_data_to_preview_item_csv_detail_mode(
+        self, display_service, sample_fork_data_with_exact_counts
+    ):
         """Test CSV conversion with detail mode formatting."""
         fork_data = sample_fork_data_with_exact_counts[0]  # Fork with 5 commits ahead
-        
+
         # Convert to CSV format with exact counts
         preview_item = display_service._convert_fork_data_to_preview_item_csv(
             fork_data=fork_data,
             has_exact_counts=True,
             raw_commits_cache={},
-            show_commits=0
+            show_commits=0,
         )
-        
+
         # Should use "+X" format for exact counts
         assert preview_item.commits_ahead == "+5"
         assert preview_item.name == "test-repo"
         assert preview_item.owner == "user1"
         assert preview_item.stars == 10
 
-    def test_convert_fork_data_to_preview_item_csv_detail_mode_zero_commits(self, display_service, sample_fork_data_with_exact_counts):
+    def test_convert_fork_data_to_preview_item_csv_detail_mode_zero_commits(
+        self, display_service, sample_fork_data_with_exact_counts
+    ):
         """Test CSV conversion with detail mode for fork with zero commits ahead."""
         fork_data = sample_fork_data_with_exact_counts[1]  # Fork with 0 commits ahead
-        
+
         # Convert to CSV format with exact counts
         preview_item = display_service._convert_fork_data_to_preview_item_csv(
             fork_data=fork_data,
             has_exact_counts=True,
             raw_commits_cache={},
-            show_commits=0
+            show_commits=0,
         )
-        
+
         # Should use empty string for zero commits in detail mode
         assert preview_item.commits_ahead == ""
         assert preview_item.name == "test-repo"
         assert preview_item.owner == "user2"
         assert preview_item.stars == 5
 
-    def test_convert_fork_data_to_preview_item_csv_non_detail_mode(self, display_service, sample_fork_data_with_exact_counts):
+    def test_convert_fork_data_to_preview_item_csv_non_detail_mode(
+        self, display_service, sample_fork_data_with_exact_counts
+    ):
         """Test CSV conversion without detail mode uses status indicators."""
         fork_data = sample_fork_data_with_exact_counts[0]  # Fork with commits ahead
-        
+
         # Convert to CSV format without exact counts
         preview_item = display_service._convert_fork_data_to_preview_item_csv(
             fork_data=fork_data,
             has_exact_counts=False,
             raw_commits_cache={},
-            show_commits=0
+            show_commits=0,
         )
-        
+
         # Should use status indicator, not exact count
         assert preview_item.commits_ahead == "Unknown"  # Based on status from metrics
 
@@ -148,9 +157,9 @@ class TestCSVDetailMode:
         """Test that CSV exporter includes proper headers for detail mode."""
         config = CSVExportConfig(detail_mode=True, include_urls=True)
         exporter = CSVExporter(config)
-        
+
         headers = exporter._generate_forks_preview_headers()
-        
+
         # Should include detail mode headers
         assert "fork_name" in headers
         assert "owner" in headers
@@ -173,9 +182,9 @@ class TestCSVDetailMode:
             fork_url="https://github.com/user1/test-repo-1",
             activity_status="Active",
             commits_ahead="+5",  # Detail mode format
-            recent_commits=None
+            recent_commits=None,
         )
-        
+
         fork2 = ForkPreviewItem(
             name="test-repo-2",
             owner="user2",
@@ -184,22 +193,22 @@ class TestCSVDetailMode:
             fork_url="https://github.com/user2/test-repo-2",
             activity_status="Stale",
             commits_ahead="",  # Empty for zero commits in detail mode
-            recent_commits=None
+            recent_commits=None,
         )
-        
+
         preview = ForksPreview(total_forks=2, forks=[fork1, fork2])
-        
+
         # Export with detail mode
         config = CSVExportConfig(detail_mode=True, include_urls=True)
         exporter = CSVExporter(config)
         csv_output = exporter.export_forks_preview(preview)
-        
+
         # Parse CSV output
         reader = csv.DictReader(io.StringIO(csv_output))
         rows = list(reader)
-        
+
         assert len(rows) == 2
-        
+
         # Check first row (fork with commits ahead)
         assert rows[0]["fork_name"] == "test-repo-1"
         assert rows[0]["owner"] == "user1"
@@ -207,7 +216,7 @@ class TestCSVDetailMode:
         assert rows[0]["commits_ahead"] == "+5"  # Should be in "+X" format
         assert rows[0]["activity_status"] == "Active"
         assert rows[0]["fork_url"] == "https://github.com/user1/test-repo-1"
-        
+
         # Check second row (fork with no commits ahead)
         assert rows[1]["fork_name"] == "test-repo-2"
         assert rows[1]["owner"] == "user2"
@@ -227,9 +236,9 @@ class TestCSVDetailMode:
             fork_url="https://github.com/user1/test-repo-1",
             activity_status="Active",
             commits_ahead="Unknown",  # Status indicator format
-            recent_commits=None
+            recent_commits=None,
         )
-        
+
         fork2 = ForkPreviewItem(
             name="test-repo-2",
             owner="user2",
@@ -238,22 +247,22 @@ class TestCSVDetailMode:
             fork_url="https://github.com/user2/test-repo-2",
             activity_status="Stale",
             commits_ahead="None",  # Status indicator format
-            recent_commits=None
+            recent_commits=None,
         )
-        
+
         preview = ForksPreview(total_forks=2, forks=[fork1, fork2])
-        
+
         # Export without detail mode
         config = CSVExportConfig(detail_mode=False, include_urls=True)
         exporter = CSVExporter(config)
         csv_output = exporter.export_forks_preview(preview)
-        
+
         # Parse CSV output
         reader = csv.DictReader(io.StringIO(csv_output))
         rows = list(reader)
-        
+
         assert len(rows) == 2
-        
+
         # Check commits_ahead uses status indicators
         assert rows[0]["commits_ahead"] == "Unknown"
         assert rows[1]["commits_ahead"] == "None"
