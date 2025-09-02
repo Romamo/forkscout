@@ -24,19 +24,19 @@
   - Integrate configuration into repository display service
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [-] 5. Enhance Error Handling for Commit Operations
+- [x] 5. Enhance Error Handling for Commit Operations
   - Add specific error handling for private repositories and access issues
   - Implement graceful degradation when comparison fails
   - Add proper error messages and logging for debugging
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 6. Add Comprehensive Unit Tests for Commit Counting
+- [x] 6. Add Comprehensive Unit Tests for Commit Counting
   - Test `get_commits_ahead_count` method with various scenarios
   - Test batch counting methods for accuracy and efficiency
   - Test error handling for different failure modes
   - _Requirements: 1.1, 1.2, 2.1, 2.2_
 
-- [ ] 7. Add Integration Tests with Real GitHub Data
+- [-] 7. Add Integration Tests with Real GitHub Data
   - Test with real repositories that have known commit counts
   - Verify that fixed logic shows correct "+5", "+12", "+23" instead of "+1"
   - Test the specific case mentioned in bug report: `sanila2007/youtube-bot-telegram`
