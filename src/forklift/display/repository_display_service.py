@@ -1552,7 +1552,7 @@ class RepositoryDisplayService:
                     f"[dim]Skipped {skipped_count} forks with no commits ahead (saved {skipped_count} API calls)[/dim]"
                 )
 
-            # Fetch exact commit counts using optimized batch processing
+            # Fetch exact commit counts using the new centralized batch processing method
             api_calls_made = 0
             detailed_forks = list(forks_to_skip)  # Start with skipped forks
 
@@ -1568,86 +1568,19 @@ class RepositoryDisplayService:
                         "Fetching exact commit counts...", total=len(forks_needing_api)
                     )
 
-                    try:
-                        # Use optimized batch processing to eliminate redundant parent repo requests
-                        fork_data_list = [
-                            (fork_data.metrics.owner, fork_data.metrics.name)
-                            for fork_data in forks_needing_api
-                        ]
-                        
-                        logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
-                        
-                        # Use the new batch count method to get accurate commit counts
-                        batch_counts = await self.github_client.get_commits_ahead_batch_counts(
-                            fork_data_list, owner, repo_name
-                        )
-                        
-                        # Count API calls made by batch processing
-                        # Batch processing makes: 1 parent repo call + N fork repo calls + N comparison calls
-                        successful_forks = 0
-                        parent_calls_saved = 0
-                        
-                        # Process batch results using the accurate counts
-                        for fork_data in forks_needing_api:
-                            fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
-                            
-                            if fork_full_name in batch_counts:
-                                # Successfully processed - use the accurate ahead_by count
-                                commits_ahead = batch_counts[fork_full_name]
-                                fork_data.exact_commits_ahead = commits_ahead
-                                successful_forks += 1
-                                parent_calls_saved += 1  # Each fork would have needed a parent repo call
-                            else:
-                                # Failed to process (e.g., 404 error)
-                                fork_data.exact_commits_ahead = "Unknown"
-                            
-                            detailed_forks.append(fork_data)
-                            progress.update(task, advance=1)
-                        
-                        # Calculate API calls made by batch processing
-                        # 1 parent repo call + successful_forks fork repo calls + successful_forks comparison calls
-                        api_calls_made = 1 + (successful_forks * 2)
-                        
-                        # Log optimization results
-                        logger.info(f"Batch processing completed: {successful_forks}/{len(forks_needing_api)} forks processed")
-                        logger.info(f"API optimization: {parent_calls_saved} parent repository calls saved")
-                        
-                    except Exception as e:
-                        logger.warning(f"Batch processing failed, falling back to individual requests: {e}")
-                        
-                        # Fallback to individual API calls if batch processing fails
-                        for fork_data in forks_needing_api:
-                            try:
-                                # Get exact commits ahead count using compare API
-                                commits_ahead = await self._get_exact_commits_ahead(
-                                    owner,
-                                    repo_name,
-                                    fork_data.metrics.owner,
-                                    fork_data.metrics.name,
-                                )
-
-                                # Count successful API calls (including those that return "Unknown" due to data issues)
-                                api_calls_made += 1
-
-                                # Update fork data with exact commit count
-                                fork_data.exact_commits_ahead = commits_ahead
-                                detailed_forks.append(fork_data)
-
-                                progress.update(
-                                    task,
-                                    advance=1,
-                                    description=f"Fetching commits for {fork_data.metrics.owner}/{fork_data.metrics.name}",
-                                )
-
-                            except Exception as e:
-                                logger.warning(
-                                    f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {e}"
-                                )
-                                # Don't count failed API calls
-                                # Set to unknown and continue
-                                fork_data.exact_commits_ahead = "Unknown"
-                                detailed_forks.append(fork_data)
-                                progress.update(task, advance=1)
+                    # Use the new centralized method that fixes the commit counting bug
+                    successful_forks, api_calls_saved = await self._get_exact_commit_counts_batch(
+                        forks_needing_api, owner, repo_name
+                    )
+                    
+                    # Add processed forks to detailed_forks and update progress
+                    for fork_data in forks_needing_api:
+                        detailed_forks.append(fork_data)
+                        progress.update(task, advance=1)
+                    
+                    # Calculate API calls made by batch processing
+                    # 1 parent repo call + successful_forks fork repo calls + successful_forks comparison calls
+                    api_calls_made = 1 + (successful_forks * 2) if successful_forks > 0 else 0
             else:
                 self.console.print(
                     "[dim]No forks require API calls for commit count analysis[/dim]"
@@ -1684,6 +1617,104 @@ class RepositoryDisplayService:
                 f"[red]Error: Failed to collect detailed fork data: {e}[/red]"
             )
             raise
+
+    async def _get_exact_commit_counts_batch(
+        self, forks_needing_api: list, owner: str, repo_name: str
+    ) -> tuple[int, int]:
+        """Get exact commit counts for multiple forks using batch processing.
+        
+        This method fixes the bug where forks consistently show "+1" commits ahead
+        by using the ahead_by field from GitHub's compare API instead of counting
+        commit objects with count=1.
+        
+        Args:
+            forks_needing_api: List of fork data objects that need API calls
+            owner: Parent repository owner
+            repo_name: Parent repository name
+            
+        Returns:
+            Tuple of (successful_forks, api_calls_saved)
+        """
+        if not forks_needing_api:
+            return 0, 0
+            
+        # Separate forks that can skip analysis from those needing API calls
+        forks_to_process = []
+        successful_forks = 0
+        
+        for fork_data in forks_needing_api:
+            if fork_data.metrics.can_skip_analysis:
+                # Fork has no commits ahead based on created_at >= pushed_at logic
+                fork_data.exact_commits_ahead = 0
+                successful_forks += 1
+            else:
+                forks_to_process.append(fork_data)
+        
+        if not forks_to_process:
+            return successful_forks, successful_forks
+            
+        try:
+            # Use optimized batch processing to get accurate commit counts
+            fork_data_list = [
+                (fork_data.metrics.owner, fork_data.metrics.name)
+                for fork_data in forks_to_process
+            ]
+            
+            logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
+            
+            # Use the batch count method to get accurate commit counts from ahead_by field
+            batch_counts = await self.github_client.get_commits_ahead_batch_counts(
+                fork_data_list, owner, repo_name
+            )
+            
+            # Process batch results using the accurate counts
+            api_calls_saved = 0
+            for fork_data in forks_to_process:
+                fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
+                
+                if fork_full_name in batch_counts:
+                    # Successfully processed - use the accurate ahead_by count
+                    commits_ahead = batch_counts[fork_full_name]
+                    fork_data.exact_commits_ahead = commits_ahead
+                    successful_forks += 1
+                    api_calls_saved += 1  # Each fork would have needed a parent repo call
+                else:
+                    # Failed to process (e.g., 404 error)
+                    fork_data.exact_commits_ahead = "Unknown"
+            
+            # Log optimization results
+            logger.info(f"Batch processing completed: {successful_forks}/{len(forks_needing_api)} forks processed")
+            logger.info(f"API optimization: {api_calls_saved} parent repository calls saved")
+            
+            return successful_forks, api_calls_saved
+            
+        except Exception as e:
+            logger.warning(f"Batch processing failed, falling back to individual requests: {e}")
+            
+            # Fallback to individual API calls if batch processing fails
+            api_calls_saved = 0
+            for fork_data in forks_to_process:
+                try:
+                    # Get exact commits ahead count using compare API
+                    commits_ahead = await self._get_exact_commits_ahead(
+                        owner,
+                        repo_name,
+                        fork_data.metrics.owner,
+                        fork_data.metrics.name,
+                    )
+                    
+                    # Update fork data with exact commit count
+                    fork_data.exact_commits_ahead = commits_ahead
+                    successful_forks += 1
+                    
+                except Exception as individual_error:
+                    logger.warning(
+                        f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {individual_error}"
+                    )
+                    # Set to unknown and continue
+                    fork_data.exact_commits_ahead = "Unknown"
+            
+            return successful_forks, api_calls_saved
 
     async def _get_exact_commits_ahead(
         self, base_owner: str, base_repo: str, fork_owner: str, fork_repo: str

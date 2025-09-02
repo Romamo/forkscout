@@ -1,18 +1,18 @@
 # Implementation Plan
 
-- [-] 1. Fix GitHub Client Commit Counting Logic
+- [x] 1. Fix GitHub Client Commit Counting Logic
   - Update `get_commits_ahead` method to use `ahead_by` field from compare API response
   - Update `get_commits_ahead_batch` method to use `ahead_by` field instead of counting commits array
   - Add proper error handling for cases where `ahead_by` field is missing
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2. Add New Count-Only Methods to GitHub Client
+- [x] 2. Add New Count-Only Methods to GitHub Client
   - Create `get_commits_ahead_count` method that returns only the count without commit details
   - Create `get_commits_ahead_batch_counts` method for efficient batch counting
   - Implement proper caching and API optimization for batch operations
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 3. Update Repository Display Service Counting Logic
+- [-] 3. Update Repository Display Service Counting Logic
   - Fix `_get_exact_commit_counts_batch` method to use correct counting logic
   - Remove hardcoded `count=1` parameter that causes the bug
   - Update fork data processing to use accurate commit counts
