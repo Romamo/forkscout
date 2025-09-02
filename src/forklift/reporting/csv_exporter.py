@@ -109,6 +109,9 @@ class CSVExporter:
         with separate columns for commit_date, commit_sha, and commit_description.
         Repository information is repeated on each commit row for consistency.
 
+        Handles errors gracefully to ensure export continues even when individual
+        forks fail to process.
+
         Args:
             analyses: List of fork analysis results to export
 
@@ -123,11 +126,32 @@ class CSVExporter:
         writer = csv.DictWriter(output, fieldnames=headers, quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
 
+        successful_exports = 0
+        failed_exports = 0
+
         for analysis in analyses:
-            # Generate multiple rows for this fork (one per commit)
-            commit_rows = self._generate_fork_commit_rows(analysis)
-            for row in commit_rows:
-                writer.writerow(row)
+            try:
+                # Generate multiple rows for this fork (one per commit)
+                commit_rows = self._generate_fork_commit_rows(analysis)
+                for row in commit_rows:
+                    try:
+                        writer.writerow(row)
+                    except Exception as e:
+                        logger.warning(f"Failed to write CSV row: {e}")
+                        # Continue with next row
+                        continue
+                successful_exports += 1
+            except Exception as e:
+                failed_exports += 1
+                fork_name = getattr(analysis.fork.repository, 'full_name', 'unknown')
+                logger.error(f"Failed to export fork analysis for {fork_name}: {e}")
+                # Continue with next analysis
+                continue
+
+        if failed_exports > 0:
+            logger.warning(f"Export completed with {failed_exports} failures out of {len(analyses)} total analyses")
+        else:
+            logger.info(f"Successfully exported {successful_exports} fork analyses")
 
         return output.getvalue()
 
@@ -678,13 +702,22 @@ class CSVExporter:
     def _generate_fork_commit_rows(self, analysis: ForkAnalysis) -> list[dict[str, Any]]:
         """Generate multiple rows for a fork, one per commit.
 
+        Ensures export continues when individual commits fail to process by handling
+        errors gracefully and continuing with remaining commits.
+
         Args:
             analysis: Fork analysis containing fork and commit data
 
         Returns:
             List of dictionaries representing CSV rows, one per commit
         """
-        base_fork_data = self._extract_base_fork_data(analysis)
+        try:
+            base_fork_data = self._extract_base_fork_data(analysis)
+        except Exception as e:
+            logger.error(f"Failed to extract base fork data for {analysis.fork.repository.full_name}: {e}")
+            # Return minimal row with empty data to ensure export continues
+            return [self._create_minimal_empty_row()]
+
         commits = self._get_commits_for_export(analysis)
 
         if not commits:
@@ -692,14 +725,32 @@ class CSVExporter:
             return [self._create_empty_commit_row(base_fork_data)]
 
         rows = []
+        successful_commits = 0
+        
         for commit in commits:
-            commit_row = self._create_commit_row(base_fork_data, commit, analysis)
-            rows.append(commit_row)
+            try:
+                commit_row = self._create_commit_row(base_fork_data, commit, analysis)
+                rows.append(commit_row)
+                successful_commits += 1
+            except Exception as e:
+                logger.warning(f"Failed to process commit {getattr(commit, 'sha', 'unknown')}: {e}")
+                # Continue processing remaining commits
+                continue
+
+        # If no commits were successfully processed, return empty commit row
+        if not rows:
+            logger.warning(f"No commits could be processed for fork {analysis.fork.repository.full_name}")
+            return [self._create_empty_commit_row(base_fork_data)]
+
+        if successful_commits < len(commits):
+            logger.info(f"Processed {successful_commits}/{len(commits)} commits for fork {analysis.fork.repository.full_name}")
 
         return rows
 
     def _create_commit_row(self, base_data: dict[str, Any], commit: Commit, analysis: ForkAnalysis) -> dict[str, Any]:
         """Combine base fork data with individual commit information.
+
+        Handles missing or invalid commit data gracefully to ensure export continues.
 
         Args:
             base_data: Base fork data dictionary
@@ -712,17 +763,37 @@ class CSVExporter:
         # Start with a copy of base fork data
         commit_row = base_data.copy()
 
-        # Add commit-specific data
-        commit_row.update({
-            "commit_date": self._format_commit_date(commit.date),
-            "commit_sha": self._format_commit_sha(commit.sha),
-            "commit_description": self._escape_commit_message(commit.message)
-        })
+        try:
+            # Add commit-specific data with error handling
+            commit_row.update({
+                "commit_date": self._format_commit_date(getattr(commit, 'date', None)),
+                "commit_sha": self._format_commit_sha(getattr(commit, 'sha', None)),
+                "commit_description": self._escape_commit_message(getattr(commit, 'message', None))
+            })
 
-        # Add commit URL if URLs are enabled
-        if self.config.include_urls:
-            repo_url = analysis.fork.repository.html_url
-            commit_row["commit_url"] = f"{repo_url}/commit/{commit.sha}"
+            # Add commit URL if URLs are enabled and we have valid data
+            if self.config.include_urls:
+                try:
+                    repo_url = analysis.fork.repository.html_url
+                    commit_sha = getattr(commit, 'sha', '')
+                    if repo_url and commit_sha:
+                        commit_row["commit_url"] = f"{repo_url}/commit/{commit_sha}"
+                    else:
+                        commit_row["commit_url"] = ""
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Failed to generate commit URL: {e}")
+                    commit_row["commit_url"] = ""
+
+        except Exception as e:
+            logger.warning(f"Error processing commit data: {e}")
+            # Ensure we still have the commit columns with empty values
+            commit_row.update({
+                "commit_date": "",
+                "commit_sha": "",
+                "commit_description": ""
+            })
+            if self.config.include_urls:
+                commit_row["commit_url"] = ""
 
         return commit_row
 
@@ -751,50 +822,97 @@ class CSVExporter:
 
         return empty_row
 
+    def _create_minimal_empty_row(self) -> dict[str, Any]:
+        """Create a minimal empty row when fork data extraction fails.
+
+        Returns:
+            Dictionary with minimal structure and empty values for all columns
+        """
+        # Create minimal row with empty values for all expected columns
+        headers = self._generate_enhanced_fork_analysis_headers()
+        return {header: "" for header in headers}
+
     def _format_commit_date(self, date: datetime | None) -> str:
         """Format commit date using configurable date format (YYYY-MM-DD).
+
+        Handles missing or invalid commit dates gracefully by returning empty values.
 
         Args:
             date: Commit date to format
 
         Returns:
-            Formatted date string or empty string if date is None
+            Formatted date string or empty string if date is None or invalid
         """
         if date is None:
             return ""
-        return date.strftime(self.config.commit_date_format)
+        
+        try:
+            return date.strftime(self.config.commit_date_format)
+        except (ValueError, AttributeError, TypeError) as e:
+            logger.warning(f"Failed to format commit date {date}: {e}")
+            return ""
 
-    def _format_commit_sha(self, sha: str) -> str:
+    def _format_commit_sha(self, sha: str | None) -> str:
         """Format commit SHA to use 7-character short SHA format.
 
+        Handles malformed commit SHAs gracefully by returning empty values.
+
         Args:
-            sha: Full commit SHA
+            sha: Full commit SHA or None
 
         Returns:
-            7-character short SHA
+            7-character short SHA or empty string if SHA is invalid
         """
-        return sha[:7] if sha else ""
+        if not sha:
+            return ""
+        
+        try:
+            # Ensure SHA is a string and has reasonable length
+            if not isinstance(sha, str):
+                logger.warning(f"Invalid commit SHA type: {type(sha)}")
+                return ""
+            
+            # Handle very short SHAs gracefully
+            if len(sha) < 7:
+                logger.warning(f"Commit SHA too short: {sha}")
+                return sha  # Return what we have
+            
+            return sha[:7]
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Failed to format commit SHA {sha}: {e}")
+            return ""
 
-    def _escape_commit_message(self, message: str) -> str:
+    def _escape_commit_message(self, message: str | None) -> str:
         """Properly handle CSV special characters in commit messages.
 
+        Handles missing or malformed commit messages gracefully.
+
         Args:
-            message: Commit message to escape
+            message: Commit message to escape or None
 
         Returns:
-            Escaped commit message suitable for CSV output
+            Escaped commit message suitable for CSV output or empty string if invalid
         """
         if not message:
             return ""
 
-        # Remove or replace newlines and carriage returns
-        cleaned_message = message.replace("\n", " ").replace("\r", " ")
+        try:
+            # Ensure message is a string
+            if not isinstance(message, str):
+                logger.warning(f"Invalid commit message type: {type(message)}")
+                return str(message) if message is not None else ""
 
-        # Remove extra whitespace
-        cleaned_message = " ".join(cleaned_message.split())
+            # Remove or replace newlines and carriage returns
+            cleaned_message = message.replace("\n", " ").replace("\r", " ")
 
-        # The CSV writer will handle quote escaping automatically
-        return cleaned_message
+            # Remove extra whitespace
+            cleaned_message = " ".join(cleaned_message.split())
+
+            # The CSV writer will handle quote escaping automatically
+            return cleaned_message
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Failed to escape commit message: {e}")
+            return ""
 
     def _escape_row_values(self, row: dict[str, Any]) -> dict[str, Any]:
         """Escape special characters in row values for CSV output."""
