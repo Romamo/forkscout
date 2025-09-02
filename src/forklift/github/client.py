@@ -543,7 +543,32 @@ class GitHubClient:
     ) -> dict[str, Any]:
         """Compare two commits or branches."""
         logger.info(f"Comparing {base}...{head} in {owner}/{repo}")
-        return await self.get(f"repos/{owner}/{repo}/compare/{base}...{head}")
+        try:
+            return await self.get(f"repos/{owner}/{repo}/compare/{base}...{head}")
+        except GitHubAPIError as e:
+            # Convert to more specific error type
+            base_repo = f"{owner}/{repo}"
+            head_repo = head if ":" in head else f"{owner}/{repo}"
+            specific_error = self.error_handler.handle_commit_comparison_error(e, base_repo, head_repo)
+            raise specific_error from e
+
+    async def compare_commits_safe(
+        self, owner: str, repo: str, base: str, head: str
+    ) -> dict[str, Any] | None:
+        """Compare two commits or branches with safe error handling.
+        
+        Returns None if comparison fails due to access issues, divergent histories, etc.
+        """
+        base_repo = f"{owner}/{repo}"
+        head_repo = head if ":" in head else f"{owner}/{repo}"
+        
+        return await self.error_handler.safe_commit_comparison_operation(
+            lambda: self.compare_commits(owner, repo, base, head),
+            base_repo=base_repo,
+            head_repo=head_repo,
+            operation_name="compare_commits",
+            default_value=None,
+        )
 
     async def get_commits_ahead_count(
         self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
@@ -586,7 +611,7 @@ class GitHubClient:
                 logger.debug(f"Cache hit for parent repository {parent_owner}/{parent_repo}, API call saved")
 
             # Compare fork's default branch with parent's default branch
-            comparison = await self.compare_commits(
+            comparison = await self.compare_commits_safe(
                 parent_owner,
                 parent_repo,
                 parent_info.default_branch,
@@ -594,7 +619,7 @@ class GitHubClient:
             )
 
             if not comparison:
-                logger.warning(f"No comparison data found for {fork_owner}/{fork_repo}")
+                logger.warning(f"No comparison data found for {fork_owner}/{fork_repo} - may be private, empty, or have divergent history")
                 return 0
 
             # Use the ahead_by field for accurate count
@@ -668,7 +693,7 @@ class GitHubClient:
                 logger.debug(f"Cache hit for parent repository {parent_owner}/{parent_repo}, API call saved")
 
             # Compare fork's default branch with parent's default branch
-            comparison = await self.compare_commits(
+            comparison = await self.compare_commits_safe(
                 parent_owner,
                 parent_repo,
                 parent_info.default_branch,
@@ -676,7 +701,7 @@ class GitHubClient:
             )
 
             if not comparison or "commits" not in comparison:
-                logger.warning(f"No commits found in comparison for {fork_owner}/{fork_repo}")
+                logger.warning(f"No commits found in comparison for {fork_owner}/{fork_repo} - may be private, empty, or have divergent history")
                 return []
 
             # Get the commits that are ahead (limited by count)
@@ -786,7 +811,7 @@ class GitHubClient:
                         fork_owner, fork_repo = fork_key.split('/', 1)
                         
                         # Use pre-fetched parent info for comparison
-                        comparison = await self.compare_commits(
+                        comparison = await self.compare_commits_safe(
                             parent_owner,
                             parent_repo,
                             parent_info.default_branch,
@@ -794,7 +819,7 @@ class GitHubClient:
                         )
 
                         if not comparison:
-                            logger.debug(f"No comparison data found for {fork_key}")
+                            logger.debug(f"No comparison data found for {fork_key} - may be private, empty, or have divergent history")
                             return fork_key, 0
 
                         # Extract the ahead_by count (this is the fix!)
@@ -935,7 +960,7 @@ class GitHubClient:
                         fork_owner, fork_repo = fork_key.split('/', 1)
                         
                         # Use pre-fetched parent info for comparison
-                        comparison = await self.compare_commits(
+                        comparison = await self.compare_commits_safe(
                             parent_owner,
                             parent_repo,
                             parent_info.default_branch,
@@ -943,7 +968,7 @@ class GitHubClient:
                         )
 
                         if not comparison or "commits" not in comparison:
-                            logger.debug(f"No commits found in comparison for {fork_key}")
+                            logger.debug(f"No commits found in comparison for {fork_key} - may be private, empty, or have divergent history")
                             return fork_key, []
 
                         # Get the commits that are ahead (limited by count)
@@ -1401,7 +1426,7 @@ class GitHubClient:
             parent_info = await self.get_repository(parent_owner, parent_repo, disable_cache=disable_cache)
 
             # Compare the branches
-            comparison = await self.compare_commits(
+            comparison = await self.compare_commits_safe(
                 parent_owner,
                 parent_repo,
                 parent_info.default_branch,
@@ -1530,15 +1555,22 @@ class GitHubClient:
             # Format: base...head where head can be owner:branch for cross-repo comparison
             comparison_ref = f"{base_info.default_branch}...{fork_owner}:{fork_info.default_branch}"
 
-            comparison = await self.get(f"repos/{base_owner}/{base_repo}/compare/{comparison_ref}")
+            try:
+                comparison = await self.get(f"repos/{base_owner}/{base_repo}/compare/{comparison_ref}")
 
-            return {
-                "ahead_by": comparison.get("ahead_by", 0),
-                "behind_by": comparison.get("behind_by", 0),
-                "status": comparison.get("status", "unknown"),
-                "total_commits": comparison.get("total_commits", 0),
-                "commits": comparison.get("commits", []),
-            }
+                return {
+                    "ahead_by": comparison.get("ahead_by", 0),
+                    "behind_by": comparison.get("behind_by", 0),
+                    "status": comparison.get("status", "unknown"),
+                    "total_commits": comparison.get("total_commits", 0),
+                    "commits": comparison.get("commits", []),
+                }
+            except GitHubAPIError as e:
+                # Convert to more specific error type
+                base_repo_id = f"{base_owner}/{base_repo}"
+                head_repo_id = f"{fork_owner}/{fork_repo}"
+                specific_error = self.error_handler.handle_commit_comparison_error(e, base_repo_id, head_repo_id)
+                raise specific_error from e
 
         except GitHubAPIError as e:
             logger.warning(f"Failed to compare {base_owner}/{base_repo} with {fork_owner}/{fork_repo}: {e}")

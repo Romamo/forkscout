@@ -1696,7 +1696,8 @@ class RepositoryDisplayService:
                     successful_forks += 1
                     api_calls_saved += 1  # Each fork would have needed a parent repo call
                 else:
-                    # Failed to process (e.g., 404 error)
+                    # Failed to process - could be private, empty, or have divergent history
+                    logger.debug(f"Fork {fork_full_name} not in batch results - may be private, empty, or have divergent history")
                     fork_data.exact_commits_ahead = "Unknown"
             
             # Log optimization results
@@ -1725,10 +1726,19 @@ class RepositoryDisplayService:
                     successful_forks += 1
                     
                 except Exception as individual_error:
+                    # Get user-friendly error message for logging
+                    error_message = self.github_client.error_handler.get_user_friendly_error_message(individual_error)
                     logger.warning(
-                        f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {individual_error}"
+                        f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {error_message}"
                     )
-                    # Set to unknown and continue
+                    
+                    # Check if we should continue processing other forks
+                    if not self.github_client.error_handler.should_continue_processing(individual_error):
+                        # Critical error - stop processing and re-raise
+                        logger.error(f"Critical error encountered, stopping fork processing: {error_message}")
+                        raise
+                    
+                    # Non-critical error - set to unknown and continue
                     fork_data.exact_commits_ahead = "Unknown"
             
             return successful_forks, api_calls_saved
@@ -1762,11 +1772,19 @@ class RepositoryDisplayService:
                 return "Unknown"
 
         except Exception as e:
+            # Get user-friendly error message for logging
+            error_message = self.github_client.error_handler.get_user_friendly_error_message(e)
             logger.debug(
-                f"Failed to compare {fork_owner}/{fork_repo} with {base_owner}/{base_repo}: {e}"
+                f"Failed to compare {fork_owner}/{fork_repo} with {base_owner}/{base_repo}: {error_message}"
             )
-            # Re-raise the exception so caller can handle it properly
-            raise
+            
+            # Check if we should continue processing other forks
+            if not self.github_client.error_handler.should_continue_processing(e):
+                # Critical error - re-raise to stop processing
+                raise
+            
+            # Non-critical error - return "Unknown" and continue
+            return "Unknown"
 
     async def _display_fork_table(
         self,

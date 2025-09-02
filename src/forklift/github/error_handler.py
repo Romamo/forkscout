@@ -8,6 +8,9 @@ from typing import TypeVar
 from .exceptions import (
     GitHubAPIError,
     GitHubAuthenticationError,
+    GitHubCommitAccessError,
+    GitHubCommitComparisonError,
+    GitHubDivergentHistoryError,
     GitHubEmptyRepositoryError,
     GitHubForkAccessError,
     GitHubNotFoundError,
@@ -163,6 +166,62 @@ class EnhancedErrorHandler:
                     f"Cannot access commits in repository '{repository}' - may be private",
                     repository=repository,
                 )
+            elif error.status_code == 422:
+                # Unprocessable entity - often indicates divergent histories
+                return GitHubCommitAccessError(
+                    f"Cannot process commits in repository '{repository}' - may have divergent history",
+                    repository=repository,
+                    reason="unprocessable",
+                    commit_sha=commit_sha,
+                )
+
+        return error
+
+    def handle_commit_comparison_error(
+        self, error: GitHubAPIError, base_repo: str, head_repo: str
+    ) -> GitHubAPIError:
+        """Handle commit comparison errors with specific error types.
+        
+        Args:
+            error: Original GitHub API error
+            base_repo: Base repository identifier (owner/repo)
+            head_repo: Head repository identifier (owner/repo)
+            
+        Returns:
+            More specific error type based on the original error
+        """
+        if isinstance(error, GitHubAPIError):
+            if error.status_code == 404:
+                # One of the repositories or branches not found
+                return GitHubCommitComparisonError(
+                    f"Cannot compare '{base_repo}' with '{head_repo}' - repository or branch not found",
+                    base_repo=base_repo,
+                    head_repo=head_repo,
+                    reason="not_found",
+                )
+            elif error.status_code == 403:
+                # Private repository or access denied
+                return GitHubCommitComparisonError(
+                    f"Cannot compare '{base_repo}' with '{head_repo}' - access denied (may be private)",
+                    base_repo=base_repo,
+                    head_repo=head_repo,
+                    reason="access_denied",
+                )
+            elif error.status_code == 422:
+                # Unprocessable entity - often indicates divergent histories
+                return GitHubDivergentHistoryError(
+                    f"Cannot compare '{base_repo}' with '{head_repo}' - repositories have divergent histories",
+                    base_repo=base_repo,
+                    head_repo=head_repo,
+                )
+            elif error.status_code == 409:
+                # Conflict - empty repository
+                return GitHubCommitComparisonError(
+                    f"Cannot compare '{base_repo}' with '{head_repo}' - one repository is empty",
+                    base_repo=base_repo,
+                    head_repo=head_repo,
+                    reason="empty_repository",
+                )
 
         return error
 
@@ -260,6 +319,58 @@ class EnhancedErrorHandler:
             logger.error(f"Unexpected error in {operation_name} for fork '{fork_url}': {e}")
             return default_value
 
+    async def safe_commit_comparison_operation(
+        self,
+        operation: Callable[[], T],
+        base_repo: str,
+        head_repo: str,
+        operation_name: str,
+        default_value: T | None = None,
+        timeout_seconds: float | None = None,
+    ) -> T | None:
+        """Safely execute commit comparison operation with comprehensive error handling.
+        
+        Args:
+            operation: Async operation to execute
+            base_repo: Base repository identifier for error context
+            head_repo: Head repository identifier for error context
+            operation_name: Name of operation for logging
+            default_value: Value to return on error (None if not specified)
+            timeout_seconds: Timeout in seconds
+            
+        Returns:
+            Result of operation or default_value on error
+        """
+        try:
+            return await self.handle_with_timeout(
+                operation, operation_name, timeout_seconds
+            )
+        except GitHubTimeoutError:
+            logger.warning(f"Timeout in {operation_name} comparing '{base_repo}' with '{head_repo}'")
+            return default_value
+        except (GitHubCommitComparisonError, GitHubDivergentHistoryError) as e:
+            logger.warning(f"Commit comparison issue in {operation_name}: {e}")
+            return default_value
+        except (GitHubPrivateRepositoryError, GitHubEmptyRepositoryError) as e:
+            logger.warning(f"Repository access issue in {operation_name}: {e}")
+            return default_value
+        except GitHubRateLimitError as e:
+            logger.warning(f"Rate limit hit in {operation_name} comparing '{base_repo}' with '{head_repo}': {e}")
+            # Re-raise rate limit errors so they can be handled by retry logic
+            raise
+        except GitHubAPIError as e:
+            # Convert to more specific error type if possible
+            specific_error = self.handle_commit_comparison_error(e, base_repo, head_repo)
+            if isinstance(specific_error, (GitHubCommitComparisonError, GitHubDivergentHistoryError)):
+                logger.warning(f"Commit comparison issue in {operation_name}: {specific_error}")
+                return default_value
+            else:
+                logger.error(f"API error in {operation_name} comparing '{base_repo}' with '{head_repo}': {e}")
+                return default_value
+        except Exception as e:
+            logger.error(f"Unexpected error in {operation_name} comparing '{base_repo}' with '{head_repo}': {e}")
+            return default_value
+
     def get_user_friendly_error_message(self, error: Exception) -> str:
         """Get user-friendly error message for display.
         
@@ -285,6 +396,25 @@ class EnhancedErrorHandler:
                 return f"Fork '{error.fork_url}' not found - it may have been deleted."
             else:
                 return f"Cannot access fork '{error.fork_url}'."
+
+        elif isinstance(error, GitHubDivergentHistoryError):
+            return f"Cannot compare repositories '{error.base_repo}' and '{error.head_repo}' - they have divergent histories that cannot be merged."
+
+        elif isinstance(error, GitHubCommitComparisonError):
+            if error.reason == "not_found":
+                return f"Cannot compare repositories - one of '{error.base_repo}' or '{error.head_repo}' was not found."
+            elif error.reason == "access_denied":
+                return f"Cannot compare repositories - access denied to '{error.base_repo}' or '{error.head_repo}' (may be private)."
+            elif error.reason == "empty_repository":
+                return f"Cannot compare repositories - one of '{error.base_repo}' or '{error.head_repo}' is empty."
+            else:
+                return f"Cannot compare repositories '{error.base_repo}' and '{error.head_repo}'."
+
+        elif isinstance(error, GitHubCommitAccessError):
+            if error.reason == "unprocessable":
+                return f"Cannot process commits in repository '{error.repository}' - repository may have unusual history."
+            else:
+                return f"Cannot access commits in repository '{error.repository}'."
 
         elif isinstance(error, GitHubRateLimitError):
             if error.reset_time:
@@ -324,6 +454,9 @@ class EnhancedErrorHandler:
             GitHubEmptyRepositoryError,
             GitHubForkAccessError,
             GitHubTimeoutError,
+            GitHubCommitComparisonError,
+            GitHubDivergentHistoryError,
+            GitHubCommitAccessError,
         )):
             return True
 

@@ -18,13 +18,13 @@
   - Update fork data processing to use accurate commit counts
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [-] 4. Add Configuration Support for Commit Counting
+- [x] 4. Add Configuration Support for Commit Counting
   - Create `CommitCountConfig` dataclass for configurable limits
   - Add CLI options for `--max-commits-count` and `--commit-display-limit`
   - Integrate configuration into repository display service
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. Enhance Error Handling for Commit Operations
+- [-] 5. Enhance Error Handling for Commit Operations
   - Add specific error handling for private repositories and access issues
   - Implement graceful degradation when comparison fails
   - Add proper error messages and logging for debugging

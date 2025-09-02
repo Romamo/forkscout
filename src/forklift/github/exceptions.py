@@ -78,3 +78,30 @@ class GitHubForkAccessError(GitHubAPIError):
         super().__init__(message)
         self.fork_url = fork_url
         self.reason = reason
+
+
+class GitHubCommitComparisonError(GitHubAPIError):
+    """Raised when commit comparison fails due to divergent histories or other issues."""
+
+    def __init__(self, message: str, base_repo: str, head_repo: str, reason: str):
+        super().__init__(message)
+        self.base_repo = base_repo
+        self.head_repo = head_repo
+        self.reason = reason
+
+
+class GitHubDivergentHistoryError(GitHubCommitComparisonError):
+    """Raised when repositories have divergent histories that cannot be compared."""
+
+    def __init__(self, message: str, base_repo: str, head_repo: str):
+        super().__init__(message, base_repo, head_repo, "divergent_history")
+
+
+class GitHubCommitAccessError(GitHubAPIError):
+    """Raised when commit access fails for specific reasons."""
+
+    def __init__(self, message: str, repository: str, reason: str, commit_sha: str | None = None):
+        super().__init__(message)
+        self.repository = repository
+        self.reason = reason
+        self.commit_sha = commit_sha
