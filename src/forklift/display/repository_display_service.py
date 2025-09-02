@@ -123,7 +123,7 @@ class RepositoryDisplayService:
             if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
                 # Use a very wide width for file output to prevent table truncation
                 # Force width and disable auto-detection, disable soft wrapping
-                self.console = Console(file=sys.stdout, width=1000, force_terminal=True, soft_wrap=False, _environ={})
+                self.console = Console(file=sys.stdout, width=None, force_terminal=True, soft_wrap=False, _environ={})
             else:
                 # Use default width for terminal output, disable soft wrapping
                 self.console = Console(file=sys.stdout, soft_wrap=False)
@@ -137,7 +137,7 @@ class RepositoryDisplayService:
         # This ensures progress bars don't interfere with output redirection
         if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
             # When output is redirected, progress should go to stderr, disable soft wrapping
-            self.progress_console = Console(file=sys.stderr, soft_wrap=False)
+            self.progress_console = Console(file=sys.stderr, soft_wrap=False, width=None)
         else:
             # For other modes, use the same console as content
             self.progress_console = self.console
@@ -1936,17 +1936,24 @@ class RepositoryDisplayService:
         title_suffix = (
             f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
         )
+        # 3. Create consistent table structure
+        table_title = self._build_table_title(sorted_forks, table_context, show_commits)
         fork_table = Table(
-            title=f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts){title_suffix}",
-            expand=False       # Don't expand to full console width
+            title=table_title,
+            expand=False,
+            show_lines=True,
+            collapse_padding=True,
+            pad_edge=False,
+            width=None  # Remove table width restrictions
         )
         fork_table.add_column("URL", style="cyan", min_width=35, no_wrap=True, overflow="fold")
-        fork_table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
-        fork_table.add_column("Forks", style="green", justify="right", width=8, no_wrap=True)
+        fork_table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True, overflow="fold")
+        fork_table.add_column("Forks", style="green", justify="right", width=8, no_wrap=True, overflow="fold")
+
         fork_table.add_column(
-            "Commits Ahead", style="magenta", justify="right", width=15, no_wrap=True
+            "Commits Ahead", style="magenta", justify="right", width=15, no_wrap=True, overflow="fold"
         )
-        fork_table.add_column("Last Push", style="blue", width=14, no_wrap=True)
+        fork_table.add_column("Last Push", style="blue", width=14, no_wrap=True, overflow="fold")
 
         # Conditionally add Recent Commits column
         if show_commits > 0:
@@ -1956,7 +1963,8 @@ class RepositoryDisplayService:
                 style="dim", 
                 no_wrap=True,
                 min_width=50,      # Minimum readable width
-                overflow="fold"  # Show full content instead of truncating
+                overflow="fold",   # Show full content instead of truncating
+                max_width=None     # Remove maximum width restriction
             )
 
         # Fetch commits concurrently if requested, with optimization
@@ -2649,8 +2657,10 @@ class RepositoryDisplayService:
             fork_table.add_column(
                 "Recent Commits",
                 style=ForkTableConfig.COLUMN_STYLES["recent_commits"],
-                width=commits_width,
-                no_wrap=True
+                # Remove fixed width to prevent truncation
+                no_wrap=True,
+                overflow="fold",
+                max_width=None  # Remove maximum width restriction
             )
 
         # 6. Fetch commits if needed
@@ -2724,30 +2734,40 @@ class RepositoryDisplayService:
         fork_table.add_column(
             "URL",
             style=config.COLUMN_STYLES["url"],
-            min_width=config.COLUMN_WIDTHS["url"]
+            min_width=config.COLUMN_WIDTHS["url"],
+            no_wrap=True,
+            overflow="fold"
         )
         fork_table.add_column(
             "Stars",
             style=config.COLUMN_STYLES["stars"],
             justify="right",
-            width=config.COLUMN_WIDTHS["stars"]
+            width=config.COLUMN_WIDTHS["stars"],
+            no_wrap=True,
+            overflow="fold"
         )
         fork_table.add_column(
             "Forks",
             style=config.COLUMN_STYLES["forks"],
             justify="right",
-            width=config.COLUMN_WIDTHS["forks"]
+            width=config.COLUMN_WIDTHS["forks"],
+            no_wrap=True,
+            overflow="fold"
         )
         fork_table.add_column(
             "Commits",
             style=config.COLUMN_STYLES["commits"],
             justify="right",
-            width=config.COLUMN_WIDTHS["commits"]
+            width=config.COLUMN_WIDTHS["commits"],
+            no_wrap=True,
+            overflow="fold"
         )
         fork_table.add_column(
             "Last Push",
             style=config.COLUMN_STYLES["last_push"],
-            width=config.COLUMN_WIDTHS["last_push"]
+            width=config.COLUMN_WIDTHS["last_push"],
+            no_wrap=True,
+            overflow="fold"
         )
 
     def _calculate_commits_column_width_universal(
@@ -2764,12 +2784,12 @@ class RepositoryDisplayService:
         """
         # Use existing calculation method but with universal data handling
         min_width = ForkTableConfig.COLUMN_WIDTHS["recent_commits_base"]
-        max_width = 400  # Much larger for wide console output
+        max_width = 1000  # Much larger for wide console output
 
         # For now, use a reasonable default based on show_commits - no truncation
         # This can be enhanced later with actual commit data analysis
         base_width = 19  # Date and hash with spaces
-        estimated_message_width = min(300, 400 // max(1, show_commits))  # Much larger for full messages
+        estimated_message_width = min(800, 1000 // max(1, show_commits))  # Much larger for full messages
         commits_width = max(min_width, min(max_width, base_width + estimated_message_width))
 
         return commits_width

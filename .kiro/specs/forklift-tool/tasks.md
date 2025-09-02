@@ -280,7 +280,7 @@
   - Prevent soft wrapping in Recent Commits column by configuring Rich table column properties to maintain clean table formatting
   - _Requirements: 21.1, 21.2, 21.3, 21.5, 21.7, 21.8, 21.10, 21.11, 21.12, 22.11_
 
-- [-] 8.3.6 Fix Rich Console table wrapping and truncation issues
+- [x] 8.3.6 Fix Rich Console table wrapping and truncation issues
   - Configure Rich Console with `soft_wrap=False` in all table display components to prevent automatic text wrapping
   - Update all Rich Table column definitions to use `no_wrap=True` for critical data columns (URLs, commit messages, descriptions)
   - Replace any `overflow="ellipsis"` configurations with `overflow="fold"` to show full content instead of truncating with "..."

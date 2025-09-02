@@ -115,11 +115,11 @@ def initialize_cli_environment() -> tuple[InteractionMode, bool]:
     global console
     if interaction_mode == InteractionMode.NON_INTERACTIVE:
         # For non-interactive mode, disable colors and fancy formatting
-        console = Console(file=sys.stdout, force_terminal=False, no_color=True, soft_wrap=False)
+        console = Console(file=sys.stdout, force_terminal=False, no_color=True, soft_wrap=False, width=None)
     else:
         # For all other modes, keep console on stdout
         # Interactive elements (progress bars, prompts) will be handled separately
-        console = Console(file=sys.stdout, soft_wrap=False)
+        console = Console(file=sys.stdout, soft_wrap=False, width=None)
     
     # Reset progress reporter to ensure it uses the correct mode
     reset_progress_reporter()
@@ -1238,7 +1238,7 @@ def show_forks(
 
         if verbose and not csv:
             # Use stderr for verbose messages when output might be redirected
-            verbose_console = Console(file=sys.stderr, soft_wrap=False) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
+            verbose_console = Console(file=sys.stderr, soft_wrap=False, width=None) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
             verbose_console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Detect CSV export mode early in processing
@@ -2097,7 +2097,7 @@ async def _show_forks_summary(
     async with GitHubClient(config.github) as github_client:
         # Create appropriate console for main content output
         # Always use stdout for main content, regardless of interaction mode
-        content_console = Console(file=sys.stdout, soft_wrap=False)
+        content_console = Console(file=sys.stdout, soft_wrap=False, width=None)
         display_service = RepositoryDisplayService(github_client, content_console)
         
         # Log interaction mode for debugging
