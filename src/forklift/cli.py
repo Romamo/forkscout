@@ -38,6 +38,7 @@ from forklift.analysis.interactive_steps import (
 from forklift.analysis.override_control import create_override_controller
 from forklift.analysis.repository_analyzer import RepositoryAnalyzer
 from forklift.config.settings import ForkliftConfig, load_config
+from forklift.models.commit_count_config import CommitCountConfig
 from forklift.display.detailed_commit_display import (
     DetailedCommitDisplay,
 )
@@ -1191,6 +1192,16 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
     is_flag=True,
     help="Export fork data in CSV format with multi-row commit details to stdout (suppresses all interactive elements)",
 )
+@click.option(
+    "--max-commits-count",
+    type=click.IntRange(0, 10000),
+    help="Maximum commits to count (0 for unlimited, default: 100)",
+)
+@click.option(
+    "--commit-display-limit",
+    type=click.IntRange(0, 100),
+    help="Maximum commits to fetch for display details (default: 5)",
+)
 @click.pass_context
 def show_forks(
     ctx: click.Context,
@@ -1201,6 +1212,8 @@ def show_forks(
     force_all_commits: bool,
     ahead_only: bool,
     csv: bool,
+    max_commits_count: int | None,
+    commit_display_limit: int | None,
 ) -> None:
     """Display a summary table of repository forks with key metrics.
 
@@ -1280,6 +1293,13 @@ def show_forks(
             interaction_mode = InteractionMode.NON_INTERACTIVE
             supports_prompts = False
 
+        # Create commit count configuration from CLI options
+        from forklift.models.commit_count_config import CommitCountConfig
+        commit_count_config = CommitCountConfig.from_cli_options(
+            max_commits_count=max_commits_count,
+            commit_display_limit=commit_display_limit
+        )
+
         # Run forks summary display
         asyncio.run(
             _show_forks_summary(
@@ -1294,6 +1314,7 @@ def show_forks(
                 csv,
                 interaction_mode,
                 supports_prompts,
+                commit_count_config,
             )
         )
 
@@ -2111,6 +2132,7 @@ async def _show_forks_summary(
     csv: bool = False,
     interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
     supports_prompts: bool = True,
+    commit_count_config: "CommitCountConfig | None" = None,
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -2131,7 +2153,15 @@ async def _show_forks_summary(
         # Create appropriate console for main content output
         # Always use stdout for main content, regardless of interaction mode
         content_console = Console(file=sys.stdout, soft_wrap=False, width=None)
-        display_service = RepositoryDisplayService(github_client, content_console)
+        
+        # Use provided commit count config or fall back to config default
+        effective_commit_config = commit_count_config or config.commit_count
+        
+        display_service = RepositoryDisplayService(
+            github_client, 
+            content_console,
+            commit_count_config=effective_commit_config
+        )
         
         # Log interaction mode for debugging
         logger.debug(f"show-forks using interaction mode: {interaction_mode.value}")

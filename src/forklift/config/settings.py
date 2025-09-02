@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from forklift.models.ai_summary import AISummaryConfig
+from forklift.models.commit_count_config import CommitCountConfig
 from forklift.models.fork_filtering import ForkFilteringConfig
 from forklift.models.interactive import InteractiveConfig
 
@@ -271,6 +272,7 @@ class ForkliftConfig(BaseSettings):
     interactive: InteractiveConfig = Field(default_factory=InteractiveConfig)
     ai_summary: AISummaryConfig = Field(default_factory=AISummaryConfig)
     fork_filtering: ForkFilteringConfig = Field(default_factory=ForkFilteringConfig)
+    commit_count: CommitCountConfig = Field(default_factory=CommitCountConfig)
 
     # Global settings
     debug: bool = Field(default=False, description="Enable debug mode")

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import CLIError, cli, validate_repository_url
+from forklift.cli import cli, validate_repository_url
 from forklift.config.settings import ForkliftConfig
 from forklift.display.interaction_mode import InteractionMode
 

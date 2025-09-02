@@ -5,7 +5,10 @@ import logging
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from forklift.models.commit_count_config import CommitCountConfig
 
 from rich.console import Console
 from rich.panel import Panel
@@ -62,12 +65,13 @@ class CommitDataFormatter:
     """Handles adaptive formatting of commit information."""
 
     @staticmethod
-    def format_commit_info(fork_data, has_exact_counts: bool) -> str:
+    def format_commit_info(fork_data, has_exact_counts: bool, commit_config: "CommitCountConfig | None" = None) -> str:
         """Format commit information based on available data.
         
         Args:
             fork_data: Fork data object (CollectedForkData or similar)
             has_exact_counts: Whether exact commit counts are available
+            commit_config: Configuration for commit count display
             
         Returns:
             Formatted commit information string
@@ -76,7 +80,11 @@ class CommitDataFormatter:
             # Detailed mode: show exact counts
             exact_count = getattr(fork_data, "exact_commits_ahead", None)
             if isinstance(exact_count, int):
-                return f"[green]+{exact_count}[/green]" if exact_count > 0 else ""
+                if commit_config:
+                    display_text = commit_config.get_display_indicator(exact_count)
+                    return f"[green]{display_text}[/green]" if display_text else ""
+                else:
+                    return f"[green]+{exact_count}[/green]" if exact_count > 0 else ""
             else:
                 return "[yellow]Unknown[/yellow]"
         else:
@@ -101,6 +109,7 @@ class RepositoryDisplayService:
         cache_manager: AnalysisCacheManager | None = None,
         should_exclude_language_distribution: bool = True,
         should_exclude_fork_insights: bool = True,
+        commit_count_config: "CommitCountConfig | None" = None,
     ):
         """Initialize the repository display service.
 
@@ -110,6 +119,7 @@ class RepositoryDisplayService:
             cache_manager: Cache manager for caching repository data (optional)
             should_exclude_language_distribution: Whether to exclude language distribution table
             should_exclude_fork_insights: Whether to exclude fork insights section
+            commit_count_config: Configuration for commit counting operations
         """
         self.github_client = github_client
         # Configure console with appropriate width for file output
@@ -132,6 +142,13 @@ class RepositoryDisplayService:
             should_exclude_language_distribution
         )
         self._should_exclude_fork_insights = should_exclude_fork_insights
+        
+        # Store commit count configuration
+        if commit_count_config is None:
+            from forklift.models.commit_count_config import CommitCountConfig
+            self.commit_count_config = CommitCountConfig()
+        else:
+            self.commit_count_config = commit_count_config
         
         # Create a separate console for progress bars that always goes to stderr
         # This ensures progress bars don't interfere with output redirection
@@ -2849,7 +2866,11 @@ class RepositoryDisplayService:
         fork_url = self._format_fork_url(metrics.owner, metrics.name)
 
         # Format commit information using adaptive formatter
-        commits_display = CommitDataFormatter.format_commit_info(fork_data, has_exact_counts)
+        commits_display = CommitDataFormatter.format_commit_info(
+            fork_data, 
+            has_exact_counts, 
+            self.commit_count_config
+        )
 
         # Format last push date
         last_push = self._format_datetime(metrics.pushed_at)
