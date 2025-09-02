@@ -660,6 +660,54 @@ class CSVExporter:
         # The CSV writer will handle quote escaping automatically
         return formatted_data
 
+    def _extract_base_fork_data(self, analysis: ForkAnalysis) -> dict[str, Any]:
+        """Extract repository information that will be repeated across commit rows.
+        
+        Args:
+            analysis: Fork analysis containing fork and repository data
+            
+        Returns:
+            Dictionary containing base fork data for CSV export
+        """
+        fork = analysis.fork
+        repo = fork.repository
+        
+        # Essential fork metadata (always included)
+        base_data = {
+            "fork_name": repo.name,
+            "owner": fork.owner.login,
+            "stars": repo.stars,
+            "forks_count": repo.forks_count,
+            "commits_ahead": fork.commits_ahead,
+            "commits_behind": fork.commits_behind,
+            "is_active": fork.is_active,
+            "features_count": len(analysis.features),
+        }
+        
+        # Add optional URL fields based on configuration
+        if self.config.include_urls:
+            base_data.update({
+                "fork_url": repo.html_url,
+                "owner_url": fork.owner.html_url,
+            })
+        
+        # Add detail mode fields based on configuration
+        if self.config.detail_mode:
+            base_data.update({
+                "language": repo.language or "",
+                "description": repo.description or "",
+                "last_activity": self._format_datetime(fork.last_activity),
+                "created_date": self._format_datetime(repo.created_at),
+                "updated_date": self._format_datetime(repo.updated_at),
+                "pushed_date": self._format_datetime(repo.pushed_at),
+                "size_kb": repo.size,
+                "open_issues": repo.open_issues_count,
+                "is_archived": repo.is_archived,
+                "is_private": repo.is_private,
+            })
+        
+        return base_data
+
     def _escape_row_values(self, row: dict[str, Any]) -> dict[str, Any]:
         """Escape special characters in row values for CSV output."""
         escaped_row = {}

@@ -1,14 +1,14 @@
 # Implementation Plan
 
-- [-] 1. Update CSV export configuration system
+- [x] 1. Update CSV export configuration system
   - Add commit_date_format configuration option to CSVExportConfig with default "%Y-%m-%d"
   - Remove any existing recent_commits column configuration options
   - Update configuration validation to handle new date format option
   - Write unit tests for updated configuration options
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 2. Implement multi-row CSV formatting logic
-- [ ] 2.1 Create base fork data extraction method
+- [-] 2. Implement multi-row CSV formatting logic
+- [-] 2.1 Create base fork data extraction method
   - Implement _extract_base_fork_data method to extract repository information that will be repeated across commit rows
   - Include all essential fork metadata (name, owner, stars, forks_count, commits_ahead, commits_behind, is_active, features_count)
   - Add support for optional fields based on configuration (URLs, detail mode fields)
