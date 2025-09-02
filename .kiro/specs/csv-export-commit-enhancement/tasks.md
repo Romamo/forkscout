@@ -32,7 +32,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.2, 6.3_
 
 - [-] 3. Update CSV export headers and structure
-- [-] 3.1 Create enhanced column header generation
+- [x] 3.1 Create enhanced column header generation
   - Implement _generate_enhanced_fork_analysis_headers method for multi-row format
   - Replace "recent_commits" column with "commit_date", "commit_sha", "commit_description" columns
   - Maintain existing columns for repository information
@@ -40,7 +40,7 @@
   - Write unit tests for header generation in both traditional and enhanced formats
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 3.2 Replace main export method logic
+- [-] 3.2 Replace main export method logic
   - Modify export_fork_analyses method to use only the new multi-row format
   - Remove old single-row formatting logic and recent_commits column handling
   - Replace existing row generation with new multi-row commit format

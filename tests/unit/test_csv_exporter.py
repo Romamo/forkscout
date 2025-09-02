@@ -425,12 +425,11 @@ class TestForkAnalysisExport(TestCSVExporter):
         assert len(rows) == 1
 
         row = rows[0]
-        assert row["commit_sha"] == "a1b2c3d4e5f6789012345678901234567890abcd"
+        assert row["commit_sha"] == "a1b2c3d"  # 7-character short SHA
         assert (
-            row["commit_message"]
-            == "Add new feature\\n\\nThis commit adds a new feature to the repository."
+            row["commit_description"]  # Changed from commit_message to commit_description
+            == "Add new feature This commit adds a new feature to the repository."  # Newlines replaced with spaces
         )
-        assert row["commit_author"] == "testuser"
         assert "commit_url" in row
 
     def test_export_fork_analysis_detail_mode(
@@ -975,6 +974,296 @@ class TestEnhancedHeaderGeneration(TestCSVExporter):
             else:
                 assert "language" not in headers
                 assert "size_kb" not in headers
+
+
+class TestMultiRowExportMethod(TestCSVExporter):
+    """Test updated export method with multi-row format."""
+
+    @pytest.fixture
+    def sample_fork_analysis_with_commits(self, sample_fork, sample_commit, sample_user):
+        """Create a sample fork analysis with multiple commits."""
+        # Create additional commits
+        commit2 = Commit(
+            sha="b2c3d4e5f6789012345678901234567890abcdef",
+            message="Fix authentication bug",
+            author=sample_user,
+            date=datetime(2023, 6, 19, 15, 45, 0),
+            files_changed=["src/auth.py"],
+            additions=10,
+            deletions=5,
+        )
+
+        feature = Feature(
+            id="feat_1",
+            title="New Authentication",
+            description="Adds JWT authentication",
+            category=FeatureCategory.NEW_FEATURE,
+            commits=[sample_commit, commit2],
+            files_affected=["src/auth.py", "tests/test_auth.py"],
+            source_fork=sample_fork,
+        )
+
+        metrics = ForkMetrics(
+            stars=5,
+            forks=1,
+            contributors=2,
+            last_activity=datetime(2023, 6, 20, 12, 0, 0),
+            commit_frequency=0.5,
+        )
+
+        return ForkAnalysis(
+            fork=sample_fork,
+            features=[feature],
+            metrics=metrics,
+            analysis_date=datetime(2023, 6, 21, 12, 0, 0),
+        )
+
+    def test_export_fork_analyses_uses_multi_row_format(self, exporter, sample_fork_analysis_with_commits):
+        """Test that export_fork_analyses uses the new multi-row format by default."""
+        csv_output = exporter.export_fork_analyses([sample_fork_analysis_with_commits])
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        # Should have one row per commit (2 commits)
+        assert len(rows) == 2
+
+        # Check that headers use the new format
+        expected_headers = [
+            "fork_name", "owner", "stars", "forks_count", "commits_ahead",
+            "commits_behind", "is_active", "features_count", "fork_url",
+            "owner_url", "commit_date", "commit_sha", "commit_description", "commit_url"
+        ]
+        assert reader.fieldnames == expected_headers
+
+        # Verify recent_commits column is NOT present
+        assert "recent_commits" not in reader.fieldnames
+
+        # Check first commit row
+        row1 = rows[0]
+        assert row1["fork_name"] == "testrepo"
+        assert row1["owner"] == "testuser"
+        assert row1["commit_sha"] == "a1b2c3d"  # 7-char SHA
+        assert row1["commit_date"] == "2023-06-20"  # YYYY-MM-DD format
+        assert "Add new feature" in row1["commit_description"]
+
+        # Check second commit row
+        row2 = rows[1]
+        assert row2["fork_name"] == "testrepo"  # Repository info repeated
+        assert row2["owner"] == "testuser"  # Repository info repeated
+        assert row2["commit_sha"] == "b2c3d4e"  # 7-char SHA
+        assert row2["commit_date"] == "2023-06-19"  # YYYY-MM-DD format
+        assert "Fix authentication bug" in row2["commit_description"]
+
+    def test_export_fork_analyses_with_no_commits(self, exporter, sample_fork):
+        """Test export with fork that has no commits."""
+        # Create fork analysis with no commits
+        metrics = ForkMetrics(
+            stars=5,
+            forks=1,
+            contributors=1,
+            last_activity=datetime(2023, 6, 20, 12, 0, 0),
+            commit_frequency=0.0,
+        )
+
+        analysis = ForkAnalysis(
+            fork=sample_fork,
+            features=[],  # No features, so no commits
+            metrics=metrics,
+            analysis_date=datetime(2023, 6, 21, 12, 0, 0),
+        )
+
+        csv_output = exporter.export_fork_analyses([analysis])
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        # Should have one row with empty commit columns
+        assert len(rows) == 1
+
+        row = rows[0]
+        assert row["fork_name"] == "testrepo"
+        assert row["owner"] == "testuser"
+        assert row["commit_date"] == ""
+        assert row["commit_sha"] == ""
+        assert row["commit_description"] == ""
+        assert row["commit_url"] == ""
+
+    def test_export_fork_analyses_without_urls(self, sample_fork_analysis_with_commits):
+        """Test export without URLs enabled."""
+        config = CSVExportConfig(include_urls=False)
+        exporter = CSVExporter(config)
+
+        csv_output = exporter.export_fork_analyses([sample_fork_analysis_with_commits])
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+
+        # URL columns should not be present
+        assert "fork_url" not in reader.fieldnames
+        assert "owner_url" not in reader.fieldnames
+        assert "commit_url" not in reader.fieldnames
+
+        # But commit columns should be present
+        assert "commit_date" in reader.fieldnames
+        assert "commit_sha" in reader.fieldnames
+        assert "commit_description" in reader.fieldnames
+
+    def test_export_fork_analyses_with_detail_mode(self, sample_fork_analysis_with_commits):
+        """Test export with detail mode enabled."""
+        config = CSVExportConfig(detail_mode=True)
+        exporter = CSVExporter(config)
+
+        csv_output = exporter.export_fork_analyses([sample_fork_analysis_with_commits])
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        # Detail columns should be present
+        assert "language" in reader.fieldnames
+        assert "description" in reader.fieldnames
+        assert "size_kb" in reader.fieldnames
+
+        # Repository info should be repeated on each commit row
+        for row in rows:
+            assert row["language"] == "Python"
+            assert row["description"] == "Forked repository"
+
+    def test_export_fork_analyses_commit_message_escaping(self, exporter, sample_fork, sample_user):
+        """Test that commit messages are properly escaped."""
+        # Create commit with special characters
+        commit_with_special_chars = Commit(
+            sha="c3d4e5f6789012345678901234567890abcdef01",
+            message="Fix bug\nAdd feature\r\nUpdate docs",
+            author=sample_user,
+            date=datetime(2023, 6, 20, 10, 30, 0),
+            files_changed=["src/main.py"],
+            additions=20,
+            deletions=5,
+        )
+
+        feature = Feature(
+            id="feat_1",
+            title="Bug Fix",
+            description="Fixes various bugs",
+            category=FeatureCategory.BUG_FIX,
+            commits=[commit_with_special_chars],
+            files_affected=["src/main.py"],
+            source_fork=sample_fork,
+        )
+
+        metrics = ForkMetrics(
+            stars=5,
+            forks=1,
+            contributors=1,
+            last_activity=datetime(2023, 6, 20, 12, 0, 0),
+            commit_frequency=0.5,
+        )
+
+        analysis = ForkAnalysis(
+            fork=sample_fork,
+            features=[feature],
+            metrics=metrics,
+            analysis_date=datetime(2023, 6, 21, 12, 0, 0),
+        )
+
+        csv_output = exporter.export_fork_analyses([analysis])
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        row = rows[0]
+        # Newlines should be replaced with spaces
+        assert row["commit_description"] == "Fix bug Add feature Update docs"
+        assert "\n" not in row["commit_description"]
+        assert "\r" not in row["commit_description"]
+
+    def test_export_fork_analyses_multiple_forks(self, exporter, sample_fork_analysis_with_commits, sample_user, sample_repository):
+        """Test export with multiple fork analyses."""
+        # Create second fork analysis
+        second_repo = Repository(
+            id=999,
+            owner="testuser",  # Fork owner
+            name="secondrepo",
+            full_name="testuser/secondrepo",
+            url="https://api.github.com/repos/testuser/secondrepo",
+            html_url="https://github.com/testuser/secondrepo",
+            clone_url="https://github.com/testuser/secondrepo.git",
+            stars=50,
+            forks_count=10,
+            language="JavaScript",
+            description="Second test repository",
+            is_fork=True,  # Mark as fork
+            created_at=datetime(2023, 3, 1, 12, 0, 0),
+            updated_at=datetime(2023, 6, 5, 12, 0, 0),
+            pushed_at=datetime(2023, 6, 10, 12, 0, 0),
+        )
+
+        second_fork = Fork(
+            repository=second_repo,
+            parent=sample_repository,  # Use sample_repository as parent
+            owner=sample_user,
+            last_activity=datetime(2023, 6, 10, 12, 0, 0),
+            commits_ahead=1,
+            commits_behind=0,
+            is_active=True,
+        )
+
+        second_commit = Commit(
+            sha="d4e5f6789012345678901234567890abcdef0123",
+            message="Add new component",
+            author=sample_user,
+            date=datetime(2023, 6, 10, 14, 0, 0),
+            files_changed=["src/component.js"],
+            additions=30,
+            deletions=0,
+        )
+
+        second_feature = Feature(
+            id="feat_2",
+            title="New Component",
+            description="Adds new UI component",
+            category=FeatureCategory.NEW_FEATURE,
+            commits=[second_commit],
+            files_affected=["src/component.js"],
+            source_fork=second_fork,
+        )
+
+        second_metrics = ForkMetrics(
+            stars=50,
+            forks=10,
+            contributors=3,
+            last_activity=datetime(2023, 6, 10, 12, 0, 0),
+            commit_frequency=0.8,
+        )
+
+        second_analysis = ForkAnalysis(
+            fork=second_fork,
+            features=[second_feature],
+            metrics=second_metrics,
+            analysis_date=datetime(2023, 6, 21, 12, 0, 0),
+        )
+
+        csv_output = exporter.export_fork_analyses([sample_fork_analysis_with_commits, second_analysis])
+
+        reader = csv.DictReader(io.StringIO(csv_output))
+        rows = list(reader)
+
+        # Should have 3 rows total (2 commits from first fork + 1 commit from second fork)
+        assert len(rows) == 3
+
+        # Check that each fork's data is properly separated
+        first_fork_rows = [row for row in rows if row["fork_name"] == "testrepo"]
+        second_fork_rows = [row for row in rows if row["fork_name"] == "secondrepo"]
+
+        assert len(first_fork_rows) == 2
+        assert len(second_fork_rows) == 1
+
+        # Verify second fork data
+        second_row = second_fork_rows[0]
+        assert second_row["owner"] == "testuser"
+        assert second_row["stars"] == "50"
+        assert second_row["commit_sha"] == "d4e5f67"
+        assert "Add new component" in second_row["commit_description"]
 
 
 class TestCSVCommitFormatting(TestCSVExporter):

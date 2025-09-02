@@ -103,37 +103,30 @@ class CSVExporter:
         return output.getvalue()
 
     def export_fork_analyses(self, analyses: list[ForkAnalysis]) -> str:
-        """Export fork analysis results to CSV format.
+        """Export fork analysis results to CSV format using multi-row commit format.
+
+        This method uses the enhanced multi-row format where each commit gets its own row
+        with separate columns for commit_date, commit_sha, and commit_description.
+        Repository information is repeated on each commit row for consistency.
 
         Args:
             analyses: List of fork analysis results to export
 
         Returns:
-            CSV formatted string
+            CSV formatted string with multi-row commit format
         """
-        logger.info(f"Exporting {len(analyses)} fork analyses to CSV format")
+        logger.info(f"Exporting {len(analyses)} fork analyses to CSV format (multi-row)")
 
         output = io.StringIO()
-        headers = self._generate_fork_analysis_headers()
+        headers = self._generate_enhanced_fork_analysis_headers()
 
         writer = csv.DictWriter(output, fieldnames=headers, quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
 
         for analysis in analyses:
-            if self.config.include_commits and analysis.fork.repository:
-                # Export one row per commit if including commits
-                commits = self._get_commits_for_export(analysis)
-                if commits:
-                    for commit in commits:
-                        row = self._format_fork_analysis_commit_row(analysis, commit)
-                        writer.writerow(row)
-                else:
-                    # No commits, export fork info only
-                    row = self._format_fork_analysis_row(analysis)
-                    writer.writerow(row)
-            else:
-                # Export one row per fork
-                row = self._format_fork_analysis_row(analysis)
+            # Generate multiple rows for this fork (one per commit)
+            commit_rows = self._generate_fork_commit_rows(analysis)
+            for row in commit_rows:
                 writer.writerow(row)
 
         return output.getvalue()
@@ -466,87 +459,7 @@ class CSVExporter:
 
         return self._escape_row_values(row)
 
-    def _format_fork_analysis_row(self, analysis: ForkAnalysis) -> dict[str, Any]:
-        """Format a fork analysis as a CSV row."""
-        fork = analysis.fork
-        repo = fork.repository
 
-        row = {
-            "fork_name": repo.name,
-            "owner": fork.owner.login,
-            "stars": repo.stars,
-            "forks_count": repo.forks_count,
-            "commits_ahead": fork.commits_ahead,
-            "commits_behind": fork.commits_behind,
-            "is_active": fork.is_active,
-            "features_count": len(analysis.features),
-        }
-
-        if self.config.include_urls:
-            row["fork_url"] = repo.html_url
-            row["owner_url"] = fork.owner.html_url
-
-        if self.config.detail_mode:
-            row.update(
-                {
-                    "language": repo.language or "",
-                    "description": repo.description or "",
-                    "last_activity": self._format_datetime(fork.last_activity),
-                    "created_date": self._format_datetime(repo.created_at),
-                    "updated_date": self._format_datetime(repo.updated_at),
-                    "pushed_date": self._format_datetime(repo.pushed_at),
-                    "size_kb": repo.size,
-                    "open_issues": repo.open_issues_count,
-                    "is_archived": repo.is_archived,
-                    "is_private": repo.is_private,
-                }
-            )
-
-        # Add empty commit fields if including commits but no specific commit
-        if self.config.include_commits:
-            row.update(
-                {
-                    "commit_sha": "",
-                    "commit_message": "",
-                    "commit_author": "",
-                    "commit_date": "",
-                    "files_changed": "",
-                    "additions": "",
-                    "deletions": "",
-                }
-            )
-
-            if self.config.include_urls:
-                row["commit_url"] = ""
-
-        return self._escape_row_values(row)
-
-    def _format_fork_analysis_commit_row(
-        self, analysis: ForkAnalysis, commit: Commit
-    ) -> dict[str, Any]:
-        """Format a fork analysis with specific commit as a CSV row."""
-        # Start with fork analysis row
-        row = self._format_fork_analysis_row(analysis)
-
-        # Override commit-specific fields
-        if self.config.include_commits:
-            row.update(
-                {
-                    "commit_sha": commit.sha,
-                    "commit_message": commit.message,
-                    "commit_author": commit.author.login,
-                    "commit_date": self._format_datetime(commit.date),
-                    "files_changed": len(commit.files_changed),
-                    "additions": commit.additions,
-                    "deletions": commit.deletions,
-                }
-            )
-
-            if self.config.include_urls:
-                repo_url = analysis.fork.repository.html_url
-                row["commit_url"] = f"{repo_url}/commit/{commit.sha}"
-
-        return self._escape_row_values(row)
 
     def _format_ranked_feature_row(self, feature: RankedFeature) -> dict[str, Any]:
         """Format a ranked feature as a CSV row."""
@@ -780,17 +693,18 @@ class CSVExporter:
 
         rows = []
         for commit in commits:
-            commit_row = self._create_commit_row(base_fork_data, commit)
+            commit_row = self._create_commit_row(base_fork_data, commit, analysis)
             rows.append(commit_row)
 
         return rows
 
-    def _create_commit_row(self, base_data: dict[str, Any], commit: Commit) -> dict[str, Any]:
+    def _create_commit_row(self, base_data: dict[str, Any], commit: Commit, analysis: ForkAnalysis) -> dict[str, Any]:
         """Combine base fork data with individual commit information.
 
         Args:
             base_data: Base fork data dictionary
             commit: Commit object with commit information
+            analysis: Fork analysis for generating commit URL
 
         Returns:
             Dictionary representing a complete CSV row with fork and commit data
@@ -804,6 +718,11 @@ class CSVExporter:
             "commit_sha": self._format_commit_sha(commit.sha),
             "commit_description": self._escape_commit_message(commit.message)
         })
+
+        # Add commit URL if URLs are enabled
+        if self.config.include_urls:
+            repo_url = analysis.fork.repository.html_url
+            commit_row["commit_url"] = f"{repo_url}/commit/{commit.sha}"
 
         return commit_row
 
@@ -825,6 +744,10 @@ class CSVExporter:
             "commit_sha": "",
             "commit_description": ""
         })
+
+        # Add empty commit URL if URLs are enabled
+        if self.config.include_urls:
+            empty_row["commit_url"] = ""
 
         return empty_row
 
