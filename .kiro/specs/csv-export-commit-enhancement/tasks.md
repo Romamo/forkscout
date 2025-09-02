@@ -15,7 +15,7 @@
   - Write unit tests for base data extraction with various fork configurations
   - _Requirements: 2.2, 2.3, 3.1, 3.2, 3.3_
 
-- [-] 2.2 Implement commit row generation logic
+- [x] 2.2 Implement commit row generation logic
   - Create _generate_fork_commit_rows method to expand single fork into multiple commit rows
   - Implement _create_commit_row method to combine base fork data with individual commit information
   - Add _create_empty_commit_row method for forks with no commits
@@ -23,7 +23,7 @@
   - Write unit tests for commit row generation with various commit scenarios
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 2.3 Create commit data formatting methods
+- [-] 2.3 Create commit data formatting methods
   - Implement _format_commit_date method using configurable date format (YYYY-MM-DD)
   - Create _format_commit_sha method to use 7-character short SHA format
   - Implement _escape_commit_message method to properly handle CSV special characters
