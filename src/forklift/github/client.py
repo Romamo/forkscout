@@ -545,6 +545,83 @@ class GitHubClient:
         logger.info(f"Comparing {base}...{head} in {owner}/{repo}")
         return await self.get(f"repos/{owner}/{repo}/compare/{base}...{head}")
 
+    async def get_commits_ahead_count(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
+    ) -> int:
+        """Get the count of commits that are ahead in a fork compared to its parent.
+        
+        This method uses the GitHub compare API's 'ahead_by' field to get the exact
+        count without fetching commit details, making it more efficient for counting.
+        
+        Args:
+            fork_owner: Fork repository owner
+            fork_repo: Fork repository name
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            
+        Returns:
+            Number of commits the fork is ahead of the parent
+            
+        Raises:
+            GitHubAPIError: If API request fails
+        """
+        logger.debug(f"Getting commit count ahead from {fork_owner}/{fork_repo} vs {parent_owner}/{parent_repo}")
+
+        try:
+            # Get fork repository info (always fetch fresh)
+            fork_info = await self.get_repository(fork_owner, fork_repo)
+
+            # Try to get parent repository info from cache first
+            parent_info = self._get_cached_parent_repo(parent_owner, parent_repo)
+            api_call_saved = False
+
+            if parent_info is None:
+                # Cache miss - fetch from API and cache the result
+                logger.debug(f"Cache miss for parent repository {parent_owner}/{parent_repo}, fetching from API")
+                parent_info = await self.get_repository(parent_owner, parent_repo)
+                self._cache_parent_repo(parent_owner, parent_repo, parent_info)
+            else:
+                # Cache hit - log the API call savings
+                api_call_saved = True
+                logger.debug(f"Cache hit for parent repository {parent_owner}/{parent_repo}, API call saved")
+
+            # Compare fork's default branch with parent's default branch
+            comparison = await self.compare_commits(
+                parent_owner,
+                parent_repo,
+                parent_info.default_branch,
+                f"{fork_owner}:{fork_info.default_branch}",
+            )
+
+            if not comparison:
+                logger.warning(f"No comparison data found for {fork_owner}/{fork_repo}")
+                return 0
+
+            # Use the ahead_by field for accurate count
+            ahead_count = comparison.get("ahead_by")
+            if ahead_count is None:
+                logger.warning(f"Missing 'ahead_by' field in comparison response for {fork_owner}/{fork_repo}")
+                # Fallback to counting commits if ahead_by is missing
+                commits = comparison.get("commits", [])
+                ahead_count = len(commits)
+                logger.debug(f"Fallback: using commit count {ahead_count} for {fork_owner}/{fork_repo}")
+            else:
+                ahead_count = int(ahead_count)
+
+            # Log API call savings
+            if api_call_saved:
+                logger.info(f"API call saved using cached parent repository data for {parent_owner}/{parent_repo}")
+
+            logger.debug(f"Fork {fork_owner}/{fork_repo} is {ahead_count} commits ahead of {parent_owner}/{parent_repo}")
+            return ahead_count
+
+        except GitHubAPIError:
+            # Re-raise GitHub API errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get commits ahead count from {fork_owner}/{fork_repo}: {e}")
+            raise GitHubAPIError(f"Failed to get commits ahead count: {e}") from e
+
     async def get_commits_ahead(
         self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str, count: int = 10
     ) -> list[RecentCommit]:
@@ -628,6 +705,146 @@ class GitHubClient:
         except Exception as e:
             logger.error(f"Failed to fetch commits ahead from {fork_owner}/{fork_repo}: {e}")
             raise GitHubAPIError(f"Failed to fetch commits ahead: {e}") from e
+
+    async def get_commits_ahead_batch_counts(
+        self, 
+        fork_data_list: list[tuple[str, str]], 
+        parent_owner: str, 
+        parent_repo: str
+    ) -> dict[str, int]:
+        """Get commit counts ahead for multiple forks against the same parent repository.
+        
+        This method optimizes API usage by:
+        1. Pre-fetching the parent repository once
+        2. Fetching all fork repositories in batch
+        3. Performing comparisons and extracting ahead_by counts
+        
+        Args:
+            fork_data_list: List of (fork_owner, fork_repo) tuples
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            
+        Returns:
+            Dictionary mapping "owner/repo" to commit count ahead
+            
+        Raises:
+            GitHubAPIError: If API request fails
+        """
+        if not fork_data_list:
+            return {}
+
+        logger.info(f"Batch processing commit counts for {len(fork_data_list)} forks against {parent_owner}/{parent_repo}")
+
+        try:
+            # Step 1: Pre-fetch parent repository once
+            logger.debug(f"Pre-fetching parent repository {parent_owner}/{parent_repo}")
+            parent_info = await self.get_repository(parent_owner, parent_repo)
+            logger.info(f"Parent repository {parent_owner}/{parent_repo} fetched once for {len(fork_data_list)} forks")
+
+            # Step 2: Batch fetch all fork repositories
+            logger.debug(f"Batch fetching {len(fork_data_list)} fork repositories")
+            fork_repos = {}
+            
+            # Use semaphore to limit concurrent requests
+            semaphore = asyncio.Semaphore(5)
+            
+            async def fetch_single_fork(fork_owner: str, fork_repo: str):
+                async with semaphore:
+                    try:
+                        fork_info = await self.get_repository(fork_owner, fork_repo)
+                        return f"{fork_owner}/{fork_repo}", fork_info
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch fork repository {fork_owner}/{fork_repo}: {e}")
+                        return f"{fork_owner}/{fork_repo}", None
+
+            # Fetch all fork repositories concurrently
+            fork_tasks = [
+                fetch_single_fork(fork_owner, fork_repo) 
+                for fork_owner, fork_repo in fork_data_list
+            ]
+            
+            fork_results = await asyncio.gather(*fork_tasks, return_exceptions=True)
+            
+            # Process results
+            for result in fork_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Fork fetch task failed: {result}")
+                    continue
+                    
+                fork_key, fork_info = result
+                if fork_info is not None:
+                    fork_repos[fork_key] = fork_info
+
+            logger.info(f"Successfully fetched {len(fork_repos)} out of {len(fork_data_list)} fork repositories")
+
+            # Step 3: Perform comparisons and extract ahead_by counts
+            results = {}
+            
+            async def compare_single_fork(fork_key: str, fork_info: Repository):
+                async with semaphore:
+                    try:
+                        fork_owner, fork_repo = fork_key.split('/', 1)
+                        
+                        # Use pre-fetched parent info for comparison
+                        comparison = await self.compare_commits(
+                            parent_owner,
+                            parent_repo,
+                            parent_info.default_branch,
+                            f"{fork_owner}:{fork_info.default_branch}",
+                        )
+
+                        if not comparison:
+                            logger.debug(f"No comparison data found for {fork_key}")
+                            return fork_key, 0
+
+                        # Extract the ahead_by count (this is the fix!)
+                        ahead_count = comparison.get("ahead_by")
+                        if ahead_count is None:
+                            logger.warning(f"Missing 'ahead_by' field in comparison response for {fork_key}")
+                            # Fallback to counting commits if ahead_by is missing
+                            commits = comparison.get("commits", [])
+                            ahead_count = len(commits)
+                            logger.debug(f"Fallback: using commit count {ahead_count} for {fork_key}")
+                        else:
+                            ahead_count = int(ahead_count)
+
+                        logger.debug(f"Fork {fork_key} is {ahead_count} commits ahead")
+                        return fork_key, ahead_count
+
+                    except Exception as e:
+                        logger.warning(f"Failed to compare commits for {fork_key}: {e}")
+                        return fork_key, 0
+
+            # Perform all comparisons concurrently
+            comparison_tasks = [
+                compare_single_fork(fork_key, fork_info)
+                for fork_key, fork_info in fork_repos.items()
+            ]
+            
+            comparison_results = await asyncio.gather(*comparison_tasks, return_exceptions=True)
+            
+            # Process comparison results
+            for result in comparison_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Comparison task failed: {result}")
+                    continue
+                    
+                fork_key, count = result
+                results[fork_key] = count
+
+            # Log optimization results
+            total_forks = len(fork_data_list)
+            successful_comparisons = len(results)
+            api_calls_saved = total_forks - 1  # We fetched parent repo once instead of N times
+            
+            logger.info(f"Batch count processing completed: {successful_comparisons}/{total_forks} forks processed")
+            logger.info(f"API optimization: {api_calls_saved} parent repository calls saved")
+            
+            return results
+
+        except Exception as e:
+            logger.error(f"Batch count processing failed: {e}")
+            raise GitHubAPIError(f"Failed to batch process commit counts: {e}") from e
 
     async def get_commits_ahead_batch(
         self, 

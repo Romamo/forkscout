@@ -1577,9 +1577,9 @@ class RepositoryDisplayService:
                         
                         logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
                         
-                        # Batch process all forks against the same parent repository
-                        batch_results = await self.github_client.get_commits_ahead_batch(
-                            fork_data_list, owner, repo_name, count=1  # Minimum count to get commit info
+                        # Use the new batch count method to get accurate commit counts
+                        batch_counts = await self.github_client.get_commits_ahead_batch_counts(
+                            fork_data_list, owner, repo_name
                         )
                         
                         # Count API calls made by batch processing
@@ -1587,14 +1587,13 @@ class RepositoryDisplayService:
                         successful_forks = 0
                         parent_calls_saved = 0
                         
-                        # Process batch results
+                        # Process batch results using the accurate counts
                         for fork_data in forks_needing_api:
                             fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
                             
-                            if fork_full_name in batch_results:
-                                # Successfully processed
-                                commits_ahead_list = batch_results[fork_full_name]
-                                commits_ahead = len(commits_ahead_list) if commits_ahead_list else 0
+                            if fork_full_name in batch_counts:
+                                # Successfully processed - use the accurate ahead_by count
+                                commits_ahead = batch_counts[fork_full_name]
                                 fork_data.exact_commits_ahead = commits_ahead
                                 successful_forks += 1
                                 parent_calls_saved += 1  # Each fork would have needed a parent repo call
