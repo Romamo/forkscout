@@ -1195,12 +1195,14 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.option(
     "--max-commits-count",
     type=click.IntRange(0, 10000),
-    help="Maximum commits to count (0 for unlimited, default: 100)",
+    help="Maximum commits to count ahead for each fork (0 for unlimited counting, default: 100). "
+         "Higher values provide more accurate counts but use more API calls and take longer.",
 )
 @click.option(
     "--commit-display-limit",
     type=click.IntRange(0, 100),
-    help="Maximum commits to fetch for display details (default: 5)",
+    help="Maximum commits to fetch for display details when showing commit messages (default: 5). "
+         "Only affects --show-commits display, not the commit counting accuracy.",
 )
 @click.pass_context
 def show_forks(
@@ -1229,8 +1231,23 @@ def show_forks(
     - "+5" = Exact count when using --detail flag (5 commits ahead)
     - Empty cell = No commits ahead (when using --detail)
 
+    COMMIT COUNTING OPTIONS:
+
     Use --detail flag to fetch exact commit counts ahead for each fork.
     This makes additional API requests but provides precise "+X" commit counts.
+
+    Use --max-commits-count to control counting accuracy vs performance:
+    - Default (100): Count up to 100 commits ahead per fork
+    - Higher values: More accurate for forks with many commits, but slower
+    - 0 (unlimited): Count all commits ahead, regardless of number
+    - Lower values: Faster processing, but may show "100+" for very active forks
+
+    Use --commit-display-limit to control commit message display:
+    - Only affects --show-commits output, not counting accuracy
+    - Default (5): Show up to 5 commit messages per fork
+    - Higher values: More commit details, but larger output
+
+    DISPLAY OPTIONS:
 
     Use --show-commits N to display the last N commits for each fork.
     This adds a "Recent Commits" column showing commit messages (max 10 commits).
@@ -1251,6 +1268,22 @@ def show_forks(
     \b
     # Basic fork display
     forklift show-forks owner/repo
+
+    \b
+    # Get exact commit counts (uses default limit of 100 commits)
+    forklift show-forks owner/repo --detail
+
+    \b
+    # Count unlimited commits for maximum accuracy (slower)
+    forklift show-forks owner/repo --detail --max-commits-count 0
+
+    \b
+    # Fast processing with lower commit count limit
+    forklift show-forks owner/repo --detail --max-commits-count 50
+
+    \b
+    # Show recent commits with custom display limit
+    forklift show-forks owner/repo --show-commits 3 --commit-display-limit 10
 
     \b
     # Export to multi-row CSV file with commit details

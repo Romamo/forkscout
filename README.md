@@ -91,6 +91,13 @@ analysis:
     - "*.txt"
     - ".github/*"
 
+# Commit counting configuration
+commit_count:
+  max_count_limit: 100          # Maximum commits to count per fork (0 = unlimited)
+  display_limit: 5              # Maximum commits to show in display
+  use_unlimited_counting: false # Enable unlimited counting by default
+  timeout_seconds: 30           # Timeout for commit counting operations
+
 cache:
   duration_hours: 24
   max_size_mb: 100
@@ -113,6 +120,24 @@ forklift show-forks https://github.com/fastapi/fastapi --show-commits 3
 
 # Show detailed fork information with exact commit counts
 forklift show-forks https://github.com/fastapi/fastapi --detail
+```
+
+### Commit Counting Options
+```bash
+# Basic exact commit counting (default: count up to 100 commits)
+forklift show-forks owner/repo --detail
+
+# Unlimited commit counting for maximum accuracy (slower)
+forklift show-forks owner/repo --detail --max-commits-count 0
+
+# Fast processing with lower commit limit
+forklift show-forks owner/repo --detail --max-commits-count 50
+
+# Custom display limit for commit messages
+forklift show-forks owner/repo --show-commits 3 --commit-display-limit 10
+
+# Focus on active forks only
+forklift show-forks owner/repo --detail --ahead-only
 ```
 
 ### Understanding Commit Status Format
@@ -138,6 +163,26 @@ forklift analyze https://github.com/fastapi/fastapi --auto-pr --min-score 85
 ```bash
 forklift analyze https://github.com/fastapi/fastapi --verbose
 ```
+
+## Troubleshooting
+
+### Common Issues
+
+**Commit counts showing "+1" for all forks:**
+- This was a bug in earlier versions. Update to the latest version.
+- Use `--detail` flag for accurate commit counting.
+
+**Slow performance with commit counting:**
+- Use `--max-commits-count 50` for faster processing
+- Limit forks with `--max-forks 25`
+- Use `--ahead-only` to skip inactive forks
+
+**"Unknown" commit counts:**
+- Usually indicates private/deleted forks or API rate limiting
+- Check GitHub token configuration
+- Try with `--verbose` for detailed error information
+
+For comprehensive troubleshooting, see [docs/COMMIT_COUNTING_TROUBLESHOOTING.md](docs/COMMIT_COUNTING_TROUBLESHOOTING.md).
 
 ## Development
 

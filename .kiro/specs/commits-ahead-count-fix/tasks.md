@@ -42,13 +42,13 @@
   - Test the specific case mentioned in bug report: `sanila2007/youtube-bot-telegram`
   - _Requirements: 1.1, 1.4_
 
-- [ ] 8. Add Performance and Contract Tests
+- [x] 8. Add Performance and Contract Tests
   - Add performance tests to ensure batch operations are efficient
   - Add contract tests to verify GitHub API response format hasn't changed
   - Test API call optimization and rate limit handling
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 9. Update Documentation and Help Text
+- [-] 9. Update Documentation and Help Text
   - Update CLI help text to explain new commit counting options
   - Add documentation for configuration options
   - Update troubleshooting guide for commit counting issues
