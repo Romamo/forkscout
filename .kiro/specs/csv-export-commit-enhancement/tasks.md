@@ -49,7 +49,7 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
 - [-] 4. Implement robust error handling and edge cases
-- [-] 4.1 Add graceful handling of missing commit data
+- [x] 4.1 Add graceful handling of missing commit data
   - Handle forks with no commits by creating single row with empty commit columns
   - Manage missing or invalid commit dates with empty values
   - Handle malformed commit SHAs gracefully
@@ -57,7 +57,7 @@
   - Write unit tests for all edge case scenarios
   - _Requirements: 1.6, 6.1, 6.2, 6.4, 6.5_
 
-- [ ] 4.2 Implement comprehensive CSV escaping
+- [-] 4.2 Implement comprehensive CSV escaping
   - Ensure proper escaping of special characters in all text fields
   - Handle very long commit messages without truncation
   - Manage newlines and carriage returns in commit messages

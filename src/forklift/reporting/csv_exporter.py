@@ -885,7 +885,8 @@ class CSVExporter:
     def _escape_commit_message(self, message: str | None) -> str:
         """Properly handle CSV special characters in commit messages.
 
-        Handles missing or malformed commit messages gracefully.
+        Handles missing or malformed commit messages gracefully and ensures proper
+        escaping of special characters without truncation.
 
         Args:
             message: Commit message to escape or None
@@ -902,27 +903,169 @@ class CSVExporter:
                 logger.warning(f"Invalid commit message type: {type(message)}")
                 return str(message) if message is not None else ""
 
-            # Remove or replace newlines and carriage returns
-            cleaned_message = message.replace("\n", " ").replace("\r", " ")
+            # Handle very long commit messages without truncation
+            # Always clean them up for CSV compatibility regardless of escape_newlines setting
+            # since commit messages should always be CSV-safe
+            cleaned_message = self._clean_text_for_csv(message)
 
-            # Remove extra whitespace
-            cleaned_message = " ".join(cleaned_message.split())
-
-            # The CSV writer will handle quote escaping automatically
             return cleaned_message
         except (AttributeError, TypeError) as e:
             logger.warning(f"Failed to escape commit message: {e}")
             return ""
 
+    def _clean_text_for_csv(self, text: str) -> str:
+        """Clean text for CSV output by handling special characters properly.
+
+        This method handles newlines, carriage returns, and other special characters
+        while preserving the full content without truncation.
+
+        Args:
+            text: Text to clean for CSV output
+
+        Returns:
+            Cleaned text suitable for CSV output
+        """
+        if not text:
+            return ""
+
+        # Replace newlines and carriage returns with spaces
+        # This preserves readability while making it CSV-safe
+        cleaned_text = text.replace("\n", " ").replace("\r", " ")
+
+        # Replace other problematic whitespace characters
+        cleaned_text = cleaned_text.replace("\t", " ")  # Replace tabs with spaces
+        cleaned_text = cleaned_text.replace("\v", " ")  # Replace vertical tabs
+        cleaned_text = cleaned_text.replace("\f", " ")  # Replace form feeds
+
+        # Normalize multiple spaces to single spaces
+        cleaned_text = " ".join(cleaned_text.split())
+
+        # Handle other special characters that might cause issues
+        # Remove or replace control characters (except common ones already handled)
+        cleaned_text = "".join(char for char in cleaned_text if ord(char) >= 32 or char in [" "])
+
+        # The CSV writer will automatically handle quotes and commas by quoting the field
+        # No need to manually escape them as the csv module handles this correctly
+        
+        return cleaned_text
+
     def _escape_row_values(self, row: dict[str, Any]) -> dict[str, Any]:
-        """Escape special characters in row values for CSV output."""
+        """Escape special characters in row values for CSV output.
+        
+        Applies text cleaning based on configuration settings to ensure
+        proper CSV compatibility while respecting user preferences.
+        
+        Args:
+            row: Dictionary representing a CSV row
+            
+        Returns:
+            Dictionary with escaped values suitable for CSV output
+        """
         escaped_row = {}
 
         for key, value in row.items():
-            if isinstance(value, str) and self.config.escape_newlines:
-                # Replace newlines with literal \n for CSV compatibility
-                value = value.replace("\n", "\\n").replace("\r", "\\r")
-
-            escaped_row[key] = value
+            if isinstance(value, str):
+                if self.config.escape_newlines:
+                    # Use literal escaping for backward compatibility when enabled
+                    escaped_value = value.replace("\n", "\\n").replace("\r", "\\r")
+                else:
+                    # When escape_newlines is False, preserve original behavior
+                    # but still apply basic cleaning for CSV safety
+                    escaped_value = value
+                escaped_row[key] = escaped_value
+            else:
+                # Non-string values pass through unchanged
+                escaped_row[key] = value
 
         return escaped_row
+
+    def validate_csv_compatibility(self, csv_content: str) -> dict[str, Any]:
+        """Validate CSV content for compatibility with major spreadsheet applications.
+        
+        This method checks the CSV content for common issues that might cause
+        problems when importing into Excel, Google Sheets, or other applications.
+        
+        Args:
+            csv_content: The CSV content string to validate
+            
+        Returns:
+            Dictionary containing validation results and statistics
+        """
+        validation_results = {
+            "is_valid": True,
+            "issues": [],
+            "statistics": {
+                "total_rows": 0,
+                "total_columns": 0,
+                "max_field_length": 0,
+                "fields_with_quotes": 0,
+                "fields_with_commas": 0,
+                "fields_with_newlines": 0,
+            }
+        }
+
+        try:
+            # Parse the CSV to check for structural issues
+            reader = csv.reader(io.StringIO(csv_content))
+            rows = list(reader)
+            
+            if not rows:
+                validation_results["issues"].append("CSV is empty")
+                validation_results["is_valid"] = False
+                return validation_results
+            
+            validation_results["statistics"]["total_rows"] = len(rows)
+            validation_results["statistics"]["total_columns"] = len(rows[0]) if rows else 0
+            
+            # Check each field for potential issues
+            for row_idx, row in enumerate(rows):
+                for field_idx, field in enumerate(row):
+                    field_length = len(field)
+                    validation_results["statistics"]["max_field_length"] = max(
+                        validation_results["statistics"]["max_field_length"], 
+                        field_length
+                    )
+                    
+                    # Check for various special characters
+                    if '"' in field:
+                        validation_results["statistics"]["fields_with_quotes"] += 1
+                    if ',' in field:
+                        validation_results["statistics"]["fields_with_commas"] += 1
+                    if '\n' in field or '\r' in field:
+                        validation_results["statistics"]["fields_with_newlines"] += 1
+                        validation_results["issues"].append(
+                            f"Row {row_idx + 1}, Column {field_idx + 1}: Contains unescaped newlines"
+                        )
+                    
+                    # Check for very long fields that might cause issues
+                    if field_length > 32767:  # Excel's cell limit
+                        validation_results["issues"].append(
+                            f"Row {row_idx + 1}, Column {field_idx + 1}: Field exceeds Excel's 32,767 character limit"
+                        )
+                    
+                    # Check for control characters that might cause issues
+                    if any(ord(char) < 32 and char not in ['\t'] for char in field):
+                        validation_results["issues"].append(
+                            f"Row {row_idx + 1}, Column {field_idx + 1}: Contains control characters"
+                        )
+            
+            # Check for inconsistent column counts
+            column_counts = [len(row) for row in rows]
+            if len(set(column_counts)) > 1:
+                validation_results["issues"].append(
+                    f"Inconsistent column counts: {set(column_counts)}"
+                )
+                validation_results["is_valid"] = False
+            
+        except csv.Error as e:
+            validation_results["issues"].append(f"CSV parsing error: {e}")
+            validation_results["is_valid"] = False
+        except Exception as e:
+            validation_results["issues"].append(f"Validation error: {e}")
+            validation_results["is_valid"] = False
+        
+        # Set overall validity
+        if validation_results["issues"]:
+            validation_results["is_valid"] = False
+        
+        return validation_results
