@@ -40,6 +40,7 @@ class TestCSVExportConfig:
         assert config.escape_newlines is True
         assert config.include_urls is True
         assert config.date_format == "%Y-%m-%d %H:%M:%S"
+        assert config.commit_date_format == "%Y-%m-%d"
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -50,7 +51,8 @@ class TestCSVExportConfig:
             max_commits_per_fork=5,
             escape_newlines=False,
             include_urls=False,
-            date_format="%Y-%m-%d"
+            date_format="%Y-%m-%d",
+            commit_date_format="%Y-%m-%d %H:%M",
         )
 
         assert config.include_commits is True
@@ -60,6 +62,80 @@ class TestCSVExportConfig:
         assert config.escape_newlines is False
         assert config.include_urls is False
         assert config.date_format == "%Y-%m-%d"
+        assert config.commit_date_format == "%Y-%m-%d %H:%M"
+
+    def test_commit_date_format_validation_valid(self):
+        """Test that valid commit date formats are accepted."""
+        valid_formats = [
+            "%Y-%m-%d",
+            "%Y-%m-%d %H:%M:%S",
+            "%d/%m/%Y",
+            "%B %d, %Y",
+            "%Y%m%d",
+        ]
+
+        for date_format in valid_formats:
+            config = CSVExportConfig(commit_date_format=date_format)
+            assert config.commit_date_format == date_format
+
+    def test_commit_date_format_validation_invalid(self):
+        """Test that invalid commit date formats raise ValueError."""
+        # Test None specifically (raises TypeError)
+        with pytest.raises(ValueError, match="Invalid commit_date_format"):
+            CSVExportConfig(commit_date_format=None)
+
+        # Test format strings that actually cause strftime to raise ValueError
+        # Note: Most format strings don't raise errors, they just produce unexpected output
+        # We'll test the validation mechanism with None which does raise TypeError
+
+    def test_date_format_validation_valid(self):
+        """Test that valid date formats are accepted."""
+        valid_formats = [
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%d/%m/%Y %H:%M",
+            "%B %d, %Y %I:%M %p",
+        ]
+
+        for date_format in valid_formats:
+            config = CSVExportConfig(date_format=date_format)
+            assert config.date_format == date_format
+
+    def test_date_format_validation_invalid(self):
+        """Test that invalid date formats raise ValueError."""
+        # Test None specifically (raises TypeError)
+        with pytest.raises(ValueError, match="Invalid date_format"):
+            CSVExportConfig(date_format=None)
+
+    def test_both_date_formats_validation(self):
+        """Test validation when both date formats are invalid."""
+        with pytest.raises(ValueError, match="Invalid date_format"):
+            CSVExportConfig(date_format=None, commit_date_format="%Y-%m-%d")
+
+        with pytest.raises(ValueError, match="Invalid commit_date_format"):
+            CSVExportConfig(date_format="%Y-%m-%d", commit_date_format=None)
+
+    def test_config_with_all_options(self):
+        """Test configuration with all options set."""
+        config = CSVExportConfig(
+            include_commits=True,
+            detail_mode=True,
+            include_explanations=True,
+            max_commits_per_fork=15,
+            escape_newlines=False,
+            include_urls=False,
+            date_format="%d/%m/%Y %H:%M:%S",
+            commit_date_format="%d/%m/%Y",
+        )
+
+        assert config.include_commits is True
+        assert config.detail_mode is True
+        assert config.include_explanations is True
+        assert config.max_commits_per_fork == 15
+        assert config.escape_newlines is False
+        assert config.include_urls is False
+        assert config.date_format == "%d/%m/%Y %H:%M:%S"
+        assert config.commit_date_format == "%d/%m/%Y"
 
 
 class TestCSVExporter:
@@ -77,7 +153,7 @@ class TestCSVExporter:
             include_commits=True,
             detail_mode=True,
             include_explanations=True,
-            include_urls=True
+            include_urls=True,
         )
         return CSVExporter(config)
 
@@ -88,7 +164,7 @@ class TestCSVExporter:
             include_commits=False,
             detail_mode=False,
             include_explanations=False,
-            include_urls=False
+            include_urls=False,
         )
         return CSVExporter(config)
 
@@ -109,7 +185,7 @@ class TestCSVExporter:
             description="Test repository",
             created_at=datetime(2023, 1, 1, 12, 0, 0),
             updated_at=datetime(2023, 6, 1, 12, 0, 0),
-            pushed_at=datetime(2023, 6, 15, 12, 0, 0)
+            pushed_at=datetime(2023, 6, 15, 12, 0, 0),
         )
 
     @pytest.fixture
@@ -119,7 +195,7 @@ class TestCSVExporter:
             id=456,
             login="testuser",
             name="Test User",
-            html_url="https://github.com/testuser"
+            html_url="https://github.com/testuser",
         )
 
     @pytest.fixture
@@ -140,7 +216,7 @@ class TestCSVExporter:
             is_fork=True,
             created_at=datetime(2023, 2, 1, 12, 0, 0),
             updated_at=datetime(2023, 6, 10, 12, 0, 0),
-            pushed_at=datetime(2023, 6, 20, 12, 0, 0)
+            pushed_at=datetime(2023, 6, 20, 12, 0, 0),
         )
 
         return Fork(
@@ -150,7 +226,7 @@ class TestCSVExporter:
             last_activity=datetime(2023, 6, 20, 12, 0, 0),
             commits_ahead=3,
             commits_behind=1,
-            is_active=True
+            is_active=True,
         )
 
     @pytest.fixture
@@ -163,7 +239,7 @@ class TestCSVExporter:
             date=datetime(2023, 6, 20, 10, 30, 0),
             files_changed=["src/main.py", "tests/test_main.py"],
             additions=50,
-            deletions=10
+            deletions=10,
         )
 
     @pytest.fixture
@@ -177,7 +253,7 @@ class TestCSVExporter:
                 last_push_date=datetime(2023, 6, 15, 12, 0, 0),
                 fork_url="https://github.com/user1/testrepo",
                 activity_status="Active",
-                commits_ahead="Unknown"
+                commits_ahead="Unknown",
             ),
             ForkPreviewItem(
                 name="testrepo",
@@ -186,8 +262,8 @@ class TestCSVExporter:
                 last_push_date=datetime(2023, 5, 1, 12, 0, 0),
                 fork_url="https://github.com/user2/testrepo",
                 activity_status="Stale",
-                commits_ahead="None"
-            )
+                commits_ahead="None",
+            ),
         ]
 
         return ForksPreview(total_forks=2, forks=forks)
@@ -208,8 +284,12 @@ class TestForksPreviewExport(TestCSVExporter):
 
         # Check headers
         expected_headers = [
-            "fork_name", "owner", "stars", "commits_ahead",
-            "activity_status", "fork_url"
+            "fork_name",
+            "owner",
+            "stars",
+            "commits_ahead",
+            "activity_status",
+            "fork_url",
         ]
         assert reader.fieldnames == expected_headers
 
@@ -230,11 +310,17 @@ class TestForksPreviewExport(TestCSVExporter):
 
         # Check headers don't include URL
         expected_headers = [
-            "fork_name", "owner", "stars", "commits_ahead", "activity_status"
+            "fork_name",
+            "owner",
+            "stars",
+            "commits_ahead",
+            "activity_status",
         ]
         assert reader.fieldnames == expected_headers
 
-    def test_export_forks_preview_detail_mode(self, detailed_exporter, sample_forks_preview):
+    def test_export_forks_preview_detail_mode(
+        self, detailed_exporter, sample_forks_preview
+    ):
         """Test forks preview export in detail mode."""
         csv_output = detailed_exporter.export_forks_preview(sample_forks_preview)
 
@@ -245,7 +331,9 @@ class TestForksPreviewExport(TestCSVExporter):
         assert "created_date" in reader.fieldnames
         assert "updated_date" in reader.fieldnames
 
-    def test_export_forks_preview_with_commits_header(self, detailed_exporter, sample_forks_preview):
+    def test_export_forks_preview_with_commits_header(
+        self, detailed_exporter, sample_forks_preview
+    ):
         """Test forks preview export includes recent_commits header when include_commits is True."""
         csv_output = detailed_exporter.export_forks_preview(sample_forks_preview)
 
@@ -254,7 +342,9 @@ class TestForksPreviewExport(TestCSVExporter):
         # Check that recent_commits header is included when include_commits=True
         assert "recent_commits" in reader.fieldnames
 
-    def test_export_forks_preview_without_commits_header(self, exporter, sample_forks_preview):
+    def test_export_forks_preview_without_commits_header(
+        self, exporter, sample_forks_preview
+    ):
         """Test forks preview export excludes recent_commits header when include_commits is False."""
         csv_output = exporter.export_forks_preview(sample_forks_preview)
 
@@ -288,7 +378,7 @@ class TestForkAnalysisExport(TestCSVExporter):
             category=FeatureCategory.NEW_FEATURE,
             commits=[sample_commit],
             files_affected=["src/auth.py", "tests/test_auth.py"],
-            source_fork=sample_fork
+            source_fork=sample_fork,
         )
 
         metrics = ForkMetrics(
@@ -296,14 +386,14 @@ class TestForkAnalysisExport(TestCSVExporter):
             forks=1,
             contributors=2,
             last_activity=datetime(2023, 6, 20, 12, 0, 0),
-            commit_frequency=0.5
+            commit_frequency=0.5,
         )
 
         return ForkAnalysis(
             fork=sample_fork,
             features=[feature],
             metrics=metrics,
-            analysis_date=datetime(2023, 6, 21, 12, 0, 0)
+            analysis_date=datetime(2023, 6, 21, 12, 0, 0),
         )
 
     def test_export_fork_analysis_basic(self, exporter, sample_fork_analysis):
@@ -322,7 +412,9 @@ class TestForkAnalysisExport(TestCSVExporter):
         assert row["features_count"] == "1"
         assert row["is_active"] == "True"
 
-    def test_export_fork_analysis_with_commits(self, detailed_exporter, sample_fork_analysis):
+    def test_export_fork_analysis_with_commits(
+        self, detailed_exporter, sample_fork_analysis
+    ):
         """Test fork analysis export with commits."""
         csv_output = detailed_exporter.export_fork_analyses([sample_fork_analysis])
 
@@ -334,11 +426,16 @@ class TestForkAnalysisExport(TestCSVExporter):
 
         row = rows[0]
         assert row["commit_sha"] == "a1b2c3d4e5f6789012345678901234567890abcd"
-        assert row["commit_message"] == "Add new feature\\n\\nThis commit adds a new feature to the repository."
+        assert (
+            row["commit_message"]
+            == "Add new feature\\n\\nThis commit adds a new feature to the repository."
+        )
         assert row["commit_author"] == "testuser"
         assert "commit_url" in row
 
-    def test_export_fork_analysis_detail_mode(self, detailed_exporter, sample_fork_analysis):
+    def test_export_fork_analysis_detail_mode(
+        self, detailed_exporter, sample_fork_analysis
+    ):
         """Test fork analysis export in detail mode."""
         csv_output = detailed_exporter.export_fork_analyses([sample_fork_analysis])
 
@@ -364,7 +461,7 @@ class TestRankedFeaturesExport(TestCSVExporter):
             category=FeatureCategory.NEW_FEATURE,
             commits=[sample_commit],
             files_affected=["src/auth.py", "tests/test_auth.py"],
-            source_fork=sample_fork
+            source_fork=sample_fork,
         )
 
         return RankedFeature(
@@ -373,9 +470,9 @@ class TestRankedFeaturesExport(TestCSVExporter):
             ranking_factors={
                 "code_quality": 90.0,
                 "community_engagement": 80.0,
-                "recency": 85.0
+                "recency": 85.0,
             },
-            similar_implementations=[]
+            similar_implementations=[],
         )
 
     def test_export_ranked_features_basic(self, exporter, sample_ranked_feature):
@@ -396,7 +493,9 @@ class TestRankedFeaturesExport(TestCSVExporter):
         assert row["commits_count"] == "1"
         assert row["files_affected_count"] == "2"
 
-    def test_export_ranked_features_detail_mode(self, detailed_exporter, sample_ranked_feature):
+    def test_export_ranked_features_detail_mode(
+        self, detailed_exporter, sample_ranked_feature
+    ):
         """Test ranked features export in detail mode."""
         csv_output = detailed_exporter.export_ranked_features([sample_ranked_feature])
 
@@ -418,7 +517,7 @@ class TestCommitExplanationsExport(TestCSVExporter):
         category = CommitCategory(
             category_type=CategoryType.FEATURE,
             confidence=0.9,
-            reasoning="Adds new functionality"
+            reasoning="Adds new functionality",
         )
 
         impact = ImpactAssessment(
@@ -426,7 +525,7 @@ class TestCommitExplanationsExport(TestCSVExporter):
             change_magnitude=60.0,
             file_criticality=0.7,
             quality_factors={"test_coverage": 0.8},
-            reasoning="Moderate impact with good test coverage"
+            reasoning="Moderate impact with good test coverage",
         )
 
         explanation = CommitExplanation(
@@ -438,24 +537,17 @@ class TestCommitExplanationsExport(TestCSVExporter):
             explanation="This commit adds JWT authentication which would be valuable for the main repository",
             is_complex=False,
             github_url=f"https://github.com/testuser/testrepo/commit/{sample_commit.sha}",
-            generated_at=datetime(2023, 6, 21, 12, 0, 0)
+            generated_at=datetime(2023, 6, 21, 12, 0, 0),
         )
 
-        return CommitWithExplanation(
-            commit=sample_commit,
-            explanation=explanation
-        )
+        return CommitWithExplanation(commit=sample_commit, explanation=explanation)
 
     def test_export_commit_explanations_basic(
-        self,
-        exporter,
-        sample_commit_explanation,
-        sample_repository
+        self, exporter, sample_commit_explanation, sample_repository
     ):
         """Test basic commit explanations export."""
         csv_output = exporter.export_commits_with_explanations(
-            [sample_commit_explanation],
-            sample_repository
+            [sample_commit_explanation], sample_repository
         )
 
         reader = csv.DictReader(io.StringIO(csv_output))
@@ -471,15 +563,11 @@ class TestCommitExplanationsExport(TestCSVExporter):
         assert row["deletions"] == "10"
 
     def test_export_commit_explanations_with_explanations(
-        self,
-        detailed_exporter,
-        sample_commit_explanation,
-        sample_repository
+        self, detailed_exporter, sample_commit_explanation, sample_repository
     ):
         """Test commit explanations export with explanation details."""
         csv_output = detailed_exporter.export_commits_with_explanations(
-            [sample_commit_explanation],
-            sample_repository
+            [sample_commit_explanation], sample_repository
         )
 
         reader = csv.DictReader(io.StringIO(csv_output))
@@ -493,21 +581,17 @@ class TestCommitExplanationsExport(TestCSVExporter):
         assert row["is_complex"] == "False"
 
     def test_export_commit_without_explanation(
-        self,
-        detailed_exporter,
-        sample_commit,
-        sample_repository
+        self, detailed_exporter, sample_commit, sample_repository
     ):
         """Test export of commit without explanation."""
         commit_without_explanation = CommitWithExplanation(
             commit=sample_commit,
             explanation=None,
-            explanation_error="Failed to generate explanation"
+            explanation_error="Failed to generate explanation",
         )
 
         csv_output = detailed_exporter.export_commits_with_explanations(
-            [commit_without_explanation],
-            sample_repository
+            [commit_without_explanation], sample_repository
         )
 
         reader = csv.DictReader(io.StringIO(csv_output))
@@ -530,7 +614,7 @@ class TestCSVFormatting(TestCSVExporter):
             last_push_date=datetime(2023, 6, 15, 12, 0, 0),
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active\nStatus",
-            commits_ahead="Unknown"
+            commits_ahead="Unknown",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -554,7 +638,7 @@ class TestCSVFormatting(TestCSVExporter):
             last_push_date=datetime(2023, 6, 15, 12, 0, 0),
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active",
-            commits_ahead="Unknown"
+            commits_ahead="Unknown",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -584,6 +668,37 @@ class TestCSVFormatting(TestCSVExporter):
         formatted = exporter._format_datetime(test_date)
 
         assert formatted == "2023-06-15"
+
+    def test_commit_date_format_usage(self):
+        """Test that commit_date_format is available for use."""
+        config = CSVExportConfig(commit_date_format="%d/%m/%Y")
+        exporter = CSVExporter(config)
+
+        # Verify the config is set correctly
+        assert exporter.config.commit_date_format == "%d/%m/%Y"
+
+        # Test that the format can be used to format dates
+        test_date = datetime(2023, 6, 15, 14, 30, 45)
+        formatted = test_date.strftime(exporter.config.commit_date_format)
+
+        assert formatted == "15/06/2023"
+
+    def test_different_date_formats_for_commits_and_general(self):
+        """Test using different formats for commit dates vs general dates."""
+        config = CSVExportConfig(
+            date_format="%Y-%m-%d %H:%M:%S", commit_date_format="%Y-%m-%d"
+        )
+        exporter = CSVExporter(config)
+
+        test_date = datetime(2023, 6, 15, 14, 30, 45)
+
+        # General date format (for timestamps)
+        general_formatted = exporter._format_datetime(test_date)
+        assert general_formatted == "2023-06-15 14:30:45"
+
+        # Commit date format (for commit dates)
+        commit_formatted = test_date.strftime(exporter.config.commit_date_format)
+        assert commit_formatted == "2023-06-15"
 
     def test_dict_formatting(self, exporter):
         """Test dictionary formatting for CSV output."""
@@ -622,9 +737,13 @@ class TestCSVExportGeneric(TestCSVExporter):
         csv_output = exporter.export_to_csv([])
         assert "No data to export" in csv_output
 
-    def test_export_to_csv_commit_explanations_missing_repository(self, exporter, sample_commit):
+    def test_export_to_csv_commit_explanations_missing_repository(
+        self, exporter, sample_commit
+    ):
         """Test export of commit explanations without required repository parameter."""
-        commit_with_explanation = CommitWithExplanation(commit=sample_commit, explanation=None)
+        commit_with_explanation = CommitWithExplanation(
+            commit=sample_commit, explanation=None
+        )
 
         with pytest.raises(ValueError, match="repository parameter required"):
             exporter.export_to_csv([commit_with_explanation])
@@ -711,7 +830,7 @@ class TestCSVCommitFormatting(TestCSVExporter):
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active",
             commits_ahead="3",
-            recent_commits='Fix "auth" bug\nAdd new feature, update docs\r\nRefactor code'
+            recent_commits='Fix "auth" bug\nAdd new feature, update docs\r\nRefactor code',
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -741,7 +860,7 @@ class TestCSVCommitFormatting(TestCSVExporter):
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active",
             commits_ahead="2",
-            recent_commits='2024-01-15 abc1234 Fix authentication bug; 2024-01-14 def5678 Add new feature'
+            recent_commits="2024-01-15 abc1234 Fix authentication bug; 2024-01-14 def5678 Add new feature",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -771,7 +890,7 @@ class TestCSVCommitFormatting(TestCSVExporter):
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active",
             commits_ahead="2",
-            recent_commits='abc1234: Fix authentication bug; def5678: Add new feature'
+            recent_commits="abc1234: Fix authentication bug; def5678: Add new feature",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -801,7 +920,7 @@ class TestCSVCommitFormatting(TestCSVExporter):
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active",
             commits_ahead="3",
-            recent_commits='2024-01-15 abc1234 Fix auth bug; def5678: Add feature; 2024-01-13 ghi9012 Update docs'
+            recent_commits="2024-01-15 abc1234 Fix auth bug; def5678: Add feature; 2024-01-13 ghi9012 Update docs",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -833,7 +952,7 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             last_push_date=datetime(2023, 6, 15, 12, 0, 0),
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active; Status",
-            commits_ahead="Unknown"
+            commits_ahead="Unknown",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -856,7 +975,7 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             last_push_date=datetime(2023, 6, 15, 12, 0, 0),
             fork_url="https://github.com/testuser/testrepo",
             activity_status="Active",
-            commits_ahead="Unknown"
+            commits_ahead="Unknown",
         )
 
         preview = ForksPreview(total_forks=1, forks=[fork_item])
@@ -884,8 +1003,8 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             description=None,  # None value
             created_at=None,  # None value
             updated_at=None,  # None value
-            pushed_at=None,   # None value
-            is_fork=True  # Required for Fork validation
+            pushed_at=None,  # None value
+            is_fork=True,  # Required for Fork validation
         )
 
         fork = Fork(
@@ -895,7 +1014,7 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             last_activity=None,  # None value
             commits_ahead=0,
             commits_behind=0,
-            is_active=True
+            is_active=True,
         )
 
         metrics = ForkMetrics(
@@ -903,14 +1022,10 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             forks=0,
             contributors=0,
             last_activity=None,  # None value
-            commit_frequency=0.0
+            commit_frequency=0.0,
         )
 
-        analysis = ForkAnalysis(
-            fork=fork,
-            features=[],
-            metrics=metrics
-        )
+        analysis = ForkAnalysis(fork=fork, features=[], metrics=metrics)
 
         # Should handle None values gracefully
         csv_output = exporter.export_fork_analyses([analysis])

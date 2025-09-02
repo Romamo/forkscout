@@ -44,6 +44,29 @@ class CSVExportConfig:
     date_format: str = "%Y-%m-%d %H:%M:%S"
     """Date format for timestamp fields."""
 
+    commit_date_format: str = "%Y-%m-%d"
+    """Date format for commit dates in CSV output."""
+
+    def __post_init__(self) -> None:
+        """Validate configuration options after initialization."""
+        self._validate_date_formats()
+
+    def _validate_date_formats(self) -> None:
+        """Validate that date format strings are valid."""
+        test_date = datetime(2023, 1, 1, 12, 0, 0)
+
+        try:
+            test_date.strftime(self.date_format)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid date_format '{self.date_format}': {e}") from e
+
+        try:
+            test_date.strftime(self.commit_date_format)
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid commit_date_format '{self.commit_date_format}': {e}"
+            ) from e
+
 
 class CSVExporter:
     """Handles CSV export of fork analysis data."""
@@ -142,7 +165,7 @@ class CSVExporter:
         self,
         commits: list[CommitWithExplanation],
         repository: Repository,
-        fork: Fork | None = None
+        fork: Fork | None = None,
     ) -> str:
         """Export commits with explanations to CSV format.
 
@@ -172,9 +195,14 @@ class CSVExporter:
 
     def export_to_csv(
         self,
-        data: ForksPreview | list[ForkAnalysis] | list[RankedFeature] | list[CommitWithExplanation],
+        data: (
+            ForksPreview
+            | list[ForkAnalysis]
+            | list[RankedFeature]
+            | list[CommitWithExplanation]
+        ),
         output_file: str | TextIO | None = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Export data to CSV format with automatic type detection.
 
@@ -202,8 +230,12 @@ class CSVExporter:
                 repository = kwargs.get("repository")
                 fork = kwargs.get("fork")
                 if not repository:
-                    raise ValueError("repository parameter required for CommitWithExplanation export")
-                csv_content = self.export_commits_with_explanations(data, repository, fork)
+                    raise ValueError(
+                        "repository parameter required for CommitWithExplanation export"
+                    )
+                csv_content = self.export_commits_with_explanations(
+                    data, repository, fork
+                )
             else:
                 raise ValueError(f"Unsupported data type: {type(first_item)}")
         elif isinstance(data, list) and len(data) == 0:
@@ -226,23 +258,13 @@ class CSVExporter:
 
     def _generate_forks_preview_headers(self) -> list[str]:
         """Generate CSV headers for forks preview export."""
-        headers = [
-            "fork_name",
-            "owner",
-            "stars",
-            "commits_ahead",
-            "activity_status"
-        ]
+        headers = ["fork_name", "owner", "stars", "commits_ahead", "activity_status"]
 
         if self.config.include_urls:
             headers.append("fork_url")
 
         if self.config.detail_mode:
-            headers.extend([
-                "last_push_date",
-                "created_date",
-                "updated_date"
-            ])
+            headers.extend(["last_push_date", "created_date", "updated_date"])
 
         if self.config.include_commits:
             headers.append("recent_commits")
@@ -259,39 +281,40 @@ class CSVExporter:
             "commits_ahead",
             "commits_behind",
             "is_active",
-            "features_count"
+            "features_count",
         ]
 
         if self.config.include_urls:
-            headers.extend([
-                "fork_url",
-                "owner_url"
-            ])
+            headers.extend(["fork_url", "owner_url"])
 
         if self.config.detail_mode:
-            headers.extend([
-                "language",
-                "description",
-                "last_activity",
-                "created_date",
-                "updated_date",
-                "pushed_date",
-                "size_kb",
-                "open_issues",
-                "is_archived",
-                "is_private"
-            ])
+            headers.extend(
+                [
+                    "language",
+                    "description",
+                    "last_activity",
+                    "created_date",
+                    "updated_date",
+                    "pushed_date",
+                    "size_kb",
+                    "open_issues",
+                    "is_archived",
+                    "is_private",
+                ]
+            )
 
         if self.config.include_commits:
-            headers.extend([
-                "commit_sha",
-                "commit_message",
-                "commit_author",
-                "commit_date",
-                "files_changed",
-                "additions",
-                "deletions"
-            ])
+            headers.extend(
+                [
+                    "commit_sha",
+                    "commit_message",
+                    "commit_author",
+                    "commit_date",
+                    "files_changed",
+                    "additions",
+                    "deletions",
+                ]
+            )
 
             if self.config.include_urls:
                 headers.append("commit_url")
@@ -309,21 +332,16 @@ class CSVExporter:
             "source_fork",
             "source_owner",
             "commits_count",
-            "files_affected_count"
+            "files_affected_count",
         ]
 
         if self.config.include_urls:
-            headers.extend([
-                "source_fork_url",
-                "source_owner_url"
-            ])
+            headers.extend(["source_fork_url", "source_owner_url"])
 
         if self.config.detail_mode:
-            headers.extend([
-                "ranking_factors",
-                "similar_implementations_count",
-                "files_affected"
-            ])
+            headers.extend(
+                ["ranking_factors", "similar_implementations_count", "files_affected"]
+            )
 
         return headers
 
@@ -336,33 +354,34 @@ class CSVExporter:
             "commit_date",
             "files_changed",
             "additions",
-            "deletions"
+            "deletions",
         ]
 
         if self.config.include_urls:
-            headers.extend([
-                "commit_url",
-                "github_url"
-            ])
+            headers.extend(["commit_url", "github_url"])
 
         if self.config.include_explanations:
-            headers.extend([
-                "category",
-                "impact_level",
-                "main_repo_value",
-                "what_changed",
-                "explanation",
-                "is_complex"
-            ])
+            headers.extend(
+                [
+                    "category",
+                    "impact_level",
+                    "main_repo_value",
+                    "what_changed",
+                    "explanation",
+                    "is_complex",
+                ]
+            )
 
         if self.config.detail_mode:
-            headers.extend([
-                "repository_name",
-                "fork_name",
-                "category_confidence",
-                "impact_reasoning",
-                "explanation_generated_at"
-            ])
+            headers.extend(
+                [
+                    "repository_name",
+                    "fork_name",
+                    "category_confidence",
+                    "impact_reasoning",
+                    "explanation_generated_at",
+                ]
+            )
 
         return headers
 
@@ -373,7 +392,7 @@ class CSVExporter:
             "owner": fork.owner,
             "stars": fork.stars,
             "commits_ahead": fork.commits_ahead,
-            "activity_status": fork.activity_status
+            "activity_status": fork.activity_status,
         }
 
         if self.config.include_urls:
@@ -387,7 +406,9 @@ class CSVExporter:
 
         if self.config.include_commits:
             # Format commit data consistently with table display
-            row["recent_commits"] = self._format_commit_data_for_csv(fork.recent_commits)
+            row["recent_commits"] = self._format_commit_data_for_csv(
+                fork.recent_commits
+            )
 
         return self._escape_row_values(row)
 
@@ -404,7 +425,7 @@ class CSVExporter:
             "commits_ahead": fork.commits_ahead,
             "commits_behind": fork.commits_behind,
             "is_active": fork.is_active,
-            "features_count": len(analysis.features)
+            "features_count": len(analysis.features),
         }
 
         if self.config.include_urls:
@@ -412,30 +433,34 @@ class CSVExporter:
             row["owner_url"] = fork.owner.html_url
 
         if self.config.detail_mode:
-            row.update({
-                "language": repo.language or "",
-                "description": repo.description or "",
-                "last_activity": self._format_datetime(fork.last_activity),
-                "created_date": self._format_datetime(repo.created_at),
-                "updated_date": self._format_datetime(repo.updated_at),
-                "pushed_date": self._format_datetime(repo.pushed_at),
-                "size_kb": repo.size,
-                "open_issues": repo.open_issues_count,
-                "is_archived": repo.is_archived,
-                "is_private": repo.is_private
-            })
+            row.update(
+                {
+                    "language": repo.language or "",
+                    "description": repo.description or "",
+                    "last_activity": self._format_datetime(fork.last_activity),
+                    "created_date": self._format_datetime(repo.created_at),
+                    "updated_date": self._format_datetime(repo.updated_at),
+                    "pushed_date": self._format_datetime(repo.pushed_at),
+                    "size_kb": repo.size,
+                    "open_issues": repo.open_issues_count,
+                    "is_archived": repo.is_archived,
+                    "is_private": repo.is_private,
+                }
+            )
 
         # Add empty commit fields if including commits but no specific commit
         if self.config.include_commits:
-            row.update({
-                "commit_sha": "",
-                "commit_message": "",
-                "commit_author": "",
-                "commit_date": "",
-                "files_changed": "",
-                "additions": "",
-                "deletions": ""
-            })
+            row.update(
+                {
+                    "commit_sha": "",
+                    "commit_message": "",
+                    "commit_author": "",
+                    "commit_date": "",
+                    "files_changed": "",
+                    "additions": "",
+                    "deletions": "",
+                }
+            )
 
             if self.config.include_urls:
                 row["commit_url"] = ""
@@ -443,9 +468,7 @@ class CSVExporter:
         return self._escape_row_values(row)
 
     def _format_fork_analysis_commit_row(
-        self,
-        analysis: ForkAnalysis,
-        commit: Commit
+        self, analysis: ForkAnalysis, commit: Commit
     ) -> dict[str, Any]:
         """Format a fork analysis with specific commit as a CSV row."""
         # Start with fork analysis row
@@ -453,15 +476,17 @@ class CSVExporter:
 
         # Override commit-specific fields
         if self.config.include_commits:
-            row.update({
-                "commit_sha": commit.sha,
-                "commit_message": commit.message,
-                "commit_author": commit.author.login,
-                "commit_date": self._format_datetime(commit.date),
-                "files_changed": len(commit.files_changed),
-                "additions": commit.additions,
-                "deletions": commit.deletions
-            })
+            row.update(
+                {
+                    "commit_sha": commit.sha,
+                    "commit_message": commit.message,
+                    "commit_author": commit.author.login,
+                    "commit_date": self._format_datetime(commit.date),
+                    "files_changed": len(commit.files_changed),
+                    "additions": commit.additions,
+                    "deletions": commit.deletions,
+                }
+            )
 
             if self.config.include_urls:
                 repo_url = analysis.fork.repository.html_url
@@ -484,7 +509,7 @@ class CSVExporter:
             "source_fork": source_repo.full_name,
             "source_owner": source_owner.login,
             "commits_count": len(feat.commits),
-            "files_affected_count": len(feat.files_affected)
+            "files_affected_count": len(feat.files_affected),
         }
 
         if self.config.include_urls:
@@ -492,11 +517,15 @@ class CSVExporter:
             row["source_owner_url"] = source_owner.html_url
 
         if self.config.detail_mode:
-            row.update({
-                "ranking_factors": self._format_dict(feature.ranking_factors),
-                "similar_implementations_count": len(feature.similar_implementations),
-                "files_affected": "; ".join(feat.files_affected)
-            })
+            row.update(
+                {
+                    "ranking_factors": self._format_dict(feature.ranking_factors),
+                    "similar_implementations_count": len(
+                        feature.similar_implementations
+                    ),
+                    "files_affected": "; ".join(feat.files_affected),
+                }
+            )
 
         return self._escape_row_values(row)
 
@@ -504,7 +533,7 @@ class CSVExporter:
         self,
         commit_with_explanation: CommitWithExplanation,
         repository: Repository,
-        fork: Fork | None = None
+        fork: Fork | None = None,
     ) -> dict[str, Any]:
         """Format a commit with explanation as a CSV row."""
         commit = commit_with_explanation.commit
@@ -517,7 +546,7 @@ class CSVExporter:
             "commit_date": self._format_datetime(commit.date),
             "files_changed": len(commit.files_changed),
             "additions": commit.additions,
-            "deletions": commit.deletions
+            "deletions": commit.deletions,
         }
 
         if self.config.include_urls:
@@ -527,33 +556,50 @@ class CSVExporter:
             row["github_url"] = explanation.github_url if explanation else commit_url
 
         if self.config.include_explanations and explanation:
-            row.update({
-                "category": explanation.category.category_type.value,
-                "impact_level": explanation.impact_assessment.impact_level.value,
-                "main_repo_value": explanation.main_repo_value.value,
-                "what_changed": explanation.what_changed,
-                "explanation": explanation.explanation,
-                "is_complex": explanation.is_complex
-            })
+            row.update(
+                {
+                    "category": explanation.category.category_type.value,
+                    "impact_level": explanation.impact_assessment.impact_level.value,
+                    "main_repo_value": explanation.main_repo_value.value,
+                    "what_changed": explanation.what_changed,
+                    "explanation": explanation.explanation,
+                    "is_complex": explanation.is_complex,
+                }
+            )
         elif self.config.include_explanations:
             # No explanation available
-            row.update({
-                "category": "",
-                "impact_level": "",
-                "main_repo_value": "",
-                "what_changed": "",
-                "explanation": commit_with_explanation.explanation_error or "No explanation available",
-                "is_complex": ""
-            })
+            row.update(
+                {
+                    "category": "",
+                    "impact_level": "",
+                    "main_repo_value": "",
+                    "what_changed": "",
+                    "explanation": commit_with_explanation.explanation_error
+                    or "No explanation available",
+                    "is_complex": "",
+                }
+            )
 
         if self.config.detail_mode:
-            row.update({
-                "repository_name": repository.full_name,
-                "fork_name": fork.repository.full_name if fork else repository.full_name,
-                "category_confidence": explanation.category.confidence if explanation else "",
-                "impact_reasoning": explanation.impact_assessment.reasoning if explanation else "",
-                "explanation_generated_at": self._format_datetime(explanation.generated_at) if explanation else ""
-            })
+            row.update(
+                {
+                    "repository_name": repository.full_name,
+                    "fork_name": (
+                        fork.repository.full_name if fork else repository.full_name
+                    ),
+                    "category_confidence": (
+                        explanation.category.confidence if explanation else ""
+                    ),
+                    "impact_reasoning": (
+                        explanation.impact_assessment.reasoning if explanation else ""
+                    ),
+                    "explanation_generated_at": (
+                        self._format_datetime(explanation.generated_at)
+                        if explanation
+                        else ""
+                    ),
+                }
+            )
 
         return self._escape_row_values(row)
 
@@ -575,7 +621,7 @@ class CSVExporter:
 
         # Sort by date (newest first) and limit
         unique_commits.sort(key=lambda c: c.date, reverse=True)
-        return unique_commits[:self.config.max_commits_per_fork]
+        return unique_commits[: self.config.max_commits_per_fork]
 
     def _format_datetime(self, dt: datetime | None) -> str:
         """Format datetime for CSV output."""
@@ -592,25 +638,25 @@ class CSVExporter:
 
     def _format_commit_data_for_csv(self, commit_data: str | None) -> str:
         """Format commit data for CSV output with proper escaping.
-        
+
         Args:
             commit_data: Raw commit data string or None
-            
+
         Returns:
             Properly formatted and escaped commit data for CSV
         """
         if not commit_data:
             return ""
-        
+
         # Handle commit data that may contain commas, quotes, and newlines
         formatted_data = commit_data
-        
+
         # Replace newlines with spaces for better CSV readability
-        formatted_data = formatted_data.replace('\n', ' ').replace('\r', ' ')
-        
+        formatted_data = formatted_data.replace("\n", " ").replace("\r", " ")
+
         # Remove extra whitespace
-        formatted_data = ' '.join(formatted_data.split())
-        
+        formatted_data = " ".join(formatted_data.split())
+
         # The CSV writer will handle quote escaping automatically
         return formatted_data
 
