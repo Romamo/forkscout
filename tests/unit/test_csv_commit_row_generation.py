@@ -285,7 +285,7 @@ class TestCSVCommitRowGeneration:
         base_data = exporter._extract_base_fork_data(sample_fork_analysis_with_commits)
         commit = sample_commits[0]
         
-        row = exporter._create_commit_row(base_data, commit)
+        row = exporter._create_commit_row(base_data, commit, sample_fork_analysis_with_commits)
         
         # Should have all base data
         assert row["fork_name"] == "test_repo"
