@@ -42,7 +42,7 @@ class InteractiveAnalysisOrchestrator:
         """
         self.github_client = github_client
         self.config = config
-        self.console = console or Console(file=sys.stdout)
+        self.console = console or Console(file=sys.stdout, soft_wrap=False)
         self.steps: list[InteractiveStep] = []
         self.context: dict[str, Any] = {}
         self.session_start_time: datetime | None = None
@@ -271,9 +271,9 @@ class InteractiveAnalysisOrchestrator:
         if not metrics:
             return
 
-        table = Table(title="METRICS - Step Metrics", show_header=True, header_style="bold magenta")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green")
+        table = Table(title="METRICS - Step Metrics", show_header=True, header_style="bold magenta", expand=False)
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        table.add_column("Value", style="green", no_wrap=True, overflow="fold")
 
         for key, value in metrics.items():
             table.add_row(key.replace("_", " ").title(), str(value))

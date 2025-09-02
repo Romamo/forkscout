@@ -28,7 +28,7 @@ class InteractiveAnalyzer:
             console: Rich console for output (optional, creates new if None)
         """
         self.github_client = github_client
-        self.console = console or Console(file=sys.stdout)
+        self.console = console or Console(file=sys.stdout, soft_wrap=False)
 
     async def analyze_specific_fork(
         self,
@@ -468,9 +468,9 @@ class InteractiveAnalyzer:
         fork = fork_details.fork
 
         # Create main details table
-        table = Table(title=f"Fork Details: {fork.full_name}")
-        table.add_column("Property", style="cyan", width=20)
-        table.add_column("Value", style="green")
+        table = Table(title=f"Fork Details: {fork.full_name}", expand=False)
+        table.add_column("Property", style="cyan", width=20, no_wrap=True)
+        table.add_column("Value", style="green", no_wrap=True, overflow="fold")
 
         table.add_row("Full Name", fork.full_name)
         table.add_row("Owner", fork.owner)
@@ -517,12 +517,12 @@ class InteractiveAnalyzer:
         if not branches:
             return
 
-        table = Table(title=f"Branches ({len(branches)} total)")
-        table.add_column("Branch Name", style="cyan", min_width=15)
-        table.add_column("Commits", style="yellow", justify="right", width=8)
-        table.add_column("Ahead of Main", style="green", justify="right", width=12)
-        table.add_column("Last Activity", style="magenta", width=15)
-        table.add_column("Status", style="white", width=10)
+        table = Table(title=f"Branches ({len(branches)} total)", expand=False)
+        table.add_column("Branch Name", style="cyan", min_width=15, no_wrap=True, overflow="fold")
+        table.add_column("Commits", style="yellow", justify="right", width=8, no_wrap=True)
+        table.add_column("Ahead of Main", style="green", justify="right", width=12, no_wrap=True)
+        table.add_column("Last Activity", style="magenta", width=15, no_wrap=True)
+        table.add_column("Status", style="white", width=10, no_wrap=True)
 
         for branch in branches:
             # Highlight the analyzed branch
@@ -675,12 +675,12 @@ class InteractiveAnalyzer:
         Args:
             commits: List of recent commits
         """
-        table = Table(title=f"Recent Commits ({len(commits)} shown)")
-        table.add_column("SHA", style="dim", width=8)
-        table.add_column("Message", style="white", min_width=30)
-        table.add_column("Author", style="cyan", width=15)
-        table.add_column("Date", style="magenta", width=12)
-        table.add_column("Changes", style="yellow", justify="right", width=8)
+        table = Table(title=f"Recent Commits ({len(commits)} shown)", expand=False)
+        table.add_column("SHA", style="dim", width=8, no_wrap=True)
+        table.add_column("Message", style="white", min_width=30, no_wrap=True, overflow="fold")
+        table.add_column("Author", style="cyan", width=15, no_wrap=True)
+        table.add_column("Date", style="magenta", width=12, no_wrap=True)
+        table.add_column("Changes", style="yellow", justify="right", width=8, no_wrap=True)
 
         for commit in commits:
             # Truncate long commit messages

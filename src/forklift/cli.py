@@ -76,7 +76,7 @@ from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
 from forklift.reporting.csv_output_manager import create_csv_context, create_csv_output_manager
 from forklift.storage.analysis_cache import AnalysisCacheManager
 
-console = Console(file=sys.stdout)
+console = Console(file=sys.stdout, soft_wrap=False)
 logger = logging.getLogger(__name__)
 
 
@@ -115,11 +115,11 @@ def initialize_cli_environment() -> tuple[InteractionMode, bool]:
     global console
     if interaction_mode == InteractionMode.NON_INTERACTIVE:
         # For non-interactive mode, disable colors and fancy formatting
-        console = Console(file=sys.stdout, force_terminal=False, no_color=True)
+        console = Console(file=sys.stdout, force_terminal=False, no_color=True, soft_wrap=False)
     else:
         # For all other modes, keep console on stdout
         # Interactive elements (progress bars, prompts) will be handled separately
-        console = Console(file=sys.stdout)
+        console = Console(file=sys.stdout, soft_wrap=False)
     
     # Reset progress reporter to ensure it uses the correct mode
     reset_progress_reporter()
@@ -1238,7 +1238,7 @@ def show_forks(
 
         if verbose and not csv:
             # Use stderr for verbose messages when output might be redirected
-            verbose_console = Console(file=sys.stderr) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
+            verbose_console = Console(file=sys.stderr, soft_wrap=False) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
             verbose_console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Detect CSV export mode early in processing
@@ -2097,7 +2097,7 @@ async def _show_forks_summary(
     async with GitHubClient(config.github) as github_client:
         # Create appropriate console for main content output
         # Always use stdout for main content, regardless of interaction mode
-        content_console = Console(file=sys.stdout)
+        content_console = Console(file=sys.stdout, soft_wrap=False)
         display_service = RepositoryDisplayService(github_client, content_console)
         
         # Log interaction mode for debugging

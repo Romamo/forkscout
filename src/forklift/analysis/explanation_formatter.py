@@ -87,7 +87,7 @@ class ExplanationFormatter:
         self.use_colors = use_colors
         self.use_icons = use_icons
         self.use_simple_tables = use_simple_tables
-        self.console = Console(file=sys.stdout)
+        self.console = Console(file=sys.stdout, soft_wrap=False)
         self.simple_formatter = SimpleTableFormatter()
 
     def format_commit_explanation(
@@ -153,15 +153,15 @@ class ExplanationFormatter:
         if self.use_simple_tables:
             return self._format_explanation_table_simple(explanations)
 
-        table = Table(title="Commit Explanations", show_header=True, header_style="bold magenta")
+        table = Table(title="Commit Explanations", show_header=True, header_style="bold magenta", expand=False)
 
         # Add columns
-        table.add_column("SHA", style="cyan", width=8)
-        table.add_column("Category", width=12)
-        table.add_column("Impact", width=8)
-        table.add_column("Value", width=8)
-        table.add_column("Description", style="white")
-        table.add_column("GitHub", width=10)
+        table.add_column("SHA", style="cyan", width=8, no_wrap=True)
+        table.add_column("Category", width=12, no_wrap=True)
+        table.add_column("Impact", width=8, no_wrap=True)
+        table.add_column("Value", width=8, no_wrap=True)
+        table.add_column("Description", style="white", no_wrap=True, overflow="fold")
+        table.add_column("GitHub", width=10, no_wrap=True)
 
         for commit_with_explanation in explanations:
             commit = commit_with_explanation.commit

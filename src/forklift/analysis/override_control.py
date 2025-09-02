@@ -71,9 +71,9 @@ class ExpensiveOperationConfirmer:
         estimated_time_minutes = len(forks) * 0.5  # Rough estimate
 
         # Display operation details
-        table = Table(title=f"Expensive Operation: {operation_description.title()}")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="yellow")
+        table = Table(title=f"Expensive Operation: {operation_description.title()}", expand=False)
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        table.add_column("Value", style="yellow", no_wrap=True, overflow="fold")
 
         table.add_row("Forks to analyze", str(len(forks)))
         table.add_row("Estimated API calls", str(estimated_api_calls))
@@ -115,9 +115,9 @@ class ExpensiveOperationConfirmer:
             return True
 
         # Display cost information
-        table = Table(title="AI Summary Generation")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="yellow")
+        table = Table(title="AI Summary Generation", expand=False)
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        table.add_column("Value", style="yellow", no_wrap=True, overflow="fold")
 
         table.add_row("Commits to analyze", str(commit_count))
         if estimated_cost > 0:
@@ -335,10 +335,10 @@ class OverrideController:
     def display_override_summary(self) -> None:
         """Display current override settings to user."""
         if self.config.scan_all or self.config.force:
-            table = Table(title="Active Override Settings")
-            table.add_column("Override", style="cyan")
-            table.add_column("Status", style="yellow")
-            table.add_column("Effect", style="green")
+            table = Table(title="Active Override Settings", expand=False)
+            table.add_column("Override", style="cyan", no_wrap=True)
+            table.add_column("Status", style="yellow", no_wrap=True)
+            table.add_column("Effect", style="green", no_wrap=True, overflow="fold")
 
             if self.config.scan_all:
                 table.add_row(

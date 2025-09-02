@@ -660,6 +660,231 @@ class TerminalDetector:
     def is_stderr_tty() -> bool:
         """Check if stderr is connected to a terminal."""
         return sys.stderr.isatty()
+```
+
+## Rich Console Table Display System Design Philosophy
+
+The Rich Console table display system is designed to prioritize data completeness and readability over visual formatting constraints. The system ensures that users can access complete information without truncation or inappropriate wrapping, even when content exceeds terminal width.
+
+### Rich Console Design Principles
+
+- **Data Completeness First**: Never truncate or hide important information due to formatting constraints
+- **Horizontal Scrolling Support**: Rely on terminal horizontal scrolling capabilities rather than forcing content to fit
+- **Consistent Configuration**: Use standardized Rich Console and Table configurations across all display components
+- **No Automatic Wrapping**: Prevent Rich from automatically wrapping content that should remain intact
+- **Full Content Display**: Show complete commit messages, URLs, and descriptions without ellipsis truncation
+- **Terminal Compatibility**: Work reliably across different terminal environments and emulators
+
+### Rich Console Configuration Architecture
+
+```mermaid
+graph TD
+    A[Display Component] --> B[Rich Console Factory]
+    B --> C[Console Configuration]
+    C --> D[soft_wrap=False]
+    C --> E[Standard Width Detection]
+    
+    F[Table Creation] --> G[Table Configuration]
+    G --> H[expand=False]
+    G --> I[Column Configuration]
+    
+    I --> J[Critical Data Columns]
+    I --> K[Flexible Columns]
+    
+    J --> L[no_wrap=True]
+    J --> M[overflow='fold']
+    
+    K --> N[Standard Wrapping]
+    K --> O[overflow='ellipsis']
+    
+    P[Content Display] --> Q{Content Length Check}
+    Q -->|Long Content| R[Horizontal Scroll Required]
+    Q -->|Normal Content| S[Standard Display]
+    
+    R --> T[Terminal Scroll Capability]
+    S --> U[Direct Display]
+```
+
+### Console Configuration Components
+
+#### 1. Rich Console Factory
+```python
+class RichConsoleFactory:
+    """Factory for creating consistently configured Rich Console instances."""
+    
+    @staticmethod
+    def create_console(soft_wrap: bool = False) -> Console:
+        """Create Rich Console with standard configuration."""
+        return Console(
+            soft_wrap=soft_wrap,
+            width=None,  # Use terminal width detection
+            force_terminal=None,  # Auto-detect terminal capabilities
+            no_color=False,  # Respect environment color settings
+        )
+    
+    @staticmethod
+    def create_table_console() -> Console:
+        """Create Console specifically optimized for table display."""
+        return Console(
+            soft_wrap=False,  # Critical: prevent automatic wrapping
+            width=None,
+            force_terminal=None,
+        )
+```
+
+#### 2. Table Configuration System
+```python
+class TableConfigurationManager:
+    """Manages Rich Table configuration for different display scenarios."""
+    
+    @staticmethod
+    def create_data_table(title: str = None) -> Table:
+        """Create table optimized for data display."""
+        return Table(
+            title=title,
+            expand=False,  # Don't auto-expand to terminal width
+            show_lines=True,
+            show_header=True,
+            header_style="bold blue",
+            box=box.SIMPLE,  # Use simple ASCII box drawing
+        )
+    
+    @staticmethod
+    def add_critical_column(
+        table: Table, 
+        header: str, 
+        width: int = None,
+        no_wrap: bool = True
+    ) -> None:
+        """Add column for critical data that should never wrap."""
+        table.add_column(
+            header,
+            width=width,
+            no_wrap=no_wrap,  # Critical: prevent wrapping
+            overflow="fold",  # Show full content, wrap if necessary
+            style=None,
+        )
+    
+    @staticmethod
+    def add_flexible_column(
+        table: Table,
+        header: str,
+        width: int = None
+    ) -> None:
+        """Add column that can wrap or truncate if needed."""
+        table.add_column(
+            header,
+            width=width,
+            no_wrap=False,
+            overflow="ellipsis",  # Can truncate if absolutely necessary
+            style=None,
+        )
+```
+
+#### 3. Content Display Strategy
+```python
+class ContentDisplayStrategy:
+    """Strategies for displaying different types of content in tables."""
+    
+    @staticmethod
+    def format_commit_message(message: str) -> str:
+        """Format commit message for table display."""
+        # No truncation - show complete message
+        return message.strip()
+    
+    @staticmethod
+    def format_github_url(url: str) -> str:
+        """Format GitHub URL for table display."""
+        # No truncation - show complete URL for clickability
+        return url
+    
+    @staticmethod
+    def format_description(description: str, max_length: int = None) -> str:
+        """Format description with optional length limit."""
+        if max_length and len(description) > max_length:
+            # Only truncate descriptions if absolutely necessary
+            return description[:max_length-3] + "..."
+        return description
+```
+
+### Implementation Strategy
+
+#### Phase 1: Console Configuration Standardization
+1. Create RichConsoleFactory for consistent Console creation
+2. Update all display components to use factory-created consoles
+3. Ensure `soft_wrap=False` is used consistently
+4. Test console behavior across different terminal environments
+
+#### Phase 2: Table Configuration Enhancement
+1. Implement TableConfigurationManager for standardized table creation
+2. Update all table creation to use configuration manager
+3. Apply `expand=False` and proper column configurations
+4. Test table display with various content lengths
+
+#### Phase 3: Column-Specific Configuration
+1. Identify critical data columns that should never wrap
+2. Apply `no_wrap=True` and `overflow="fold"` to critical columns
+3. Configure flexible columns appropriately
+4. Test with real data to ensure proper display
+
+#### Phase 4: Content Formatting Strategy
+1. Implement ContentDisplayStrategy for different content types
+2. Remove unnecessary truncation from commit messages and URLs
+3. Preserve data completeness while maintaining readability
+4. Test horizontal scrolling behavior in various terminals
+
+### Error Handling and Fallbacks
+
+#### Terminal Compatibility Issues
+- **Limited Terminal Width**: Rely on horizontal scrolling rather than forcing content to fit
+- **No Color Support**: Gracefully degrade to plain text while maintaining structure
+- **Old Terminal Emulators**: Provide fallback to simple ASCII table formatting
+- **Console Creation Failures**: Fall back to basic print statements with structured formatting
+
+#### Content Display Challenges
+- **Extremely Long Content**: Use intelligent truncation only when content would break terminal functionality
+- **Special Characters**: Handle Unicode and special characters gracefully
+- **Empty Content**: Display appropriate placeholders without breaking table structure
+- **Null Values**: Handle missing data gracefully with clear indicators
+
+### Testing Strategy
+
+#### Unit Tests
+- Test RichConsoleFactory configuration consistency
+- Verify TableConfigurationManager creates proper table structures
+- Test ContentDisplayStrategy formatting methods
+- Validate column configuration parameters
+
+#### Integration Tests
+- Test complete table display with various content types
+- Verify horizontal scrolling behavior in different terminals
+- Test console configuration across all display components
+- Validate data completeness in displayed tables
+
+#### Visual Regression Tests
+- Compare table output before and after configuration changes
+- Test with known problematic content (very long URLs, commit messages)
+- Verify consistent formatting across different commands
+- Test terminal width edge cases
+
+### Performance Considerations
+
+#### Console Creation Optimization
+- Cache Console instances where appropriate
+- Minimize console recreation overhead
+- Use lazy initialization for display components
+
+#### Table Rendering Performance
+- Optimize column width calculations
+- Minimize content processing overhead
+- Use efficient string formatting methods
+
+#### Memory Usage
+- Avoid storing large content in memory unnecessarily
+- Use streaming approaches for large datasets
+- Clean up Rich objects appropriately
+
+This design ensures that Rich Console tables display complete information without inappropriate wrapping or truncation, providing users with full access to data while maintaining clean, readable formatting.stderr.isatty()
     
     @staticmethod
     def get_terminal_size() -> Optional[Tuple[int, int]]:

@@ -122,11 +122,11 @@ class RepositoryDisplayService:
         else:
             if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
                 # Use a very wide width for file output to prevent table truncation
-                # Force width and disable auto-detection
-                self.console = Console(file=sys.stdout, width=1000, force_terminal=True, _environ={})
+                # Force width and disable auto-detection, disable soft wrapping
+                self.console = Console(file=sys.stdout, width=1000, force_terminal=True, soft_wrap=False, _environ={})
             else:
-                # Use default width for terminal output
-                self.console = Console(file=sys.stdout)
+                # Use default width for terminal output, disable soft wrapping
+                self.console = Console(file=sys.stdout, soft_wrap=False)
         self.cache_manager = cache_manager
         self._should_exclude_language_distribution = (
             should_exclude_language_distribution
@@ -136,8 +136,8 @@ class RepositoryDisplayService:
         # Create a separate console for progress bars that always goes to stderr
         # This ensures progress bars don't interfere with output redirection
         if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
-            # When output is redirected, progress should go to stderr
-            self.progress_console = Console(file=sys.stderr)
+            # When output is redirected, progress should go to stderr, disable soft wrapping
+            self.progress_console = Console(file=sys.stderr, soft_wrap=False)
         else:
             # For other modes, use the same console as content
             self.progress_console = self.console
@@ -581,9 +581,9 @@ class RepositoryDisplayService:
         repository = repo_details["repository"]
 
         # Create main repository info table
-        table = Table(title=f"Repository Details: {repository.full_name}")
-        table.add_column("Property", style="cyan", width=20)
-        table.add_column("Value", style="green")
+        table = Table(title=f"Repository Details: {repository.full_name}", expand=False)
+        table.add_column("Property", style="cyan", width=20, no_wrap=True)
+        table.add_column("Value", style="green", no_wrap=True, overflow="fold")
 
         table.add_row("Name", repository.name)
         table.add_row("Owner", repository.owner)
@@ -673,15 +673,15 @@ class RepositoryDisplayService:
             self.console.print("[yellow]No forks found.[/yellow]")
             return
 
-        table = Table(title=f"Fork Summary ({len(enhanced_forks)} forks found)")
-        table.add_column("#", style="dim", width=4)
-        table.add_column("Fork Name", style="cyan", min_width=25)
-        table.add_column("Owner", style="blue", min_width=15)
-        table.add_column("Stars", style="yellow", justify="right", width=8)
-        table.add_column("Commits", style="green", justify="right", width=12)
-        table.add_column("Last Activity", style="magenta", width=15)
-        table.add_column("Status", style="white", width=10)
-        table.add_column("Language", style="white", width=12)
+        table = Table(title=f"Fork Summary ({len(enhanced_forks)} forks found)", expand=False)
+        table.add_column("#", style="dim", width=4, no_wrap=True)
+        table.add_column("Fork Name", style="cyan", min_width=25, no_wrap=True, overflow="fold")
+        table.add_column("Owner", style="blue", min_width=15, no_wrap=True, overflow="fold")
+        table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
+        table.add_column("Commits", style="green", justify="right", width=12, no_wrap=True)
+        table.add_column("Last Activity", style="magenta", width=15, no_wrap=True)
+        table.add_column("Status", style="white", width=10, no_wrap=True)
+        table.add_column("Language", style="white", width=12, no_wrap=True)
 
         display_count = min(len(enhanced_forks), max_display)
 
@@ -880,11 +880,11 @@ class RepositoryDisplayService:
         )
         self.console.print("=" * 80)
 
-        summary_table = Table(title="Collection Summary")
-        summary_table.add_column("Metric", style="cyan", width=25)
-        summary_table.add_column("Count", style="green", justify="right", width=10)
+        summary_table = Table(title="Collection Summary", expand=False)
+        summary_table.add_column("Metric", style="cyan", width=25, no_wrap=True)
+        summary_table.add_column("Count", style="green", justify="right", width=10, no_wrap=True)
         summary_table.add_column(
-            "Percentage", style="yellow", justify="right", width=12
+            "Percentage", style="yellow", justify="right", width=12, no_wrap=True
         )
 
         total = stats.total_forks_discovered
@@ -927,13 +927,14 @@ class RepositoryDisplayService:
                 f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
             )
             fork_table = Table(
-                title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, stars, forks, activity){title_suffix}"
+                title=f"All Forks ({len(sorted_forks)} displayed, sorted by commits status, stars, forks, activity){title_suffix}",
+                expand=False
             )
-            fork_table.add_column("URL", style="cyan", min_width=35)
-            fork_table.add_column("Stars", style="yellow", justify="right", width=8)
-            fork_table.add_column("Forks", style="green", justify="right", width=8)
-            fork_table.add_column("Commits", style="magenta", justify="right", width=12)
-            fork_table.add_column("Last Push", style="blue", width=12)
+            fork_table.add_column("URL", style="cyan", min_width=35, no_wrap=True, overflow="fold")
+            fork_table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
+            fork_table.add_column("Forks", style="green", justify="right", width=8, no_wrap=True)
+            fork_table.add_column("Commits", style="magenta", justify="right", width=12, no_wrap=True)
+            fork_table.add_column("Last Push", style="blue", width=12, no_wrap=True)
 
             # Conditionally add Recent Commits column
             if show_commits > 0:
@@ -948,7 +949,7 @@ class RepositoryDisplayService:
                 commits_width = max(50, min(400, base_width + estimated_message_width))
 
                 fork_table.add_column(
-                    "Recent Commits", style="dim", width=commits_width
+                    "Recent Commits", style="dim", width=commits_width, no_wrap=True, overflow="fold"
                 )
 
             # Determine display limit
@@ -1214,10 +1215,10 @@ class RepositoryDisplayService:
         """
         if exclude_archived or exclude_disabled:
             self.console.print("\n[bold yellow]Applied Filters:[/bold yellow]")
-            filter_table = Table()
-            filter_table.add_column("Filter", style="cyan")
-            filter_table.add_column("Status", style="green")
-            filter_table.add_column("Excluded Count", style="red", justify="right")
+            filter_table = Table(expand=False)
+            filter_table.add_column("Filter", style="cyan", no_wrap=True)
+            filter_table.add_column("Status", style="green", no_wrap=True)
+            filter_table.add_column("Excluded Count", style="red", justify="right", no_wrap=True)
 
             if exclude_archived:
                 filter_table.add_row(
@@ -1243,10 +1244,10 @@ class RepositoryDisplayService:
         skip_candidates = qualification_result.forks_to_skip
 
         self.console.print("\n[bold green]Fork Insights:[/bold green]")
-        insights_table = Table()
-        insights_table.add_column("Category", style="cyan", width=25)
-        insights_table.add_column("Count", style="green", justify="right", width=8)
-        insights_table.add_column("Description", style="white")
+        insights_table = Table(expand=False)
+        insights_table.add_column("Category", style="cyan", width=25, no_wrap=True)
+        insights_table.add_column("Count", style="green", justify="right", width=8, no_wrap=True)
+        insights_table.add_column("Description", style="white", no_wrap=True, overflow="fold")
 
         insights_table.add_row(
             "Active Forks",
@@ -1276,10 +1277,10 @@ class RepositoryDisplayService:
 
             if languages:
                 self.console.print("\n[bold blue]Language Distribution:[/bold blue]")
-                lang_table = Table()
-                lang_table.add_column("Language", style="cyan")
-                lang_table.add_column("Fork Count", style="green", justify="right")
-                lang_table.add_column("Percentage", style="yellow", justify="right")
+                lang_table = Table(expand=False)
+                lang_table.add_column("Language", style="cyan", no_wrap=True)
+                lang_table.add_column("Fork Count", style="green", justify="right", no_wrap=True)
+                lang_table.add_column("Percentage", style="yellow", justify="right", no_wrap=True)
 
                 total_forks = len(qualification_result.collected_forks)
                 for lang, count in sorted(
@@ -1757,14 +1758,14 @@ class RepositoryDisplayService:
         self.console.print("=" * 80)
 
         # Create table with universal column configuration
-        fork_table = Table(show_header=True, header_style="bold magenta")
+        fork_table = Table(show_header=True, header_style="bold magenta", expand=False)
 
         # Standard columns with automatic sizing
-        fork_table.add_column("URL", style="cyan")
-        fork_table.add_column("Stars", style="yellow", justify="right")
-        fork_table.add_column("Forks", style="green", justify="right")
-        fork_table.add_column("Commits Ahead", style="magenta", justify="right")
-        fork_table.add_column("Last Push", style="blue")
+        fork_table.add_column("URL", style="cyan", no_wrap=True, overflow="fold")
+        fork_table.add_column("Stars", style="yellow", justify="right", no_wrap=True)
+        fork_table.add_column("Forks", style="green", justify="right", no_wrap=True)
+        fork_table.add_column("Commits Ahead", style="magenta", justify="right", no_wrap=True)
+        fork_table.add_column("Last Push", style="blue", no_wrap=True)
 
         # Conditionally add Recent Commits column
         commits_cache = {}
@@ -1774,7 +1775,7 @@ class RepositoryDisplayService:
                 style="dim", 
                 no_wrap=True,
                 min_width=200,     # Much larger minimum width to prevent truncation
-                overflow="ignore"  # Don't truncate with ...
+                overflow="fold"  # Show full content instead of truncating
             )
 
             # Fetch commits concurrently if needed
@@ -1937,15 +1938,15 @@ class RepositoryDisplayService:
         )
         fork_table = Table(
             title=f"Detailed Forks ({len(sorted_forks)} active forks with exact commit counts){title_suffix}",
-            expand=True       # Expand to full console width
+            expand=False       # Don't expand to full console width
         )
-        fork_table.add_column("URL", style="cyan", min_width=35)
-        fork_table.add_column("Stars", style="yellow", justify="right", width=8)
-        fork_table.add_column("Forks", style="green", justify="right", width=8)
+        fork_table.add_column("URL", style="cyan", min_width=35, no_wrap=True, overflow="fold")
+        fork_table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
+        fork_table.add_column("Forks", style="green", justify="right", width=8, no_wrap=True)
         fork_table.add_column(
-            "Commits Ahead", style="magenta", justify="right", width=15
+            "Commits Ahead", style="magenta", justify="right", width=15, no_wrap=True
         )
-        fork_table.add_column("Last Push", style="blue", width=14)
+        fork_table.add_column("Last Push", style="blue", width=14, no_wrap=True)
 
         # Conditionally add Recent Commits column
         if show_commits > 0:
@@ -1955,7 +1956,7 @@ class RepositoryDisplayService:
                 style="dim", 
                 no_wrap=True,
                 min_width=50,      # Minimum readable width
-                overflow="ignore"  # Don't truncate with ...
+                overflow="fold"  # Show full content instead of truncating
             )
 
         # Fetch commits concurrently if requested, with optimization
@@ -2094,15 +2095,15 @@ class RepositoryDisplayService:
         self._display_filter_criteria(filters)
 
         # Create table
-        table = Table(title=f"Promising Forks ({len(promising_forks)} found)")
-        table.add_column("#", style="dim", width=4)
-        table.add_column("Fork Name", style="cyan", min_width=25)
-        table.add_column("Owner", style="blue", min_width=15)
-        table.add_column("Stars", style="yellow", justify="right", width=8)
-        table.add_column("Commits", style="green", justify="right", width=12)
-        table.add_column("Activity Score", style="magenta", justify="right", width=13)
-        table.add_column("Last Activity", style="white", width=15)
-        table.add_column("Language", style="white", width=12)
+        table = Table(title=f"Promising Forks ({len(promising_forks)} found)", expand=False)
+        table.add_column("#", style="dim", width=4, no_wrap=True)
+        table.add_column("Fork Name", style="cyan", min_width=25, no_wrap=True, overflow="fold")
+        table.add_column("Owner", style="blue", min_width=15, no_wrap=True, overflow="fold")
+        table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
+        table.add_column("Commits", style="green", justify="right", width=12, no_wrap=True)
+        table.add_column("Activity Score", style="magenta", justify="right", width=13, no_wrap=True)
+        table.add_column("Last Activity", style="white", width=15, no_wrap=True)
+        table.add_column("Language", style="white", width=12, no_wrap=True)
 
         for i, fork_data in enumerate(promising_forks, 1):
             fork = fork_data["fork"]
@@ -2558,7 +2559,7 @@ class RepositoryDisplayService:
 
         table = Table(
             title=f"Forks Preview ({len(fork_items)} forks found)",
-            expand=True       # Expand to full console width
+            expand=False       # Don't expand to full console width
         )
         table.add_column("#", style="dim", width=4)
         table.add_column("Fork Name", style="cyan", min_width=25)
@@ -2634,7 +2635,7 @@ class RepositoryDisplayService:
         table_title = self._build_table_title(sorted_forks, table_context, show_commits)
         fork_table = Table(
             title=table_title,
-            expand=True       # Expand to full console width
+            expand=False       # Don't expand to full console width
         )
 
         # 4. Add standard columns with unified widths
@@ -2901,9 +2902,9 @@ class RepositoryDisplayService:
         # Display summary statistics (existing logic from _display_fork_data_table)
         stats = qualification_result.stats
 
-        summary_table = Table(title="Collection Summary")
-        summary_table.add_column("Metric", style="cyan", width=25)
-        summary_table.add_column("Count", style="green", justify="right", width=10)
+        summary_table = Table(title="Collection Summary", expand=False)
+        summary_table.add_column("Metric", style="cyan", width=25, no_wrap=True)
+        summary_table.add_column("Count", style="green", justify="right", width=10, no_wrap=True)
         summary_table.add_column("Percentage", style="yellow", justify="right", width=12)
 
         total = stats.total_forks_discovered

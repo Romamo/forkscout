@@ -1,6 +1,7 @@
 """AI summary display formatter with Rich formatting and visual separation."""
 
 import logging
+import sys
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -23,7 +24,7 @@ class AISummaryDisplayFormatter:
         Args:
             console: Rich console for output (optional, creates new if None)
         """
-        self.console = console or Console(file=sys.stdout)
+        self.console = console or Console(file=sys.stdout, soft_wrap=False)
 
     def format_ai_summaries_detailed(
         self,
@@ -111,13 +112,14 @@ class AISummaryDisplayFormatter:
             title="AI Commit Analysis",
             show_header=True,
             header_style="bold magenta",
-            border_style="blue"
+            border_style="blue",
+            expand=False
         )
-        table.add_column("Commit", style="cyan", width=8)
-        table.add_column("Author", style="green", width=12)
-        table.add_column("Message", style="yellow", width=30)
-        table.add_column("AI Summary", style="white", width=60)
-        table.add_column("Meta", style="dim", width=8)
+        table.add_column("Commit", style="cyan", width=8, no_wrap=True)
+        table.add_column("Author", style="green", width=12, no_wrap=True, overflow="fold")
+        table.add_column("Message", style="yellow", width=30, no_wrap=True, overflow="fold")
+        table.add_column("AI Summary", style="white", width=60, no_wrap=True, overflow="fold")
+        table.add_column("Meta", style="dim", width=8, no_wrap=True)
 
         # Create a mapping of commit SHA to summary
         summary_map = {summary.commit_sha: summary for summary in summaries}
@@ -218,9 +220,9 @@ class AISummaryDisplayFormatter:
         self.console.print(f"\n[bold cyan]#{index}/{total} Commit {commit.sha[:8]}[/bold cyan]")
 
         # Basic commit information
-        info_table = Table(show_header=False, box=None, padding=(0, 1))
-        info_table.add_column("Field", style="dim", width=12)
-        info_table.add_column("Value", style="white")
+        info_table = Table(show_header=False, box=None, padding=(0, 1), expand=False)
+        info_table.add_column("Field", style="dim", width=12, no_wrap=True)
+        info_table.add_column("Value", style="white", no_wrap=True, overflow="fold")
 
         info_table.add_row("Author:", f"[green]{commit.author.login if commit.author else 'Unknown'}[/green]")
         info_table.add_row("Date:", f"[yellow]{self._format_datetime_simple(commit.date)}[/yellow]")
@@ -542,8 +544,8 @@ class AISummaryDisplayFormatter:
 
         self.console.print(f"\n[bold]{title}[/bold]")
         usage_table = Table(show_header=False, box=None, padding=(0, 1))
-        usage_table.add_column("Metric", style="cyan")
-        usage_table.add_column("Value", style="green")
+        usage_table.add_column("Metric", style="cyan", no_wrap=True)
+        usage_table.add_column("Value", style="green", no_wrap=True)
 
         usage_table.add_row(
             "SUCCESS - Successful requests:",

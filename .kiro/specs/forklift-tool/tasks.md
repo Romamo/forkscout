@@ -280,6 +280,18 @@
   - Prevent soft wrapping in Recent Commits column by configuring Rich table column properties to maintain clean table formatting
   - _Requirements: 21.1, 21.2, 21.3, 21.5, 21.7, 21.8, 21.10, 21.11, 21.12, 22.11_
 
+- [-] 8.3.6 Fix Rich Console table wrapping and truncation issues
+  - Configure Rich Console with `soft_wrap=False` in all table display components to prevent automatic text wrapping
+  - Update all Rich Table column definitions to use `no_wrap=True` for critical data columns (URLs, commit messages, descriptions)
+  - Replace any `overflow="ellipsis"` configurations with `overflow="fold"` to show full content instead of truncating with "..."
+  - Set `expand=False` on all Rich Table instances to prevent automatic stretching to terminal width
+  - Update RepositoryDisplayService, ExplanationFormatter, and other display components to use consistent Rich Console configuration
+  - Ensure commit messages, GitHub URLs, and other important data are never truncated or wrapped inappropriately
+  - Test table display with long content to verify horizontal scrolling works properly in terminals
+  - Write unit tests for Rich Console configuration and table column properties
+  - Write integration tests to verify complete data display without truncation
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10, 22.11_
+
 - [x] 8.3.2 Fix soft wrapping in Detailed Forks table Recent Commits column
   - Modify `_display_detailed_fork_table` method in RepositoryDisplayService to prevent soft wrapping in Recent Commits column
   - Configure Rich Table column with `no_wrap=True` parameter for Recent Commits column
@@ -1720,7 +1732,7 @@
   - Write integration tests for --csv combined with --detail flag
   - _Requirements: 26.5_
 
-- [-] 27.6 Implement comprehensive error handling and output management
+- [x] 27.6 Implement comprehensive error handling and output management
   - Add clean error reporting that sends all error messages to stderr
   - Implement graceful exit codes (0 for success, non-zero for failure)
   - Ensure no partial CSV output is generated when errors occur
@@ -1730,7 +1742,7 @@
   - Write tests to verify clean stdout output and proper stderr error reporting
   - _Requirements: 26.10, 26.11_
 
-- [ ] 27.7 Add comprehensive testing for CSV export functionality
+- [x] 27.7 Add comprehensive testing for CSV export functionality
   - Write unit tests for CSVExporter class with various fork data scenarios
   - Create tests for special character escaping (commas, quotes, newlines, Unicode)
   - Add integration tests using real repository data to verify CSV output quality

@@ -296,6 +296,24 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 11. WHEN using simple formatting THEN the system SHALL ensure all information remains accessible and readable in any terminal
 12. WHEN displaying data THEN the system SHALL prioritize readability and compatibility over visual aesthetics
 
+### Requirement 22
+
+**User Story:** As a repository maintainer, I want Rich Console tables to display full content without wrapping or truncation, so that I can see complete information in table columns without text being hidden or broken across lines.
+
+#### Acceptance Criteria
+
+1. WHEN displaying Rich Console tables THEN the system SHALL configure Console with `soft_wrap=False` to prevent automatic text wrapping
+2. WHEN creating Rich Table columns THEN the system SHALL use `no_wrap=True` parameter for columns that should display full content without wrapping
+3. WHEN table content exceeds terminal width THEN the system SHALL allow horizontal scrolling rather than wrapping or truncating content
+4. WHEN displaying long text in table cells THEN the system SHALL use `overflow="fold"` to show full content with wrapping only when necessary, not `overflow="ellipsis"` which truncates with "..."
+5. WHEN creating tables THEN the system SHALL set `expand=False` to prevent Rich from automatically stretching tables to terminal width
+6. WHEN long content cannot fit in terminal width THEN the system SHALL preserve complete information and rely on terminal horizontal scrolling capabilities
+7. WHEN configuring Rich Console THEN the system SHALL ensure that `Console(soft_wrap=False)` is used consistently across all table display operations
+8. WHEN users need to see full table content THEN the system SHALL provide complete, untruncated information even if it requires horizontal scrolling in the terminal
+9. WHEN displaying commit messages, URLs, or other important data in tables THEN the system SHALL never truncate or hide content with ellipsis or wrapping
+10. WHEN table formatting conflicts with terminal width THEN the system SHALL prioritize data completeness over visual formatting constraints
+11. WHEN using Rich Table components THEN the system SHALL configure column properties to prevent soft wrapping in critical data columns like Recent Commits, URLs, and descriptions
+
 ### Requirement 19
 
 **User Story:** As a repository maintainer, I want a detailed view option for the show-commits command that displays comprehensive commit information including GitHub URLs, AI summaries, messages, and diffs, so that I can thoroughly analyze individual commits without navigating to multiple sources.
