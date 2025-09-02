@@ -7,7 +7,7 @@
   - Write unit tests for updated configuration options
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [-] 2. Implement multi-row CSV formatting logic
+- [x] 2. Implement multi-row CSV formatting logic
 - [x] 2.1 Create base fork data extraction method
   - Implement _extract_base_fork_data method to extract repository information that will be repeated across commit rows
   - Include all essential fork metadata (name, owner, stars, forks_count, commits_ahead, commits_behind, is_active, features_count)
@@ -23,7 +23,7 @@
   - Write unit tests for commit row generation with various commit scenarios
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [-] 2.3 Create commit data formatting methods
+- [x] 2.3 Create commit data formatting methods
   - Implement _format_commit_date method using configurable date format (YYYY-MM-DD)
   - Create _format_commit_sha method to use 7-character short SHA format
   - Implement _escape_commit_message method to properly handle CSV special characters
@@ -31,8 +31,8 @@
   - Write unit tests for commit data formatting with edge cases
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.2, 6.3_
 
-- [ ] 3. Update CSV export headers and structure
-- [ ] 3.1 Create enhanced column header generation
+- [-] 3. Update CSV export headers and structure
+- [-] 3.1 Create enhanced column header generation
   - Implement _generate_enhanced_fork_analysis_headers method for multi-row format
   - Replace "recent_commits" column with "commit_date", "commit_sha", "commit_description" columns
   - Maintain existing columns for repository information

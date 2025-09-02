@@ -774,6 +774,209 @@ class TestCSVExportGeneric(TestCSVExporter):
         assert buffer_content == csv_output
 
 
+class TestEnhancedHeaderGeneration(TestCSVExporter):
+    """Test enhanced column header generation for multi-row format."""
+
+    def test_generate_enhanced_fork_analysis_headers_basic(self, exporter):
+        """Test basic enhanced header generation."""
+        headers = exporter._generate_enhanced_fork_analysis_headers()
+
+        # Check essential fork metadata columns are present
+        expected_base_headers = [
+            "fork_name",
+            "owner",
+            "stars",
+            "forks_count",
+            "commits_ahead",
+            "commits_behind",
+            "is_active",
+            "features_count"
+        ]
+
+        for header in expected_base_headers:
+            assert header in headers
+
+        # Check commit-specific columns are present (replaces recent_commits)
+        expected_commit_headers = [
+            "commit_date",
+            "commit_sha",
+            "commit_description"
+        ]
+
+        for header in expected_commit_headers:
+            assert header in headers
+
+        # Verify recent_commits column is NOT present
+        assert "recent_commits" not in headers
+
+        # Check URL columns are included by default
+        assert "fork_url" in headers
+        assert "owner_url" in headers
+        assert "commit_url" in headers
+
+    def test_generate_enhanced_headers_without_urls(self):
+        """Test enhanced header generation without URLs."""
+        config = CSVExportConfig(include_urls=False)
+        exporter = CSVExporter(config)
+
+        headers = exporter._generate_enhanced_fork_analysis_headers()
+
+        # URL columns should not be present
+        assert "fork_url" not in headers
+        assert "owner_url" not in headers
+        assert "commit_url" not in headers
+
+        # But commit columns should still be present
+        assert "commit_date" in headers
+        assert "commit_sha" in headers
+        assert "commit_description" in headers
+
+    def test_generate_enhanced_headers_with_detail_mode(self):
+        """Test enhanced header generation with detail mode enabled."""
+        config = CSVExportConfig(detail_mode=True)
+        exporter = CSVExporter(config)
+
+        headers = exporter._generate_enhanced_fork_analysis_headers()
+
+        # Check detail mode columns are present
+        expected_detail_headers = [
+            "language",
+            "description",
+            "last_activity",
+            "created_date",
+            "updated_date",
+            "pushed_date",
+            "size_kb",
+            "open_issues",
+            "is_archived",
+            "is_private"
+        ]
+
+        for header in expected_detail_headers:
+            assert header in headers
+
+        # Commit columns should still be present
+        assert "commit_date" in headers
+        assert "commit_sha" in headers
+        assert "commit_description" in headers
+
+    def test_generate_enhanced_headers_minimal_config(self):
+        """Test enhanced header generation with minimal configuration."""
+        config = CSVExportConfig(
+            include_urls=False,
+            detail_mode=False
+        )
+        exporter = CSVExporter(config)
+
+        headers = exporter._generate_enhanced_fork_analysis_headers()
+
+        # Should have essential columns plus commit columns
+        expected_minimal_headers = [
+            "fork_name",
+            "owner",
+            "stars",
+            "forks_count",
+            "commits_ahead",
+            "commits_behind",
+            "is_active",
+            "features_count",
+            "commit_date",
+            "commit_sha",
+            "commit_description"
+        ]
+
+        assert headers == expected_minimal_headers
+
+    def test_enhanced_headers_vs_traditional_headers(self, exporter):
+        """Test that enhanced headers differ from traditional headers appropriately."""
+        traditional_headers = exporter._generate_fork_analysis_headers()
+        enhanced_headers = exporter._generate_enhanced_fork_analysis_headers()
+
+        # Both should have the same base fork metadata columns
+        base_columns = [
+            "fork_name",
+            "owner",
+            "stars",
+            "forks_count",
+            "commits_ahead",
+            "commits_behind",
+            "is_active",
+            "features_count"
+        ]
+
+        for col in base_columns:
+            assert col in traditional_headers
+            assert col in enhanced_headers
+
+        # Enhanced format should have new commit columns
+        assert "commit_date" in enhanced_headers
+        assert "commit_sha" in enhanced_headers
+        assert "commit_description" in enhanced_headers
+
+        # Traditional format should not have these when include_commits=False
+        assert "commit_date" not in traditional_headers
+        assert "commit_sha" not in traditional_headers
+        assert "commit_description" not in traditional_headers
+
+    def test_enhanced_headers_consistency_with_data_structure(self, exporter):
+        """Test that enhanced headers are consistent with expected data row structure."""
+        headers = exporter._generate_enhanced_fork_analysis_headers()
+
+        # Verify header order matches expected data structure
+        # Fork metadata should come first
+        fork_metadata_start = headers.index("fork_name")
+        features_count_index = headers.index("features_count")
+
+        # Commit data should come after fork metadata
+        commit_date_index = headers.index("commit_date")
+        commit_sha_index = headers.index("commit_sha")
+        commit_description_index = headers.index("commit_description")
+
+        # Verify ordering
+        assert fork_metadata_start < features_count_index < commit_date_index
+        assert commit_date_index < commit_sha_index < commit_description_index
+
+    def test_enhanced_headers_all_configurations(self):
+        """Test enhanced headers with all configuration combinations."""
+        # Test all combinations of include_urls and detail_mode
+        configs = [
+            (True, True),   # URLs + Detail
+            (True, False),  # URLs only
+            (False, True),  # Detail only
+            (False, False)  # Minimal
+        ]
+
+        for include_urls, detail_mode in configs:
+            config = CSVExportConfig(
+                include_urls=include_urls,
+                detail_mode=detail_mode
+            )
+            exporter = CSVExporter(config)
+            headers = exporter._generate_enhanced_fork_analysis_headers()
+
+            # Essential columns should always be present
+            assert "fork_name" in headers
+            assert "commit_date" in headers
+            assert "commit_sha" in headers
+            assert "commit_description" in headers
+
+            # URL columns should match configuration
+            if include_urls:
+                assert "fork_url" in headers
+                assert "commit_url" in headers
+            else:
+                assert "fork_url" not in headers
+                assert "commit_url" not in headers
+
+            # Detail columns should match configuration
+            if detail_mode:
+                assert "language" in headers
+                assert "size_kb" in headers
+            else:
+                assert "language" not in headers
+                assert "size_kb" not in headers
+
+
 class TestCSVCommitFormatting(TestCSVExporter):
     """Test commit data formatting for CSV export."""
 

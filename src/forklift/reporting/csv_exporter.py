@@ -321,6 +321,60 @@ class CSVExporter:
 
         return headers
 
+    def _generate_enhanced_fork_analysis_headers(self) -> list[str]:
+        """Generate CSV headers for multi-row fork analysis export format.
+
+        This method creates headers for the enhanced format where each commit
+        gets its own row with separate columns for commit_date, commit_sha,
+        and commit_description instead of a single recent_commits column.
+
+        Returns:
+            List of column header names for the enhanced multi-row format
+        """
+        # Start with essential fork metadata columns
+        headers = [
+            "fork_name",
+            "owner",
+            "stars",
+            "forks_count",
+            "commits_ahead",
+            "commits_behind",
+            "is_active",
+            "features_count"
+        ]
+
+        # Add optional URL fields based on configuration
+        if self.config.include_urls:
+            headers.extend(["fork_url", "owner_url"])
+
+        # Add detail mode fields based on configuration
+        if self.config.detail_mode:
+            headers.extend([
+                "language",
+                "description",
+                "last_activity",
+                "created_date",
+                "updated_date",
+                "pushed_date",
+                "size_kb",
+                "open_issues",
+                "is_archived",
+                "is_private"
+            ])
+
+        # Add commit-specific columns (replaces recent_commits column)
+        headers.extend([
+            "commit_date",
+            "commit_sha",
+            "commit_description"
+        ])
+
+        # Add commit URL if URLs are enabled
+        if self.config.include_urls:
+            headers.append("commit_url")
+
+        return headers
+
     def _generate_ranked_features_headers(self) -> list[str]:
         """Generate CSV headers for ranked features export."""
         headers = [
@@ -662,16 +716,16 @@ class CSVExporter:
 
     def _extract_base_fork_data(self, analysis: ForkAnalysis) -> dict[str, Any]:
         """Extract repository information that will be repeated across commit rows.
-        
+
         Args:
             analysis: Fork analysis containing fork and repository data
-            
+
         Returns:
             Dictionary containing base fork data for CSV export
         """
         fork = analysis.fork
         repo = fork.repository
-        
+
         # Essential fork metadata (always included)
         base_data = {
             "fork_name": repo.name,
@@ -683,14 +737,14 @@ class CSVExporter:
             "is_active": fork.is_active,
             "features_count": len(analysis.features),
         }
-        
+
         # Add optional URL fields based on configuration
         if self.config.include_urls:
             base_data.update({
                 "fork_url": repo.html_url,
                 "owner_url": fork.owner.html_url,
             })
-        
+
         # Add detail mode fields based on configuration
         if self.config.detail_mode:
             base_data.update({
@@ -705,81 +759,81 @@ class CSVExporter:
                 "is_archived": repo.is_archived,
                 "is_private": repo.is_private,
             })
-        
+
         return base_data
 
     def _generate_fork_commit_rows(self, analysis: ForkAnalysis) -> list[dict[str, Any]]:
         """Generate multiple rows for a fork, one per commit.
-        
+
         Args:
             analysis: Fork analysis containing fork and commit data
-            
+
         Returns:
             List of dictionaries representing CSV rows, one per commit
         """
         base_fork_data = self._extract_base_fork_data(analysis)
         commits = self._get_commits_for_export(analysis)
-        
+
         if not commits:
             # Create single row with empty commit columns
             return [self._create_empty_commit_row(base_fork_data)]
-        
+
         rows = []
         for commit in commits:
             commit_row = self._create_commit_row(base_fork_data, commit)
             rows.append(commit_row)
-        
+
         return rows
 
     def _create_commit_row(self, base_data: dict[str, Any], commit: Commit) -> dict[str, Any]:
         """Combine base fork data with individual commit information.
-        
+
         Args:
             base_data: Base fork data dictionary
             commit: Commit object with commit information
-            
+
         Returns:
             Dictionary representing a complete CSV row with fork and commit data
         """
         # Start with a copy of base fork data
         commit_row = base_data.copy()
-        
+
         # Add commit-specific data
         commit_row.update({
             "commit_date": self._format_commit_date(commit.date),
             "commit_sha": self._format_commit_sha(commit.sha),
             "commit_description": self._escape_commit_message(commit.message)
         })
-        
+
         return commit_row
 
     def _create_empty_commit_row(self, base_data: dict[str, Any]) -> dict[str, Any]:
         """Create a row for forks with no commits.
-        
+
         Args:
             base_data: Base fork data dictionary
-            
+
         Returns:
             Dictionary representing a CSV row with fork data and empty commit columns
         """
         # Start with a copy of base fork data
         empty_row = base_data.copy()
-        
+
         # Add empty commit columns
         empty_row.update({
             "commit_date": "",
             "commit_sha": "",
             "commit_description": ""
         })
-        
+
         return empty_row
 
     def _format_commit_date(self, date: datetime | None) -> str:
         """Format commit date using configurable date format (YYYY-MM-DD).
-        
+
         Args:
             date: Commit date to format
-            
+
         Returns:
             Formatted date string or empty string if date is None
         """
@@ -789,10 +843,10 @@ class CSVExporter:
 
     def _format_commit_sha(self, sha: str) -> str:
         """Format commit SHA to use 7-character short SHA format.
-        
+
         Args:
             sha: Full commit SHA
-            
+
         Returns:
             7-character short SHA
         """
@@ -800,22 +854,22 @@ class CSVExporter:
 
     def _escape_commit_message(self, message: str) -> str:
         """Properly handle CSV special characters in commit messages.
-        
+
         Args:
             message: Commit message to escape
-            
+
         Returns:
             Escaped commit message suitable for CSV output
         """
         if not message:
             return ""
-        
+
         # Remove or replace newlines and carriage returns
-        cleaned_message = message.replace('\n', ' ').replace('\r', ' ')
-        
+        cleaned_message = message.replace("\n", " ").replace("\r", " ")
+
         # Remove extra whitespace
-        cleaned_message = ' '.join(cleaned_message.split())
-        
+        cleaned_message = " ".join(cleaned_message.split())
+
         # The CSV writer will handle quote escaping automatically
         return cleaned_message
 
