@@ -8,14 +8,14 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
 - [-] 2. Implement multi-row CSV formatting logic
-- [-] 2.1 Create base fork data extraction method
+- [x] 2.1 Create base fork data extraction method
   - Implement _extract_base_fork_data method to extract repository information that will be repeated across commit rows
   - Include all essential fork metadata (name, owner, stars, forks_count, commits_ahead, commits_behind, is_active, features_count)
   - Add support for optional fields based on configuration (URLs, detail mode fields)
   - Write unit tests for base data extraction with various fork configurations
   - _Requirements: 2.2, 2.3, 3.1, 3.2, 3.3_
 
-- [ ] 2.2 Implement commit row generation logic
+- [-] 2.2 Implement commit row generation logic
   - Create _generate_fork_commit_rows method to expand single fork into multiple commit rows
   - Implement _create_commit_row method to combine base fork data with individual commit information
   - Add _create_empty_commit_row method for forks with no commits

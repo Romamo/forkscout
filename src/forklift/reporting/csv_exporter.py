@@ -708,6 +708,117 @@ class CSVExporter:
         
         return base_data
 
+    def _generate_fork_commit_rows(self, analysis: ForkAnalysis) -> list[dict[str, Any]]:
+        """Generate multiple rows for a fork, one per commit.
+        
+        Args:
+            analysis: Fork analysis containing fork and commit data
+            
+        Returns:
+            List of dictionaries representing CSV rows, one per commit
+        """
+        base_fork_data = self._extract_base_fork_data(analysis)
+        commits = self._get_commits_for_export(analysis)
+        
+        if not commits:
+            # Create single row with empty commit columns
+            return [self._create_empty_commit_row(base_fork_data)]
+        
+        rows = []
+        for commit in commits:
+            commit_row = self._create_commit_row(base_fork_data, commit)
+            rows.append(commit_row)
+        
+        return rows
+
+    def _create_commit_row(self, base_data: dict[str, Any], commit: Commit) -> dict[str, Any]:
+        """Combine base fork data with individual commit information.
+        
+        Args:
+            base_data: Base fork data dictionary
+            commit: Commit object with commit information
+            
+        Returns:
+            Dictionary representing a complete CSV row with fork and commit data
+        """
+        # Start with a copy of base fork data
+        commit_row = base_data.copy()
+        
+        # Add commit-specific data
+        commit_row.update({
+            "commit_date": self._format_commit_date(commit.date),
+            "commit_sha": self._format_commit_sha(commit.sha),
+            "commit_description": self._escape_commit_message(commit.message)
+        })
+        
+        return commit_row
+
+    def _create_empty_commit_row(self, base_data: dict[str, Any]) -> dict[str, Any]:
+        """Create a row for forks with no commits.
+        
+        Args:
+            base_data: Base fork data dictionary
+            
+        Returns:
+            Dictionary representing a CSV row with fork data and empty commit columns
+        """
+        # Start with a copy of base fork data
+        empty_row = base_data.copy()
+        
+        # Add empty commit columns
+        empty_row.update({
+            "commit_date": "",
+            "commit_sha": "",
+            "commit_description": ""
+        })
+        
+        return empty_row
+
+    def _format_commit_date(self, date: datetime | None) -> str:
+        """Format commit date using configurable date format (YYYY-MM-DD).
+        
+        Args:
+            date: Commit date to format
+            
+        Returns:
+            Formatted date string or empty string if date is None
+        """
+        if date is None:
+            return ""
+        return date.strftime(self.config.commit_date_format)
+
+    def _format_commit_sha(self, sha: str) -> str:
+        """Format commit SHA to use 7-character short SHA format.
+        
+        Args:
+            sha: Full commit SHA
+            
+        Returns:
+            7-character short SHA
+        """
+        return sha[:7] if sha else ""
+
+    def _escape_commit_message(self, message: str) -> str:
+        """Properly handle CSV special characters in commit messages.
+        
+        Args:
+            message: Commit message to escape
+            
+        Returns:
+            Escaped commit message suitable for CSV output
+        """
+        if not message:
+            return ""
+        
+        # Remove or replace newlines and carriage returns
+        cleaned_message = message.replace('\n', ' ').replace('\r', ' ')
+        
+        # Remove extra whitespace
+        cleaned_message = ' '.join(cleaned_message.split())
+        
+        # The CSV writer will handle quote escaping automatically
+        return cleaned_message
+
     def _escape_row_values(self, row: dict[str, Any]) -> dict[str, Any]:
         """Escape special characters in row values for CSV output."""
         escaped_row = {}
