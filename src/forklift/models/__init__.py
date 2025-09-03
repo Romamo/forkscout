@@ -35,6 +35,7 @@ from .fork_qualification import (
     QualificationStats,
     QualifiedForksResult,
 )
+from .commit_count_result import BatchCommitCountResult, CommitCountResult
 from .github import Commit, Fork, Repository, User
 
 __all__ = [
@@ -46,10 +47,12 @@ __all__ = [
     "AheadOnlyConfig",
     "AheadOnlyFilter",
     "AnalysisContext",
+    "BatchCommitCountResult",
     "CategoryType",
     "CollectedForkData",
     "Commit",
     "CommitCategory",
+    "CommitCountResult",
     "CommitDetails",
     "CommitExplanation",
     "CommitWithExplanation",

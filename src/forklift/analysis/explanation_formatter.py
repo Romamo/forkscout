@@ -87,7 +87,7 @@ class ExplanationFormatter:
         self.use_colors = use_colors
         self.use_icons = use_icons
         self.use_simple_tables = use_simple_tables
-        self.console = Console(file=sys.stdout, soft_wrap=False)
+        self.console = Console(file=sys.stdout, width=999999, soft_wrap=False)
         self.simple_formatter = SimpleTableFormatter()
 
     def format_commit_explanation(

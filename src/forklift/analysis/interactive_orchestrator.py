@@ -42,7 +42,7 @@ class InteractiveAnalysisOrchestrator:
         """
         self.github_client = github_client
         self.config = config
-        self.console = console or Console(file=sys.stdout, soft_wrap=False)
+        self.console = console or Console(file=sys.stdout, width=999999, soft_wrap=False)
         self.steps: list[InteractiveStep] = []
         self.context: dict[str, Any] = {}
         self.session_start_time: datetime | None = None

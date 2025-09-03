@@ -1069,3 +1069,83 @@ class CSVExporter:
             validation_results["is_valid"] = False
         
         return validation_results
+    def export_simple_forks_with_commits(self, fork_data_list: list[dict]) -> str:
+        """Export simple fork data with commits in multi-row format.
+        
+        This method creates a multi-row CSV format where each commit gets its own row,
+        similar to export_fork_analyses but working with simple dictionary data.
+        
+        Args:
+            fork_data_list: List of dictionaries containing fork data and commits
+            
+        Returns:
+            CSV formatted string with multi-row commit format
+        """
+        logger.info(f"Exporting {len(fork_data_list)} forks to multi-row CSV format")
+        
+        output = io.StringIO()
+        
+        # Use the same headers as the enhanced fork analysis format
+        headers = [
+            "fork_name",
+            "owner", 
+            "stars",
+            "commits_ahead",
+            "activity_status",
+            "fork_url",
+            "last_push_date",
+            "created_date",
+            "updated_date",
+            "commit_date",
+            "commit_sha", 
+            "commit_description"
+        ]
+        
+        writer = csv.DictWriter(output, fieldnames=headers, quoting=csv.QUOTE_MINIMAL)
+        writer.writeheader()
+        
+        for fork_data in fork_data_list:
+            try:
+                commits = fork_data.get('commits', [])
+                
+                if not commits:
+                    # Create single row with empty commit columns
+                    row = {
+                        'fork_name': fork_data.get('fork_name', ''),
+                        'owner': fork_data.get('owner', ''),
+                        'stars': fork_data.get('stars', 0),
+                        'commits_ahead': fork_data.get('commits_ahead', ''),
+                        'activity_status': fork_data.get('activity_status', ''),
+                        'fork_url': fork_data.get('fork_url', ''),
+                        'last_push_date': fork_data.get('last_push_date', ''),
+                        'created_date': fork_data.get('created_date', ''),
+                        'updated_date': fork_data.get('updated_date', ''),
+                        'commit_date': '',
+                        'commit_sha': '',
+                        'commit_description': ''
+                    }
+                    writer.writerow(row)
+                else:
+                    # Create one row per commit
+                    for commit in commits:
+                        row = {
+                            'fork_name': fork_data.get('fork_name', ''),
+                            'owner': fork_data.get('owner', ''),
+                            'stars': fork_data.get('stars', 0),
+                            'commits_ahead': fork_data.get('commits_ahead', ''),
+                            'activity_status': fork_data.get('activity_status', ''),
+                            'fork_url': fork_data.get('fork_url', ''),
+                            'last_push_date': fork_data.get('last_push_date', ''),
+                            'created_date': fork_data.get('created_date', ''),
+                            'updated_date': fork_data.get('updated_date', ''),
+                            'commit_date': commit.get('date', ''),
+                            'commit_sha': commit.get('sha', ''),
+                            'commit_description': commit.get('message', '')
+                        }
+                        writer.writerow(row)
+                        
+            except Exception as e:
+                logger.error(f"Failed to export fork {fork_data.get('fork_name', 'unknown')}: {e}")
+                continue
+        
+        return output.getvalue()

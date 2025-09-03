@@ -357,7 +357,7 @@ class TestCommitCountingRealGitHubData:
         
         try:
             # Get forks
-            forks = await github_client.get_forks(parent_owner, parent_repo, per_page=3)
+            forks = await github_client.get_repository_forks(parent_owner, parent_repo, per_page=3)
             
             if not forks:
                 pytest.skip("No forks found for repository display service testing")
@@ -450,7 +450,7 @@ class TestCommitCountingRealGitHubData:
                 print(f"Testing edge cases with {parent_owner}/{parent_repo}")
                 
                 # Get forks
-                forks = await github_client.get_forks(parent_owner, parent_repo, per_page=5)
+                forks = await github_client.get_repository_forks(parent_owner, parent_repo, per_page=5)
                 
                 if not forks:
                     print(f"No forks found for {parent_owner}/{parent_repo}")

@@ -85,7 +85,7 @@ class RichProgressReporter(ProgressReporter):
                     TextColumn,
                 )
 
-                self.console = Console(soft_wrap=False)
+                self.console = Console(width=999999, soft_wrap=False)
                 self.progress = Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
@@ -165,7 +165,7 @@ class RichProgressReporter(ProgressReporter):
         if self._use_rich:
             try:
                 from rich.console import Console
-                console = Console(file=sys.stderr, soft_wrap=False)
+                console = Console(file=sys.stderr, width=999999, soft_wrap=False)
 
                 if level == "error":
                     console.print(f"[red]ERROR:[/red] {message}")

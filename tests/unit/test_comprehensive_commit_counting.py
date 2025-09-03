@@ -24,12 +24,16 @@ class TestComprehensiveCommitCounting:
     @pytest.fixture
     def client(self):
         """Create a GitHub client for testing."""
+        from forklift.github.rate_limiter import RateLimitHandler
+        
         config = GitHubConfig(
             token="ghp_1234567890abcdef1234567890abcdef12345678",
             base_url="https://api.github.com",
             timeout_seconds=30,
         )
-        return GitHubClient(config)
+        # Create rate limit handler with no retries for testing
+        rate_limit_handler = RateLimitHandler(max_retries=0)
+        return GitHubClient(config, rate_limit_handler=rate_limit_handler)
 
     @pytest.fixture
     def fork_repo_data(self):
@@ -573,7 +577,6 @@ class TestComprehensiveCommitCounting:
                 json={"message": "API rate limit exceeded"},
                 headers={
                     "x-ratelimit-remaining": "0",
-                    "x-ratelimit-reset": "1640995200",
                     "x-ratelimit-limit": "5000",
                 },
             )

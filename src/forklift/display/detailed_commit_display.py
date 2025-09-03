@@ -59,7 +59,7 @@ class DetailedCommitDisplay:
         """
         self.github_client = github_client
         self.ai_engine = ai_engine
-        self.console = console or Console(file=sys.stdout, soft_wrap=False)
+        self.console = console or Console(file=sys.stdout, width=999999, soft_wrap=False)
         self.fork_status_checker = fork_status_checker
 
     async def should_process_repository(

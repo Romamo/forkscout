@@ -2,20 +2,22 @@
 
 ## Introduction
 
-This specification addresses a critical bug in the commit counting logic where forks consistently show only "+1" commits ahead regardless of the actual number of commits they have ahead of the parent repository. The issue stems from hardcoded `count=1` parameter in the `get_commits_ahead_batch` method call, which limits the API response to only 1 commit, causing the system to incorrectly calculate the total commits ahead as 1 even when forks have multiple commits ahead.
+This specification addresses the comprehensive commit counting system for fork analysis, including both commits ahead and commits behind functionality. The system uses the `--detail` flag to trigger exact commit counting via GitHub's compare API, providing accurate "+X -Y" format display where X represents commits ahead and Y represents commits behind the parent repository. This replaces the previous basic status indicators with precise numerical counts for better fork analysis.
 
 ## Requirements
 
-### Requirement 1: Accurate Commit Count Display
+### Requirement 1: Accurate Ahead and Behind Commit Count Display
 
-**User Story:** As a user analyzing forks, I want to see the correct number of commits ahead for each fork, so that I can accurately assess the development activity and divergence from the parent repository.
+**User Story:** As a user analyzing forks, I want to see the correct number of commits ahead and behind for each fork, so that I can accurately assess the development activity and divergence from the parent repository.
 
 #### Acceptance Criteria
 
-1. WHEN a fork has multiple commits ahead of the parent THEN the system SHALL display the actual number of commits ahead (e.g., "+5", "+12", "+23")
-2. WHEN a fork has only 1 commit ahead THEN the system SHALL display "+1" 
-3. WHEN a fork has no commits ahead THEN the system SHALL display an empty commits column or "0"
-4. WHEN using the `--ahead-only` flag THEN only forks with commits ahead SHALL be displayed with accurate commit counts
+1. WHEN a fork has commits ahead of the parent THEN the system SHALL display the actual number of commits ahead (e.g., "+5", "+12", "+23")
+2. WHEN a fork has commits behind the parent THEN the system SHALL display the actual number of commits behind (e.g., "-2", "-8", "-15")
+3. WHEN a fork has both ahead and behind commits THEN the system SHALL display both counts (e.g., "+5 -2", "+12 -8")
+4. WHEN a fork has no commits ahead or behind THEN the system SHALL display an empty commits column
+5. WHEN using the `--detail` flag THEN exact commit counts SHALL be fetched and displayed in "+X -Y" format
+6. WHEN using the `--ahead-only` flag THEN only forks with commits ahead SHALL be displayed with accurate commit counts
 
 ### Requirement 2: Efficient API Usage for Commit Counting
 

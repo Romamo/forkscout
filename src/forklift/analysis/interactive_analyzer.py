@@ -28,7 +28,7 @@ class InteractiveAnalyzer:
             console: Rich console for output (optional, creates new if None)
         """
         self.github_client = github_client
-        self.console = console or Console(file=sys.stdout, soft_wrap=False)
+        self.console = console or Console(file=sys.stdout, width=999999, soft_wrap=False)
 
     async def analyze_specific_fork(
         self,

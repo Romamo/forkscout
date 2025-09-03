@@ -8,6 +8,28 @@ Forklift uses GitHub's compare API to determine how many commits each fork is ah
 
 ## Common Issues and Solutions
 
+### Issue: Behind Commits Not Displayed
+
+**Symptoms:**
+- Only seeing ahead commits (e.g., "+9") but not behind commits
+- Forks that are behind the parent don't show negative counts
+- Missing complete divergence information
+
+**Cause:**
+Behind commits are only displayed when using the `--detail` flag, which fetches exact commit counts from GitHub's compare API.
+
+**Solution:**
+Always use the `--detail` flag to see both ahead and behind commits:
+```bash
+forklift show-forks owner/repo --detail
+```
+
+**Expected Output:**
+- `+9 -11` - Fork has 9 commits ahead and 11 commits behind
+- `+5` - Fork has 5 commits ahead, 0 behind
+- `-3` - Fork has 0 commits ahead, 3 behind
+- `` (empty) - Fork is identical to parent
+
 ### Issue: All Forks Show "+1" Commits (Legacy Bug)
 
 **Symptoms:**

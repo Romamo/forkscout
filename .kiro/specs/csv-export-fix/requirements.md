@@ -2,62 +2,41 @@
 
 ## Introduction
 
-This specification addresses a critical bug in the CSV export functionality of the `forklift show-forks` command. Currently, when users run the command with the `--csv` flag, they see both a table display and a "No data to export" message instead of proper CSV output. This breaks the intended functionality where CSV export should suppress all interactive elements and output only clean CSV data to stdout.
+The CSV export functionality for the `show-forks` command is currently broken due to a mismatch between the data structure keys returned by the repository display service and what the CSV export logic expects. When users run commands like `forklift show-forks <repo> --csv --detail --ahead-only --show-commits=2`, no CSV output is generated because the export logic looks for a `"forks"` key in the returned data, but the actual key is `"collected_forks"`.
 
 ## Requirements
 
-### Requirement 1: CSV Export Mode Detection
+### Requirement 1
 
-**User Story:** As a user, I want the `--csv` flag to properly suppress all table displays and interactive elements, so that I get clean CSV output suitable for data processing.
-
-#### Acceptance Criteria
-
-1. WHEN I run `forklift show-forks <repo-url> --csv` THEN the system SHALL suppress all table displays and progress indicators
-2. WHEN using `--csv` flag THEN the system SHALL output only CSV data to stdout with no additional formatting or messages
-3. WHEN CSV export is enabled THEN the system SHALL redirect all status messages and progress indicators to stderr or suppress them entirely
-4. WHEN CSV export mode is active THEN the system SHALL NOT display Rich tables, panels, or other formatted output to stdout
-
-### Requirement 2: Data Flow Correction
-
-**User Story:** As a user, I want the collected fork data to be properly passed to the CSV exporter, so that I get the actual fork information in CSV format instead of "No data to export".
+**User Story:** As a user running the show-forks command with CSV export, I want to receive proper CSV output so that I can process fork data programmatically.
 
 #### Acceptance Criteria
 
-1. WHEN fork data is successfully collected THEN the system SHALL pass this data to the CSV exporter
-2. WHEN using `--detail --ahead-only --csv` flags THEN the system SHALL export the filtered forks with exact commit counts to CSV
-3. WHEN forks with commits ahead are found THEN the CSV output SHALL contain these forks with their commit information
-4. WHEN no forks are found after filtering THEN the system SHALL output CSV headers only without the "No data to export" comment
+1. WHEN I run `forklift show-forks <repo> --csv` THEN the system SHALL output valid CSV data to stdout
+2. WHEN I run `forklift show-forks <repo> --csv --detail` THEN the system SHALL output detailed CSV data with exact commit counts
+3. WHEN I run `forklift show-forks <repo> --csv --ahead-only` THEN the system SHALL output CSV data only for forks with commits ahead
+4. WHEN I run `forklift show-forks <repo> --csv --show-commits=N` THEN the system SHALL include commit details in the CSV output
+5. WHEN there are no forks to export THEN the system SHALL output CSV headers with no data rows
 
-### Requirement 3: CSV Output Format Consistency
+### Requirement 2
 
-**User Story:** As a user, I want the CSV export to include all the same data that would be displayed in the table format, so that I can process the complete fork information programmatically.
-
-#### Acceptance Criteria
-
-1. WHEN exporting with `--detail` flag THEN the CSV SHALL include exact commit counts ahead for each fork
-2. WHEN exporting with `--show-commits=N` flag THEN the CSV SHALL include commit information in the multi-row format
-3. WHEN exporting with `--ahead-only` flag THEN the CSV SHALL only include forks that have commits ahead
-4. WHEN all flags are combined THEN the CSV output SHALL reflect the same filtering and data collection as the table display
-
-### Requirement 4: Error Handling in CSV Mode
-
-**User Story:** As a user, I want proper error handling during CSV export, so that errors don't corrupt the CSV output and are reported appropriately.
+**User Story:** As a developer maintaining the CSV export functionality, I want consistent data structure handling so that CSV export works reliably across different display modes.
 
 #### Acceptance Criteria
 
-1. WHEN errors occur during CSV export THEN error messages SHALL be sent to stderr, not stdout
-2. WHEN data collection fails THEN the system SHALL output empty CSV with headers and report errors to stderr
-3. WHEN individual fork processing fails THEN the system SHALL continue with remaining forks and log errors to stderr
-4. WHEN CSV export encounters Unicode errors THEN the system SHALL handle them gracefully without corrupting the output
+1. WHEN the repository display service returns fork data THEN the CSV export logic SHALL correctly access the fork data regardless of the method used (show_fork_data or show_fork_data_detailed)
+2. WHEN the data structure contains `"collected_forks"` key THEN the CSV export SHALL use that key to access fork data
+3. WHEN the data structure is empty or missing expected keys THEN the CSV export SHALL handle the error gracefully and output appropriate headers
+4. WHEN debugging CSV export issues THEN the system SHALL provide clear error messages indicating the data structure mismatch
 
-### Requirement 5: Integration with Existing Flags
+### Requirement 3
 
-**User Story:** As a user, I want all existing command flags to work correctly with CSV export, so that I can filter and customize the CSV output as needed.
+**User Story:** As a user combining multiple command flags, I want CSV export to work correctly with all flag combinations so that I can get the exact data I need.
 
 #### Acceptance Criteria
 
-1. WHEN using `--max-forks=N --csv` THEN the CSV SHALL contain at most N forks
-2. WHEN using `--ahead-only --csv` THEN the CSV SHALL only contain forks with commits ahead
-3. WHEN using `--detail --csv` THEN the CSV SHALL include exact commit counts and detailed information
-4. WHEN using `--show-commits=N --csv` THEN the CSV SHALL use multi-row format with commit details
-5. WHEN using `--force-all-commits --csv` THEN the CSV SHALL include commits for all forks regardless of ahead status
+1. WHEN I combine `--csv` with `--detail` THEN the system SHALL export detailed fork information with exact commit counts
+2. WHEN I combine `--csv` with `--ahead-only` THEN the system SHALL export only forks that have commits ahead of the upstream
+3. WHEN I combine `--csv` with `--show-commits=N` THEN the system SHALL include the last N commits for each fork in the CSV output
+4. WHEN I combine `--csv` with `--force-all-commits` THEN the system SHALL fetch commits for all forks regardless of optimization
+5. WHEN multiple flags are combined THEN the CSV output SHALL reflect all the requested filtering and data inclusion options

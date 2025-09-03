@@ -24,7 +24,7 @@ class AISummaryDisplayFormatter:
         Args:
             console: Rich console for output (optional, creates new if None)
         """
-        self.console = console or Console(file=sys.stdout, soft_wrap=False)
+        self.console = console or Console(file=sys.stdout, width=999999, soft_wrap=False)
 
     def format_ai_summaries_detailed(
         self,

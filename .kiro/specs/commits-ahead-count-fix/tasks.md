@@ -36,7 +36,7 @@
   - Test error handling for different failure modes
   - _Requirements: 1.1, 1.2, 2.1, 2.2_
 
-- [-] 7. Add Integration Tests with Real GitHub Data
+- [x] 7. Add Integration Tests with Real GitHub Data
   - Test with real repositories that have known commit counts
   - Verify that fixed logic shows correct "+5", "+12", "+23" instead of "+1"
   - Test the specific case mentioned in bug report: `sanila2007/youtube-bot-telegram`
@@ -48,14 +48,21 @@
   - Test API call optimization and rate limit handling
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [-] 9. Update Documentation and Help Text
+- [x] 9. Update Documentation and Help Text
   - Update CLI help text to explain new commit counting options
   - Add documentation for configuration options
   - Update troubleshooting guide for commit counting issues
   - _Requirements: 4.1, 4.2, 5.1_
 
-- [ ] 10. Validate Fix with Original Bug Report
+- [x] 10. Validate Fix with Original Bug Report
   - Test the exact command from bug report: `uv run forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only`
   - Verify that forks now show correct commit counts instead of all "+1"
   - Ensure no regression in other functionality
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+- [x] 11. Validate Behind Commits Display Functionality
+  - Test that forks with commits behind show "-X" format correctly
+  - Test that forks with both ahead and behind show "+X -Y" format
+  - Verify that behind commits are properly fetched from GitHub compare API
+  - Test edge cases where forks are only behind (no ahead commits)
+  - _Requirements: 1.2, 1.3, 1.5_

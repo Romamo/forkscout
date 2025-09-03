@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from forklift.config import GitHubConfig
+from forklift.models.commit_count_result import BatchCommitCountResult, CommitCountResult
 from forklift.models.github import Commit, Fork, RecentCommit, Repository, User
 
 from .error_handler import EnhancedErrorHandler
@@ -731,6 +732,141 @@ class GitHubClient:
             logger.error(f"Failed to fetch commits ahead from {fork_owner}/{fork_repo}: {e}")
             raise GitHubAPIError(f"Failed to fetch commits ahead: {e}") from e
 
+    async def get_commits_ahead_behind_batch(
+        self, 
+        fork_data_list: list[tuple[str, str]], 
+        parent_owner: str, 
+        parent_repo: str
+    ) -> dict[str, dict[str, int]]:
+        """Get commit counts ahead and behind for multiple forks against the same parent repository.
+        
+        This method optimizes API usage by:
+        1. Pre-fetching the parent repository once
+        2. Fetching all fork repositories in batch
+        3. Performing comparisons and extracting ahead_by and behind_by counts
+        
+        Args:
+            fork_data_list: List of (fork_owner, fork_repo) tuples
+            parent_owner: Parent repository owner
+            parent_repo: Parent repository name
+            
+        Returns:
+            Dictionary mapping "owner/repo" to {"ahead_by": int, "behind_by": int, "total_commits": int}
+            
+        Raises:
+            GitHubAPIError: If API request fails
+        """
+        if not fork_data_list:
+            return {}
+
+        logger.info(f"Batch processing commit counts for {len(fork_data_list)} forks against {parent_owner}/{parent_repo}")
+
+        try:
+            # Step 1: Pre-fetch parent repository once
+            logger.debug(f"Pre-fetching parent repository {parent_owner}/{parent_repo}")
+            parent_info = await self.get_repository(parent_owner, parent_repo)
+            logger.info(f"Parent repository {parent_owner}/{parent_repo} fetched once for {len(fork_data_list)} forks")
+
+            # Step 2: Batch fetch all fork repositories
+            logger.debug(f"Batch fetching {len(fork_data_list)} fork repositories")
+            fork_repos = {}
+            
+            # Use semaphore to limit concurrent requests
+            semaphore = asyncio.Semaphore(5)
+            
+            async def fetch_single_fork(fork_owner: str, fork_repo: str):
+                async with semaphore:
+                    try:
+                        fork_info = await self.get_repository(fork_owner, fork_repo)
+                        return f"{fork_owner}/{fork_repo}", fork_info
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch fork repository {fork_owner}/{fork_repo}: {e}")
+                        return f"{fork_owner}/{fork_repo}", None
+
+            # Fetch all fork repositories concurrently
+            fork_tasks = [
+                fetch_single_fork(fork_owner, fork_repo) 
+                for fork_owner, fork_repo in fork_data_list
+            ]
+            
+            fork_results = await asyncio.gather(*fork_tasks, return_exceptions=True)
+            
+            # Process results
+            for result in fork_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Fork fetch task failed: {result}")
+                    continue
+                    
+                fork_key, fork_info = result
+                if fork_info is not None:
+                    fork_repos[fork_key] = fork_info
+
+            logger.info(f"Successfully fetched {len(fork_repos)} out of {len(fork_data_list)} fork repositories")
+
+            # Step 3: Perform comparisons and extract ahead_by and behind_by counts
+            results = {}
+            
+            async def compare_single_fork(fork_key: str, fork_info: Repository):
+                async with semaphore:
+                    try:
+                        fork_owner, fork_repo = fork_key.split('/', 1)
+                        
+                        # Use pre-fetched parent info for comparison
+                        comparison = await self.compare_commits_safe(
+                            parent_owner,
+                            parent_repo,
+                            parent_info.default_branch,
+                            f"{fork_owner}:{fork_info.default_branch}",
+                        )
+
+                        if not comparison:
+                            logger.debug(f"No comparison data found for {fork_key} - may be private, empty, or have divergent history")
+                            return fork_key, {"ahead_by": 0, "behind_by": 0, "total_commits": 0}
+
+                        # Extract both ahead_by and behind_by counts
+                        ahead_count = comparison.get("ahead_by", 0)
+                        behind_count = comparison.get("behind_by", 0)
+                        total_commits = comparison.get("total_commits", 0)
+                        
+                        return fork_key, {
+                            "ahead_by": ahead_count,
+                            "behind_by": behind_count,
+                            "total_commits": total_commits
+                        }
+
+                    except Exception as e:
+                        logger.warning(f"Failed to compare {fork_key} with parent: {e}")
+                        return fork_key, {"ahead_by": 0, "behind_by": 0, "total_commits": 0}
+
+            # Perform all comparisons concurrently
+            comparison_tasks = [
+                compare_single_fork(fork_key, fork_info)
+                for fork_key, fork_info in fork_repos.items()
+            ]
+            
+            comparison_results = await asyncio.gather(*comparison_tasks, return_exceptions=True)
+            
+            # Process comparison results
+            for result in comparison_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"Comparison task failed: {result}")
+                    continue
+                    
+                fork_key, counts = result
+                results[fork_key] = counts
+
+            logger.info(f"Batch count processing completed: {len(results)}/{len(fork_data_list)} forks processed")
+            
+            # Calculate API optimization savings
+            parent_calls_saved = len(fork_data_list) - 1  # We only fetched parent once instead of N times
+            logger.info(f"API optimization: {parent_calls_saved} parent repository calls saved")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Failed to batch process commit counts: {e}")
+            raise GitHubAPIError(f"Failed to batch process commit counts: {e}") from e
+
     async def get_commits_ahead_batch_counts(
         self, 
         fork_data_list: list[tuple[str, str]], 
@@ -867,6 +1003,9 @@ class GitHubClient:
             
             return results
 
+        except GitHubAPIError:
+            # Re-raise GitHub API errors as-is to preserve specific error types
+            raise
         except Exception as e:
             logger.error(f"Batch count processing failed: {e}")
             raise GitHubAPIError(f"Failed to batch process commit counts: {e}") from e
@@ -1640,3 +1779,96 @@ class GitHubClient:
         except Exception as e:
             logger.error(f"Unexpected error fetching recent commits from {owner}/{repo}: {e}")
             raise GitHubAPIError(f"Failed to fetch recent commits: {e}") from e
+
+    async def get_commits_ahead_and_behind_count(
+        self, fork_owner: str, fork_repo: str, parent_owner: str, parent_repo: str
+    ) -> CommitCountResult:
+        """Get both ahead and behind commit counts using GitHub compare API.
+        
+        Args:
+            fork_owner: Owner of the fork repository
+            fork_repo: Name of the fork repository  
+            parent_owner: Owner of the parent repository
+            parent_repo: Name of the parent repository
+            
+        Returns:
+            CommitCountResult with both ahead_count and behind_count
+        """
+        try:
+            comparison = await self.get_commits_ahead_behind(
+                fork_owner, fork_repo, parent_owner, parent_repo
+            )
+            
+            return CommitCountResult(
+                ahead_count=comparison.get("ahead_by", 0),
+                behind_count=comparison.get("behind_by", 0),
+                is_limited=False,
+                error=None
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to get commit counts for {fork_owner}/{fork_repo}: {e}")
+            return CommitCountResult(
+                ahead_count=0,
+                behind_count=0,
+                is_limited=False,
+                error=str(e)
+            )
+
+    async def get_commits_ahead_and_behind_batch_counts(
+        self, fork_data_list: list[tuple[str, str]], parent_owner: str, parent_repo: str
+    ) -> BatchCommitCountResult:
+        """Get both ahead and behind commit counts for multiple forks efficiently.
+        
+        Args:
+            fork_data_list: List of (fork_owner, fork_repo) tuples
+            parent_owner: Owner of the parent repository
+            parent_repo: Name of the parent repository
+            
+        Returns:
+            BatchCommitCountResult with CommitCountResult for each fork containing both counts
+        """
+        try:
+            # Use existing batch method that already extracts both ahead and behind counts
+            batch_results = await self.get_commits_ahead_behind_batch(
+                fork_data_list, parent_owner, parent_repo
+            )
+            
+            # Convert to CommitCountResult objects
+            results = {}
+            for fork_key, counts in batch_results.items():
+                results[fork_key] = CommitCountResult(
+                    ahead_count=counts.get("ahead_by", 0),
+                    behind_count=counts.get("behind_by", 0),
+                    is_limited=False,
+                    error=None
+                )
+            
+            # Calculate API calls
+            total_api_calls = len(fork_data_list) * 2 + 1  # 2 calls per fork + 1 parent call
+            parent_calls_saved = len(fork_data_list) - 1
+            
+            return BatchCommitCountResult(
+                results=results,
+                total_api_calls=total_api_calls,
+                parent_calls_saved=parent_calls_saved
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to batch process commit counts: {e}")
+            # Return empty results with error information
+            results = {}
+            for fork_owner, fork_repo in fork_data_list:
+                fork_key = f"{fork_owner}/{fork_repo}"
+                results[fork_key] = CommitCountResult(
+                    ahead_count=0,
+                    behind_count=0,
+                    is_limited=False,
+                    error=str(e)
+                )
+            
+            return BatchCommitCountResult(
+                results=results,
+                total_api_calls=0,
+                parent_calls_saved=0
+            )

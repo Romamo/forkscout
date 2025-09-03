@@ -77,7 +77,7 @@ from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
 from forklift.reporting.csv_output_manager import create_csv_context, create_csv_output_manager
 from forklift.storage.analysis_cache import AnalysisCacheManager
 
-console = Console(file=sys.stdout, soft_wrap=False)
+console = Console(file=sys.stdout, width=999999, soft_wrap=False)
 logger = logging.getLogger(__name__)
 
 
@@ -116,11 +116,11 @@ def initialize_cli_environment() -> tuple[InteractionMode, bool]:
     global console
     if interaction_mode == InteractionMode.NON_INTERACTIVE:
         # For non-interactive mode, disable colors and fancy formatting
-        console = Console(file=sys.stdout, force_terminal=False, no_color=True, soft_wrap=False, width=None)
+        console = Console(file=sys.stdout, force_terminal=False, no_color=True, soft_wrap=False, width=999999)
     else:
         # For all other modes, keep console on stdout
         # Interactive elements (progress bars, prompts) will be handled separately
-        console = Console(file=sys.stdout, soft_wrap=False, width=None)
+        console = Console(file=sys.stdout, soft_wrap=False, width=999999)
     
     # Reset progress reporter to ensure it uses the correct mode
     reset_progress_reporter()
@@ -1169,7 +1169,7 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.option(
     "--detail",
     is_flag=True,
-    help="Fetch exact commit counts ahead for each fork using additional API requests",
+    help="Fetch exact commit counts (ahead and behind) for each fork using additional API requests",
 )
 @click.option(
     "--show-commits",
@@ -1185,7 +1185,7 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
 @click.option(
     "--ahead-only",
     is_flag=True,
-    help="Show only forks that have commits ahead of the upstream repository",
+    help="Show only forks that have commits ahead of the upstream repository (includes forks with both ahead and behind commits)",
 )
 @click.option(
     "--csv",
@@ -1317,7 +1317,7 @@ def show_forks(
 
         if verbose and not csv:
             # Use stderr for verbose messages when output might be redirected
-            verbose_console = Console(file=sys.stderr, soft_wrap=False, width=None) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
+            verbose_console = Console(file=sys.stderr, soft_wrap=False, width=999999) if interaction_mode == InteractionMode.OUTPUT_REDIRECTED else console
             verbose_console.print(f"[blue]Fetching forks for: {repository_url}[/blue]")
 
         # Detect CSV export mode early in processing
@@ -2185,7 +2185,7 @@ async def _show_forks_summary(
     async with GitHubClient(config.github) as github_client:
         # Create appropriate console for main content output
         # Always use stdout for main content, regardless of interaction mode
-        content_console = Console(file=sys.stdout, soft_wrap=False, width=None)
+        content_console = Console(file=sys.stdout, soft_wrap=False, width=999999)
         
         # Use provided commit count config or fall back to config default
         effective_commit_config = commit_count_config or config.commit_count
@@ -2308,6 +2308,33 @@ async def _export_analysis_csv(results: dict, explain: bool) -> None:
             raise ForkliftOutputError(f"Failed to export analysis results to CSV: {e}")
 
 
+def _validate_fork_data_structure(fork_data: dict) -> list:
+    """Validate and extract fork list from data structure.
+    
+    Args:
+        fork_data: Dictionary returned from repository display service
+        
+    Returns:
+        List of fork objects for CSV export
+        
+    Raises:
+        ValueError: If data structure is invalid
+    """
+    if not fork_data or not isinstance(fork_data, dict):
+        return []
+    
+    # Try different possible key names for backward compatibility
+    for key in ["collected_forks", "forks"]:
+        if key in fork_data:
+            fork_list = fork_data[key]
+            if isinstance(fork_list, list):
+                return fork_list
+    
+    # Log warning about unexpected structure
+    logger.warning(f"Unexpected fork data structure: {list(fork_data.keys())}")
+    return []
+
+
 async def _export_forks_csv(
     display_service: "RepositoryDisplayService",
     repository_url: str,
@@ -2317,7 +2344,7 @@ async def _export_forks_csv(
     force_all_commits: bool,
     ahead_only: bool
 ) -> None:
-    """Export fork data in CSV format with proper error handling.
+    """Export fork data in CSV format with proper error handling and progress suppression.
     
     Args:
         display_service: Repository display service instance
@@ -2332,39 +2359,25 @@ async def _export_forks_csv(
         ForkliftOutputError: If CSV export fails
         ForkliftUnicodeError: If Unicode handling fails
     """
-    from forklift.reporting.csv_exporter import CSVExportConfig
     from forklift.reporting.csv_output_manager import create_csv_context
     
     try:
-        # Configure CSV export with new multi-row format
-        csv_config = CSVExportConfig(
-            include_commits=(show_commits > 0),
-            detail_mode=detail,
-            include_explanations=False,
-            max_commits_per_fork=min(show_commits, 10) if show_commits > 0 else 0,
-            escape_newlines=True,
-            include_urls=True,
-            date_format="%Y-%m-%d %H:%M:%S",
-            commit_date_format="%Y-%m-%d"  # Use new format for commit dates
-        )
-        
-        # Create CSV output context to suppress progress indicators
-        with create_csv_context(suppress_progress=True) as csv_manager:
-            csv_manager.configure_exporter(csv_config)
-            
+        # Create CSV output context to suppress progress indicators during fork data collection
+        with create_csv_context(suppress_progress=True):
             if detail:
                 # Use detailed fork display with exact commit counts for CSV
-                fork_data = await display_service.show_fork_data_detailed(
+                await display_service.show_fork_data_detailed(
                     repository_url,
                     max_forks=max_forks,
                     disable_cache=False,
                     show_commits=show_commits,
                     force_all_commits=force_all_commits,
                     ahead_only=ahead_only,
+                    csv_export=True,  # Enable CSV export mode
                 )
             else:
                 # Use standard fork data display for CSV
-                fork_data = await display_service.show_fork_data(
+                await display_service.show_fork_data(
                     repository_url,
                     exclude_archived=False,
                     exclude_disabled=False,
@@ -2374,14 +2387,11 @@ async def _export_forks_csv(
                     show_commits=show_commits,
                     force_all_commits=force_all_commits,
                     ahead_only=ahead_only,
+                    csv_export=True,  # Enable CSV export mode
                 )
-            
-            # Export to CSV
-            if fork_data and "forks" in fork_data:
-                csv_manager.export_to_stdout(fork_data["forks"])
-            else:
-                # Export empty CSV with headers
-                csv_manager.export_to_stdout([])
+        
+        # The repository display service handles CSV export internally
+        # CSV output is already written to stdout by the display service
                 
     except UnicodeError as e:
         raise ForkliftUnicodeError(f"Unicode error in CSV export: {e}")
