@@ -45,6 +45,7 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.6.0",
     "respx>=0.20.0",
+    "psutil>=5.9.0",
 ]
 
 [project.scripts]
@@ -146,6 +147,10 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "contract: marks tests as contract tests",
+    "online: marks tests as online tests (using real external APIs)",
+    "e2e: marks tests as end-to-end tests",
+    "performance: marks tests as performance tests",
 ]
 asyncio_mode = "auto"
 
@@ -176,3 +181,8 @@ precision = 2
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[dependency-groups]
+dev = [
+    "psutil>=7.0.0",
+]

@@ -19,7 +19,14 @@ from .exceptions import (
     GitHubNotFoundError,
     GitHubRateLimitError,
 )
-from .rate_limiter import CircuitBreaker, RateLimitHandler
+from .rate_limiter import (
+    CircuitBreaker, 
+    RateLimitHandler, 
+    CircuitBreakerConfig,
+    RepositorySizeDetector,
+    DegradationConfig,
+    GracefulDegradationHandler
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1872,3 +1879,49 @@ class GitHubClient:
                 total_api_calls=0,
                 parent_calls_saved=0
             )
+    @staticmethod
+    async def create_resilient_client(
+        config: GitHubConfig,
+        repository_url: str | None = None,
+        circuit_breaker_config: CircuitBreakerConfig | None = None
+    ) -> 'GitHubClient':
+        """Create a GitHub client with repository-size-aware resilience.
+        
+        Args:
+            config: GitHub configuration
+            repository_url: Optional repository URL to detect size and configure resilience
+            circuit_breaker_config: Optional explicit circuit breaker configuration
+            
+        Returns:
+            GitHubClient configured for the repository size
+        """
+        # Detect repository size if URL provided and no explicit config
+        fork_count = 0
+        if repository_url and circuit_breaker_config is None:
+            # Create temporary client to detect size
+            temp_client = GitHubClient(config)
+            try:
+                fork_count = await RepositorySizeDetector.detect_repository_size(
+                    temp_client, repository_url
+                )
+            finally:
+                await temp_client.close()
+        
+        # Get recommended configuration
+        if circuit_breaker_config is None:
+            circuit_breaker_config = RepositorySizeDetector.get_recommended_config(fork_count)
+        
+        # Create enhanced circuit breaker
+        enhanced_circuit_breaker = CircuitBreaker(
+            config=circuit_breaker_config,
+            repository_size=fork_count,
+            expected_exception=GitHubAPIError
+        )
+        
+        # Create client with enhanced circuit breaker
+        return GitHubClient(
+            config=config,
+            rate_limit_handler=None,  # Use existing default
+            circuit_breaker=enhanced_circuit_breaker,  # Use enhanced version
+            error_handler=None  # Use existing default
+        )

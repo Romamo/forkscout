@@ -250,19 +250,23 @@ class TestCSVExporter:
                 name="testrepo",
                 owner="user1",
                 stars=10,
+                forks_count=3,
                 last_push_date=datetime(2023, 6, 15, 12, 0, 0),
                 fork_url="https://github.com/user1/testrepo",
                 activity_status="Active",
                 commits_ahead="Unknown",
+                commits_behind="Unknown",
             ),
             ForkPreviewItem(
                 name="testrepo",
                 owner="user2",
                 stars=5,
+                forks_count=1,
                 last_push_date=datetime(2023, 5, 1, 12, 0, 0),
                 fork_url="https://github.com/user2/testrepo",
                 activity_status="Stale",
                 commits_ahead="None",
+                commits_behind="Unknown",
             ),
         ]
 
@@ -284,23 +288,21 @@ class TestForksPreviewExport(TestCSVExporter):
 
         # Check headers
         expected_headers = [
-            "fork_name",
-            "owner",
-            "stars",
-            "commits_ahead",
-            "activity_status",
-            "fork_url",
+            "Fork URL",
+            "Stars",
+            "Forks",
+            "Commits Ahead",
+            "Commits Behind",
         ]
         assert reader.fieldnames == expected_headers
 
         # Check first row
         row1 = rows[0]
-        assert row1["fork_name"] == "testrepo"
-        assert row1["owner"] == "user1"
-        assert row1["stars"] == "10"
-        assert row1["commits_ahead"] == "Unknown"
-        assert row1["activity_status"] == "Active"
-        assert row1["fork_url"] == "https://github.com/user1/testrepo"
+        assert row1["Fork URL"] == "https://github.com/user1/testrepo"
+        assert row1["Stars"] == "10"
+        assert row1["Forks"] == "3"
+        assert row1["Commits Ahead"] == "Unknown"
+        assert row1["Commits Behind"] == "Unknown"
 
     def test_export_forks_preview_no_urls(self, minimal_exporter, sample_forks_preview):
         """Test forks preview export without URLs."""
@@ -310,11 +312,10 @@ class TestForksPreviewExport(TestCSVExporter):
 
         # Check headers don't include URL
         expected_headers = [
-            "fork_name",
-            "owner",
-            "stars",
-            "commits_ahead",
-            "activity_status",
+            "Stars",
+            "Forks",
+            "Commits Ahead",
+            "Commits Behind",
         ]
         assert reader.fieldnames == expected_headers
 
@@ -326,10 +327,10 @@ class TestForksPreviewExport(TestCSVExporter):
 
         reader = csv.DictReader(io.StringIO(csv_output))
 
-        # Check headers include detail fields
-        assert "last_push_date" in reader.fieldnames
-        assert "created_date" in reader.fieldnames
-        assert "updated_date" in reader.fieldnames
+        # Check headers include detail fields (new title case format)
+        assert "Last Push Date" in reader.fieldnames
+        assert "Created Date" in reader.fieldnames
+        assert "Updated Date" in reader.fieldnames
 
     def test_export_forks_preview_with_commits_header(
         self, detailed_exporter, sample_forks_preview
@@ -339,8 +340,8 @@ class TestForksPreviewExport(TestCSVExporter):
 
         reader = csv.DictReader(io.StringIO(csv_output))
 
-        # Check that recent_commits header is included when include_commits=True
-        assert "recent_commits" in reader.fieldnames
+        # Check that recent_commits header is included when include_commits=True (new title case format)
+        assert "Recent Commits" in reader.fieldnames
 
     def test_export_forks_preview_without_commits_header(
         self, exporter, sample_forks_preview
@@ -350,8 +351,9 @@ class TestForksPreviewExport(TestCSVExporter):
 
         reader = csv.DictReader(io.StringIO(csv_output))
 
-        # Check that recent_commits header is NOT included when include_commits=False
+        # Check that recent_commits header is NOT included when include_commits=False (check both formats)
         assert "recent_commits" not in reader.fieldnames
+        assert "Recent Commits" not in reader.fieldnames
 
     def test_export_empty_forks_preview(self, exporter):
         """Test export of empty forks preview."""

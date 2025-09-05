@@ -275,16 +275,14 @@ class CSVExporter:
 
     def _generate_forks_preview_headers(self) -> list[str]:
         """Generate CSV headers for forks preview export."""
-        headers = ["fork_name", "owner", "stars", "commits_ahead", "activity_status"]
-
-        if self.config.include_urls:
-            headers.append("fork_url")
+        # New column structure: Fork URL first (always present), then Stars, Forks, Commits Ahead, Commits Behind
+        headers = ["Fork URL", "Stars", "Forks", "Commits Ahead", "Commits Behind"]
 
         if self.config.detail_mode:
-            headers.extend(["last_push_date", "created_date", "updated_date"])
+            headers.extend(["Last Push Date", "Created Date", "Updated Date"])
 
         if self.config.include_commits:
-            headers.append("recent_commits")
+            headers.append("Recent Commits")
 
         return headers
 
@@ -458,26 +456,24 @@ class CSVExporter:
 
     def _format_fork_preview_row(self, fork: ForkPreviewItem) -> dict[str, Any]:
         """Format a fork preview item as a CSV row."""
+        # New column structure: Fork URL (always present), Stars, Forks, Commits Ahead, Commits Behind
         row = {
-            "fork_name": fork.name,
-            "owner": fork.owner,
-            "stars": fork.stars,
-            "commits_ahead": fork.commits_ahead,
-            "activity_status": fork.activity_status,
+            "Fork URL": fork.fork_url if self.config.include_urls else "",
+            "Stars": fork.stars,
+            "Forks": fork.forks_count,
+            "Commits Ahead": fork.commits_ahead,
+            "Commits Behind": fork.commits_behind,
         }
 
-        if self.config.include_urls:
-            row["fork_url"] = fork.fork_url
-
         if self.config.detail_mode:
-            row["last_push_date"] = self._format_datetime(fork.last_push_date)
+            row["Last Push Date"] = self._format_datetime(fork.last_push_date)
             # Note: ForkPreviewItem doesn't have created/updated dates
-            row["created_date"] = ""
-            row["updated_date"] = ""
+            row["Created Date"] = ""
+            row["Updated Date"] = ""
 
         if self.config.include_commits:
             # Format commit data consistently with table display
-            row["recent_commits"] = self._format_commit_data_for_csv(
+            row["Recent Commits"] = self._format_commit_data_for_csv(
                 fork.recent_commits
             )
 
@@ -1070,35 +1066,34 @@ class CSVExporter:
         
         return validation_results
     def export_simple_forks_with_commits(self, fork_data_list: list[dict]) -> str:
-        """Export simple fork data with commits in multi-row format.
+        """Export simple fork data with commits in multi-row format using new column structure.
         
         This method creates a multi-row CSV format where each commit gets its own row,
-        similar to export_fork_analyses but working with simple dictionary data.
+        using the new column naming and structure from the CSV column restructure.
         
         Args:
             fork_data_list: List of dictionaries containing fork data and commits
             
         Returns:
-            CSV formatted string with multi-row commit format
+            CSV formatted string with multi-row commit format and new column structure
         """
         logger.info(f"Exporting {len(fork_data_list)} forks to multi-row CSV format")
         
         output = io.StringIO()
         
-        # Use the same headers as the enhanced fork analysis format
+        # Use new column structure: Fork URL first, proper title case, removed unnecessary columns
         headers = [
-            "fork_name",
-            "owner", 
-            "stars",
-            "commits_ahead",
-            "activity_status",
-            "fork_url",
-            "last_push_date",
-            "created_date",
-            "updated_date",
-            "commit_date",
-            "commit_sha", 
-            "commit_description"
+            "Fork URL",
+            "Stars",
+            "Forks", 
+            "Commits Ahead",
+            "Commits Behind",
+            "Last Push Date",
+            "Created Date",
+            "Updated Date",
+            "Commit Date",
+            "Commit SHA", 
+            "Commit Description"
         ]
         
         writer = csv.DictWriter(output, fieldnames=headers, quoting=csv.QUOTE_MINIMAL)
@@ -1109,38 +1104,36 @@ class CSVExporter:
                 commits = fork_data.get('commits', [])
                 
                 if not commits:
-                    # Create single row with empty commit columns
+                    # Create single row with empty commit columns using new structure
                     row = {
-                        'fork_name': fork_data.get('fork_name', ''),
-                        'owner': fork_data.get('owner', ''),
-                        'stars': fork_data.get('stars', 0),
-                        'commits_ahead': fork_data.get('commits_ahead', ''),
-                        'activity_status': fork_data.get('activity_status', ''),
-                        'fork_url': fork_data.get('fork_url', ''),
-                        'last_push_date': fork_data.get('last_push_date', ''),
-                        'created_date': fork_data.get('created_date', ''),
-                        'updated_date': fork_data.get('updated_date', ''),
-                        'commit_date': '',
-                        'commit_sha': '',
-                        'commit_description': ''
+                        'Fork URL': fork_data.get('fork_url', ''),
+                        'Stars': fork_data.get('stars', 0),
+                        'Forks': fork_data.get('forks_count', 0),
+                        'Commits Ahead': self._extract_commits_ahead(fork_data.get('commits_ahead', '')),
+                        'Commits Behind': self._extract_commits_behind(fork_data.get('commits_ahead', '')),
+                        'Last Push Date': fork_data.get('last_push_date', ''),
+                        'Created Date': fork_data.get('created_date', ''),
+                        'Updated Date': fork_data.get('updated_date', ''),
+                        'Commit Date': '',
+                        'Commit SHA': '',
+                        'Commit Description': ''
                     }
                     writer.writerow(row)
                 else:
-                    # Create one row per commit
+                    # Create one row per commit using new structure
                     for commit in commits:
                         row = {
-                            'fork_name': fork_data.get('fork_name', ''),
-                            'owner': fork_data.get('owner', ''),
-                            'stars': fork_data.get('stars', 0),
-                            'commits_ahead': fork_data.get('commits_ahead', ''),
-                            'activity_status': fork_data.get('activity_status', ''),
-                            'fork_url': fork_data.get('fork_url', ''),
-                            'last_push_date': fork_data.get('last_push_date', ''),
-                            'created_date': fork_data.get('created_date', ''),
-                            'updated_date': fork_data.get('updated_date', ''),
-                            'commit_date': commit.get('date', ''),
-                            'commit_sha': commit.get('sha', ''),
-                            'commit_description': commit.get('message', '')
+                            'Fork URL': fork_data.get('fork_url', ''),
+                            'Stars': fork_data.get('stars', 0),
+                            'Forks': fork_data.get('forks_count', 0),
+                            'Commits Ahead': self._extract_commits_ahead(fork_data.get('commits_ahead', '')),
+                            'Commits Behind': self._extract_commits_behind(fork_data.get('commits_ahead', '')),
+                            'Last Push Date': fork_data.get('last_push_date', ''),
+                            'Created Date': fork_data.get('created_date', ''),
+                            'Updated Date': fork_data.get('updated_date', ''),
+                            'Commit Date': commit.get('date', ''),
+                            'Commit SHA': commit.get('sha', ''),
+                            'Commit Description': commit.get('message', '')
                         }
                         writer.writerow(row)
                         
@@ -1149,3 +1142,39 @@ class CSVExporter:
                 continue
         
         return output.getvalue()
+
+    def _extract_commits_ahead(self, commits_ahead_str: str) -> str:
+        """Extract commits ahead count from combined format like '+5 -2' or '+5'."""
+        if not commits_ahead_str:
+            return ""
+        
+        # Handle formats like "+5 -2", "+5", "-2", or just "5"
+        commits_ahead_str = str(commits_ahead_str).strip()
+        
+        if '+' in commits_ahead_str:
+            # Extract the number after '+'
+            parts = commits_ahead_str.split()
+            for part in parts:
+                if part.startswith('+'):
+                    return part[1:]  # Remove the '+' sign
+        elif commits_ahead_str.isdigit():
+            return commits_ahead_str
+        
+        return ""
+
+    def _extract_commits_behind(self, commits_ahead_str: str) -> str:
+        """Extract commits behind count from combined format like '+5 -2' or '-2'."""
+        if not commits_ahead_str:
+            return ""
+        
+        # Handle formats like "+5 -2", "+5", "-2"
+        commits_ahead_str = str(commits_ahead_str).strip()
+        
+        if '-' in commits_ahead_str:
+            # Extract the number after '-'
+            parts = commits_ahead_str.split()
+            for part in parts:
+                if part.startswith('-'):
+                    return part[1:]  # Remove the '-' sign
+        
+        return ""

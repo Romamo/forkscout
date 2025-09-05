@@ -53,6 +53,7 @@ from forklift.display.progress_reporter import (
 )
 from forklift.display.repository_display_service import RepositoryDisplayService
 from forklift.exceptions import (
+    CLIError,
     ErrorHandler,
     ForkliftAuthenticationError,
     ForkliftConfigurationError,
@@ -1204,6 +1205,33 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
     help="Maximum commits to fetch for display details when showing commit messages (default: 5). "
          "Only affects --show-commits display, not the commit counting accuracy.",
 )
+@click.option(
+    "--circuit-breaker-threshold",
+    type=click.IntRange(1, 100),
+    help="Override circuit breaker failure threshold (default: auto-detect based on repository size). "
+         "Higher values allow more failures before stopping processing.",
+)
+@click.option(
+    "--continue-on-circuit-open",
+    is_flag=True,
+    default=True,
+    help="Continue processing when circuit breaker opens instead of stopping (default: True). "
+         "Useful for large repositories where some failures are expected.",
+)
+@click.option(
+    "--skip-failed-forks",
+    is_flag=True,
+    default=True,
+    help="Skip forks that consistently fail instead of retrying indefinitely (default: True). "
+         "Helps complete analysis of large repositories even when some forks are inaccessible.",
+)
+@click.option(
+    "--circuit-open-retry-interval",
+    type=click.FloatRange(5.0, 300.0),
+    default=30.0,
+    help="Seconds to wait between retries when circuit breaker is open (default: 30). "
+         "Lower values retry faster but may hit rate limits more frequently.",
+)
 @click.pass_context
 def show_forks(
     ctx: click.Context,
@@ -1216,6 +1244,10 @@ def show_forks(
     csv: bool,
     max_commits_count: int | None,
     commit_display_limit: int | None,
+    circuit_breaker_threshold: int | None,
+    continue_on_circuit_open: bool,
+    skip_failed_forks: bool,
+    circuit_open_retry_interval: float,
 ) -> None:
     """Display a summary table of repository forks with key metrics.
 
@@ -1333,6 +1365,24 @@ def show_forks(
             commit_display_limit=commit_display_limit
         )
 
+        # Create resilience configuration from CLI options
+        from forklift.github.rate_limiter import CircuitBreakerConfig, DegradationConfig
+        
+        # Build circuit breaker config with CLI overrides
+        circuit_breaker_config = None
+        if circuit_breaker_threshold is not None:
+            circuit_breaker_config = CircuitBreakerConfig(
+                base_failure_threshold=circuit_breaker_threshold,
+                large_repo_failure_threshold=circuit_breaker_threshold
+            )
+        
+        # Build degradation config
+        degradation_config = DegradationConfig(
+            continue_on_circuit_open=continue_on_circuit_open,
+            circuit_open_retry_interval=circuit_open_retry_interval,
+            skip_failed_items=skip_failed_forks
+        )
+
         # Run forks summary display
         asyncio.run(
             _show_forks_summary(
@@ -1348,6 +1398,8 @@ def show_forks(
                 interaction_mode,
                 supports_prompts,
                 commit_count_config,
+                circuit_breaker_config,
+                degradation_config,
             )
         )
 
@@ -1555,7 +1607,7 @@ def show_fork_data(
         sys.exit(1)
 
 
-@cli.command("show-promising")
+@cli.command("show-promising", hidden=True)
 @click.argument("repository_url")
 @click.option(
     "--min-stars", type=click.IntRange(0, 10000), default=0, help="Minimum star count"
@@ -1608,60 +1660,39 @@ def show_promising(
     max_fork_age_days: int | None,
     max_forks: int | None,
 ) -> None:
-    """Display promising forks based on configurable filtering criteria.
+    """[DEPRECATED] Display promising forks based on configurable filtering criteria.
 
-    This command analyzes all forks and displays only those that meet
-    the specified criteria for being "promising" - having significant
-    changes, recent activity, and community engagement.
+    ⚠️  This command is not yet implemented and has been moved to Forklift Version 2.0.
+    
+    The show-promising command will provide intelligent fork discovery with configurable
+    filtering criteria including activity scores, engagement metrics, and contribution
+    potential assessment.
 
-    REPOSITORY_URL can be:
-    - Full GitHub URL: https://github.com/owner/repo
-    - SSH URL: git@github.com:owner/repo.git
-    - Short format: owner/repo
+    For now, please use the following alternatives:
+    - 'forklift show-forks' for basic fork listing with filtering
+    - 'forklift analyze' for comprehensive fork analysis
+    - 'forklift list-forks' for lightweight fork preview
+
+    This feature will be available in Forklift Version 2.0 with enhanced capabilities
+    including activity scoring, contribution potential assessment, and advanced filtering.
     """
-    config: ForkliftConfig = ctx.obj["config"]
-    verbose: bool = ctx.obj["verbose"]
-
-    try:
-        # Validate GitHub token
-        if not config.github.token:
-            raise CLIError(
-                "GitHub token not configured. Use 'forklift configure' to set it up."
-            )
-
-        if verbose:
-            console.print(f"[blue]Finding promising forks for: {repository_url}[/blue]")
-
-        # Run promising forks analysis
-        asyncio.run(
-            _show_promising_forks(
-                config,
-                repository_url,
-                min_stars,
-                min_commits_ahead,
-                max_days_since_activity,
-                min_activity_score,
-                include_archived,
-                include_disabled,
-                min_fork_age_days,
-                max_fork_age_days,
-                max_forks,
-                verbose,
-            )
-        )
-
-    except CLIError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Operation interrupted by user[/yellow]")
-        sys.exit(130)
-    except Exception as e:
-        if ctx.obj["debug"]:
-            console.print_exception()
-        else:
-            console.print(f"[red]Unexpected error: {e}[/red]")
-        sys.exit(1)
+    console.print(Panel.fit(
+        "[bold red]⚠️  Command Not Yet Implemented[/bold red]\n\n"
+        "[yellow]The 'show-promising' command has been moved to Forklift Version 2.0[/yellow]\n\n"
+        "[bold]Available alternatives:[/bold]\n"
+        "• [cyan]forklift show-forks[/cyan] - Basic fork listing with filtering\n"
+        "• [cyan]forklift analyze[/cyan] - Comprehensive fork analysis\n"
+        "• [cyan]forklift list-forks[/cyan] - Lightweight fork preview\n\n"
+        "[dim]This feature will be available in Version 2.0 with enhanced\n"
+        "activity scoring and contribution potential assessment.[/dim]",
+        title="Show Promising Forks",
+        border_style="yellow"
+    ))
+    
+    console.print("\n[bold blue]Suggested command:[/bold blue]")
+    console.print(f"[green]forklift show-forks {repository_url} --min-commits-ahead {min_commits_ahead} --min-stars {min_stars}[/green]")
+    
+    sys.exit(1)
 
 
 @cli.command("analyze-fork")
@@ -2166,6 +2197,8 @@ async def _show_forks_summary(
     interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
     supports_prompts: bool = True,
     commit_count_config: "CommitCountConfig | None" = None,
+    circuit_breaker_config: "CircuitBreakerConfig | None" = None,
+    degradation_config: "DegradationConfig | None" = None,
 ) -> None:
     """Show forks summary using pagination-only fork data collection.
 
@@ -2182,7 +2215,14 @@ async def _show_forks_summary(
         interaction_mode: Current interaction mode for output formatting
         supports_prompts: Whether user prompts are supported
     """
-    async with GitHubClient(config.github) as github_client:
+    # Create repository-size-aware GitHub client for better resilience with large repositories
+    github_client = await GitHubClient.create_resilient_client(
+        config.github, 
+        repository_url,
+        circuit_breaker_config
+    )
+    
+    async with github_client:
         # Create appropriate console for main content output
         # Always use stdout for main content, regardless of interaction mode
         content_console = Console(file=sys.stdout, soft_wrap=False, width=999999)

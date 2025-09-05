@@ -48,6 +48,13 @@ class ForkliftOutputError(ForkliftError):
         super().__init__(message, exit_code=6)
 
 
+class CLIError(ForkliftError):
+    """Raised when CLI operations fail."""
+    
+    def __init__(self, message: str):
+        super().__init__(message, exit_code=1)
+
+
 class ForkliftUnicodeError(ForkliftError):
     """Raised when Unicode handling fails."""
     

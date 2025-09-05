@@ -5,6 +5,8 @@ import logging
 import random
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, TypeVar, Union
 
 from .rate_limit_progress import get_progress_manager
@@ -12,6 +14,43 @@ from .rate_limit_progress import get_progress_manager
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+class FailureType(Enum):
+    """Classification of different failure types for circuit breaker handling."""
+    RATE_LIMIT = "rate_limit"           # Should NOT count toward circuit breaker
+    NETWORK_ERROR = "network_error"     # Should count, but with higher tolerance
+    REPOSITORY_ACCESS = "repository_access"  # Should NOT count (expected for some forks)
+    API_ERROR = "api_error"            # Should count
+    TIMEOUT = "timeout"                # Should count, but with higher tolerance
+
+
+@dataclass
+class CircuitBreakerConfig:
+    """Enhanced configuration for circuit breaker."""
+    # Standard thresholds
+    base_failure_threshold: int = 5
+    large_repo_failure_threshold: int = 25  # Much higher for large repos
+    
+    # Timeout settings
+    timeout_seconds: float = 60.0
+    large_repo_timeout_seconds: float = 30.0  # Faster recovery for large repos
+    
+    # Repository size thresholds
+    large_repo_fork_threshold: int = 1000
+    
+    # Failure type weights (how much each failure type counts toward threshold)
+    failure_weights: dict[FailureType, float] = None
+    
+    def __post_init__(self):
+        if self.failure_weights is None:
+            self.failure_weights = {
+                FailureType.RATE_LIMIT: 0.0,        # Rate limits don't count
+                FailureType.REPOSITORY_ACCESS: 0.1,  # Repository access barely counts
+                FailureType.NETWORK_ERROR: 0.5,      # Network errors count less
+                FailureType.TIMEOUT: 0.5,            # Timeouts count less  
+                FailureType.API_ERROR: 1.0,          # API errors count full
+            }
 
 
 class RequestBatcher:
@@ -535,21 +574,82 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         timeout: float = 60.0,
         expected_exception: type = Exception,
+        config: CircuitBreakerConfig | None = None,
+        repository_size: int = 0,
     ):
         """Initialize circuit breaker.
 
         Args:
-            failure_threshold: Number of failures before opening circuit
-            timeout: Time in seconds before attempting to close circuit
+            failure_threshold: Number of failures before opening circuit (legacy parameter)
+            timeout: Time in seconds before attempting to close circuit (legacy parameter)
             expected_exception: Exception type that triggers circuit breaker
+            config: Enhanced configuration for failure type handling
+            repository_size: Number of forks in repository for adaptive behavior
         """
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
+        # Use enhanced config if provided, otherwise create from legacy parameters
+        if config is not None:
+            self.config = config
+        else:
+            self.config = CircuitBreakerConfig(
+                base_failure_threshold=failure_threshold,
+                timeout_seconds=timeout
+            )
+        
+        self.repository_size = repository_size
         self.expected_exception = expected_exception
 
-        self.failure_count = 0
+        # Enhanced failure tracking
+        self.weighted_failure_count = 0.0  # Use weighted count instead of simple count
+        self.failure_history: list[tuple[float, FailureType]] = []  # Track failure types
         self.last_failure_time: float | None = None
         self.state = "closed"  # closed, open, half_open
+        
+        # Legacy compatibility
+        self.failure_count = 0  # Keep for backward compatibility
+
+    @property
+    def failure_threshold(self) -> int:
+        """Get adaptive failure threshold based on repository size."""
+        if self.repository_size >= self.config.large_repo_fork_threshold:
+            return self.config.large_repo_failure_threshold
+        return self.config.base_failure_threshold
+    
+    @property
+    def timeout(self) -> float:
+        """Get adaptive timeout based on repository size."""
+        if self.repository_size >= self.config.large_repo_fork_threshold:
+            return self.config.large_repo_timeout_seconds
+        return self.config.timeout_seconds
+
+    def classify_failure(self, exception: Exception) -> FailureType:
+        """Classify failure type based on exception."""
+        import asyncio
+        import httpx
+        
+        from .exceptions import (
+            GitHubRateLimitError,
+            GitHubNotFoundError,
+            GitHubAuthenticationError,
+            GitHubPrivateRepositoryError,
+            GitHubForkAccessError,
+            GitHubTimeoutError,
+        )
+        
+        if isinstance(exception, GitHubRateLimitError):
+            return FailureType.RATE_LIMIT
+        elif isinstance(exception, (
+            GitHubNotFoundError, 
+            GitHubAuthenticationError,
+            GitHubPrivateRepositoryError,
+            GitHubForkAccessError
+        )):
+            return FailureType.REPOSITORY_ACCESS
+        elif isinstance(exception, (asyncio.TimeoutError, GitHubTimeoutError)):
+            return FailureType.TIMEOUT
+        elif isinstance(exception, httpx.NetworkError):
+            return FailureType.NETWORK_ERROR
+        else:
+            return FailureType.API_ERROR
 
     async def call(self, func: Callable[[], T], operation_name: str = "operation") -> T:
         """Execute function through circuit breaker.
@@ -576,8 +676,9 @@ class CircuitBreaker:
             self._on_success(operation_name)
             return result
 
-        except self.expected_exception:
-            self._on_failure(operation_name)
+        except self.expected_exception as e:
+            failure_type = self.classify_failure(e)
+            self._on_failure(operation_name, failure_type)
             raise
 
     def _should_attempt_reset(self) -> bool:
@@ -591,16 +692,229 @@ class CircuitBreaker:
         if self.state == "half_open":
             self.state = "closed"
             logger.info(f"Circuit breaker reset to closed for {operation_name}")
+        
+        # Reset all failure tracking
         self.failure_count = 0
+        self.weighted_failure_count = 0.0
+        self.failure_history.clear()
 
-    def _on_failure(self, operation_name: str) -> None:
-        """Handle failed operation."""
+    def _on_failure(self, operation_name: str, failure_type: FailureType = FailureType.API_ERROR) -> None:
+        """Handle failed operation with failure type classification."""
+        # Legacy failure count for backward compatibility
         self.failure_count += 1
         self.last_failure_time = time.time()
-
-        if self.failure_count >= self.failure_threshold:
+        
+        # Enhanced weighted failure tracking
+        weight = self.config.failure_weights.get(failure_type, 1.0)
+        self.weighted_failure_count += weight
+        
+        # Track failure history for analysis
+        self.failure_history.append((time.time(), failure_type))
+        
+        # Clean old failures (older than 5 minutes)
+        cutoff_time = time.time() - 300
+        self.failure_history = [
+            (timestamp, ftype) for timestamp, ftype in self.failure_history
+            if timestamp > cutoff_time
+        ]
+        
+        # Recalculate weighted count from recent history
+        self.weighted_failure_count = sum(
+            self.config.failure_weights.get(ftype, 1.0)
+            for _, ftype in self.failure_history
+        )
+        
+        # Check if circuit should open based on weighted failures
+        if self.weighted_failure_count >= self.failure_threshold:
             self.state = "open"
+            
+            # Enhanced logging with failure type breakdown
+            failure_breakdown = {}
+            for _, ftype in self.failure_history:
+                failure_breakdown[ftype.value] = failure_breakdown.get(ftype.value, 0) + 1
+            
             logger.warning(
                 f"Circuit breaker opened for {operation_name} "
-                f"after {self.failure_count} failures"
+                f"after {self.weighted_failure_count:.1f} weighted failures "
+                f"(threshold: {self.failure_threshold}). "
+                f"Failure breakdown: {failure_breakdown}. "
+                f"Repository size: {self.repository_size} forks."
             )
+        else:
+            # Log failure but circuit remains closed
+            logger.debug(
+                f"Circuit breaker failure recorded for {operation_name}: "
+                f"{failure_type.value} (weight: {weight}). "
+                f"Weighted count: {self.weighted_failure_count:.1f}/{self.failure_threshold}"
+            )
+
+class RepositorySizeDetector:
+    """Detects repository characteristics to configure resilience parameters."""
+    
+    @staticmethod
+    def extract_owner_repo_from_url(repo_url: str) -> tuple[str, str]:
+        """Extract owner and repo name from GitHub URL."""
+        # Handle various GitHub URL formats
+        import re
+        
+        # Remove .git suffix if present
+        repo_url = repo_url.rstrip('.git')
+        
+        # Match GitHub URL patterns
+        patterns = [
+            r'https://github\.com/([^/]+)/([^/]+)/?$',
+            r'git@github\.com:([^/]+)/([^/]+)/?$',
+            r'github\.com/([^/]+)/([^/]+)/?$',
+            r'^([^/]+)/([^/]+)/?$',  # Simple owner/repo format
+        ]
+        
+        for pattern in patterns:
+            match = re.match(pattern, repo_url)
+            if match:
+                return match.group(1), match.group(2)
+        
+        raise ValueError(f"Could not extract owner/repo from URL: {repo_url}")
+    
+    @staticmethod
+    async def detect_repository_size(github_client: 'GitHubClient', repo_url: str) -> int:
+        """Detect the number of forks for a repository."""
+        try:
+            # Extract owner/repo from URL
+            owner, repo = RepositorySizeDetector.extract_owner_repo_from_url(repo_url)
+            
+            # Get repository info to check fork count
+            repo_info = await github_client.get_repository(owner, repo)
+            fork_count = repo_info.forks_count if hasattr(repo_info, 'forks_count') else 0
+            
+            logger.info(f"Detected {fork_count} forks for {repo_url}")
+            return fork_count
+            
+        except Exception as e:
+            logger.warning(f"Could not detect repository size for {repo_url}: {e}")
+            return 0  # Default to small repository behavior
+    
+    @staticmethod
+    def get_recommended_config(fork_count: int) -> CircuitBreakerConfig:
+        """Get recommended circuit breaker configuration based on repository size."""
+        
+        if fork_count >= 2000:
+            # Very large repositories - very high tolerance
+            logger.info(f"Configuring circuit breaker for very large repository ({fork_count} forks)")
+            return CircuitBreakerConfig(
+                base_failure_threshold=5,
+                large_repo_failure_threshold=50,  # Very high threshold
+                large_repo_fork_threshold=2000,
+                timeout_seconds=60.0,
+                large_repo_timeout_seconds=20.0,  # Quick recovery
+            )
+        elif fork_count >= 1000:
+            # Large repositories - high tolerance  
+            logger.info(f"Configuring circuit breaker for large repository ({fork_count} forks)")
+            return CircuitBreakerConfig(
+                base_failure_threshold=5,
+                large_repo_failure_threshold=25,
+                large_repo_fork_threshold=1000,
+                timeout_seconds=60.0,
+                large_repo_timeout_seconds=30.0,
+            )
+        elif fork_count >= 500:
+            # Medium repositories - moderate tolerance
+            logger.info(f"Configuring circuit breaker for medium repository ({fork_count} forks)")
+            return CircuitBreakerConfig(
+                base_failure_threshold=5,
+                large_repo_failure_threshold=15,
+                large_repo_fork_threshold=500,
+                timeout_seconds=60.0,
+                large_repo_timeout_seconds=45.0,
+            )
+        else:
+            # Small repositories - standard behavior
+            logger.debug(f"Using standard circuit breaker configuration for small repository ({fork_count} forks)")
+            return CircuitBreakerConfig()  # Use defaults
+
+@dataclass
+class DegradationConfig:
+    """Configuration for graceful degradation."""
+    continue_on_circuit_open: bool = True
+    circuit_open_retry_interval: float = 30.0  # Retry every 30 seconds
+    max_circuit_open_retries: int = 10  # Try for 5 minutes total
+    skip_failed_items: bool = True  # Skip items that consistently fail
+
+
+class GracefulDegradationHandler:
+    """Handles graceful degradation when circuit breaker opens."""
+    
+    def __init__(self, config: DegradationConfig):
+        self.config = config
+        self.circuit_open_start_time: float | None = None
+        self.circuit_open_retry_count = 0
+    
+    async def handle_circuit_open(
+        self,
+        remaining_items: list[T],
+        processor_func: Callable[[T], Any],
+        circuit_breaker: CircuitBreaker,
+        operation_name: str
+    ) -> list[tuple[T, Any]]:
+        """Handle processing when circuit breaker is open."""
+        
+        if not self.config.continue_on_circuit_open:
+            raise Exception(f"Circuit breaker is open for {operation_name}, stopping processing")
+        
+        logger.warning(
+            f"Circuit breaker is open for {operation_name}. "
+            f"Will retry every {self.config.circuit_open_retry_interval}s for up to "
+            f"{self.config.max_circuit_open_retries} attempts."
+        )
+        
+        successful_results = []
+        
+        while self.circuit_open_retry_count < self.config.max_circuit_open_retries:
+            # Wait for retry interval
+            logger.info(f"Waiting {self.config.circuit_open_retry_interval}s before retrying circuit breaker recovery...")
+            await asyncio.sleep(self.config.circuit_open_retry_interval)
+            
+            # Try to process remaining items one by one
+            still_remaining = []
+            
+            for item in remaining_items:
+                try:
+                    # Try individual item processing
+                    result = await circuit_breaker.call(
+                        lambda: processor_func(item),
+                        f"{operation_name}_individual_retry"
+                    )
+                    successful_results.append((item, result))
+                    logger.debug(f"Successfully processed item during circuit breaker recovery: {item}")
+                    
+                except Exception as e:
+                    if self.config.skip_failed_items:
+                        logger.warning(f"Skipping failed item in {operation_name}: {e}")
+                        # Don't add to still_remaining - effectively skip it
+                    else:
+                        still_remaining.append(item)
+            
+            remaining_items = still_remaining
+            
+            if not remaining_items:
+                logger.info(f"All remaining items processed successfully for {operation_name}")
+                break
+                
+            self.circuit_open_retry_count += 1
+            logger.info(
+                f"Circuit breaker retry {self.circuit_open_retry_count}/{self.config.max_circuit_open_retries} "
+                f"for {operation_name}. {len(remaining_items)} items still pending."
+            )
+        
+        if remaining_items:
+            logger.warning(
+                f"Circuit breaker recovery failed for {operation_name}. "
+                f"{len(remaining_items)} items could not be processed."
+            )
+        
+        return successful_results
+    
+    def reset_retry_count(self) -> None:
+        """Reset retry count for new operations."""
+        self.circuit_open_retry_count = 0
+        self.circuit_open_start_time = None

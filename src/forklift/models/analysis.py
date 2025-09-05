@@ -82,10 +82,12 @@ class ForkPreviewItem(BaseModel):
     name: str = Field(..., description="Fork repository name")
     owner: str = Field(..., description="Fork owner username")
     stars: int = Field(default=0, description="Number of stars")
+    forks_count: int = Field(default=0, description="Number of forks")
     last_push_date: datetime | None = Field(None, description="Last push date")
     fork_url: str = Field(..., description="Fork HTML URL")
     activity_status: str = Field(..., description="Activity status: Active, Stale, or No commits")
     commits_ahead: str = Field(..., description="Commits ahead status: None or Unknown")
+    commits_behind: str = Field(default="Unknown", description="Commits behind status: None or Unknown")
     recent_commits: str | None = Field(None, description="Recent commit messages for CSV export")
 
 

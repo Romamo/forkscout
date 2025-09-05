@@ -264,20 +264,17 @@ class TestCSVHeaderGeneration:
         
         headers = exporter._generate_forks_preview_headers()
         
-        # Check basic preview columns
+        # Check basic preview columns (new format)
         expected_basic_headers = [
-            "fork_name",
-            "owner",
-            "stars",
-            "commits_ahead",
-            "activity_status"
+            "Fork URL",
+            "Stars",
+            "Forks",
+            "Commits Ahead",
+            "Commits Behind"
         ]
         
         for header in expected_basic_headers:
             assert header in headers
-        
-        # URL should be included by default
-        assert "fork_url" in headers
 
     def test_forks_preview_headers_with_detail_mode(self):
         """Test forks preview header generation with detail mode."""
@@ -286,10 +283,10 @@ class TestCSVHeaderGeneration:
         
         headers = exporter._generate_forks_preview_headers()
         
-        # Check detail mode columns are included
-        assert "last_push_date" in headers
-        assert "created_date" in headers
-        assert "updated_date" in headers
+        # Check detail mode columns are included (new title case format)
+        assert "Last Push Date" in headers
+        assert "Created Date" in headers
+        assert "Updated Date" in headers
 
     def test_forks_preview_headers_with_commits(self):
         """Test forks preview header generation with commits enabled."""
@@ -298,8 +295,8 @@ class TestCSVHeaderGeneration:
         
         headers = exporter._generate_forks_preview_headers()
         
-        # Should include recent_commits column
-        assert "recent_commits" in headers
+        # Should include recent_commits column (new title case format)
+        assert "Recent Commits" in headers
 
     def test_forks_preview_headers_without_commits(self):
         """Test forks preview header generation without commits."""
@@ -308,8 +305,9 @@ class TestCSVHeaderGeneration:
         
         headers = exporter._generate_forks_preview_headers()
         
-        # Should not include recent_commits column
+        # Should not include recent_commits column (check both old and new names)
         assert "recent_commits" not in headers
+        assert "Recent Commits" not in headers
 
     def test_forks_preview_headers_without_urls(self):
         """Test forks preview header generation without URLs."""
@@ -590,12 +588,20 @@ class TestCSVHeaderGeneration:
         # Remove duplicates
         unique_headers = list(set(all_headers))
         
+        # Get forks preview headers separately as they use new title case format
+        preview_headers = exporter._generate_forks_preview_headers()
+        
         for header in unique_headers:
-            # Should be lowercase with underscores (snake_case)
-            assert header.islower(), f"Header '{header}' should be lowercase"
-            assert " " not in header, f"Header '{header}' should not contain spaces"
-            # Should not start or end with underscore
-            assert not header.startswith("_"), f"Header '{header}' should not start with underscore"
-            assert not header.endswith("_"), f"Header '{header}' should not end with underscore"
-            # Should not contain consecutive underscores
-            assert "__" not in header, f"Header '{header}' should not contain consecutive underscores"
+            if header in preview_headers:
+                # Forks preview headers use title case with spaces (new format)
+                assert header[0].isupper(), f"Preview header '{header}' should start with uppercase"
+                # Allow spaces in preview headers
+            else:
+                # Other headers should be lowercase with underscores (snake_case)
+                assert header.islower(), f"Header '{header}' should be lowercase"
+                assert " " not in header, f"Header '{header}' should not contain spaces"
+                # Should not start or end with underscore
+                assert not header.startswith("_"), f"Header '{header}' should not start with underscore"
+                assert not header.endswith("_"), f"Header '{header}' should not end with underscore"
+                # Should not contain consecutive underscores
+                assert "__" not in header, f"Header '{header}' should not contain consecutive underscores"

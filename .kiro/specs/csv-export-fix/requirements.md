@@ -40,3 +40,15 @@ The CSV export functionality for the `show-forks` command is currently broken du
 3. WHEN I combine `--csv` with `--show-commits=N` THEN the system SHALL include the last N commits for each fork in the CSV output
 4. WHEN I combine `--csv` with `--force-all-commits` THEN the system SHALL fetch commits for all forks regardless of optimization
 5. WHEN multiple flags are combined THEN the CSV output SHALL reflect all the requested filtering and data inclusion options
+
+### Requirement 4
+
+**User Story:** As a user redirecting CSV output to files, I want clean CSV data without informational messages so that the output files can be processed by CSV parsing tools.
+
+#### Acceptance Criteria
+
+1. WHEN I run `forklift show-forks <repo> --csv > output.csv` THEN the output file SHALL contain only valid CSV data
+2. WHEN filtering is applied with `--ahead-only` THEN filtering statistics messages SHALL be sent to stderr, not stdout
+3. WHEN CSV export is active THEN informational messages SHALL not contaminate the CSV output stream
+4. WHEN I redirect stdout to a file THEN I SHALL still see filtering and progress messages on stderr
+5. WHEN parsing the CSV output file THEN it SHALL be valid CSV format without any non-CSV content

@@ -42,3 +42,11 @@
   - Test CSV parsing by external tools to ensure valid format
   - Test with the original failing command: `forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --csv --show-commits=2`
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 7. Redirect filtering messages to stderr in CSV mode
+  - Modify repository display service to detect CSV export mode
+  - Redirect filtering statistics messages (exclusion_summary) to stderr when in CSV mode
+  - Ensure stdout remains clean for CSV data only
+  - Test that filtering messages appear on stderr while CSV data goes to stdout
+  - Test with output redirection to verify CSV files contain only valid CSV data
+  - _Requirements: 1.1, 1.5, 2.3_

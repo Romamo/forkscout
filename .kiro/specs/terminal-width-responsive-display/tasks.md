@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [-] 1. Update console configuration for natural width rendering
+- [ ] 1. Update console configuration for natural width rendering
   - Verify all Console instances use `width=None` consistently across the application
   - Ensure `soft_wrap=False` is set to prevent text wrapping
   - Add explicit width override configuration if needed

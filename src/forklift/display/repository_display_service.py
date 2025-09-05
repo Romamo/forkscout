@@ -161,10 +161,12 @@ class RepositoryDisplayService:
                     name=fork.name,
                     owner=fork.owner,
                     stars=fork.stars,
+                    forks_count=fork.forks_count,
                     last_push_date=fork.pushed_at,
                     fork_url=fork.html_url,
                     activity_status=activity_status,
                     commits_ahead=commits_ahead,
+                    commits_behind="Unknown",  # Not available in basic fork data
                 )
                 fork_items.append(fork_item)
 
@@ -1366,7 +1368,15 @@ class RepositoryDisplayService:
 
                 # Display filtering statistics
                 if filter_result.total_excluded > 0:
-                    self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
+                    # In CSV export mode, send filtering messages to stderr to keep stdout clean
+                    if csv_export:
+                        # Always use stderr for CSV mode to keep stdout clean
+                        import sys
+                        from rich.console import Console
+                        stderr_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
+                        stderr_console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
+                    else:
+                        self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
 
             # Create qualification result
             qualification_result = data_engine.create_qualification_result(
@@ -1508,7 +1518,15 @@ class RepositoryDisplayService:
 
                 # Display filtering statistics
                 if filter_result.total_excluded > 0:
-                    self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
+                    # In CSV export mode, send filtering messages to stderr to keep stdout clean
+                    if csv_export:
+                        # Always use stderr for CSV mode to keep stdout clean
+                        import sys
+                        from rich.console import Console
+                        stderr_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
+                        stderr_console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
+                    else:
+                        self.console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
 
             # Separate forks that can be skipped from those needing API calls
             forks_to_skip = []
@@ -3753,10 +3771,12 @@ class RepositoryDisplayService:
             name=name,
             owner=owner,
             stars=stars,
+            forks_count=0,  # Default value, not available in this context
             last_push_date=last_push_date,
             fork_url=fork_url,
             activity_status=activity_status,
             commits_ahead=commits_ahead,
+            commits_behind="Unknown",  # Default value, not available in this context
             recent_commits=recent_commits_text if show_commits > 0 else None
         )
 
@@ -3845,9 +3865,11 @@ class RepositoryDisplayService:
             name=name,
             owner=owner,
             stars=stars,
+            forks_count=0,  # Default value, not available in this context
             last_push_date=last_push_date,
             fork_url=fork_url,
             activity_status=activity_status,
             commits_ahead=commits_ahead,
+            commits_behind="Unknown",  # Default value, not available in this context
             recent_commits=recent_commits_text if show_commits > 0 else None
         )

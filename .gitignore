@@ -172,3 +172,14 @@ cache/
 reports/
 logs/
 .forklift/
+
+# Development artifacts (temporary files, test outputs, etc.)
+dev-artifacts/
+*.txt
+*.csv
+forklift.yaml
+forklift.example.*
+.forklift_session.json.backup
+
+# Important: DO NOT ignore .kiro directory - it contains specs and steering
+# !.kiro/
