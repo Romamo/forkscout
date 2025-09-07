@@ -170,16 +170,16 @@ class TestForkDiscoveryStepDisplays:
         display = step.display_results(result)
 
         # Check for enhanced formatting
-        assert "✅ **Fork Discovery Complete**" in display
+        assert "SUCCESS - **Fork Discovery Complete**" in display
         assert "Fork Activity Breakdown:" in display
         assert "High Activity (≥10 commits): 1 forks" in display
         assert "Medium Activity (3-9 commits): 1 forks" in display
         assert "Low Activity (1-2 commits): 1 forks" in display
-        assert "🔥 high-activity/test-repo" in display
-        assert "⚡ medium-activity/test-repo" in display
-        assert "💫 low-activity/test-repo" in display
-        assert "📊 15 commits ahead" in display
-        assert "⭐ 25 stars" in display
+        assert "[HIGH] high-activity/test-repo" in display
+        assert "[MED] medium-activity/test-repo" in display
+        assert "[LOW] low-activity/test-repo" in display
+        assert "15 commits ahead" in display
+        assert "25 stars" in display
 
     def test_get_confirmation_prompt_with_metrics(self, sample_forks):
         """Test enhanced confirmation prompt with detailed metrics."""
@@ -242,15 +242,15 @@ class TestForkFilteringStepDisplays:
         display = step.display_results(result)
 
         # Check for enhanced categorization
-        assert "🔍 **Fork Filtering Complete**" in display
-        assert "✅ Minimum commits ahead: 1" in display
-        assert "✅ Minimum stars: 0" in display
-        assert "📊 Original forks discovered: 5" in display
-        assert "🎯 Forks passing filters: 3" in display
-        assert "📈 Selection ratio: 60.0%" in display
-        assert "🔥 **High-Value Forks" in display
+        assert "FILTERING - **Fork Filtering Complete**" in display
+        assert "Minimum commits ahead: 1" in display
+        assert "Minimum stars: 0" in display
+        assert "Original forks discovered: 5" in display
+        assert "Forks passing filters: 3" in display
+        assert "Selection ratio: 60.0%" in display
+        assert "**High-Value Forks" in display
         assert "high-activity/test-repo" in display
-        assert "📊 15 commits ahead, ⭐ 25 stars" in display
+        assert "15 commits ahead, 25 stars" in display
 
     def test_display_results_no_forks_passed(self):
         """Test filtering display when no forks pass criteria."""
@@ -266,7 +266,7 @@ class TestForkFilteringStepDisplays:
 
         display = step.display_results(result)
 
-        assert "⚠️  **No Forks Passed Filtering**" in display
+        assert "WARNING: **No Forks Passed Filtering**" in display
         assert "**Suggestions:**" in display
         assert "Consider lowering the minimum commits ahead (currently 20)" in display
         assert "Consider lowering the minimum stars requirement (currently 50)" in display
@@ -342,19 +342,19 @@ class TestForkAnalysisStepDisplays:
         display = step.display_results(result)
 
         # Check for enhanced categorization
-        assert "🔬 **Fork Analysis Complete**" in display
-        assert "🎯 Forks targeted for analysis: 3" in display
-        assert "✅ Successfully analyzed: 3" in display
-        assert "📊 Success rate: 100.0%" in display
-        assert "🔍 Total features discovered: 11" in display
+        assert "ANALYSIS - **Fork Analysis Complete**" in display
+        assert "Forks targeted for analysis: 3" in display
+        assert "Successfully analyzed: 3" in display
+        assert "Success rate: 100.0%" in display
+        assert "Total features discovered: 11" in display
         assert "**Feature Distribution:**" in display
-        assert "🔥 Feature-rich forks (≥5 features): 1" in display
-        assert "⚡ Moderate forks (2-4 features): 1" in display
-        assert "💫 Sparse forks (1 feature): 1" in display
-        assert "🔥 **Top Feature-Rich Forks:**" in display
+        assert "Feature-rich forks (≥5 features): 1" in display
+        assert "Moderate forks (2-4 features): 1" in display
+        assert "Sparse forks (1 feature): 1" in display
+        assert "**Top Feature-Rich Forks:**" in display
         assert "high-activity/test-repo" in display
-        assert "🎯 7 features discovered" in display
-        assert "📋 Categories:" in display
+        assert "7 features discovered" in display
+        assert "CATEGORIES:" in display
 
     def test_get_confirmation_prompt_excellent_results(self):
         """Test confirmation prompt for excellent analysis results."""
@@ -457,19 +457,19 @@ class TestFeatureRankingStepDisplays:
         display = step.display_results(result)
 
         # Check for enhanced quality distribution
-        assert "📊 **Feature Ranking Complete**" in display
+        assert "**Feature Ranking Complete**" in display
         assert "**Quality Distribution:**" in display
-        assert "🏆 Excellent features (≥90): 1" in display
-        assert "🔥 High-value features (80-89): 1" in display
-        assert "✅ Good features (70-79): 1" in display
-        assert "📈 Average score: 85.0/100" in display
-        assert "🎯 Highest score achieved: 95.0/100" in display
-        assert "🏆 **Top-Tier Features (Score ≥80):**" in display
-        assert "🏆 **Excellent Feature**" in display
-        assert "📊 Score: 95.0/100" in display
-        assert "🏠 Source: excellent/repo" in display
-        assert "🏷️  Category: New Feature" in display
-        assert "⚖️  Key factors: code_quality: 0.9, community_engagement: 0.8" in display
+        assert "Excellent features (≥90): 1" in display
+        assert "High-value features (80-89): 1" in display
+        assert "Good features (70-79): 1" in display
+        assert "Average score: 85.0/100" in display
+        assert "Highest score achieved: 95.0/100" in display
+        assert "**Top-Tier Features (Score ≥80):**" in display
+        assert "[EXCELLENT] **Excellent Feature**" in display
+        assert "Score: 95.0/100" in display
+        assert "SOURCE: excellent/repo" in display
+        assert "CATEGORY: New Feature" in display
+        assert "Key factors: code_quality: 0.9, community_engagement: 0.8" in display
 
     def test_display_results_only_medium_features(self):
         """Test ranking display when only medium-quality features are found."""
@@ -496,9 +496,9 @@ class TestFeatureRankingStepDisplays:
 
         display = step.display_results(result)
 
-        assert "⚡ **Available Features (Score 60-69):**" in display
+        assert "INFO: **Available Features (Score 60-69):**" in display
         assert "Medium Feature (Score: 65.0)" in display
-        assert "💡 **Recommendation:** Consider reviewing the analysis criteria" in display
+        assert "**Recommendation:** Consider reviewing the analysis criteria" in display
 
     def test_get_confirmation_prompt_outstanding_results(self):
         """Test confirmation prompt for outstanding ranking results."""
@@ -509,7 +509,7 @@ class TestFeatureRankingStepDisplays:
 
         prompt = step.get_confirmation_prompt(result)
 
-        assert "🎉 Outstanding results! Found 1 excellent features (≥90 score) and 2 high-value features" in prompt
+        assert "EXCELLENT - Outstanding results! Found 1 excellent features (≥90 score) and 2 high-value features" in prompt
         assert "Ready to generate your comprehensive analysis report?" in prompt
 
     def test_get_confirmation_prompt_good_results(self):

@@ -161,6 +161,9 @@ class CollectedForkData(BaseModel):
     exact_commits_behind: int | str | None = Field(
         None, description="Exact number of commits behind (fetched via compare API) or 'Unknown'"
     )
+    commit_count_error: str | None = Field(
+        None, description="Error message if commit count fetching failed"
+    )
 
     @computed_field
     @property

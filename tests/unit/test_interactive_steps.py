@@ -581,7 +581,7 @@ class TestForkDiscoveryStep:
 
         display = step.display_results(result)
 
-        assert "📭 **No Forks Found**" in display
+        assert "NO FORKS - **No Forks Found**" in display
         assert "no public forks to analyze" in display
 
 
@@ -647,7 +647,7 @@ class TestForkFilteringStep:
 
         display = step.display_results(result)
 
-        assert "🔍 **Fork Filtering Complete**" in display
+        assert "FILTERING - **Fork Filtering Complete**" in display
         assert "Minimum commits ahead: 1" in display
         assert "Minimum stars: 5" in display
         assert "Original forks discovered: 2" in display
@@ -956,7 +956,7 @@ class TestForkAnalysisStep:
 
         display = step.display_results(result)
 
-        assert "🔬 **Fork Analysis Complete**" in display
+        assert "ANALYSIS - **Fork Analysis Complete**" in display
         assert "2" in display  # forks analyzed
         assert "4" in display  # total features
 
@@ -974,7 +974,7 @@ class TestForkAnalysisStep:
 
         display = step.display_results(result)
 
-        assert "🔬 **Fork Analysis Complete**" in display
+        assert "ANALYSIS - **Fork Analysis Complete**" in display
         assert "0" in display
 
     def test_display_results_failure(self):

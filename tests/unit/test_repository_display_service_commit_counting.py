@@ -57,12 +57,12 @@ class TestRepositoryDisplayServiceCommitCounting:
         
         # Mock the batch counts method to return accurate counts from ahead_by field
         mock_batch_counts = {
-            "fork1/repo": 5,   # Fork1 has 5 commits ahead (from ahead_by field)
-            "fork2/repo": 12,  # Fork2 has 12 commits ahead (from ahead_by field)
-            "fork3/repo": 23,  # Fork3 has 23 commits ahead (from ahead_by field)
+            "fork1/repo": {"ahead_by": 5, "behind_by": 0, "total_commits": 5},
+            "fork2/repo": {"ahead_by": 12, "behind_by": 2, "total_commits": 14},
+            "fork3/repo": {"ahead_by": 23, "behind_by": 1, "total_commits": 24},
         }
         
-        mock_github_client.get_commits_ahead_batch_counts.return_value = mock_batch_counts
+        mock_github_client.get_commits_ahead_behind_batch.return_value = mock_batch_counts
         
         # Call the method that should be fixed
         result = await repository_display_service._get_exact_commit_counts_batch(
@@ -70,7 +70,7 @@ class TestRepositoryDisplayServiceCommitCounting:
         )
         
         # Verify that the method was called correctly
-        mock_github_client.get_commits_ahead_batch_counts.assert_called_once_with(
+        mock_github_client.get_commits_ahead_behind_batch.assert_called_once_with(
             [("fork1", "repo"), ("fork2", "repo"), ("fork3", "repo")],
             "parent",
             "repo"
@@ -98,11 +98,11 @@ class TestRepositoryDisplayServiceCommitCounting:
         
         # Mock batch counts method to return partial results (fork2 failed)
         mock_batch_counts = {
-            "fork1/repo": 5,   # Fork1 succeeded
+            "fork1/repo": {"ahead_by": 5, "behind_by": 0, "total_commits": 5},
             # fork2/repo missing - simulates API failure
         }
         
-        mock_github_client.get_commits_ahead_batch_counts.return_value = mock_batch_counts
+        mock_github_client.get_commits_ahead_behind_batch.return_value = mock_batch_counts
         
         # Call the method
         result = await repository_display_service._get_exact_commit_counts_batch(
@@ -132,10 +132,10 @@ class TestRepositoryDisplayServiceCommitCounting:
         
         # Mock batch counts method
         mock_batch_counts = {
-            "fork2/repo": 7,   # Only fork2 needs API call
+            "fork2/repo": {"ahead_by": 7, "behind_by": 1, "total_commits": 8},
         }
         
-        mock_github_client.get_commits_ahead_batch_counts.return_value = mock_batch_counts
+        mock_github_client.get_commits_ahead_behind_batch.return_value = mock_batch_counts
         
         # Call the method
         result = await repository_display_service._get_exact_commit_counts_batch(
@@ -149,7 +149,7 @@ class TestRepositoryDisplayServiceCommitCounting:
         assert forks_needing_api[1].exact_commits_ahead == 7
         
         # Verify that only fork2 was included in API call
-        mock_github_client.get_commits_ahead_batch_counts.assert_called_once_with(
+        mock_github_client.get_commits_ahead_behind_batch.assert_called_once_with(
             [("fork2", "repo")],  # Only fork2, fork1 was skipped
             "parent",
             "repo"
@@ -167,10 +167,10 @@ class TestRepositoryDisplayServiceCommitCounting:
         ]
         
         # Mock batch method to raise exception
-        mock_github_client.get_commits_ahead_batch_counts.side_effect = Exception("Batch failed")
+        mock_github_client.get_commits_ahead_behind_batch.side_effect = Exception("Batch failed")
         
         # Mock individual method to succeed
-        mock_github_client.compare_repositories.return_value = {"ahead_by": 8}
+        mock_github_client.get_commits_ahead_behind.return_value = {"ahead_by": 8, "behind_by": 2}
         
         # Call the method
         result = await repository_display_service._get_exact_commit_counts_batch(
@@ -178,8 +178,8 @@ class TestRepositoryDisplayServiceCommitCounting:
         )
         
         # Verify that individual API call was made
-        mock_github_client.compare_repositories.assert_called_once_with(
-            "parent", "repo", "fork1", "repo"
+        mock_github_client.get_commits_ahead_behind.assert_called_once_with(
+            "fork1", "repo", "parent", "repo"
         )
         
         # Verify that fork got correct count from individual call

@@ -261,7 +261,7 @@ class TestConcurrentCommitFetching:
             ),
         ]
 
-        formatted = display_service.format_recent_commits(commits)
+        formatted = display_service.format_recent_commits(commits, column_width=80)
 
         expected_lines = [
             "abc123d: Fix critical bug in user authentication system",

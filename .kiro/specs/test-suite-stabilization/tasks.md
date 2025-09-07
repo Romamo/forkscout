@@ -45,14 +45,14 @@
 
 ## Phase 3: Feature-Specific Fixes
 
-- [-] 7. Fix CSV export test failures
+- [x] 7. Fix CSV export test failures
   - Update CSV column name expectations (`fork_name` vs `Fork URL`, etc.)
   - Fix CSV data structure access patterns and key errors
   - Update CSV export configuration expectations in tests
   - Fix special character handling and escaping in CSV tests
   - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
-- [ ] 8. Fix display and formatting test failures
+- [-] 8. Fix display and formatting test failures
   - Update emoji and formatting pattern expectations in display tests
   - Fix table formatting tests to match current display logic
   - Update compact display mode tests for current implementations
