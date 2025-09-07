@@ -18,6 +18,14 @@ class TestRepositoryDisplayService:
     def setup_method(self):
         """Setup test fixtures."""
         self.mock_github_client = Mock()
+        # Make async methods return AsyncMock
+        self.mock_github_client.get_repository = AsyncMock()
+        self.mock_github_client.get_repository_languages = AsyncMock()
+        self.mock_github_client.get_repository_topics = AsyncMock()
+        self.mock_github_client.get_forks = AsyncMock()
+        self.mock_github_client.get_commits_ahead_count = AsyncMock()
+        self.mock_github_client.get_recent_commits = AsyncMock()
+        
         self.mock_console = Mock(spec=Console)
         self.service = RepositoryDisplayService(
             github_client=self.mock_github_client, console=self.mock_console
@@ -2611,14 +2619,21 @@ class TestRepositoryDisplayService:
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
         
-        # Mock detailed fork data
-        mock_fork_data = Mock()
-        mock_fork_data.metrics.owner = "test_owner"
-        mock_fork_data.metrics.name = "test_repo"
-        mock_fork_data.metrics.stargazers_count = 100
-        mock_fork_data.metrics.forks_count = 50
-        mock_fork_data.metrics.pushed_at = datetime.now(UTC)
-        mock_fork_data.exact_commits_ahead = 5
+        # Create proper mock objects instead of Mock to avoid attribute issues
+        class MockMetrics:
+            def __init__(self):
+                self.owner = "test_owner"
+                self.name = "test_repo"
+                self.stargazers_count = 100
+                self.forks_count = 50
+                self.pushed_at = datetime.now(UTC)
+        
+        class MockForkData:
+            def __init__(self):
+                self.metrics = MockMetrics()
+                self.exact_commits_ahead = 5
+        
+        mock_fork_data = MockForkData()
         
         fork_data_list = [mock_fork_data]
         
@@ -2707,15 +2722,19 @@ class TestRepositoryDisplayService:
         """Test _format_commits_display method with exact counts."""
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
         
+        # Create a simple object instead of Mock to avoid Mock attribute issues
+        class MockForkData:
+            def __init__(self, exact_commits_ahead):
+                self.exact_commits_ahead = exact_commits_ahead
+        
         # Test with exact commits ahead
-        mock_fork_data = Mock()
-        mock_fork_data.exact_commits_ahead = 5
+        mock_fork_data = MockForkData(exact_commits_ahead=5)
         
         result = service._format_commits_display(mock_fork_data, show_exact_counts=True)
         assert "[green]+5[/green]" in result
         
         # Test with zero commits ahead
-        mock_fork_data.exact_commits_ahead = 0
+        mock_fork_data = MockForkData(exact_commits_ahead=0)
         result = service._format_commits_display(mock_fork_data, show_exact_counts=True)
         assert result == ""
 
@@ -2743,14 +2762,21 @@ class TestRepositoryDisplayService:
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
         
-        # Mock fork data
-        mock_fork_data = Mock()
-        mock_fork_data.metrics.owner = "test_owner"
-        mock_fork_data.metrics.name = "test_repo"
-        mock_fork_data.metrics.stargazers_count = 100
-        mock_fork_data.metrics.forks_count = 50
-        mock_fork_data.metrics.pushed_at = datetime.now(UTC)
-        mock_fork_data.exact_commits_ahead = 3
+        # Create proper mock objects instead of Mock to avoid attribute issues
+        class MockMetrics:
+            def __init__(self):
+                self.owner = "test_owner"
+                self.name = "test_repo"
+                self.stargazers_count = 100
+                self.forks_count = 50
+                self.pushed_at = datetime.now(UTC)
+        
+        class MockForkData:
+            def __init__(self):
+                self.metrics = MockMetrics()
+                self.exact_commits_ahead = 3
+        
+        mock_fork_data = MockForkData()
         
         fork_data_list = [mock_fork_data]
         

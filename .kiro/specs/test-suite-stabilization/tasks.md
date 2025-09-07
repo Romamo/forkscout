@@ -2,20 +2,20 @@
 
 ## Phase 1: Foundation Fixes (Critical Priority)
 
-- [-] 1. Fix critical import errors and undefined names
+- [x] 1. Fix critical import errors and undefined names
   - Fix `CLIError` import issues in test files
   - Define or import `table_context` where needed
   - Fix `CommitDataFormatter` import path issues
   - Update `ForkQualificationResult` import references
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 2. Fix method signature mismatches in repository display service
+- [x] 2. Fix method signature mismatches in repository display service
   - Update `_fetch_commits_concurrently()` calls to include `base_owner` and `base_repo` parameters
   - Fix `_show_comprehensive_fork_data()` calls to include `show_commits` parameter
   - Update other display service method calls with changed signatures
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 3. Fix basic async mock configuration issues
+- [-] 3. Fix basic async mock configuration issues
   - Replace `Mock` with `AsyncMock` for async methods in critical tests
   - Fix "coroutine was never awaited" warnings in high-priority test files
   - Configure proper async return values for mocked methods

@@ -1849,7 +1849,7 @@ class RepositoryDisplayService:
 
             # Fetch commits concurrently if needed
             commits_cache = await self._fetch_commits_concurrently(
-                fork_data_list, base_owner, base_repo, show_commits, force_all_commits
+                fork_data_list, show_commits, base_owner, base_repo, force_all_commits
             )
 
         # Add rows to table
@@ -1892,7 +1892,7 @@ class RepositoryDisplayService:
 
         # Display insights if requested
         if show_insights:
-            await self._display_fork_insights(fork_data_list)
+            await self._display_detailed_fork_insights(fork_data_list)
 
     def _format_commits_display(self, fork_data, show_exact_counts: bool) -> str:
         """Format commits display based on available data and display mode."""
@@ -2054,8 +2054,8 @@ class RepositoryDisplayService:
             self.console.print(f"• {forks_with_commits} forks likely have commits ahead")
             self.console.print("• Commit status determined by timestamp analysis")
 
-    async def _display_fork_insights(self, fork_data_list) -> None:
-        """Display additional fork insights and analysis."""
+    async def _display_detailed_fork_insights(self, fork_data_list) -> None:
+        """Display additional fork insights and analysis for detailed fork data."""
         if not fork_data_list:
             return
 
@@ -2109,6 +2109,18 @@ class RepositoryDisplayService:
         title_suffix = (
             f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
         )
+        
+        # Create table context for consistent title building
+        table_context = {
+            "owner": base_owner,
+            "repo": base_repo,
+            "has_exact_counts": True,
+            "mode": "detailed",
+            "api_calls_made": api_calls_made,
+            "api_calls_saved": api_calls_saved,
+            "fork_data_list": detailed_forks
+        }
+        
         # 3. Create consistent table structure
         table_title = self._build_table_title(sorted_forks, table_context, show_commits)
         fork_table = Table(

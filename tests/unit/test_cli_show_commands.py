@@ -367,6 +367,8 @@ class TestShowCommandHelpers:
         mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
         mock_client_instance.__aexit__ = AsyncMock(return_value=None)
         mock_github_client_class.return_value = mock_client_instance
+        # Fix async method mock
+        mock_github_client_class.create_resilient_client = AsyncMock(return_value=mock_client_instance)
 
         mock_display_service = Mock()
         mock_display_service.show_fork_data = AsyncMock(return_value={
@@ -381,7 +383,7 @@ class TestShowCommandHelpers:
         await _show_forks_summary(config, "owner/repo", max_forks=25, verbose=True)
 
         # Verify calls
-        mock_github_client_class.assert_called_once_with(config.github)
+        mock_github_client_class.create_resilient_client.assert_called_once_with(config.github, "owner/repo", None)
         mock_display_service_class.assert_called_once()
         mock_display_service.show_fork_data.assert_called_once_with(
             "owner/repo",
@@ -389,7 +391,11 @@ class TestShowCommandHelpers:
             exclude_disabled=False,
             sort_by="stars",
             show_all=True,
-            disable_cache=False
+            disable_cache=False,
+            show_commits=0,
+            force_all_commits=False,
+            ahead_only=False,
+            csv_export=False
         )
 
     @pytest.mark.asyncio
@@ -409,13 +415,16 @@ class TestShowCommandHelpers:
         mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
         mock_client_instance.__aexit__ = AsyncMock(return_value=None)
         mock_github_client_class.return_value = mock_client_instance
+        # Fix async method mock
+        mock_github_client_class.create_resilient_client = AsyncMock(return_value=mock_client_instance)
 
         mock_display_service = Mock()
         mock_display_service.show_fork_data = AsyncMock(side_effect=Exception("Forks error"))
         mock_display_service_class.return_value = mock_display_service
 
         # Call function and expect error
-        with pytest.raises(CLIError, match="Failed to display forks data"):
+        from forklift.exceptions import ForkliftOutputError
+        with pytest.raises(ForkliftOutputError, match="Failed to display forks data"):
             await _show_forks_summary(config, "owner/repo", max_forks=None, verbose=False)
 
 
