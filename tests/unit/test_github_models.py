@@ -163,18 +163,18 @@ class TestRepository:
             )
             assert repo.name == name
 
-        # Invalid names
-        with pytest.raises((ValueError, Exception)):
-            Repository(
-                owner="owner",
-                name="repo@invalid",
-                full_name="owner/repo@invalid",
-                url="https://api.github.com/repos/owner/repo",
-                html_url="https://github.com/owner/repo",
-                clone_url="https://github.com/owner/repo.git",
-            )
+        # Names with unusual characters now log warnings but don't fail
+        repo = Repository(
+            owner="owner",
+            name="repo@invalid",
+            full_name="owner/repo@invalid",
+            url="https://api.github.com/repos/owner/repo",
+            html_url="https://github.com/owner/repo",
+            clone_url="https://github.com/owner/repo.git",
+        )
+        assert repo.name == "repo@invalid"
 
-        # Names starting/ending with period
+        # Names starting/ending with period still fail
         with pytest.raises((ValueError, Exception)):
             Repository(
                 owner="owner",

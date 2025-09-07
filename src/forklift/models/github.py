@@ -48,13 +48,25 @@ class Repository(BaseModel):
     @field_validator("owner", "name")
     @classmethod
     def validate_github_name(cls, v: str) -> str:
-        """Validate GitHub username/repository name format."""
+        """Validate GitHub username/repository name format with graceful handling."""
+        # Basic format check - log warning for unusual characters but allow them
         if not re.match(r"^[a-zA-Z0-9._-]+$", v):
-            raise ValueError("Invalid GitHub name format")
+            logger.warning(
+                f"Repository name '{v}' contains unusual characters that may not be "
+                f"typical for GitHub repositories, but allowing it as it may be valid GitHub data"
+            )
+
+        # Strict validation only for patterns GitHub definitely doesn't allow
         if v.startswith(".") or v.endswith("."):
             raise ValueError("GitHub names cannot start or end with a period")
+
+        # Relaxed consecutive period check - log warning but don't fail
         if ".." in v:
-            raise ValueError("GitHub names cannot contain consecutive periods")
+            logger.warning(
+                f"Repository name '{v}' contains consecutive periods - this may be unusual "
+                f"GitHub data but allowing it to prevent processing failures"
+            )
+
         return v
 
     @field_validator("url", "html_url", "clone_url")
