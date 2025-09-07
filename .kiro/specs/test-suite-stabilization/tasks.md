@@ -15,7 +15,7 @@
   - Update other display service method calls with changed signatures
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [-] 3. Fix basic async mock configuration issues
+- [x] 3. Fix basic async mock configuration issues
   - Replace `Mock` with `AsyncMock` for async methods in critical tests
   - Fix "coroutine was never awaited" warnings in high-priority test files
   - Configure proper async return values for mocked methods
@@ -23,7 +23,7 @@
 
 ## Phase 2: Data Model and Contract Fixes
 
-- [ ] 4. Fix Pydantic model validation errors
+- [-] 4. Fix Pydantic model validation errors
   - Update `Repository` model test data to include required `url`, `html_url`, `clone_url` fields
   - Fix `Commit` model test data to include required `url` field
   - Fix `ForkQualificationMetrics` validation errors in test data

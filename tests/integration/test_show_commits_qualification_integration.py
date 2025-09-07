@@ -109,20 +109,16 @@ def sample_commits():
     
     return [
         Commit(
-            sha="abc123",
+            sha="abc1234567890abcdef1234567890abcdef12345",
             message="Add new feature",
             author=user,
             date=datetime(2024, 1, 15, 10, 0, 0),
-            url="https://api.github.com/repos/test-owner/test-repo/commits/abc123",
-            html_url="https://github.com/test-owner/test-repo/commit/abc123",
         ),
         Commit(
-            sha="def456",
+            sha="def4567890abcdef1234567890abcdef12345678",
             message="Fix bug in feature",
             author=user,
             date=datetime(2024, 1, 14, 10, 0, 0),
-            url="https://api.github.com/repos/test-owner/test-repo/commits/def456",
-            html_url="https://github.com/test-owner/test-repo/commit/def456",
         ),
     ]
 

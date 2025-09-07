@@ -133,7 +133,7 @@ class TestSmartForkFilteringEndToEnd:
                 deletions=20
             ),
             Commit(
-                sha="e2e2345678901bcdef234567890abcdef123456",
+                sha="e2e2345678901bcdef234567890abcdef1234567",
                 message="fix: resolve memory leak in worker threads",
                 author=author,
                 date=datetime(2023, 8, 5, tzinfo=UTC),
@@ -142,7 +142,7 @@ class TestSmartForkFilteringEndToEnd:
                 deletions=30
             ),
             Commit(
-                sha="e2e3456789012cdef345678901bcdef123456",
+                sha="e2e3456789012cdef345678901bcdef123456789",
                 message="docs: update API documentation with examples",
                 author=author,
                 date=datetime(2023, 8, 10, tzinfo=UTC),
