@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from forklift.exceptions import (
+    CLIError,
     ForkliftAuthenticationError,
     ForkliftConfigurationError,
     ForkliftNetworkError,

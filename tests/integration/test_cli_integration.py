@@ -8,6 +8,7 @@ import yaml
 from click.testing import CliRunner
 
 from forklift.cli import cli
+from forklift.exceptions import CLIError
 
 
 class TestCLIIntegration:

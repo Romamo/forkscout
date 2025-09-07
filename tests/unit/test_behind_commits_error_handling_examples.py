@@ -5,10 +5,10 @@ This script tests various error conditions and edge cases.
 """
 import asyncio
 import sys
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-# Add src to path for imports
-sys.path.insert(0, 'src')
+# Imports are now handled by proper test structure
 
 from forklift.github.client import GitHubClient
 from forklift.config import GitHubConfig
@@ -17,6 +17,7 @@ from forklift.models.commit_count_result import CommitCountResult
 from rich.console import Console
 
 
+@pytest.mark.asyncio
 async def test_api_error_handling():
     """Test error handling when GitHub API fails."""
     print("🔧 Testing API error handling...")
@@ -79,6 +80,7 @@ async def test_api_error_handling():
     return True
 
 
+@pytest.mark.asyncio
 async def test_missing_behind_by_field():
     """Test handling when behind_by field is missing from API response."""
     print("\n🔧 Testing missing behind_by field handling...")
@@ -219,6 +221,7 @@ def test_display_error_handling():
     return True
 
 
+@pytest.mark.asyncio
 async def test_batch_processing_errors():
     """Test batch processing error handling."""
     print("\n🔧 Testing batch processing error handling...")
@@ -274,6 +277,7 @@ async def test_batch_processing_errors():
     return True
 
 
+@pytest.mark.asyncio
 async def test_edge_case_values():
     """Test edge case values for commit counts."""
     print("\n🔧 Testing edge case values...")

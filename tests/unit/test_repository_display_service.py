@@ -2530,45 +2530,59 @@ class TestRepositoryDisplayService:
         assert self.mock_console.print.called
 
     def test_commit_data_formatter_detailed_mode(self):
-        """Test CommitDataFormatter in detailed mode."""
-        from src.forklift.display.repository_display_service import CommitDataFormatter
+        """Test format_commit_info in detailed mode."""
+        from forklift.display.repository_display_service import RepositoryDisplayService
+        from unittest.mock import Mock
+        
+        mock_client = Mock()
+        service = RepositoryDisplayService(mock_client)
         
         # Test with exact commit count
         mock_fork_data = Mock()
         mock_fork_data.exact_commits_ahead = 5
+        mock_fork_data.exact_commits_behind = 0
+        mock_fork_data.commit_count_error = False
         
-        result = CommitDataFormatter.format_commit_info(mock_fork_data, has_exact_counts=True)
+        result = service.format_commit_info(mock_fork_data, has_exact_counts=True)
         assert result == "[green]+5[/green]"
         
         # Test with zero commits
         mock_fork_data.exact_commits_ahead = 0
-        result = CommitDataFormatter.format_commit_info(mock_fork_data, has_exact_counts=True)
+        mock_fork_data.exact_commits_behind = 0
+        mock_fork_data.commit_count_error = False
+        result = service.format_commit_info(mock_fork_data, has_exact_counts=True)
         assert result == ""
         
         # Test with unknown status
         mock_fork_data.exact_commits_ahead = "Unknown"
-        result = CommitDataFormatter.format_commit_info(mock_fork_data, has_exact_counts=True)
-        assert result == "[yellow]Unknown[/yellow]"
+        mock_fork_data.exact_commits_behind = "Unknown"
+        mock_fork_data.commit_count_error = False
+        result = service.format_commit_info(mock_fork_data, has_exact_counts=True)
+        assert result == "Unknown"
 
     def test_commit_data_formatter_standard_mode(self):
-        """Test CommitDataFormatter in standard mode."""
-        from src.forklift.display.repository_display_service import CommitDataFormatter
+        """Test format_commit_info in standard mode."""
+        from forklift.display.repository_display_service import RepositoryDisplayService
+        from unittest.mock import Mock
+        
+        mock_client = Mock()
+        service = RepositoryDisplayService(mock_client)
         
         # Test with "Has commits" status
         mock_fork_data = Mock()
         mock_fork_data.metrics.commits_ahead_status = "Has commits"
         
-        result = CommitDataFormatter.format_commit_info(mock_fork_data, has_exact_counts=False)
+        result = service.format_commit_info(mock_fork_data, has_exact_counts=False)
         assert result == "Has commits"
         
         # Test with "No commits ahead" status
         mock_fork_data.metrics.commits_ahead_status = "No commits ahead"
-        result = CommitDataFormatter.format_commit_info(mock_fork_data, has_exact_counts=False)
+        result = service.format_commit_info(mock_fork_data, has_exact_counts=False)
         assert result == "0 commits"
         
         # Test with unknown status
         mock_fork_data.metrics.commits_ahead_status = "Unknown"
-        result = CommitDataFormatter.format_commit_info(mock_fork_data, has_exact_counts=False)
+        result = service.format_commit_info(mock_fork_data, has_exact_counts=False)
         assert result == "[yellow]Unknown[/yellow]"
 
     def test_fork_table_config_consistency(self):

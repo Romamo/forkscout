@@ -10,6 +10,7 @@ from click.testing import CliRunner
 from forklift.cli import cli, validate_repository_url
 from forklift.config.settings import ForkliftConfig
 from forklift.display.interaction_mode import InteractionMode
+from forklift.exceptions import CLIError, ForkliftValidationError
 
 
 def create_mock_config():
@@ -76,17 +77,17 @@ class TestRepositoryURLValidation:
 
     def test_validate_invalid_url(self):
         """Test validation of invalid URLs."""
-        with pytest.raises(CLIError, match="Invalid GitHub repository URL"):
+        with pytest.raises(ForkliftValidationError, match="Invalid GitHub repository URL"):
             validate_repository_url("not-a-valid-url")
 
     def test_validate_empty_url(self):
         """Test validation of empty URL."""
-        with pytest.raises(CLIError, match="Invalid GitHub repository URL"):
+        with pytest.raises(ForkliftValidationError, match="Repository URL is required"):
             validate_repository_url("")
 
     def test_validate_non_github_url(self):
         """Test validation of non-GitHub URLs."""
-        with pytest.raises(CLIError, match="Invalid GitHub repository URL"):
+        with pytest.raises(ForkliftValidationError, match="Invalid GitHub repository URL"):
             validate_repository_url("https://gitlab.com/owner/repo")
 
 

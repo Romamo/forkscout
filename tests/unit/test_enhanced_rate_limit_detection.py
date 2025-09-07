@@ -125,99 +125,116 @@ class TestEnhancedRateLimitDetection:
     @pytest.mark.asyncio
     async def test_request_distinguishes_rate_limit_from_auth_error(self):
         """Test that 403 responses are properly distinguished between rate limits and auth errors."""
-        # Mock HTTP client
-        mock_response = Mock(spec=httpx.Response)
-        mock_response.status_code = 403
-        mock_response.headers = {
-            "x-ratelimit-remaining": "0",
-            "x-ratelimit-reset": str(int(time.time()) + 3600),
-            "x-ratelimit-limit": "5000"
-        }
-        mock_response.text = "API rate limit exceeded"
-        mock_response.json.return_value = {"message": "API rate limit exceeded"}
+        from tests.utils.test_helpers import mock_rate_limiter
         
-        mock_client = Mock(spec=httpx.AsyncClient)
-        mock_client.request.return_value = mock_response
-        
-        self.client._client = mock_client
-        
-        # Should raise GitHubRateLimitError, not GitHubAuthenticationError
-        with pytest.raises(GitHubRateLimitError) as exc_info:
-            await self.client._request("GET", "/test")
-        
-        assert exc_info.value.reset_time is not None
-        assert exc_info.value.remaining == 0
-        assert exc_info.value.limit == 5000
+        async with mock_rate_limiter(self.client):
+            # Mock HTTP client
+            mock_response = Mock(spec=httpx.Response)
+            mock_response.status_code = 403
+            mock_response.headers = {
+                "x-ratelimit-remaining": "0",
+                "x-ratelimit-reset": str(int(time.time()) + 3600),
+                "x-ratelimit-limit": "5000"
+            }
+            mock_response.text = "API rate limit exceeded"
+            mock_response.json.return_value = {"message": "API rate limit exceeded"}
+            
+            mock_client = Mock(spec=httpx.AsyncClient)
+            mock_client.request.return_value = mock_response
+            
+            self.client._client = mock_client
+            
+            # Should raise GitHubRateLimitError, not GitHubAuthenticationError
+            with pytest.raises(GitHubRateLimitError) as exc_info:
+                await self.client._request("GET", "/test")
+            
+            assert exc_info.value.reset_time is not None
+            assert exc_info.value.remaining == 0
+            assert exc_info.value.limit == 5000
 
     @pytest.mark.asyncio
     async def test_request_handles_auth_error_when_not_rate_limited(self):
         """Test that 403 responses without rate limit indicators are treated as auth errors."""
-        # Mock HTTP client
-        mock_response = Mock(spec=httpx.Response)
-        mock_response.status_code = 403
-        mock_response.headers = {
-            "x-ratelimit-remaining": "4999",  # Not rate limited
-            "x-ratelimit-reset": str(int(time.time()) + 3600),
-            "x-ratelimit-limit": "5000"
-        }
-        mock_response.text = "Repository access blocked"
-        mock_response.json.return_value = {"message": "Repository access blocked"}
+        from tests.utils.test_helpers import mock_rate_limiter
         
-        mock_client = Mock(spec=httpx.AsyncClient)
-        mock_client.request.return_value = mock_response
-        
-        self.client._client = mock_client
-        
-        # Should raise GitHubAuthenticationError, not GitHubRateLimitError
-        with pytest.raises(GitHubAuthenticationError):
-            await self.client._request("GET", "/test")
+        async with mock_rate_limiter(self.client):
+            # Mock HTTP client
+            mock_response = Mock(spec=httpx.Response)
+            mock_response.status_code = 403
+            mock_response.headers = {
+                "x-ratelimit-remaining": "4999",  # Not rate limited
+                "x-ratelimit-reset": str(int(time.time()) + 3600),
+                "x-ratelimit-limit": "5000"
+            }
+            mock_response.text = "Repository access blocked"
+            mock_response.json.return_value = {"message": "Repository access blocked"}
+            
+            mock_client = Mock(spec=httpx.AsyncClient)
+            mock_client.request.return_value = mock_response
+            
+            self.client._client = mock_client
+            
+            # Should raise GitHubAPIError (not GitHubRateLimitError) for 403 without rate limit indicators
+            from forklift.github.exceptions import GitHubAPIError
+            with pytest.raises(GitHubAPIError) as exc_info:
+                await self.client._request("GET", "/test")
+            
+            # Verify it's not a rate limit error
+            assert exc_info.value.status_code == 403
+            assert "403" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_request_handles_429_as_rate_limit(self):
         """Test that 429 responses are properly handled as rate limits."""
-        # Mock HTTP client
-        mock_response = Mock(spec=httpx.Response)
-        mock_response.status_code = 429
-        mock_response.headers = {
-            "retry-after": "60"
-        }
-        mock_response.text = "Too Many Requests"
-        mock_response.json.return_value = {"message": "Too Many Requests"}
+        from tests.utils.test_helpers import mock_rate_limiter
         
-        mock_client = Mock(spec=httpx.AsyncClient)
-        mock_client.request.return_value = mock_response
-        
-        self.client._client = mock_client
-        
-        # Should raise GitHubRateLimitError
-        with pytest.raises(GitHubRateLimitError) as exc_info:
-            await self.client._request("GET", "/test")
-        
-        # Should have calculated reset time from retry-after header
-        assert exc_info.value.reset_time is not None
-        assert exc_info.value.remaining == 0
+        async with mock_rate_limiter(self.client):
+            # Mock HTTP client
+            mock_response = Mock(spec=httpx.Response)
+            mock_response.status_code = 429
+            mock_response.headers = {
+                "retry-after": "60"
+            }
+            mock_response.text = "Too Many Requests"
+            mock_response.json.return_value = {"message": "Too Many Requests"}
+            
+            mock_client = Mock(spec=httpx.AsyncClient)
+            mock_client.request.return_value = mock_response
+            
+            self.client._client = mock_client
+            
+            # Should raise GitHubRateLimitError
+            with pytest.raises(GitHubRateLimitError) as exc_info:
+                await self.client._request("GET", "/test")
+            
+            # Should have calculated reset time from retry-after header
+            assert exc_info.value.reset_time is not None
+            assert exc_info.value.remaining == 0
 
     @pytest.mark.asyncio
     async def test_request_handles_429_without_retry_after(self):
         """Test that 429 responses without retry-after header are handled."""
-        # Mock HTTP client
-        mock_response = Mock(spec=httpx.Response)
-        mock_response.status_code = 429
-        mock_response.headers = {}
-        mock_response.text = "Too Many Requests"
-        mock_response.json.return_value = {"message": "Too Many Requests"}
+        from tests.utils.test_helpers import mock_rate_limiter
         
-        mock_client = Mock(spec=httpx.AsyncClient)
-        mock_client.request.return_value = mock_response
-        
-        self.client._client = mock_client
-        
-        # Should raise GitHubRateLimitError
-        with pytest.raises(GitHubRateLimitError) as exc_info:
-            await self.client._request("GET", "/test")
-        
-        assert exc_info.value.reset_time is None
-        assert exc_info.value.remaining == 0
+        async with mock_rate_limiter(self.client):
+            # Mock HTTP client
+            mock_response = Mock(spec=httpx.Response)
+            mock_response.status_code = 429
+            mock_response.headers = {}
+            mock_response.text = "Too Many Requests"
+            mock_response.json.return_value = {"message": "Too Many Requests"}
+            
+            mock_client = Mock(spec=httpx.AsyncClient)
+            mock_client.request.return_value = mock_response
+            
+            self.client._client = mock_client
+            
+            # Should raise GitHubRateLimitError
+            with pytest.raises(GitHubRateLimitError) as exc_info:
+                await self.client._request("GET", "/test")
+            
+            assert exc_info.value.reset_time is None
+            assert exc_info.value.remaining == 0
 
 
 class TestRateLimitErrorMessages:

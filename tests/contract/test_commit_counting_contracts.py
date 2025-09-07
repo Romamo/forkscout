@@ -596,34 +596,35 @@ class TestCommitCountingContracts:
     @respx.mock
     async def test_error_response_contract(self, client):
         """Test that GitHub API error responses have expected structure."""
-        # Test 404 Not Found
-        error_404 = {
-            "message": "Not Found",
-            "documentation_url": "https://docs.github.com/rest/reference/repos#get-a-repository"
-        }
+        from tests.utils.test_helpers import mock_rate_limiter
+        
+        async with mock_rate_limiter(client):
+            # Test 404 Not Found
+            error_404 = {
+                "message": "Not Found",
+                "documentation_url": "https://docs.github.com/rest/reference/repos#get-a-repository"
+            }
 
-        respx.get("https://api.github.com/repos/nonexistent/repo").mock(
-            return_value=httpx.Response(404, json=error_404)
-        )
+            respx.get("https://api.github.com/repos/nonexistent/repo").mock(
+                return_value=httpx.Response(404, json=error_404)
+            )
 
-        async with client:
             with pytest.raises(GitHubAPIError) as exc_info:
                 await client.get_repository("nonexistent", "repo")
             
             # Verify error handling works with GitHub's error format
             assert "not found" in str(exc_info.value).lower() or "private" in str(exc_info.value).lower()
 
-        # Test 403 Rate Limited
-        error_403 = {
-            "message": "API rate limit exceeded",
-            "documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
-        }
+            # Test 403 Rate Limited
+            error_403 = {
+                "message": "API rate limit exceeded",
+                "documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
+            }
 
-        respx.get("https://api.github.com/repos/rate-limited/repo").mock(
-            return_value=httpx.Response(403, json=error_403)
-        )
+            respx.get("https://api.github.com/repos/rate-limited/repo").mock(
+                return_value=httpx.Response(403, json=error_403)
+            )
 
-        async with client:
             with pytest.raises(GitHubAPIError) as exc_info:
                 await client.get_repository("rate-limited", "repo")
             

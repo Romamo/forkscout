@@ -8,12 +8,30 @@ from datetime import datetime, timezone
 
 from forklift.config.settings import ForkliftConfig
 from forklift.models.github import Repository, Commit, User
-from forklift.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics
+from forklift.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics, QualificationStats
 from forklift.display.repository_display_service import RepositoryDisplayService
 
 
 class TestShowCommitsPerformance:
     """Performance tests for show-commits functionality."""
+
+    def _create_qualified_forks_result(self, fork_count, forks_data):
+        """Helper method to create QualifiedForksResult."""
+        stats = QualificationStats(
+            total_forks_discovered=fork_count,
+            forks_with_no_commits=0,
+            forks_with_commits=fork_count,
+            archived_forks=0,
+            disabled_forks=0
+        )
+        
+        return QualifiedForksResult(
+            repository_owner="testowner",
+            repository_name="large-repo",
+            repository_url="https://github.com/testowner/large-repo",
+            collected_forks=forks_data,
+            stats=stats
+        )
 
     @pytest.fixture
     def mock_config(self):
@@ -131,13 +149,7 @@ class TestShowCommitsPerformance:
         start_time = time.time()
         
         with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-            mock_get_qualification.return_value = ForkQualificationResult(
-                total_forks=fork_count,
-                collected_forks=forks_data,
-                excluded_archived_disabled=0,
-                excluded_no_commits_ahead=0,
-                included_for_analysis=fork_count
-            )
+            mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
             
             result = await display_service.show_fork_data(
                 repo_url="testowner/large-repo",
@@ -184,13 +196,7 @@ class TestShowCommitsPerformance:
         start_time = time.time()
         
         with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-            mock_get_qualification.return_value = ForkQualificationResult(
-                total_forks=fork_count,
-                collected_forks=forks_data,
-                excluded_archived_disabled=0,
-                excluded_no_commits_ahead=0,
-                included_for_analysis=fork_count
-            )
+            mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
             
             result = await display_service.show_fork_data(
                 repo_url="testowner/large-repo",
@@ -237,13 +243,7 @@ class TestShowCommitsPerformance:
         start_time = time.time()
         
         with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-            mock_get_qualification.return_value = ForkQualificationResult(
-                total_forks=fork_count,
-                collected_forks=forks_data,
-                excluded_archived_disabled=0,
-                excluded_no_commits_ahead=0,
-                included_for_analysis=fork_count
-            )
+            mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
             
             result_no_commits = await display_service.show_fork_data(
                 repo_url="testowner/large-repo",
@@ -260,13 +260,7 @@ class TestShowCommitsPerformance:
         start_time = time.time()
         
         with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-            mock_get_qualification.return_value = ForkQualificationResult(
-                total_forks=fork_count,
-                collected_forks=forks_data,
-                excluded_archived_disabled=0,
-                excluded_no_commits_ahead=0,
-                included_for_analysis=fork_count
-            )
+            mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
             
             result_with_commits = await display_service.show_fork_data(
                 repo_url="testowner/large-repo",
@@ -323,13 +317,7 @@ class TestShowCommitsPerformance:
         start_time = time.time()
         
         with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-            mock_get_qualification.return_value = ForkQualificationResult(
-                total_forks=fork_count,
-                collected_forks=forks_data,
-                excluded_archived_disabled=0,
-                excluded_no_commits_ahead=0,
-                included_for_analysis=fork_count
-            )
+            mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
             
             result = await display_service.show_fork_data(
                 repo_url="testowner/large-repo",
@@ -388,13 +376,7 @@ class TestShowCommitsPerformance:
         
         # Execute the operation
         with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-            mock_get_qualification.return_value = ForkQualificationResult(
-                total_forks=fork_count,
-                collected_forks=forks_data,
-                excluded_archived_disabled=0,
-                excluded_no_commits_ahead=0,
-                included_for_analysis=fork_count
-            )
+            mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
             
             result = await display_service.show_fork_data(
                 repo_url="testowner/large-repo",
@@ -449,13 +431,7 @@ class TestShowCommitsPerformance:
             start_time = time.time()
             
             with patch.object(display_service, '_get_fork_qualification_data') as mock_get_qualification:
-                mock_get_qualification.return_value = ForkQualificationResult(
-                    total_forks=fork_count,
-                    collected_forks=forks_data,
-                    excluded_archived_disabled=0,
-                    excluded_no_commits_ahead=0,
-                    included_for_analysis=fork_count
-                )
+                mock_get_qualification.return_value = self._create_qualified_forks_result(fork_count, forks_data)
                 
                 result = await display_service.show_fork_data(
                     repo_url="testowner/large-repo",

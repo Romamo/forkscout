@@ -6,10 +6,15 @@ Test script to verify the batch optimization for get_commits_ahead.
 import asyncio
 import os
 import time
+import pytest
 from forklift.config import GitHubConfig
 from forklift.github.client import GitHubClient
 
 
+@pytest.mark.asyncio
+@pytest.mark.online
+@pytest.mark.slow
+@pytest.mark.timeout(120)  # 2 minute timeout for slow online tests
 async def test_batch_optimization():
     """Test the batch optimization vs individual calls."""
     

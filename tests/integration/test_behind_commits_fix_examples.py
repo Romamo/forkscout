@@ -6,10 +6,10 @@ This script tests the exact scenario from the original bug report.
 import asyncio
 import os
 import sys
+import pytest
 from datetime import datetime
 
-# Add src to path for imports
-sys.path.insert(0, 'src')
+# Imports are now handled by proper test structure
 
 from forklift.github.client import GitHubClient
 from forklift.config import GitHubConfig
@@ -19,6 +19,7 @@ from forklift.models.commit_count_config import CommitCountConfig
 from rich.console import Console
 
 
+@pytest.mark.asyncio
 async def test_original_bug_scenario():
     """Test the exact scenario from the original bug report."""
     print("🔍 Testing behind commits display fix...")
@@ -141,6 +142,7 @@ async def test_original_bug_scenario():
             await github_client._client.aclose()
 
 
+@pytest.mark.asyncio
 async def test_edge_cases():
     """Test edge cases for behind commits functionality."""
     print("\n🧪 Testing edge cases...")

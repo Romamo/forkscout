@@ -11,6 +11,7 @@ from forklift.cli import (
     display_forks_summary,
     display_repository_details,
 )
+from forklift.exceptions import CLIError
 
 
 class TestInteractiveDisplays:

@@ -291,12 +291,13 @@ class TestRateLimitHandler:
 
         mock_func = AsyncMock(side_effect=rate_limit_error)
 
-        with pytest.raises(GitHubRateLimitError, match="Rate limited"):
-            await handler.execute_with_retry(
-                mock_func,
-                "test operation",
-                retryable_exceptions=(GitHubRateLimitError,)
-            )
+        with patch("asyncio.sleep") as mock_sleep:
+            with pytest.raises(GitHubRateLimitError, match="Rate limited"):
+                await handler.execute_with_retry(
+                    mock_func,
+                    "test operation",
+                    retryable_exceptions=(GitHubRateLimitError,)
+                )
 
         # Should respect max_retries when no reset time is available
         assert mock_func.call_count == 3  # Initial attempt + 2 retries

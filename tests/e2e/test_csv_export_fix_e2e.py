@@ -9,6 +9,8 @@ import io
 from pathlib import Path
 
 
+@pytest.mark.e2e
+@pytest.mark.slow
 class TestCSVExportEndToEnd:
     """End-to-end tests for CSV export functionality."""
 
@@ -29,7 +31,7 @@ class TestCSVExportEndToEnd:
             "uv", "run", "forklift", "show-forks", 
             "octocat/Hello-World",  # Well-known test repository
             "--csv",
-            "--max-forks", "5"  # Limit to reduce test time
+            "--max-forks", "2"  # Reduced to 2 for faster execution
         ]
         
         try:
@@ -37,7 +39,7 @@ class TestCSVExportEndToEnd:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=60  # 60 second timeout
+                timeout=30  # Reduced timeout to 30 seconds
             )
             
             # Should not fail with the fix
@@ -51,7 +53,7 @@ class TestCSVExportEndToEnd:
             assert "# No data to export" not in result.stdout
             
         except subprocess.TimeoutExpired:
-            pytest.skip("Command timed out - may indicate network issues")
+            pytest.skip("Command timed out - may indicate network issues or rate limiting")
         except FileNotFoundError:
             pytest.skip("forklift command not available - run 'uv install' first")
 
@@ -62,7 +64,7 @@ class TestCSVExportEndToEnd:
             "octocat/Hello-World",
             "--csv",
             "--detail",
-            "--max-forks", "3"
+            "--max-forks", "1"  # Reduced to 1 for faster execution
         ]
         
         try:
@@ -70,7 +72,7 @@ class TestCSVExportEndToEnd:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=90  # Longer timeout for detailed mode
+                timeout=45  # Reduced timeout
             )
             
             assert result.returncode == 0, f"Command failed with stderr: {result.stderr}"
@@ -81,7 +83,7 @@ class TestCSVExportEndToEnd:
             assert len(lines) >= 1, "Should have at least CSV headers"
             
         except subprocess.TimeoutExpired:
-            pytest.skip("Command timed out - may indicate network issues")
+            pytest.skip("Command timed out - may indicate network issues or rate limiting")
         except FileNotFoundError:
             pytest.skip("forklift command not available")
 
@@ -92,7 +94,7 @@ class TestCSVExportEndToEnd:
             "octocat/Hello-World",
             "--csv",
             "--ahead-only",
-            "--max-forks", "5"
+            "--max-forks", "2"  # Reduced for faster execution
         ]
         
         try:
@@ -100,7 +102,7 @@ class TestCSVExportEndToEnd:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=30  # Reduced timeout
             )
             
             assert result.returncode == 0, f"Command failed with stderr: {result.stderr}"
@@ -108,7 +110,7 @@ class TestCSVExportEndToEnd:
             # This is valid behavior, so we just check that it doesn't crash
             
         except subprocess.TimeoutExpired:
-            pytest.skip("Command timed out - may indicate network issues")
+            pytest.skip("Command timed out - may indicate network issues or rate limiting")
         except FileNotFoundError:
             pytest.skip("forklift command not available")
 
@@ -272,6 +274,8 @@ class TestCSVExportEndToEnd:
             pytest.skip("forklift command not available")
 
 
+@pytest.mark.e2e
+@pytest.mark.slow
 class TestCSVExportValidation:
     """Validation tests for CSV export format and content."""
 
@@ -386,6 +390,8 @@ class TestCSVExportValidation:
             pytest.skip("forklift command not available")
 
 
+@pytest.mark.e2e
+@pytest.mark.slow
 class TestCSVExportPerformance:
     """Performance tests for CSV export functionality."""
 
@@ -456,6 +462,8 @@ class TestCSVExportPerformance:
             pytest.skip("forklift command not available")
 
 
+@pytest.mark.e2e
+@pytest.mark.slow
 class TestCSVExportErrorHandling:
     """Error handling tests for CSV export functionality."""
 

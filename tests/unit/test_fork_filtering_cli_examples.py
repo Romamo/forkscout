@@ -4,9 +4,9 @@
 import asyncio
 import sys
 import os
+import pytest
 
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Imports are now handled by proper test structure
 
 from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
 from forklift.github.client import GitHubClient
@@ -14,6 +14,7 @@ from forklift.config import GitHubConfig
 from unittest.mock import AsyncMock
 
 
+@pytest.mark.asyncio
 async def test_fork_filtering():
     """Test fork filtering functionality."""
     print("Testing fork filtering with --detail flag...")

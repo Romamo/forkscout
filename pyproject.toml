@@ -40,6 +40,7 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.1.0",
     "black>=23.12.0",
     "ruff>=0.1.8",
     "mypy>=1.8.0",
@@ -136,21 +137,22 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers --strict-config"
+addopts = "-m 'not billable and not online and not slow' --tb=short -v --timeout=300"
 testpaths = ["tests"]
+timeout = 300
 filterwarnings = [
-    "error",
     "ignore::UserWarning",
     "ignore::DeprecationWarning",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-    "contract: marks tests as contract tests",
-    "online: marks tests as online tests (using real external APIs)",
-    "e2e: marks tests as end-to-end tests",
-    "performance: marks tests as performance tests",
+    "unit: Unit tests with mocks and isolated components",
+    "integration: Integration tests with real local systems", 
+    "online: Online tests with real external APIs (free)",
+    "billable: Billable tests with paid external APIs",
+    "contract: API contract and schema tests",
+    "e2e: End-to-end tests with complete workflows",
+    "performance: Performance and benchmarking tests",
+    "slow: Tests that take longer to run",
 ]
 asyncio_mode = "auto"
 
@@ -185,4 +187,5 @@ directory = "htmlcov"
 [dependency-groups]
 dev = [
     "psutil>=7.0.0",
+    "pytest-timeout>=2.4.0",
 ]

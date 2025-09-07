@@ -11,6 +11,7 @@ from forklift.github.client import GitHubClient
 from forklift.github.exceptions import (
     GitHubAPIError,
     GitHubNotFoundError,
+    GitHubPrivateRepositoryError,
     GitHubRateLimitError,
 )
 from forklift.models.fork_qualification import (
@@ -206,9 +207,9 @@ class CommitVerificationEngine:
                     await self._handle_rate_limit(e)
                 last_exception = e
 
-            except GitHubNotFoundError as e:
+            except (GitHubNotFoundError, GitHubPrivateRepositoryError) as e:
                 logger.warning(f"Repository not found during verification: {e}")
-                # Don't retry for 404 errors
+                # Don't retry for 404 errors or private repository errors
                 self.stats["verification_errors"] += 1
                 return {
                     "success": False,
