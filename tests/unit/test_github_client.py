@@ -603,8 +603,14 @@ class TestGitHubClientRepositoryOperations:
             assert len(commits) == 1
             assert isinstance(commits[0], RecentCommit)
             assert commits[0].short_sha == "aaaaaaa"
+            # The message should be truncated to 50 characters by default
             assert len(commits[0].message) <= 50
-            assert commits[0].message.endswith("...")
+            # If the original message was longer than 47 chars, it should end with "..."
+            original_message = "This is a very long commit message that should be truncated because it exceeds the maximum length limit"
+            if len(original_message) > 47:
+                assert commits[0].message.endswith("...")
+            else:
+                assert commits[0].message == original_message
 
 
 class TestGitHubClientUserOperations:
@@ -843,7 +849,12 @@ class TestGitHubClientUtilityOperations:
             assert commits[0].message == "Add user authentication system"
 
             assert commits[1].short_sha == "b2c3d4e"
-            assert commits[1].message == "Fix bug in login validation that was causing is..."
+            # Message should be truncated to 50 characters max (47 chars + "...")
+            # The original message is "Fix bug in login validation that was causing issues" (51 chars)
+            # Truncated to 47 chars + "..." = "Fix bug in login validation that was causing is..."
+            expected_truncated = "Fix bug in login validation that was causing is..."
+            assert commits[1].message == expected_truncated
+            assert len(commits[1].message) <= 50
 
     @pytest.mark.asyncio
     @respx.mock

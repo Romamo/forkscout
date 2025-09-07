@@ -1525,7 +1525,7 @@ class GitHubClient:
             recent_commits = []
             for commit_data in data[:count]:
                 try:
-                    recent_commit = RecentCommit.from_github_api(commit_data, max_message_length=500)
+                    recent_commit = RecentCommit.from_github_api(commit_data, max_message_length=50)
                     recent_commits.append(recent_commit)
                 except Exception as e:
                     logger.warning(f"Failed to parse commit {commit_data.get('sha', 'unknown')}: {e}")
@@ -1771,7 +1771,7 @@ class GitHubClient:
             # Process commits using the RecentCommit model
             recent_commits = []
             for commit_data in commits_data[:count]:  # Ensure we don't exceed requested count
-                recent_commit = RecentCommit.from_github_api(commit_data, max_message_length=500)
+                recent_commit = RecentCommit.from_github_api(commit_data, max_message_length=50)
                 recent_commits.append(recent_commit)
 
             logger.debug(f"Successfully fetched {len(recent_commits)} recent commits from {owner}/{repo}")

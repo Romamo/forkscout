@@ -101,8 +101,8 @@ class TestCLICSVExport:
         result = runner.invoke(cli, ['show-forks', '--help'])
         
         assert result.exit_code == 0
-        assert 'forklift show-forks owner/repo --csv > forks.csv' in result.output
-        assert 'forklift show-forks owner/repo --csv --detail > detailed_forks.csv' in result.output
+        assert 'forklift show-forks owner/repo --csv > forks_with_commits.csv' in result.output
+        assert 'forklift show-forks owner/repo --csv --detail > detailed_forks_with_commits.csv' in result.output
 
     @patch('forklift.cli.initialize_cli_environment')
     def test_csv_mode_overrides_interaction_mode(self, mock_init_env, runner, mock_config):

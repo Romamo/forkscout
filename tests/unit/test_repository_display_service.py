@@ -2658,11 +2658,11 @@ class TestRepositoryDisplayService:
             
             # Check column names and widths
             expected_columns = [
-                ("URL", {"style": "cyan", "min_width": 35}),
-                ("Stars", {"style": "yellow", "justify": "right", "width": 8}),
-                ("Forks", {"style": "green", "justify": "right", "width": 8}),
-                ("Commits Ahead", {"style": "magenta", "justify": "right", "width": 15}),
-                ("Last Push", {"style": "blue", "width": 14})
+                ("URL", {"style": "cyan", "no_wrap": True, "overflow": "fold"}),
+                ("Stars", {"style": "yellow", "justify": "right", "no_wrap": True}),
+                ("Forks", {"style": "green", "justify": "right", "no_wrap": True}),
+                ("Commits Ahead", {"style": "magenta", "justify": "right", "no_wrap": True}),
+                ("Last Push", {"style": "blue", "no_wrap": True})
             ]
             
             assert len(add_column_calls) == len(expected_columns), f"Expected {len(expected_columns)} columns, got {len(add_column_calls)}"
@@ -2712,11 +2712,11 @@ class TestRepositoryDisplayService:
             add_column_calls = mock_table_instance.add_column.call_args_list
             assert len(add_column_calls) == 5, "Should have 5 columns in standard mode"
             
-            # Verify "Commits Ahead" column (not "Commits")
+            # Verify "Commits Ahead" column configuration
             commits_column_call = add_column_calls[3]
             args, kwargs = commits_column_call
-            assert args[0] == "Commits Ahead", "Should use 'Commits Ahead' column name in both modes"
-            assert kwargs.get('width') == 15, "Should use width 15 for Commits Ahead column"
+            assert args[0] == "Commits Ahead", "Should use 'Commits Ahead' column name"
+            # Note: The _display_fork_table method doesn't set width parameter
 
     def test_format_commits_display_exact_counts(self):
         """Test _format_commits_display method with exact counts."""

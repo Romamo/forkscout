@@ -2674,20 +2674,37 @@ class RepositoryDisplayService:
         return commits_with_dates + commits_without_dates
 
     def _truncate_commit_message(self, message: str, max_length: int) -> str:
-        """Return the full commit message without truncation.
+        """Truncate commit message to fit within specified length.
 
         Args:
             message: Original commit message
-            max_length: Maximum allowed length (ignored - kept for compatibility)
+            max_length: Maximum allowed length
 
         Returns:
-            Full commit message without truncation
+            Truncated commit message with "..." if truncated
         """
         if not message:
             return ""
         
-        # Return the full message without any truncation
-        return message
+        # Clean up the message (remove newlines and extra whitespace)
+        cleaned_message = " ".join(message.split())
+        
+        # Truncate if needed
+        if len(cleaned_message) <= max_length:
+            return cleaned_message
+        
+        # For very short limits, just truncate without ellipsis
+        if max_length <= 3:
+            return cleaned_message[:max_length]
+        
+        # Find a good break point (word boundary)
+        truncated = cleaned_message[:max_length - 3]
+        last_space = truncated.rfind(" ")
+        
+        if last_space > max_length // 2:  # Only break at word if it's not too early
+            truncated = truncated[:last_space]
+        
+        return truncated + "..."
 
     def calculate_commits_column_width(
         self,

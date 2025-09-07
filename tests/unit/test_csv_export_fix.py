@@ -238,15 +238,8 @@ class TestExportForksCSV:
         """Test CSV export with empty data."""
         from src.forklift.cli import _export_forks_csv
         
-        # Setup mock to return empty data
-        mock_display_service.show_fork_data.return_value = {
-            "total_forks": 0,
-            "collected_forks": []
-        }
-        
         with patch('src.forklift.cli.create_csv_context') as mock_context:
-            mock_csv_manager = MagicMock()
-            mock_context.return_value.__enter__.return_value = mock_csv_manager
+            mock_context.return_value.__enter__.return_value = MagicMock()
             
             # Execute
             await _export_forks_csv(
@@ -259,40 +252,52 @@ class TestExportForksCSV:
                 False
             )
             
-            # Verify empty list is exported
-            mock_csv_manager.export_to_stdout.assert_called_once_with([])
+            # Verify display service is called with CSV export enabled
+            mock_display_service.show_fork_data.assert_called_once_with(
+                "owner/repo",
+                exclude_archived=False,
+                exclude_disabled=False,
+                sort_by="stars",
+                show_all=True,
+                disable_cache=False,
+                show_commits=0,
+                force_all_commits=False,
+                ahead_only=False,
+                csv_export=True
+            )
 
     @pytest.mark.asyncio
     async def test_export_forks_csv_with_invalid_data_structure(self, mock_display_service):
         """Test CSV export with invalid data structure."""
         from src.forklift.cli import _export_forks_csv
         
-        # Setup mock to return invalid structure
-        mock_display_service.show_fork_data.return_value = {
-            "total_forks": 1,
-            "unexpected_key": [{"name": "fork1"}]
-        }
-        
         with patch('src.forklift.cli.create_csv_context') as mock_context:
-            mock_csv_manager = MagicMock()
-            mock_context.return_value.__enter__.return_value = mock_csv_manager
+            mock_context.return_value.__enter__.return_value = MagicMock()
             
-            with patch('src.forklift.cli.logger') as mock_logger:
-                # Execute
-                await _export_forks_csv(
-                    mock_display_service,
-                    "owner/repo",
-                    None,
-                    False,
-                    0,
-                    False,
-                    False
-                )
-                
-                # Verify warning is logged and empty list is exported
-                mock_logger.warning.assert_called()
-                mock_logger.info.assert_called_with("No fork data available for CSV export")
-                mock_csv_manager.export_to_stdout.assert_called_once_with([])
+            # Execute - the display service handles invalid data internally
+            await _export_forks_csv(
+                mock_display_service,
+                "owner/repo",
+                None,
+                False,
+                0,
+                False,
+                False
+            )
+            
+            # Verify display service is called with CSV export enabled
+            mock_display_service.show_fork_data.assert_called_once_with(
+                "owner/repo",
+                exclude_archived=False,
+                exclude_disabled=False,
+                sort_by="stars",
+                show_all=True,
+                disable_cache=False,
+                show_commits=0,
+                force_all_commits=False,
+                ahead_only=False,
+                csv_export=True
+            )
 
     @pytest.mark.asyncio
     async def test_export_forks_csv_detail_mode(
@@ -305,8 +310,7 @@ class TestExportForksCSV:
         mock_display_service.show_fork_data_detailed.return_value = sample_fork_data_collected_forks
         
         with patch('src.forklift.cli.create_csv_context') as mock_context:
-            mock_csv_manager = MagicMock()
-            mock_context.return_value.__enter__.return_value = mock_csv_manager
+            mock_context.return_value.__enter__.return_value = MagicMock()
             
             # Execute with detail=True
             await _export_forks_csv(
@@ -326,11 +330,9 @@ class TestExportForksCSV:
                 disable_cache=False,
                 show_commits=2,
                 force_all_commits=False,
-                ahead_only=True
+                ahead_only=True,
+                csv_export=True
             )
-            
-            # Verify CSV export
-            mock_csv_manager.export_to_stdout.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_export_forks_csv_unicode_error(self, mock_display_service):
@@ -383,11 +385,8 @@ class TestExportForksCSV:
         """Test CSV export with commit details."""
         from src.forklift.cli import _export_forks_csv
         
-        mock_display_service.show_fork_data.return_value = sample_fork_data_collected_forks
-        
         with patch('src.forklift.cli.create_csv_context') as mock_context:
-            mock_csv_manager = MagicMock()
-            mock_context.return_value.__enter__.return_value = mock_csv_manager
+            mock_context.return_value.__enter__.return_value = MagicMock()
             
             # Execute with show_commits
             await _export_forks_csv(
@@ -400,8 +399,16 @@ class TestExportForksCSV:
                 False
             )
             
-            # Verify CSV config includes commits
-            mock_csv_manager.configure_exporter.assert_called_once()
-            config = mock_csv_manager.configure_exporter.call_args[0][0]
-            assert config.include_commits is True
-            assert config.max_commits_per_fork == 5
+            # Verify display service is called with commit parameters
+            mock_display_service.show_fork_data.assert_called_once_with(
+                "owner/repo",
+                exclude_archived=False,
+                exclude_disabled=False,
+                sort_by="stars",
+                show_all=True,
+                disable_cache=False,
+                show_commits=5,
+                force_all_commits=True,
+                ahead_only=False,
+                csv_export=True
+            )

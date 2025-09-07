@@ -23,21 +23,21 @@
 
 ## Phase 2: Data Model and Contract Fixes
 
-- [-] 4. Fix Pydantic model validation errors
+- [x] 4. Fix Pydantic model validation errors
   - Update `Repository` model test data to include required `url`, `html_url`, `clone_url` fields
   - Fix `Commit` model test data to include required `url` field
   - Fix `ForkQualificationMetrics` validation errors in test data
   - Update model field names and requirements in test fixtures
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 5. Update contract tests to match current API interfaces
+- [x] 5. Update contract tests to match current API interfaces
   - Fix method signature contract tests
   - Update model field requirement contracts
   - Fix API response format expectations in contract tests
   - Ensure backward compatibility requirements are properly tested
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 6. Fix remaining mock configuration issues
+- [x] 6. Fix remaining mock configuration issues
   - Configure GitHub API mocks to return properly structured responses
   - Fix file operation mocks to handle async operations correctly
   - Ensure all mocks match the expected interface of real objects
@@ -45,7 +45,7 @@
 
 ## Phase 3: Feature-Specific Fixes
 
-- [ ] 7. Fix CSV export test failures
+- [-] 7. Fix CSV export test failures
   - Update CSV column name expectations (`fork_name` vs `Fork URL`, etc.)
   - Fix CSV data structure access patterns and key errors
   - Update CSV export configuration expectations in tests

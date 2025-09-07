@@ -160,16 +160,13 @@ class TestCSVDetailMode:
 
         headers = exporter._generate_forks_preview_headers()
 
-        # Should include detail mode headers
-        assert "fork_name" in headers
-        assert "owner" in headers
-        assert "stars" in headers
-        assert "commits_ahead" in headers
-        assert "activity_status" in headers
-        assert "fork_url" in headers
-        assert "last_push_date" in headers
-        assert "created_date" in headers
-        assert "updated_date" in headers
+        # Should include detail mode headers (new title case format)
+        assert "Fork URL" in headers
+        assert "Stars" in headers
+        assert "Commits Ahead" in headers
+        assert "Last Push Date" in headers
+        assert "Created Date" in headers
+        assert "Updated Date" in headers
 
     def test_csv_export_with_detail_mode_formatting(self):
         """Test complete CSV export with detail mode formatting."""
@@ -210,20 +207,20 @@ class TestCSVDetailMode:
         assert len(rows) == 2
 
         # Check first row (fork with commits ahead)
-        assert rows[0]["fork_name"] == "test-repo-1"
-        assert rows[0]["owner"] == "user1"
-        assert rows[0]["stars"] == "10"
-        assert rows[0]["commits_ahead"] == "+5"  # Should be in "+X" format
-        assert rows[0]["activity_status"] == "Active"
-        assert rows[0]["fork_url"] == "https://github.com/user1/test-repo-1"
+        # Check first row data (new title case format)
+        assert "test-repo-1" in rows[0]["Fork URL"]
+        assert "user1" in rows[0]["Fork URL"]
+        assert rows[0]["Stars"] == "10"
+        assert rows[0]["Commits Ahead"] == "+5"  # Should be in "+X" format
+        assert rows[0]["Fork URL"] == "https://github.com/user1/test-repo-1"
 
         # Check second row (fork with no commits ahead)
-        assert rows[1]["fork_name"] == "test-repo-2"
-        assert rows[1]["owner"] == "user2"
-        assert rows[1]["stars"] == "3"
-        assert rows[1]["commits_ahead"] == ""  # Should be empty for zero commits
-        assert rows[1]["activity_status"] == "Stale"
-        assert rows[1]["fork_url"] == "https://github.com/user2/test-repo-2"
+        assert "test-repo-2" in rows[1]["Fork URL"]
+        assert "user2" in rows[1]["Fork URL"]
+        assert rows[1]["Stars"] == "3"
+        assert rows[1]["Commits Ahead"] == ""  # Should be empty for zero commits
+        # Note: activity_status is not included in basic forks preview export
+        assert rows[1]["Fork URL"] == "https://github.com/user2/test-repo-2"
 
     def test_csv_export_non_detail_mode_formatting(self):
         """Test CSV export without detail mode uses status indicators."""
@@ -263,6 +260,6 @@ class TestCSVDetailMode:
 
         assert len(rows) == 2
 
-        # Check commits_ahead uses status indicators
-        assert rows[0]["commits_ahead"] == "Unknown"
-        assert rows[1]["commits_ahead"] == "None"
+        # Check Commits Ahead uses status indicators (new title case format)
+        assert rows[0]["Commits Ahead"] == "Unknown"
+        assert rows[1]["Commits Ahead"] == "None"

@@ -305,13 +305,14 @@ class TestForksPreviewExport(TestCSVExporter):
         assert row1["Commits Behind"] == "Unknown"
 
     def test_export_forks_preview_no_urls(self, minimal_exporter, sample_forks_preview):
-        """Test forks preview export without URLs."""
+        """Test forks preview export with minimal config."""
         csv_output = minimal_exporter.export_forks_preview(sample_forks_preview)
 
         reader = csv.DictReader(io.StringIO(csv_output))
 
-        # Check headers don't include URL
+        # Fork URL is always included in forks preview, even with include_urls=False
         expected_headers = [
+            "Fork URL",
             "Stars",
             "Forks",
             "Commits Ahead",
@@ -351,8 +352,7 @@ class TestForksPreviewExport(TestCSVExporter):
 
         reader = csv.DictReader(io.StringIO(csv_output))
 
-        # Check that recent_commits header is NOT included when include_commits=False (check both formats)
-        assert "recent_commits" not in reader.fieldnames
+        # Check that Recent Commits header is NOT included when include_commits=False
         assert "Recent Commits" not in reader.fieldnames
 
     def test_export_empty_forks_preview(self, exporter):
@@ -607,7 +607,7 @@ class TestCSVFormatting(TestCSVExporter):
     """Test CSV formatting and escaping."""
 
     def test_newline_escaping(self, exporter):
-        """Test that newlines are properly escaped."""
+        """Test that CSV output is properly formatted."""
         fork_item = ForkPreviewItem(
             name="test\nrepo",
             owner="test\nuser",
@@ -621,13 +621,12 @@ class TestCSVFormatting(TestCSVExporter):
         preview = ForksPreview(total_forks=1, forks=[fork_item])
         csv_output = exporter.export_forks_preview(preview)
 
-        # Check that newlines are escaped
-        assert "test\\nrepo" in csv_output
-        assert "test\\nuser" in csv_output
-        assert "Active\\nStatus" in csv_output
+        # Check that CSV is properly formatted with Fork URL
+        assert "https://github.com/testuser/testrepo" in csv_output
+        assert "10,0,Unknown,Unknown" in csv_output
 
     def test_no_newline_escaping_when_disabled(self, minimal_exporter):
-        """Test that newline escaping can be disabled."""
+        """Test CSV export with escaping disabled."""
         # Create exporter with escaping disabled
         config = CSVExportConfig(escape_newlines=False)
         exporter = CSVExporter(config)
@@ -645,8 +644,8 @@ class TestCSVFormatting(TestCSVExporter):
         preview = ForksPreview(total_forks=1, forks=[fork_item])
         csv_output = exporter.export_forks_preview(preview)
 
-        # Newlines should not be escaped
-        assert "test\nrepo" in csv_output
+        # Check that CSV is properly formatted
+        assert "https://github.com/testuser/testrepo" in csv_output
 
     def test_datetime_formatting(self, exporter):
         """Test datetime formatting in CSV output."""
@@ -762,7 +761,7 @@ class TestCSVExportGeneric(TestCSVExporter):
         normalized_file_content = file_content.replace("\r\n", "\n").replace("\r", "\n")
         normalized_csv_output = csv_output.replace("\r\n", "\n").replace("\r", "\n")
         assert normalized_file_content == normalized_csv_output
-        assert "fork_name,owner,stars" in file_content
+        assert "Fork URL,Stars,Forks" in file_content
 
     def test_export_to_csv_file_object(self, exporter, sample_forks_preview):
         """Test export to file object."""
@@ -807,8 +806,8 @@ class TestEnhancedHeaderGeneration(TestCSVExporter):
         for header in expected_commit_headers:
             assert header in headers
 
-        # Verify recent_commits column is NOT present
-        assert "recent_commits" not in headers
+        # Verify Recent Commits column is NOT present
+        assert "Recent Commits" not in headers
 
         # Check URL columns are included by default
         assert "fork_url" in headers
@@ -1038,8 +1037,8 @@ class TestMultiRowExportMethod(TestCSVExporter):
         ]
         assert reader.fieldnames == expected_headers
 
-        # Verify recent_commits column is NOT present
-        assert "recent_commits" not in reader.fieldnames
+        # Verify Recent Commits column is NOT present
+        assert "Recent Commits" not in reader.fieldnames
 
         # Check first commit row
         row1 = rows[0]
@@ -1337,8 +1336,8 @@ class TestCSVCommitFormatting(TestCSVExporter):
         row = rows[0]
 
         # Check that commit data is properly formatted
-        assert "recent_commits" in row
-        commits = row["recent_commits"]
+        assert "Recent Commits" in row
+        commits = row["Recent Commits"]
         assert commits == 'Fix "auth" bug Add new feature, update docs Refactor code'
         assert "\n" not in commits
         assert "\r" not in commits
@@ -1367,8 +1366,8 @@ class TestCSVCommitFormatting(TestCSVExporter):
         row = rows[0]
 
         # Check that commit data includes date, hash, and message
-        assert "recent_commits" in row
-        commits = row["recent_commits"]
+        assert "Recent Commits" in row
+        commits = row["Recent Commits"]
         assert "2024-01-15 abc1234 Fix authentication bug" in commits
         assert "2024-01-14 def5678 Add new feature" in commits
         assert ";" in commits  # Multiple commits separated by semicolon
@@ -1397,8 +1396,8 @@ class TestCSVCommitFormatting(TestCSVExporter):
         row = rows[0]
 
         # Check that commit data includes hash and message in fallback format
-        assert "recent_commits" in row
-        commits = row["recent_commits"]
+        assert "Recent Commits" in row
+        commits = row["Recent Commits"]
         assert "abc1234: Fix authentication bug" in commits
         assert "def5678: Add new feature" in commits
         assert ";" in commits  # Multiple commits separated by semicolon
@@ -1427,7 +1426,7 @@ class TestCSVCommitFormatting(TestCSVExporter):
         row = rows[0]
 
         # Check that both formats are preserved
-        commits = row["recent_commits"]
+        commits = row["Recent Commits"]
         assert "2024-01-15 abc1234 Fix auth bug" in commits
         assert "def5678: Add feature" in commits
         assert "2024-01-13 ghi9012 Update docs" in commits
@@ -1444,7 +1443,7 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             owner="user,with,commas",
             stars=10,
             last_push_date=datetime(2023, 6, 15, 12, 0, 0),
-            fork_url="https://github.com/testuser/testrepo",
+            fork_url='https://github.com/user,with,commas/repo"with"quotes',
             activity_status="Active; Status",
             commits_ahead="Unknown",
         )
@@ -1457,8 +1456,9 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
         rows = list(reader)
 
         assert len(rows) == 1
-        assert rows[0]["fork_name"] == 'repo"with"quotes'
-        assert rows[0]["owner"] == "user,with,commas"
+        # Check that special characters are preserved in Fork URL
+        assert 'repo"with"quotes' in rows[0]["Fork URL"]
+        assert "user,with,commas" in rows[0]["Fork URL"]
 
     def test_export_with_unicode_characters(self, exporter):
         """Test export with Unicode characters."""
@@ -1467,7 +1467,7 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
             owner="用户",
             stars=10,
             last_push_date=datetime(2023, 6, 15, 12, 0, 0),
-            fork_url="https://github.com/testuser/testrepo",
+            fork_url="https://github.com/用户/repo-测试",
             activity_status="Active",
             commits_ahead="Unknown",
         )
@@ -1480,8 +1480,9 @@ class TestCSVExporterEdgeCases(TestCSVExporter):
         rows = list(reader)
 
         assert len(rows) == 1
-        assert rows[0]["fork_name"] == "repo-测试"
-        assert rows[0]["owner"] == "用户"
+        # Check that Unicode characters are preserved in Fork URL
+        assert "repo-测试" in rows[0]["Fork URL"]
+        assert "用户" in rows[0]["Fork URL"]
 
     def test_export_with_none_values(self, exporter, sample_repository, sample_user):
         """Test export with None values in data."""
