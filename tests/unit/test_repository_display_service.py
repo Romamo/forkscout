@@ -25,7 +25,7 @@ class TestRepositoryDisplayService:
         self.mock_github_client.get_forks = AsyncMock()
         self.mock_github_client.get_commits_ahead_count = AsyncMock()
         self.mock_github_client.get_recent_commits = AsyncMock()
-        
+
         self.mock_console = Mock(spec=Console)
         self.service = RepositoryDisplayService(
             github_client=self.mock_github_client, console=self.mock_console
@@ -1075,11 +1075,12 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_integer_values(self):
         """Test commits sort key generation with integer commits ahead/behind values."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create fork data with integer commit values
         metrics = ForkQualificationMetrics(
@@ -1105,11 +1106,12 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_unknown_status(self):
         """Test commits sort key generation with unknown commit status."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create fork data with unknown commit status
         metrics = ForkQualificationMetrics(
@@ -1135,11 +1137,12 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_no_commits_ahead(self):
         """Test commits sort key generation with no commits ahead."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create fork data with no commits ahead
         metrics = ForkQualificationMetrics(
@@ -1165,11 +1168,12 @@ class TestRepositoryDisplayService:
 
     def test_get_commits_sort_key_with_none_values(self):
         """Test commits sort key generation with None values."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create fork data with None commit values
         metrics = ForkQualificationMetrics(
@@ -1194,11 +1198,12 @@ class TestRepositoryDisplayService:
 
     def test_sort_forks_by_commits_with_compact_format(self):
         """Test sorting forks by commits using the new compact format."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create test fork data with different commit statuses
         base_time = datetime(2023, 1, 1, tzinfo=UTC)
@@ -1276,11 +1281,12 @@ class TestRepositoryDisplayService:
 
     def test_sort_forks_by_commits_secondary_sort_by_behind(self):
         """Test sorting forks by commits with secondary sort by commits behind."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create test fork data with same commits ahead but different commits behind
         base_time = datetime(2023, 1, 1, tzinfo=UTC)
@@ -1326,11 +1332,12 @@ class TestRepositoryDisplayService:
 
     def test_sort_forks_enhanced_with_compact_format(self):
         """Test enhanced fork sorting with compact commit format support."""
+        from datetime import UTC, datetime
+
         from forklift.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
-        from datetime import datetime, UTC
 
         # Create test fork data with different characteristics
         base_time = datetime(2023, 1, 1, tzinfo=UTC)
@@ -1711,8 +1718,9 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_single_commit(self):
         """Test formatting single commit with date."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commit = RecentCommit(
             short_sha="abc1234",
@@ -1732,8 +1740,9 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_multiple_commits(self):
         """Test formatting multiple commits with dates."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -1757,8 +1766,9 @@ class TestRepositoryDisplayService:
     @pytest.mark.asyncio
     async def test_get_and_format_commits_ahead_success(self):
         """Test successful commits ahead fetching and formatting."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         # Setup mock commits with dates
         mock_commits = [
@@ -1910,8 +1920,9 @@ class TestRepositoryDisplayService:
 
     def test_sort_commits_chronologically_newest_first(self):
         """Test _sort_commits_chronologically sorts newest first."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -1940,8 +1951,9 @@ class TestRepositoryDisplayService:
 
     def test_sort_commits_chronologically_with_none_dates(self):
         """Test _sort_commits_chronologically handles None dates correctly."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commits = [
             RecentCommit(short_sha="abc1234", message="No date commit"),  # No date
@@ -1991,32 +2003,33 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_no_truncation(self):
         """Test format_recent_commits displays full commit messages without truncation."""
+        from datetime import datetime
+
         from forklift.models.github import RecentCommit
-        from datetime import datetime, timezone
-        
+
         # Create commits with long messages
         commits = [
             RecentCommit(
                 short_sha="abc1234",
                 message="This is a very long commit message that would previously be truncated with ellipsis but should now be displayed in full",
-                date=datetime(2024, 1, 15, tzinfo=timezone.utc)
+                date=datetime(2024, 1, 15, tzinfo=UTC)
             ),
             RecentCommit(
                 short_sha="def5678",
                 message="Another long commit message with detailed explanation of changes made to the codebase",
-                date=datetime(2024, 1, 14, tzinfo=timezone.utc)
+                date=datetime(2024, 1, 14, tzinfo=UTC)
             )
         ]
-        
+
         result = self.service.format_recent_commits(commits, column_width=30)  # Small column width
-        
+
         # Should not contain truncation indicators
         assert "..." not in result
-        
+
         # Should contain full messages
         assert "This is a very long commit message that would previously be truncated with ellipsis but should now be displayed in full" in result
         assert "Another long commit message with detailed explanation of changes made to the codebase" in result
-        
+
         # Should maintain proper format
         assert "2024-01-15 abc1234" in result
         assert "2024-01-14 def5678" in result
@@ -2034,8 +2047,9 @@ class TestRepositoryDisplayService:
 
     def test_calculate_commits_column_width_with_commits(self):
         """Test calculate_commits_column_width calculates appropriate width based on layout needs."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -2064,8 +2078,9 @@ class TestRepositoryDisplayService:
 
     def test_calculate_commits_column_width_respects_bounds(self):
         """Test calculate_commits_column_width respects min/max bounds regardless of message length."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         # Very long message - width should not be based on message length anymore
         long_message = "This is an extremely long commit message " * 5
@@ -2090,8 +2105,9 @@ class TestRepositoryDisplayService:
 
     def test_calculate_commits_column_width_ignores_message_length(self):
         """Test that column width calculation ignores message length and focuses on layout."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         # Create commits with very different message lengths
         short_commits = [
@@ -2127,8 +2143,9 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_improved_formatting(self):
         """Test format_recent_commits uses improved formatting with consistent dates."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -2155,8 +2172,9 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_handles_long_messages(self):
         """Test format_recent_commits displays long commit messages in full without truncation."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         long_message = "This is a very long commit message that should be displayed in full without truncation to fit within the column width constraints"
         commits = [
@@ -2181,8 +2199,9 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_mixed_date_availability(self):
         """Test format_recent_commits handles mixed date availability correctly."""
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -2212,12 +2231,13 @@ class TestRepositoryDisplayService:
         - Both date-based and fallback formats use full messages
         - No max_message_length calculation affects output
         """
-        from forklift.models.github import RecentCommit
         from datetime import datetime
+
+        from forklift.models.github import RecentCommit
 
         # Create commits with very long messages to test no truncation
         long_message = "This is an extremely long commit message that would have been truncated in the old implementation but should now be displayed in full without any truncation or ellipsis because we want to show complete information to users"
-        
+
         commits = [
             RecentCommit(
                 short_sha="abc1234",
@@ -2225,7 +2245,7 @@ class TestRepositoryDisplayService:
                 date=datetime(2024, 1, 15, 10, 30),
             ),
             RecentCommit(
-                short_sha="def5678", 
+                short_sha="def5678",
                 message=long_message
             ),  # No date - fallback format
         ]
@@ -2235,75 +2255,391 @@ class TestRepositoryDisplayService:
 
         lines = result.split("\n")
         assert len(lines) == 2
-        
+
         # Verify date-based format uses full message
         assert lines[0] == f"2024-01-15 abc1234 {long_message}"
         assert "..." not in lines[0]
-        
-        # Verify fallback format uses full message  
+
+        # Verify fallback format uses full message
         assert lines[1] == f"def5678: {long_message}"
         assert "..." not in lines[1]
-        
+
         # Verify both formats contain the complete long message
         assert long_message in lines[0]
         assert long_message in lines[1]
 
+    # Additional comprehensive tests for task 5: Add unit tests for non-truncated commit formatting
+
+    def test_format_recent_commits_very_long_messages_no_truncation(self):
+        """Test that extremely long commit messages are displayed without truncation."""
+        from datetime import datetime
+
+        from forklift.models.github import RecentCommit
+
+        # Create an extremely long commit message (over 200 characters)
+        very_long_message = (
+            "This is an extremely long commit message that exceeds typical length limits "
+            "and would have been truncated in the previous implementation but should now "
+            "be displayed in full without any truncation indicators like ellipsis or dots "
+            "because we want to preserve all commit information for users to see the complete "
+            "context of what changes were made in each commit without losing any details"
+        )
+
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message=very_long_message,
+                date=datetime(2024, 1, 15, 10, 30),
+            )
+        ]
+
+        result = self.service.format_recent_commits(commits, column_width=50)
+
+        # Should not contain any truncation indicators
+        assert "..." not in result
+        assert "…" not in result  # Unicode ellipsis
+
+        # Should contain the complete message
+        assert very_long_message in result
+        assert len(result.split(very_long_message)[0]) > 0  # Message should be after date/hash
+
+        # Should maintain proper format structure
+        assert result.startswith("2024-01-15 abc1234 ")
+        assert result == f"2024-01-15 abc1234 {very_long_message}"
+
+    def test_format_recent_commits_message_cleaning_preserves_content(self):
+        """Test that message cleaning works correctly without losing content."""
+        from datetime import datetime
+
+        from forklift.models.github import RecentCommit
+
+        # Test various whitespace and newline scenarios
+        test_cases = [
+            {
+                "input": "Fix bug\nin authentication\n\nsystem",
+                "expected": "Fix bug in authentication system"
+            },
+            {
+                "input": "Add   feature    with     multiple     spaces",
+                "expected": "Add feature with multiple spaces"
+            },
+            {
+                "input": "Fix\tbug\n\nin   authentication\r\nsystem",
+                "expected": "Fix bug in authentication system"
+            },
+            {
+                "input": "  Leading and trailing spaces  \n\n",
+                "expected": "Leading and trailing spaces"
+            }
+        ]
+
+        for i, case in enumerate(test_cases):
+            commit = RecentCommit(
+                short_sha=f"abc123{i}",
+                message=case["input"],
+                date=datetime(2024, 1, 15, 10, 30),
+            )
+
+            result = self.service.format_recent_commits([commit])
+
+            # Should contain the cleaned message
+            assert case["expected"] in result
+            # Should not contain original problematic whitespace
+            assert case["input"] not in result
+            # Should maintain format structure
+            assert result == f"2024-01-15 abc123{i} {case['expected']}"
+
+    def test_format_recent_commits_structure_unchanged_with_long_messages(self):
+        """Test that commit format structure remains unchanged regardless of message length."""
+        from datetime import datetime
+
+        from forklift.models.github import RecentCommit
+
+        # Test with messages of varying lengths
+        test_messages = [
+            "Short",
+            "Medium length commit message with some details",
+            "Very long commit message that contains extensive details about the changes made including multiple aspects of the implementation and various considerations that were taken into account during development"
+        ]
+
+        commits = []
+        for i, message in enumerate(test_messages):
+            commits.append(RecentCommit(
+                short_sha=f"abc123{i}",
+                message=message,
+                date=datetime(2024, 1, 15 - i, 10, 30),  # Different dates for sorting
+            ))
+
+        result = self.service.format_recent_commits(commits)
+        lines = result.split("\n")
+
+        # Should have correct number of lines
+        assert len(lines) == 3
+
+        # Each line should follow the same format: "YYYY-MM-DD hash message"
+        for i, line in enumerate(lines):
+            expected_date = f"2024-01-{15-i:02d}"
+            expected_hash = f"abc123{i}"
+            expected_message = test_messages[i]
+
+            assert line.startswith(f"{expected_date} {expected_hash} ")
+            assert line == f"{expected_date} {expected_hash} {expected_message}"
+            # No truncation indicators
+            assert "..." not in line
+
+    def test_format_recent_commits_edge_cases_empty_and_special_chars(self):
+        """Test edge cases including empty messages and special characters."""
+        from datetime import datetime
+
+        from forklift.models.github import RecentCommit
+
+        # Test edge cases
+        test_cases = [
+            {
+                "message": "Fix: issue with special chars !@#$%^&*()_+-=[]{}|;':\",./<>?",
+                "description": "special characters"
+            },
+            {
+                "message": "Add unicode support: 你好世界 🚀 ñáéíóú",
+                "description": "unicode characters"
+            },
+            {
+                "message": "Fix\n\n\n\n\nmultiple\n\n\nnewlines",
+                "expected_cleaned": "Fix multiple newlines",
+                "description": "multiple newlines"
+            }
+        ]
+
+        commits = []
+        for i, case in enumerate(test_cases):
+            commits.append(RecentCommit(
+                short_sha=f"abc123{i}",
+                message=case["message"],
+                date=datetime(2024, 1, 15, 10, 30),
+            ))
+
+        result = self.service.format_recent_commits(commits)
+        lines = result.split("\n")
+
+        # Should handle all edge cases without truncation
+        assert len(lines) == len(test_cases)
+
+        for i, (line, case) in enumerate(zip(lines, test_cases, strict=False)):
+            expected_message = case.get("expected_cleaned", case["message"])
+            assert line.startswith("2024-01-15 abc123")
+            assert expected_message in line
+            assert "..." not in line
+
+    def test_format_recent_commits_fallback_format_no_truncation(self):
+        """Test that fallback format (no date) also displays full messages without truncation."""
+        from forklift.models.github import RecentCommit
+
+        # Create commits without dates (fallback format)
+        long_message = "This is a very long commit message for testing the fallback format when no date is available and we want to ensure it also displays the complete message without any truncation"
+
+        commits = [
+            RecentCommit(short_sha="abc1234", message=long_message),  # No date
+            RecentCommit(short_sha="def5678", message="Short message"),  # No date
+        ]
+
+        result = self.service.format_recent_commits(commits)
+        lines = result.split("\n")
+
+        # Should use fallback format: "hash: message"
+        assert len(lines) == 2
+        assert lines[0] == f"abc1234: {long_message}"
+        assert lines[1] == "def5678: Short message"
+
+        # Should not contain truncation indicators
+        assert "..." not in result
+
+        # Should contain full messages
+        assert long_message in result
+        assert "Short message" in result
+
+    def test_format_recent_commits_mixed_formats_no_truncation(self):
+        """Test mixed date/no-date commits both display full messages without truncation."""
+        from datetime import datetime
+
+        from forklift.models.github import RecentCommit
+
+        long_message_with_date = "Long commit message with date that should be displayed in full using the date-based format without any truncation"
+        long_message_no_date = "Long commit message without date that should be displayed in full using the fallback format without any truncation"
+
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message=long_message_with_date,
+                date=datetime(2024, 1, 15, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message=long_message_no_date,
+            ),  # No date
+        ]
+
+        result = self.service.format_recent_commits(commits)
+        lines = result.split("\n")
+
+        # Should have both formats
+        assert len(lines) == 2
+
+        # Date-based format should be complete
+        assert lines[0] == f"2024-01-15 abc1234 {long_message_with_date}"
+        assert "..." not in lines[0]
+
+        # Fallback format should be complete
+        assert lines[1] == f"def5678: {long_message_no_date}"
+        assert "..." not in lines[1]
+
+        # Both should contain full messages
+        assert long_message_with_date in result
+        assert long_message_no_date in result
+
+    def test_clean_commit_message_edge_cases(self):
+        """Test _clean_commit_message handles various edge cases correctly."""
+        # Test None message
+        result = self.service._clean_commit_message(None)
+        assert result == ""
+
+        # Test empty string
+        result = self.service._clean_commit_message("")
+        assert result == ""
+
+        # Test whitespace-only message
+        result = self.service._clean_commit_message("   \n\t\r\n   ")
+        assert result == ""
+
+        # Test message with only newlines
+        result = self.service._clean_commit_message("\n\n\n")
+        assert result == ""
+
+        # Test normal message (should be unchanged)
+        result = self.service._clean_commit_message("Normal commit message")
+        assert result == "Normal commit message"
+
+    def test_format_commit_date_consistency(self):
+        """Test _format_commit_date produces consistent YYYY-MM-DD format."""
+        from datetime import datetime
+
+        # Test various date scenarios
+        test_dates = [
+            datetime(2024, 1, 1, 0, 0, 0),      # New Year's Day
+            datetime(2024, 12, 31, 23, 59, 59), # New Year's Eve
+            datetime(2024, 2, 29, 12, 30, 45),  # Leap year
+            datetime(2023, 2, 28, 12, 30, 45),  # Non-leap year
+            datetime(2024, 7, 4, 14, 30, 0),    # Mid-year
+        ]
+
+        expected_results = [
+            "2024-01-01",
+            "2024-12-31",
+            "2024-02-29",
+            "2023-02-28",
+            "2024-07-04"
+        ]
+
+        for date, expected in zip(test_dates, expected_results, strict=False):
+            result = self.service._format_commit_date(date)
+            assert result == expected
+            # Verify format is always YYYY-MM-DD (10 characters)
+            assert len(result) == 10
+            assert result.count("-") == 2
+
+    def test_format_recent_commits_chronological_ordering_preserved(self):
+        """Test that chronological ordering (newest first) is preserved with full messages."""
+        from datetime import datetime
+
+        from forklift.models.github import RecentCommit
+
+        # Create commits in non-chronological order
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="Oldest commit with a long message that should appear last",
+                date=datetime(2024, 1, 10, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Newest commit with a long message that should appear first",
+                date=datetime(2024, 1, 20, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="9012abc",
+                message="Middle commit with a long message that should appear in the middle",
+                date=datetime(2024, 1, 15, 10, 30),
+            ),
+        ]
+
+        result = self.service.format_recent_commits(commits)
+        lines = result.split("\n")
+
+        # Should be ordered newest first
+        assert len(lines) == 3
+        assert lines[0].startswith("2024-01-20 def5678")
+        assert lines[1].startswith("2024-01-15 9012abc")
+        assert lines[2].startswith("2024-01-10 abc1234")
+
+        # All messages should be complete
+        assert "Newest commit with a long message that should appear first" in lines[0]
+        assert "Middle commit with a long message that should appear in the middle" in lines[1]
+        assert "Oldest commit with a long message that should appear last" in lines[2]
+
+        # No truncation
+        assert "..." not in result
+
     def test_display_fork_insights_excluded_by_default(self):
         """Test that fork insights section is excluded by default."""
-        from unittest.mock import Mock, patch
-        
+
         # Create service with default configuration (should exclude fork insights)
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Verify the configuration flag is set correctly
         assert service._should_exclude_fork_insights is True
 
     def test_display_fork_insights_included_when_enabled(self):
         """Test that fork insights section is included when enabled."""
-        from unittest.mock import Mock
-        
+
         # Create service with fork insights enabled
         service = RepositoryDisplayService(
-            self.mock_github_client, 
+            self.mock_github_client,
             self.mock_console,
             should_exclude_fork_insights=False
         )
-        
+
         # Verify the configuration flag is set correctly
         assert service._should_exclude_fork_insights is False
 
     def test_display_language_distribution_excluded_by_default(self):
         """Test that language distribution table is excluded by default."""
-        from unittest.mock import Mock
-        
+
         # Create service with default configuration (should exclude language distribution)
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Verify the configuration flag is set correctly
         assert service._should_exclude_language_distribution is True
 
     def test_display_language_distribution_included_when_enabled(self):
         """Test that language distribution table is included when enabled."""
-        from unittest.mock import Mock
-        
+
         # Create service with language distribution enabled
         service = RepositoryDisplayService(
-            self.mock_github_client, 
+            self.mock_github_client,
             self.mock_console,
             should_exclude_language_distribution=False
         )
-        
+
         # Verify the configuration flag is set correctly
         assert service._should_exclude_language_distribution is False
 
     @pytest.mark.asyncio
     async def test_display_fork_data_table_excludes_fork_insights_by_default(self):
         """Test that _display_fork_data_table excludes fork insights section by default."""
-        from unittest.mock import Mock, AsyncMock, patch
-        
+        from unittest.mock import Mock, patch
+
         # Create service with default configuration
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Mock qualification result
         mock_stats = Mock()
         mock_stats.total_forks_discovered = 10
@@ -2313,32 +2649,32 @@ class TestRepositoryDisplayService:
         mock_stats.skip_rate_percentage = 50.0
         mock_stats.archived_forks = 0
         mock_stats.disabled_forks = 0
-        
+
         mock_qualification_result = Mock()
         mock_qualification_result.repository_owner = "test_owner"
         mock_qualification_result.repository_name = "test_repo"
         mock_qualification_result.stats = mock_stats
         mock_qualification_result.collected_forks = []
-        
+
         # Mock the _display_fork_insights method to track if it's called
-        with patch.object(service, '_display_fork_insights') as mock_display_insights:
+        with patch.object(service, "_display_fork_insights") as mock_display_insights:
             await service._display_fork_data_table(mock_qualification_result)
-            
+
             # Should not call _display_fork_insights
             mock_display_insights.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_display_fork_data_table_includes_fork_insights_when_enabled(self):
         """Test that _display_fork_data_table includes fork insights section when enabled."""
-        from unittest.mock import Mock, AsyncMock, patch
-        
+        from unittest.mock import Mock, patch
+
         # Create service with fork insights enabled
         service = RepositoryDisplayService(
-            self.mock_github_client, 
+            self.mock_github_client,
             self.mock_console,
             should_exclude_fork_insights=False
         )
-        
+
         # Mock qualification result
         mock_stats = Mock()
         mock_stats.total_forks_discovered = 10
@@ -2348,7 +2684,7 @@ class TestRepositoryDisplayService:
         mock_stats.skip_rate_percentage = 50.0
         mock_stats.archived_forks = 0
         mock_stats.disabled_forks = 0
-        
+
         mock_qualification_result = Mock()
         mock_qualification_result.repository_owner = "test_owner"
         mock_qualification_result.repository_name = "test_repo"
@@ -2362,39 +2698,39 @@ class TestRepositoryDisplayService:
         mock_fork_data.metrics.commits_ahead_status = "Unknown"
         mock_fork_data.metrics.pushed_at = None
         mock_qualification_result.collected_forks = [mock_fork_data]
-        
+
         # Mock the _display_fork_insights method to track if it's called
-        with patch.object(service, '_display_fork_insights') as mock_display_insights:
+        with patch.object(service, "_display_fork_insights") as mock_display_insights:
             await service._display_fork_data_table(mock_qualification_result)
-            
+
             # Should call _display_fork_insights
             mock_display_insights.assert_called_once_with(mock_qualification_result)
 
     def test_display_fork_insights_shows_language_distribution_when_enabled(self):
         """Test that _display_fork_insights shows language distribution when enabled."""
         from unittest.mock import Mock
-        
+
         # Create service with language distribution enabled
         service = RepositoryDisplayService(
-            self.mock_github_client, 
+            self.mock_github_client,
             self.mock_console,
             should_exclude_language_distribution=False
         )
-        
+
         # Mock qualification result with fork data that has languages
         mock_fork_data = Mock()
         mock_fork_data.metrics.language = "Python"
-        
+
         mock_qualification_result = Mock()
         mock_qualification_result.active_forks = []
         mock_qualification_result.popular_forks = []
         mock_qualification_result.forks_needing_analysis = []
         mock_qualification_result.forks_to_skip = []
         mock_qualification_result.collected_forks = [mock_fork_data]
-        
+
         # Call the method
         service._display_fork_insights(mock_qualification_result)
-        
+
         # Should print Language Distribution section
         printed_calls = [call for call in self.mock_console.print.call_args_list]
         language_dist_calls = [call for call in printed_calls if "Language Distribution" in str(call)]
@@ -2403,41 +2739,41 @@ class TestRepositoryDisplayService:
     def test_display_fork_insights_hides_language_distribution_when_disabled(self):
         """Test that _display_fork_insights hides language distribution when disabled."""
         from unittest.mock import Mock
-        
+
         # Create service with language distribution disabled (default)
         service = RepositoryDisplayService(
-            self.mock_github_client, 
+            self.mock_github_client,
             self.mock_console,
             should_exclude_language_distribution=True
         )
-        
+
         # Mock qualification result with fork data that has languages
         mock_fork_data = Mock()
         mock_fork_data.metrics.language = "Python"
-        
+
         mock_qualification_result = Mock()
         mock_qualification_result.active_forks = []
         mock_qualification_result.popular_forks = []
         mock_qualification_result.forks_needing_analysis = []
         mock_qualification_result.forks_to_skip = []
         mock_qualification_result.collected_forks = [mock_fork_data]
-        
+
         # Call the method
         service._display_fork_insights(mock_qualification_result)
-        
+
         # Should not print Language Distribution section
         printed_calls = [call for call in self.mock_console.print.call_args_list]
         language_dist_calls = [call for call in printed_calls if "Language Distribution" in str(call)]
-        assert len(language_dist_calls) == 0 
+        assert len(language_dist_calls) == 0
 
     def test_detailed_fork_table_recent_commits_column_no_wrap(self):
         """Test that Recent Commits column in detailed fork table has no_wrap=True to prevent soft wrapping."""
         from unittest.mock import Mock, patch
-        from rich.table import Table
-        
+
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Mock fork data with long commit messages
         mock_fork_data = Mock()
         mock_fork_data.metrics.owner = "test_owner"
@@ -2446,20 +2782,20 @@ class TestRepositoryDisplayService:
         mock_fork_data.metrics.forks_count = 50
         mock_fork_data.metrics.pushed_at = datetime.now(UTC)
         mock_fork_data.exact_commits_ahead = 5
-        
+
         detailed_forks = [mock_fork_data]
-        
+
         # Mock the commits cache to return long commit messages
         long_commit_message = "This is a very long commit message that would normally cause soft wrapping in table cells without proper configuration"
         commits_cache = {"test_owner/test_repo": long_commit_message}
-        
+
         # Patch the _fetch_commits_concurrently method to return our mock cache
-        with patch.object(service, '_fetch_commits_concurrently', return_value=commits_cache):
+        with patch.object(service, "_fetch_commits_concurrently", return_value=commits_cache):
             # Patch Table to capture column configuration
-            with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+            with patch("forklift.display.repository_display_service.Table") as mock_table_class:
                 mock_table_instance = Mock()
                 mock_table_class.return_value = mock_table_instance
-                
+
                 # Call the method with show_commits > 0 to trigger Recent Commits column
                 asyncio.run(service._display_detailed_fork_table(
                     detailed_forks,
@@ -2470,10 +2806,10 @@ class TestRepositoryDisplayService:
                     show_commits=3,  # This should trigger Recent Commits column
                     force_all_commits=False
                 ))
-                
+
                 # Verify that add_column was called with no_wrap=True for Recent Commits column
                 add_column_calls = mock_table_instance.add_column.call_args_list
-                
+
                 # Find the Recent Commits column call
                 recent_commits_call = None
                 for call in add_column_calls:
@@ -2481,20 +2817,20 @@ class TestRepositoryDisplayService:
                     if args and "Recent Commits" in args[0]:
                         recent_commits_call = call
                         break
-                
+
                 # Verify the Recent Commits column was added with no_wrap=True
                 assert recent_commits_call is not None, "Recent Commits column should be added when show_commits > 0"
                 args, kwargs = recent_commits_call
-                assert kwargs.get('no_wrap') is True, "Recent Commits column should have no_wrap=True to prevent soft wrapping"
+                assert kwargs.get("no_wrap") is True, "Recent Commits column should have no_wrap=True to prevent soft wrapping"
 
     def test_detailed_fork_table_without_commits_no_recent_commits_column(self):
         """Test that Recent Commits column is not added when show_commits is 0."""
         from unittest.mock import Mock, patch
-        from rich.table import Table
-        
+
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Mock fork data
         mock_fork_data = Mock()
         mock_fork_data.metrics.owner = "test_owner"
@@ -2503,14 +2839,14 @@ class TestRepositoryDisplayService:
         mock_fork_data.metrics.forks_count = 50
         mock_fork_data.metrics.pushed_at = datetime.now(UTC)
         mock_fork_data.exact_commits_ahead = 5
-        
+
         detailed_forks = [mock_fork_data]
-        
+
         # Patch Table to capture column configuration
-        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+        with patch("forklift.display.repository_display_service.Table") as mock_table_class:
             mock_table_instance = Mock()
             mock_table_class.return_value = mock_table_instance
-            
+
             # Call the method with show_commits = 0 (no Recent Commits column)
             asyncio.run(service._display_detailed_fork_table(
                 detailed_forks,
@@ -2521,27 +2857,27 @@ class TestRepositoryDisplayService:
                 show_commits=0,  # This should NOT trigger Recent Commits column
                 force_all_commits=False
             ))
-            
+
             # Verify that Recent Commits column was NOT added
             add_column_calls = mock_table_instance.add_column.call_args_list
-            
+
             # Check that no Recent Commits column was added
             recent_commits_calls = []
             for call in add_column_calls:
                 args, kwargs = call
                 if args and "Recent Commits" in args[0]:
                     recent_commits_calls.append(call)
-            
+
             assert len(recent_commits_calls) == 0, "Recent Commits column should not be added when show_commits is 0"
-    
+
     def test_universal_fork_table_rendering_detailed_mode(self):
         """Test universal fork table rendering in detailed mode."""
-        from unittest.mock import Mock, patch
         import asyncio
-        
+        from unittest.mock import Mock, patch
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Mock fork data with exact commits ahead
         mock_fork_data = Mock()
         mock_fork_data.metrics.owner = "test_owner"
@@ -2550,21 +2886,21 @@ class TestRepositoryDisplayService:
         mock_fork_data.metrics.forks_count = 50
         mock_fork_data.metrics.pushed_at = datetime.now(UTC)
         mock_fork_data.exact_commits_ahead = 5
-        
+
         fork_data_list = [mock_fork_data]
-        
+
         table_context = {
-            'owner': 'base_owner',
-            'repo': 'base_repo',
-            'has_exact_counts': True,
-            'mode': 'detailed',
-            'api_calls_made': 1,
-            'api_calls_saved': 0,
-            'fork_data_list': fork_data_list
+            "owner": "base_owner",
+            "repo": "base_repo",
+            "has_exact_counts": True,
+            "mode": "detailed",
+            "api_calls_made": 1,
+            "api_calls_saved": 0,
+            "fork_data_list": fork_data_list
         }
-        
+
         # Mock the _fetch_commits_concurrently method
-        with patch.object(service, '_fetch_commits_concurrently', return_value={}):
+        with patch.object(service, "_fetch_commits_concurrently", return_value={}):
             # Call the universal rendering method
             asyncio.run(service._render_fork_table(
                 fork_data_list,
@@ -2572,18 +2908,18 @@ class TestRepositoryDisplayService:
                 show_commits=0,
                 force_all_commits=False
             ))
-        
+
         # Verify console.print was called (table was displayed)
         assert self.mock_console.print.called
 
     def test_universal_fork_table_rendering_standard_mode(self):
         """Test universal fork table rendering in standard mode."""
-        from unittest.mock import Mock, patch
         import asyncio
-        
+        from unittest.mock import Mock, patch
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Mock fork data with status-based commits
         mock_fork_data = Mock()
         mock_fork_data.metrics.owner = "test_owner"
@@ -2592,9 +2928,9 @@ class TestRepositoryDisplayService:
         mock_fork_data.metrics.forks_count = 50
         mock_fork_data.metrics.pushed_at = datetime.now(UTC)
         mock_fork_data.metrics.commits_ahead_status = "Has commits"
-        
+
         fork_data_list = [mock_fork_data]
-        
+
         # Mock qualification result
         mock_qualification_result = Mock()
         mock_qualification_result.stats.total_forks_discovered = 1
@@ -2604,22 +2940,22 @@ class TestRepositoryDisplayService:
         mock_qualification_result.stats.skip_rate_percentage = 0.0
         mock_qualification_result.stats.archived_forks = 0
         mock_qualification_result.stats.disabled_forks = 0
-        
+
         table_context = {
-            'owner': 'base_owner',
-            'repo': 'base_repo',
-            'has_exact_counts': False,
-            'mode': 'standard',
-            'api_calls_made': 1,
-            'api_calls_saved': 0,
-            'qualification_result': mock_qualification_result,
-            'fork_data_list': fork_data_list
+            "owner": "base_owner",
+            "repo": "base_repo",
+            "has_exact_counts": False,
+            "mode": "standard",
+            "api_calls_made": 1,
+            "api_calls_saved": 0,
+            "qualification_result": mock_qualification_result,
+            "fork_data_list": fork_data_list
         }
-        
+
         # Mock the _fetch_commits_concurrently method
-        with patch.object(service, '_fetch_commits_concurrently', return_value={}):
+        with patch.object(service, "_fetch_commits_concurrently", return_value={}):
             # Mock the _sort_forks_enhanced method
-            with patch.object(service, '_sort_forks_enhanced', return_value=fork_data_list):
+            with patch.object(service, "_sort_forks_enhanced", return_value=fork_data_list):
                 # Call the universal rendering method
                 asyncio.run(service._render_fork_table(
                     fork_data_list,
@@ -2627,34 +2963,35 @@ class TestRepositoryDisplayService:
                     show_commits=0,
                     force_all_commits=False
                 ))
-        
+
         # Verify console.print was called (table was displayed)
         assert self.mock_console.print.called
 
     def test_commit_data_formatter_detailed_mode(self):
         """Test format_commit_info in detailed mode."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
         from unittest.mock import Mock
-        
+
+        from forklift.display.repository_display_service import RepositoryDisplayService
+
         mock_client = Mock()
         service = RepositoryDisplayService(mock_client)
-        
+
         # Test with exact commit count
         mock_fork_data = Mock()
         mock_fork_data.exact_commits_ahead = 5
         mock_fork_data.exact_commits_behind = 0
         mock_fork_data.commit_count_error = False
-        
+
         result = service.format_commit_info(mock_fork_data, has_exact_counts=True)
         assert result == "[green]+5[/green]"
-        
+
         # Test with zero commits
         mock_fork_data.exact_commits_ahead = 0
         mock_fork_data.exact_commits_behind = 0
         mock_fork_data.commit_count_error = False
         result = service.format_commit_info(mock_fork_data, has_exact_counts=True)
         assert result == ""
-        
+
         # Test with unknown status
         mock_fork_data.exact_commits_ahead = "Unknown"
         mock_fork_data.exact_commits_behind = "Unknown"
@@ -2664,24 +3001,25 @@ class TestRepositoryDisplayService:
 
     def test_commit_data_formatter_standard_mode(self):
         """Test format_commit_info in standard mode."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
         from unittest.mock import Mock
-        
+
+        from forklift.display.repository_display_service import RepositoryDisplayService
+
         mock_client = Mock()
         service = RepositoryDisplayService(mock_client)
-        
+
         # Test with "Has commits" status
         mock_fork_data = Mock()
         mock_fork_data.metrics.commits_ahead_status = "Has commits"
-        
+
         result = service.format_commit_info(mock_fork_data, has_exact_counts=False)
         assert result == "Has commits"
-        
+
         # Test with "No commits ahead" status
         mock_fork_data.metrics.commits_ahead_status = "No commits ahead"
         result = service.format_commit_info(mock_fork_data, has_exact_counts=False)
         assert result == "0 commits"
-        
+
         # Test with unknown status
         mock_fork_data.metrics.commits_ahead_status = "Unknown"
         result = service.format_commit_info(mock_fork_data, has_exact_counts=False)
@@ -2690,29 +3028,29 @@ class TestRepositoryDisplayService:
     def test_fork_table_config_consistency(self):
         """Test that ForkTableConfig provides consistent configuration."""
         from src.forklift.display.repository_display_service import ForkTableConfig
-        
+
         # Verify column widths are defined
-        assert ForkTableConfig.COLUMN_WIDTHS['url'] == 35
-        assert ForkTableConfig.COLUMN_WIDTHS['stars'] == 8
-        assert ForkTableConfig.COLUMN_WIDTHS['forks'] == 8
-        assert ForkTableConfig.COLUMN_WIDTHS['commits'] == 15
-        assert ForkTableConfig.COLUMN_WIDTHS['last_push'] == 14
-        
+        assert ForkTableConfig.COLUMN_WIDTHS["url"] == 35
+        assert ForkTableConfig.COLUMN_WIDTHS["stars"] == 8
+        assert ForkTableConfig.COLUMN_WIDTHS["forks"] == 8
+        assert ForkTableConfig.COLUMN_WIDTHS["commits"] == 15
+        assert ForkTableConfig.COLUMN_WIDTHS["last_push"] == 14
+
         # Verify column styles are defined
-        assert ForkTableConfig.COLUMN_STYLES['url'] == 'cyan'
-        assert ForkTableConfig.COLUMN_STYLES['stars'] == 'yellow'
-        assert ForkTableConfig.COLUMN_STYLES['forks'] == 'green'
-        assert ForkTableConfig.COLUMN_STYLES['commits'] == 'magenta'
-        assert ForkTableConfig.COLUMN_STYLES['last_push'] == 'blue'
+        assert ForkTableConfig.COLUMN_STYLES["url"] == "cyan"
+        assert ForkTableConfig.COLUMN_STYLES["stars"] == "yellow"
+        assert ForkTableConfig.COLUMN_STYLES["forks"] == "green"
+        assert ForkTableConfig.COLUMN_STYLES["commits"] == "magenta"
+        assert ForkTableConfig.COLUMN_STYLES["last_push"] == "blue"
 
     def test_universal_fork_table_rendering_detailed_mode(self):
         """Test universal fork table rendering in detailed mode (exact counts)."""
         from unittest.mock import Mock, patch
-        from rich.table import Table
-        
+
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Create proper mock objects instead of Mock to avoid attribute issues
         class MockMetrics:
             def __init__(self):
@@ -2721,21 +3059,21 @@ class TestRepositoryDisplayService:
                 self.stargazers_count = 100
                 self.forks_count = 50
                 self.pushed_at = datetime.now(UTC)
-        
+
         class MockForkData:
             def __init__(self):
                 self.metrics = MockMetrics()
                 self.exact_commits_ahead = 5
-        
+
         mock_fork_data = MockForkData()
-        
+
         fork_data_list = [mock_fork_data]
-        
+
         # Patch Table to capture column configuration
-        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+        with patch("forklift.display.repository_display_service.Table") as mock_table_class:
             mock_table_instance = Mock()
             mock_table_class.return_value = mock_table_instance
-            
+
             # Call universal method in detailed mode
             asyncio.run(service._display_fork_table(
                 fork_data_list,
@@ -2746,10 +3084,10 @@ class TestRepositoryDisplayService:
                 show_commits=0,
                 show_insights=False
             ))
-            
+
             # Verify table columns were added with correct configuration
             add_column_calls = mock_table_instance.add_column.call_args_list
-            
+
             # Check column names and widths
             expected_columns = [
                 ("URL", {"style": "cyan", "no_wrap": True, "overflow": "fold"}),
@@ -2758,9 +3096,9 @@ class TestRepositoryDisplayService:
                 ("Commits Ahead", {"style": "magenta", "justify": "right", "no_wrap": True}),
                 ("Last Push", {"style": "blue", "no_wrap": True})
             ]
-            
+
             assert len(add_column_calls) == len(expected_columns), f"Expected {len(expected_columns)} columns, got {len(add_column_calls)}"
-            
+
             for i, (expected_name, expected_kwargs) in enumerate(expected_columns):
                 args, kwargs = add_column_calls[i]
                 assert args[0] == expected_name, f"Column {i}: expected '{expected_name}', got '{args[0]}'"
@@ -2770,11 +3108,11 @@ class TestRepositoryDisplayService:
     def test_universal_fork_table_rendering_standard_mode(self):
         """Test universal fork table rendering in standard mode (status text)."""
         from unittest.mock import Mock, patch
-        from rich.table import Table
-        
+
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Mock standard fork data
         mock_fork_data = Mock()
         mock_fork_data.metrics.owner = "test_owner"
@@ -2783,14 +3121,14 @@ class TestRepositoryDisplayService:
         mock_fork_data.metrics.forks_count = 50
         mock_fork_data.metrics.pushed_at = datetime.now(UTC)
         mock_fork_data.metrics.commits_ahead_status = "Has commits"
-        
+
         fork_data_list = [mock_fork_data]
-        
+
         # Patch Table to capture column configuration
-        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
+        with patch("forklift.display.repository_display_service.Table") as mock_table_class:
             mock_table_instance = Mock()
             mock_table_class.return_value = mock_table_instance
-            
+
             # Call universal method in standard mode
             asyncio.run(service._display_fork_table(
                 fork_data_list,
@@ -2801,11 +3139,11 @@ class TestRepositoryDisplayService:
                 show_commits=0,
                 show_insights=True
             ))
-            
+
             # Verify same column structure is used
             add_column_calls = mock_table_instance.add_column.call_args_list
             assert len(add_column_calls) == 5, "Should have 5 columns in standard mode"
-            
+
             # Verify "Commits Ahead" column configuration
             commits_column_call = add_column_calls[3]
             args, kwargs = commits_column_call
@@ -2815,18 +3153,18 @@ class TestRepositoryDisplayService:
     def test_format_commits_display_exact_counts(self):
         """Test _format_commits_display method with exact counts."""
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Create a simple object instead of Mock to avoid Mock attribute issues
         class MockForkData:
             def __init__(self, exact_commits_ahead):
                 self.exact_commits_ahead = exact_commits_ahead
-        
+
         # Test with exact commits ahead
         mock_fork_data = MockForkData(exact_commits_ahead=5)
-        
+
         result = service._format_commits_display(mock_fork_data, show_exact_counts=True)
         assert "[green]+5[/green]" in result
-        
+
         # Test with zero commits ahead
         mock_fork_data = MockForkData(exact_commits_ahead=0)
         result = service._format_commits_display(mock_fork_data, show_exact_counts=True)
@@ -2835,14 +3173,14 @@ class TestRepositoryDisplayService:
     def test_format_commits_display_status_text(self):
         """Test _format_commits_display method with status text."""
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Test with "Has commits" status
         mock_fork_data = Mock()
         mock_fork_data.metrics.commits_ahead_status = "Has commits"
-        
+
         result = service._format_commits_display(mock_fork_data, show_exact_counts=False)
         assert result == "Has commits"
-        
+
         # Test with "No commits ahead" status
         mock_fork_data.metrics.commits_ahead_status = "No commits ahead"
         result = service._format_commits_display(mock_fork_data, show_exact_counts=False)
@@ -2850,12 +3188,12 @@ class TestRepositoryDisplayService:
 
     def test_universal_fork_table_with_recent_commits(self):
         """Test universal fork table rendering with Recent Commits column."""
-        from unittest.mock import Mock, patch, AsyncMock
-        from rich.table import Table
-        
+        from unittest.mock import AsyncMock, Mock, patch
+
+
         # Create service
         service = RepositoryDisplayService(self.mock_github_client, self.mock_console)
-        
+
         # Create proper mock objects instead of Mock to avoid attribute issues
         class MockMetrics:
             def __init__(self):
@@ -2864,25 +3202,25 @@ class TestRepositoryDisplayService:
                 self.stargazers_count = 100
                 self.forks_count = 50
                 self.pushed_at = datetime.now(UTC)
-        
+
         class MockForkData:
             def __init__(self):
                 self.metrics = MockMetrics()
                 self.exact_commits_ahead = 3
-        
+
         mock_fork_data = MockForkData()
-        
+
         fork_data_list = [mock_fork_data]
-        
+
         # Mock commits cache
         commits_cache = {"test_owner/test_repo": "Recent commit info"}
-        
+
         # Patch methods
-        with patch('forklift.display.repository_display_service.Table') as mock_table_class:
-            with patch.object(service, '_fetch_commits_concurrently', new=AsyncMock(return_value=commits_cache)):
+        with patch("forklift.display.repository_display_service.Table") as mock_table_class:
+            with patch.object(service, "_fetch_commits_concurrently", new=AsyncMock(return_value=commits_cache)):
                 mock_table_instance = Mock()
                 mock_table_class.return_value = mock_table_instance
-                
+
                 # Call universal method with show_commits > 0
                 asyncio.run(service._display_fork_table(
                     fork_data_list,
@@ -2893,13 +3231,13 @@ class TestRepositoryDisplayService:
                     show_commits=3,
                     show_insights=False
                 ))
-                
+
                 # Verify Recent Commits column was added
                 add_column_calls = mock_table_instance.add_column.call_args_list
                 assert len(add_column_calls) == 6, "Should have 6 columns when show_commits > 0"
-                
+
                 # Check Recent Commits column
                 recent_commits_call = add_column_calls[5]
                 args, kwargs = recent_commits_call
                 assert args[0] == "Recent Commits"
-                assert kwargs.get('no_wrap') is True, "Recent Commits column should have no_wrap=True"
+                assert kwargs.get("no_wrap") is True, "Recent Commits column should have no_wrap=True"
