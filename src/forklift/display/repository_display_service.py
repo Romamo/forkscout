@@ -5,7 +5,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, ClassVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from forklift.models.commit_count_config import CommitCountConfig
@@ -20,8 +20,6 @@ from rich.progress import (
     TextColumn,
 )
 from rich.table import Table
-
-from forklift.display.terminal_detector import TerminalDetector
 
 from forklift.github.client import GitHubClient
 from forklift.models.ahead_only_filter import (
@@ -89,10 +87,10 @@ class RepositoryDisplayService:
         """
         self.github_client = github_client
         # Configure console with appropriate width for file output
-        from .interaction_mode import get_interaction_mode_detector, InteractionMode
+        from .interaction_mode import InteractionMode, get_interaction_mode_detector
         detector = get_interaction_mode_detector()
         interaction_mode = detector.get_interaction_mode()
-        
+
         if console:
             self.console = console
         else:
@@ -108,14 +106,14 @@ class RepositoryDisplayService:
             should_exclude_language_distribution
         )
         self._should_exclude_fork_insights = should_exclude_fork_insights
-        
+
         # Store commit count configuration
         if commit_count_config is None:
             from forklift.models.commit_count_config import CommitCountConfig
             self.commit_count_config = CommitCountConfig()
         else:
             self.commit_count_config = commit_count_config
-        
+
         # Create a separate console for progress bars that always goes to stderr
         # This ensures progress bars don't interfere with output redirection
         if interaction_mode == InteractionMode.OUTPUT_REDIRECTED:
@@ -1373,6 +1371,7 @@ class RepositoryDisplayService:
                     if csv_export:
                         # Always use stderr for CSV mode to keep stdout clean
                         import sys
+
                         from rich.console import Console
                         stderr_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
                         stderr_console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
@@ -1523,6 +1522,7 @@ class RepositoryDisplayService:
                     if csv_export:
                         # Always use stderr for CSV mode to keep stdout clean
                         import sys
+
                         from rich.console import Console
                         stderr_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
                         stderr_console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
@@ -1565,11 +1565,11 @@ class RepositoryDisplayService:
                     successful_forks, api_calls_saved = await self._get_exact_commit_counts_batch(
                         forks_needing_api, owner, repo_name
                     )
-                    
+
                     # Add processed forks to detailed_forks (no progress updates in CSV mode)
                     for fork_data in forks_needing_api:
                         detailed_forks.append(fork_data)
-                    
+
                     # Calculate API calls made by batch processing
                     # 1 parent repo call + successful_forks fork repo calls + successful_forks comparison calls
                     api_calls_made = 1 + (successful_forks * 2) if successful_forks > 0 else 0
@@ -1589,12 +1589,12 @@ class RepositoryDisplayService:
                         successful_forks, api_calls_saved = await self._get_exact_commit_counts_batch(
                             forks_needing_api, owner, repo_name
                         )
-                        
+
                         # Add processed forks to detailed_forks and update progress
                         for fork_data in forks_needing_api:
                             detailed_forks.append(fork_data)
                             progress.update(task, advance=1)
-                        
+
                         # Calculate API calls made by batch processing
                         # 1 parent repo call + successful_forks fork repo calls + successful_forks comparison calls
                         api_calls_made = 1 + (successful_forks * 2) if successful_forks > 0 else 0
@@ -1654,11 +1654,11 @@ class RepositoryDisplayService:
         """
         if not forks_needing_api:
             return 0, 0
-            
+
         # Separate forks that can skip analysis from those needing API calls
         forks_to_process = []
         successful_forks = 0
-        
+
         for fork_data in forks_needing_api:
             if fork_data.metrics.can_skip_analysis:
                 # Fork has no commits ahead based on created_at >= pushed_at logic
@@ -1667,29 +1667,29 @@ class RepositoryDisplayService:
                 successful_forks += 1
             else:
                 forks_to_process.append(fork_data)
-        
+
         if not forks_to_process:
             return successful_forks, successful_forks
-            
+
         try:
             # Use optimized batch processing to get accurate commit counts
             fork_data_list = [
                 (fork_data.metrics.owner, fork_data.metrics.name)
                 for fork_data in forks_to_process
             ]
-            
+
             logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
-            
+
             # Use the batch method to get accurate commit counts for both ahead and behind
             batch_counts = await self.github_client.get_commits_ahead_behind_batch(
                 fork_data_list, owner, repo_name
             )
-            
+
             # Process batch results using the accurate counts
             api_calls_saved = 0
             for fork_data in forks_to_process:
                 fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
-                
+
                 if fork_full_name in batch_counts:
                     # Successfully processed - use the accurate ahead_by and behind_by counts
                     count_data = batch_counts[fork_full_name]
@@ -1702,16 +1702,16 @@ class RepositoryDisplayService:
                     logger.debug(f"Fork {fork_full_name} not in batch results - may be private, empty, or have divergent history")
                     fork_data.exact_commits_ahead = "Unknown"
                     fork_data.exact_commits_behind = "Unknown"
-            
+
             # Log optimization results
             logger.info(f"Batch processing completed: {successful_forks}/{len(forks_needing_api)} forks processed")
             logger.info(f"API optimization: {api_calls_saved} parent repository calls saved")
-            
+
             return successful_forks, api_calls_saved
-            
+
         except Exception as e:
             logger.warning(f"Batch processing failed, falling back to individual requests: {e}")
-            
+
             # Fallback to individual API calls if batch processing fails
             api_calls_saved = 0
             for fork_data in forks_to_process:
@@ -1723,29 +1723,29 @@ class RepositoryDisplayService:
                         fork_data.metrics.owner,
                         fork_data.metrics.name,
                     )
-                    
+
                     # Update fork data with exact commit counts
                     fork_data.exact_commits_ahead = commit_counts.get("ahead_by", "Unknown")
                     fork_data.exact_commits_behind = commit_counts.get("behind_by", "Unknown")
                     successful_forks += 1
-                    
+
                 except Exception as individual_error:
                     # Get user-friendly error message for logging
                     error_message = self.github_client.error_handler.get_user_friendly_error_message(individual_error)
                     logger.warning(
                         f"Failed to get commits ahead for {fork_data.metrics.owner}/{fork_data.metrics.name}: {error_message}"
                     )
-                    
+
                     # Check if we should continue processing other forks
                     if not self.github_client.error_handler.should_continue_processing(individual_error):
                         # Critical error - stop processing and re-raise
                         logger.error(f"Critical error encountered, stopping fork processing: {error_message}")
                         raise
-                    
+
                     # Non-critical error - set to unknown and continue
                     fork_data.exact_commits_ahead = "Unknown"
                     fork_data.exact_commits_behind = "Unknown"
-            
+
             return successful_forks, api_calls_saved
 
     async def _get_exact_commits_ahead_and_behind(
@@ -1782,12 +1782,12 @@ class RepositoryDisplayService:
             logger.debug(
                 f"Failed to compare {fork_owner}/{fork_repo} with {base_owner}/{base_repo}: {error_message}"
             )
-            
+
             # Check if we should continue processing other forks
             if not self.github_client.error_handler.should_continue_processing(e):
                 # Critical error - re-raise to stop processing
                 raise
-            
+
             # Non-critical error - return "Unknown" and continue
             return "Unknown"
 
@@ -1841,8 +1841,8 @@ class RepositoryDisplayService:
         commits_cache = {}
         if show_commits > 0:
             fork_table.add_column(
-                "Recent Commits", 
-                style="dim", 
+                "Recent Commits",
+                style="dim",
                 no_wrap=True,
                 min_width=200,     # Much larger minimum width to prevent truncation
                 overflow="fold"  # Show full content instead of truncating
@@ -1902,11 +1902,11 @@ class RepositoryDisplayService:
             if isinstance(fork_data.exact_commits_ahead, int):
                 commits_ahead = fork_data.exact_commits_ahead
                 commits_behind = getattr(fork_data, "exact_commits_behind", 0)
-                
+
                 # Handle behind commits that might be strings
                 if isinstance(commits_behind, str):
                     commits_behind = 0
-                
+
                 return self.format_commits_compact(commits_ahead, commits_behind)
         else:
             # Use status from timestamp analysis
@@ -1930,28 +1930,28 @@ class RepositoryDisplayService:
         - error occurred     -> "Unknown"
         """
         # Check for error conditions
-        if hasattr(fork_data, 'commit_count_error') and fork_data.commit_count_error:
+        if hasattr(fork_data, "commit_count_error") and fork_data.commit_count_error:
             return "Unknown"
-        
+
         # Get ahead and behind counts
-        ahead = getattr(fork_data, 'exact_commits_ahead', None)
-        behind = getattr(fork_data, 'exact_commits_behind', None)
-        
+        ahead = getattr(fork_data, "exact_commits_ahead", None)
+        behind = getattr(fork_data, "exact_commits_behind", None)
+
         # Handle string values (like "Unknown")
         if isinstance(ahead, str) or isinstance(behind, str):
             return "Unknown"
-        
+
         # Handle None values
         if ahead is None and behind is None:
             return ""
-        
+
         ahead = ahead or 0
         behind = behind or 0
-        
+
         # Normalize negative values to 0 (shouldn't happen in practice)
         ahead = max(0, ahead) if isinstance(ahead, int) else 0
         behind = max(0, behind) if isinstance(behind, int) else 0
-        
+
         return self.format_commits_compact(ahead, behind)
 
     def _format_commit_count_for_csv(self, fork_data) -> str:
@@ -1960,28 +1960,28 @@ class RepositoryDisplayService:
         Uses the same format as display: "+9 -11", "-11", "+9", or ""
         """
         # Check for error conditions
-        if hasattr(fork_data, 'commit_count_error') and fork_data.commit_count_error:
+        if hasattr(fork_data, "commit_count_error") and fork_data.commit_count_error:
             return "Unknown"
-        
+
         # Get ahead and behind counts
-        ahead = getattr(fork_data, 'exact_commits_ahead', None)
-        behind = getattr(fork_data, 'exact_commits_behind', None)
-        
+        ahead = getattr(fork_data, "exact_commits_ahead", None)
+        behind = getattr(fork_data, "exact_commits_behind", None)
+
         # Handle string values (like "Unknown")
         if isinstance(ahead, str) or isinstance(behind, str):
             return "Unknown"
-        
+
         # Handle None values
         if ahead is None and behind is None:
             return ""
-        
+
         ahead = ahead or 0
         behind = behind or 0
-        
+
         # Normalize negative values to 0 (shouldn't happen in practice)
         ahead = max(0, ahead) if isinstance(ahead, int) else 0
         behind = max(0, behind) if isinstance(behind, int) else 0
-        
+
         # Format for CSV (without color codes)
         if ahead == 0 and behind == 0:
             return ""
@@ -2110,7 +2110,7 @@ class RepositoryDisplayService:
         title_suffix = (
             f" (showing {show_commits} recent commits)" if show_commits > 0 else ""
         )
-        
+
         # Create table context for consistent title building
         table_context = {
             "owner": base_owner,
@@ -2121,7 +2121,7 @@ class RepositoryDisplayService:
             "api_calls_saved": api_calls_saved,
             "fork_data_list": detailed_forks
         }
-        
+
         # 3. Create consistent table structure
         table_title = self._build_table_title(sorted_forks, table_context, show_commits)
         fork_table = Table(
@@ -2145,8 +2145,8 @@ class RepositoryDisplayService:
         if show_commits > 0:
             # Add Recent Commits column with no width limits to prevent truncation
             fork_table.add_column(
-                "Recent Commits", 
-                style="dim", 
+                "Recent Commits",
+                style="dim",
                 no_wrap=True,
                 min_width=50,      # Minimum readable width
                 overflow="fold",   # Show full content instead of truncating
@@ -2167,9 +2167,9 @@ class RepositoryDisplayService:
             fork_url = self._format_fork_url(metrics.owner, metrics.name)
 
             # Use compact format for commits ahead and behind
-            if isinstance(fork_data.exact_commits_ahead, int) and isinstance(getattr(fork_data, 'exact_commits_behind', 0), int):
+            if isinstance(fork_data.exact_commits_ahead, int) and isinstance(getattr(fork_data, "exact_commits_behind", 0), int):
                 commits_ahead = fork_data.exact_commits_ahead
-                commits_behind = getattr(fork_data, 'exact_commits_behind', 0)
+                commits_behind = getattr(fork_data, "exact_commits_behind", 0)
                 commits_display = self.format_commits_compact(commits_ahead, commits_behind)
             else:
                 commits_display = (
@@ -2438,27 +2438,27 @@ class RepositoryDisplayService:
                 (fork_data.metrics.owner, fork_data.metrics.name)
                 for fork_key, fork_data in forks_needing_commits
             ]
-            
+
             logger.info(f"Using optimized batch processing for {len(fork_data_list)} forks")
-            
+
             # Batch process all forks against the same parent repository
             batch_results = await self.github_client.get_commits_ahead_batch(
                 fork_data_list, base_owner, base_repo, count=show_commits
             )
-            
+
             # Format results for display
             for fork_key, fork_data in forks_needing_commits:
                 fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
                 commits_ahead = batch_results.get(fork_full_name, [])
-                
+
                 formatted_commits = self.format_recent_commits(
                     commits_ahead, column_width
                 )
                 commits_cache[fork_key] = formatted_commits
-                
+
         except Exception as e:
             logger.warning(f"Batch processing failed, falling back to individual requests: {e}")
-            
+
             # Fallback to original method if batch processing fails
             semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
 
@@ -2590,8 +2590,9 @@ class RepositoryDisplayService:
     def format_recent_commits(self, commits: list, column_width: int = 50) -> str:
         """Format recent commits for display in table with improved formatting.
 
-        This method provides clear, scannable formatting with consistent date display,
-        proper column width management, and chronological ordering (newest first).
+        This method provides clear, scannable formatting with consistent date display
+        and chronological ordering (newest first). Commit messages are displayed in full
+        without truncation.
 
         Args:
             commits: List of RecentCommit objects
@@ -2607,39 +2608,22 @@ class RepositoryDisplayService:
         # Sort commits chronologically (newest first)
         sorted_commits = self._sort_commits_chronologically(commits)
 
-        # Calculate max message length based on column width
-        # Format: "YYYY-MM-DD abc1234 message"
-        # Base width: 10 (date) + 1 (space) + 7 (hash) + 1 (space) = 19
-        base_width = 19
-        max_message_length = max(
-            10, column_width - base_width - 2
-        )  # Reserve 2 chars for padding
-
         # Format: YYYY-MM-DD hash commit message for each commit
         formatted_commits = []
         for commit in sorted_commits:
             if commit.date:
                 # Use consistent YYYY-MM-DD date format
                 date_str = self._format_commit_date(commit.date)
-                # Truncate message for table display if needed
-                truncated_message = self._truncate_commit_message(
-                    commit.message, max_message_length
-                )
+                # Clean message without truncation
+                cleaned_message = self._clean_commit_message(commit.message)
                 formatted_commits.append(
-                    f"{date_str} {commit.short_sha} {truncated_message}"
+                    f"{date_str} {commit.short_sha} {cleaned_message}"
                 )
             else:
                 # Fallback to old format if date is not available
                 # Format: "abc1234: message"
-                # Base width: 7 (hash) + 2 (colon and space) = 9
-                fallback_base_width = 9
-                fallback_max_message_length = max(
-                    10, column_width - fallback_base_width - 2
-                )
-                truncated_message = self._truncate_commit_message(
-                    commit.message, fallback_max_message_length
-                )
-                formatted_commits.append(f"{commit.short_sha}: {truncated_message}")
+                cleaned_message = self._clean_commit_message(commit.message)
+                formatted_commits.append(f"{commit.short_sha}: {cleaned_message}")
 
         # Join with newlines for multi-line display in table cell
         return "\n".join(formatted_commits)
@@ -2674,38 +2658,20 @@ class RepositoryDisplayService:
         # Return sorted commits with dates first, then commits without dates
         return commits_with_dates + commits_without_dates
 
-    def _truncate_commit_message(self, message: str, max_length: int) -> str:
-        """Truncate commit message to fit within specified length.
+    def _clean_commit_message(self, message: str) -> str:
+        """Clean commit message by removing newlines and normalizing whitespace.
 
         Args:
             message: Original commit message
-            max_length: Maximum allowed length
 
         Returns:
-            Truncated commit message with "..." if truncated
+            Cleaned commit message with normalized whitespace
         """
         if not message:
             return ""
-        
+
         # Clean up the message (remove newlines and extra whitespace)
-        cleaned_message = " ".join(message.split())
-        
-        # Truncate if needed
-        if len(cleaned_message) <= max_length:
-            return cleaned_message
-        
-        # For very short limits, just truncate without ellipsis
-        if max_length <= 3:
-            return cleaned_message[:max_length]
-        
-        # Find a good break point (word boundary)
-        truncated = cleaned_message[:max_length - 3]
-        last_space = truncated.rfind(" ")
-        
-        if last_space > max_length // 2:  # Only break at word if it's not too early
-            truncated = truncated[:last_space]
-        
-        return truncated + "..."
+        return " ".join(message.split())
 
     def calculate_commits_column_width(
         self,
@@ -3039,8 +3005,8 @@ class RepositoryDisplayService:
 
         # Format commit information using adaptive formatter
         commits_display = self.format_commit_info(
-            fork_data, 
-            has_exact_counts, 
+            fork_data,
+            has_exact_counts,
             self.commit_count_config
         )
 
@@ -3184,7 +3150,7 @@ class RepositoryDisplayService:
             Repository object compatible with ahead-only filter
         """
         metrics = collected_fork.metrics
-        
+
         return Repository(
             id=metrics.id,
             owner=metrics.owner,
@@ -3227,10 +3193,10 @@ class RepositoryDisplayService:
             show_commits: Number of recent commits to show
             force_all_commits: Whether to fetch commits for all forks
         """
-        from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
-        from forklift.models.analysis import ForkAnalysis
         import sys
-        
+
+        from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+
         try:
             if not fork_data_list:
                 # Output empty CSV with headers only using multi-row format
@@ -3312,11 +3278,11 @@ class RepositoryDisplayService:
         Returns:
             ForkAnalysis object for CSV export
         """
-        from forklift.models.analysis import ForkAnalysis, Feature, ForkMetrics
+        from forklift.models.analysis import Feature, ForkAnalysis, ForkMetrics
         from forklift.models.github import Fork, Repository, User
-        
+
         metrics = fork_data.metrics
-        
+
         # Create User object for fork owner
         fork_owner = User(
             login=metrics.owner,
@@ -3325,7 +3291,7 @@ class RepositoryDisplayService:
             avatar_url="",  # Not available in metrics
             type="User"
         )
-        
+
         # Create Repository object for the fork
         fork_repository = Repository(
             id=metrics.id,
@@ -3353,7 +3319,7 @@ class RepositoryDisplayService:
             updated_at=metrics.updated_at,
             pushed_at=metrics.pushed_at,
         )
-        
+
         # Create Repository object for the parent (we need to construct this)
         parent_repository = Repository(
             id=0,  # We don't have the parent ID
@@ -3381,17 +3347,17 @@ class RepositoryDisplayService:
             updated_at=datetime.utcnow(),
             pushed_at=datetime.utcnow(),
         )
-        
+
         # Get commits ahead and behind counts
         commits_ahead = 0
         commits_behind = 0
-        
+
         if has_exact_counts:
             if isinstance(fork_data.exact_commits_ahead, int):
                 commits_ahead = fork_data.exact_commits_ahead
             if isinstance(fork_data.exact_commits_behind, int):
                 commits_behind = fork_data.exact_commits_behind
-        
+
         # Create Fork object
         fork = Fork(
             repository=fork_repository,
@@ -3403,14 +3369,14 @@ class RepositoryDisplayService:
             is_active=metrics.days_since_last_push <= 90,  # Active if pushed within 90 days
             divergence_score=0.0  # We don't calculate this here
         )
-        
+
         # Create Features from commits if available
         features = []
         fork_key = metrics.html_url
-        
+
         if show_commits > 0 and fork_key in raw_commits_cache:
             commits = raw_commits_cache[fork_key][:show_commits]
-            
+
             if commits:
                 # Create a single feature containing all commits
                 feature = Feature(
@@ -3423,7 +3389,7 @@ class RepositoryDisplayService:
                     source_fork=fork
                 )
                 features.append(feature)
-        
+
         # Create ForkMetrics
         fork_metrics = ForkMetrics(
             commits_ahead=commits_ahead,
@@ -3444,7 +3410,7 @@ class RepositoryDisplayService:
             created_at=metrics.created_at,
             updated_at=metrics.updated_at
         )
-        
+
         # Create ForkAnalysis
         analysis = ForkAnalysis(
             fork=fork,
@@ -3454,7 +3420,7 @@ class RepositoryDisplayService:
             commit_explanations=None,
             explanation_summary=None
         )
-        
+
         return analysis
 
     def _convert_fork_data_to_simple_csv(
@@ -3476,47 +3442,47 @@ class RepositoryDisplayService:
             Dictionary with fork data and commits for CSV export
         """
         # Extract basic fork information from metrics
-        if hasattr(fork_data, 'metrics') and fork_data.metrics:
+        if hasattr(fork_data, "metrics") and fork_data.metrics:
             metrics = fork_data.metrics
-            fork_name = getattr(metrics, 'name', 'Unknown')
-            owner = getattr(metrics, 'owner', 'Unknown')
-            stars = getattr(metrics, 'stargazers_count', 0)
-            fork_url = getattr(metrics, 'html_url', '')
+            fork_name = getattr(metrics, "name", "Unknown")
+            owner = getattr(metrics, "owner", "Unknown")
+            stars = getattr(metrics, "stargazers_count", 0)
+            fork_url = getattr(metrics, "html_url", "")
         else:
             # Fallback to direct attributes
-            fork_name = getattr(fork_data, 'name', 'Unknown')
-            owner = getattr(fork_data, 'owner', {}).get('login', 'Unknown')
-            stars = getattr(fork_data, 'stargazers_count', 0)
-            fork_url = getattr(fork_data, 'html_url', '')
-        
+            fork_name = getattr(fork_data, "name", "Unknown")
+            owner = getattr(fork_data, "owner", {}).get("login", "Unknown")
+            stars = getattr(fork_data, "stargazers_count", 0)
+            fork_url = getattr(fork_data, "html_url", "")
+
         # Get creation and update dates
-        if hasattr(fork_data, 'metrics') and fork_data.metrics:
+        if hasattr(fork_data, "metrics") and fork_data.metrics:
             metrics = fork_data.metrics
-            created_at = getattr(metrics, 'created_at', None)
-            updated_at = getattr(metrics, 'updated_at', None)
+            created_at = getattr(metrics, "created_at", None)
+            updated_at = getattr(metrics, "updated_at", None)
         else:
-            created_at = getattr(fork_data, 'created_at', None)
-            updated_at = getattr(fork_data, 'updated_at', None)
-        
-        created_date = created_at.strftime('%Y-%m-%d %H:%M:%S') if created_at else ''
-        updated_date = updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else ''
-        
+            created_at = getattr(fork_data, "created_at", None)
+            updated_at = getattr(fork_data, "updated_at", None)
+
+        created_date = created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else ""
+        updated_date = updated_at.strftime("%Y-%m-%d %H:%M:%S") if updated_at else ""
+
         # Get last push date and activity status
-        last_push_date = ''
-        activity_status = 'Unknown'
-        if hasattr(fork_data, 'metrics') and fork_data.metrics:
+        last_push_date = ""
+        activity_status = "Unknown"
+        if hasattr(fork_data, "metrics") and fork_data.metrics:
             metrics = fork_data.metrics
-            if hasattr(metrics, 'pushed_at') and metrics.pushed_at:
-                last_push_date = metrics.pushed_at.strftime('%Y-%m-%d %H:%M:%S')
-            activity_status = getattr(metrics, 'activity_status', 'Unknown')
-        
+            if hasattr(metrics, "pushed_at") and metrics.pushed_at:
+                last_push_date = metrics.pushed_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity_status = getattr(metrics, "activity_status", "Unknown")
+
         # Format commits information for CSV export
-        commits_ahead = ''
-        if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+        commits_ahead = ""
+        if has_exact_counts and hasattr(fork_data, "exact_commits_ahead"):
             commits_ahead = self._format_commit_count_for_csv(fork_data)
-        elif hasattr(fork_data, 'commits_ahead_display'):
+        elif hasattr(fork_data, "commits_ahead_display"):
             commits_ahead = fork_data.commits_ahead_display
-        
+
         # Get raw commits for multi-row format
         commits = []
         if show_commits > 0:
@@ -3525,33 +3491,33 @@ class RepositoryDisplayService:
                 raw_commits = raw_commits_cache[fork_key][:show_commits]
                 for commit in raw_commits:
                     # Handle RecentCommit objects
-                    if hasattr(commit, 'short_sha'):
+                    if hasattr(commit, "short_sha"):
                         sha = commit.short_sha
-                        message = commit.message.replace('\n', ' ').replace('\r', ' ')
-                        date = commit.date.strftime('%Y-%m-%d') if commit.date else ''
+                        message = commit.message.replace("\n", " ").replace("\r", " ")
+                        date = commit.date.strftime("%Y-%m-%d") if commit.date else ""
                     else:
                         # Handle dictionary format
-                        sha = commit.get('sha', '')[:7]
-                        message = commit.get('message', '').replace('\n', ' ').replace('\r', ' ')
-                        date = commit.get('date', '')
-                    
+                        sha = commit.get("sha", "")[:7]
+                        message = commit.get("message", "").replace("\n", " ").replace("\r", " ")
+                        date = commit.get("date", "")
+
                     commits.append({
-                        'sha': sha,
-                        'message': message,
-                        'date': date,
+                        "sha": sha,
+                        "message": message,
+                        "date": date,
                     })
-        
+
         return {
-            'fork_name': fork_name,
-            'owner': owner,
-            'stars': stars,
-            'commits_ahead': commits_ahead,
-            'activity_status': activity_status,
-            'fork_url': fork_url,
-            'last_push_date': last_push_date,
-            'created_date': created_date,
-            'updated_date': updated_date,
-            'commits': commits
+            "fork_name": fork_name,
+            "owner": owner,
+            "stars": stars,
+            "commits_ahead": commits_ahead,
+            "activity_status": activity_status,
+            "fork_url": fork_url,
+            "last_push_date": last_push_date,
+            "created_date": created_date,
+            "updated_date": updated_date,
+            "commits": commits
         }
 
     def _build_csv_row(
@@ -3573,25 +3539,25 @@ class RepositoryDisplayService:
             List of values for CSV row
         """
         # Extract basic fork information
-        if hasattr(fork_data, 'metrics'):
+        if hasattr(fork_data, "metrics"):
             # Standard fork data
             metrics = fork_data.metrics
             fork_url = metrics.html_url
-            owner = metrics.full_name.split('/')[0]
+            owner = metrics.full_name.split("/")[0]
             stars = metrics.stargazers_count
             forks = metrics.forks_count
             language = metrics.language or ""
             last_push = self._format_datetime(metrics.pushed_at) if metrics.pushed_at else ""
-            
+
             # Format commits information
-            if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+            if has_exact_counts and hasattr(fork_data, "exact_commits_ahead"):
                 if isinstance(fork_data.exact_commits_ahead, int):
                     commits = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else ""
                 else:
                     commits = "Unknown"
             else:
                 # Use status-based information
-                if hasattr(fork_data, 'commits_ahead_status'):
+                if hasattr(fork_data, "commits_ahead_status"):
                     if fork_data.commits_ahead_status == "no_commits":
                         commits = "0"
                     elif fork_data.commits_ahead_status == "has_commits":
@@ -3602,15 +3568,15 @@ class RepositoryDisplayService:
                     commits = "Unknown"
         else:
             # Detailed fork data structure
-            fork_url = getattr(fork_data, 'html_url', '')
-            owner = getattr(fork_data, 'owner', {}).get('login', '') if hasattr(fork_data, 'owner') else ''
-            stars = getattr(fork_data, 'stargazers_count', 0)
-            forks = getattr(fork_data, 'forks_count', 0)
-            language = getattr(fork_data, 'language', '') or ""
-            last_push = self._format_datetime(getattr(fork_data, 'pushed_at', None)) if getattr(fork_data, 'pushed_at', None) else ""
-            
+            fork_url = getattr(fork_data, "html_url", "")
+            owner = getattr(fork_data, "owner", {}).get("login", "") if hasattr(fork_data, "owner") else ""
+            stars = getattr(fork_data, "stargazers_count", 0)
+            forks = getattr(fork_data, "forks_count", 0)
+            language = getattr(fork_data, "language", "") or ""
+            last_push = self._format_datetime(getattr(fork_data, "pushed_at", None)) if getattr(fork_data, "pushed_at", None) else ""
+
             # For detailed data, check exact commits ahead
-            if hasattr(fork_data, 'exact_commits_ahead'):
+            if hasattr(fork_data, "exact_commits_ahead"):
                 if isinstance(fork_data.exact_commits_ahead, int):
                     commits = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else ""
                 else:
@@ -3628,7 +3594,7 @@ class RepositoryDisplayService:
                 commit_messages = []
                 for commit in commits_cache[fork_key][:show_commits]:
                     # Clean commit message for CSV (remove newlines, quotes)
-                    message = commit.get('message', '').replace('\n', ' ').replace('\r', ' ')
+                    message = commit.get("message", "").replace("\n", " ").replace("\r", " ")
                     message = message.replace('"', '""')  # Escape quotes for CSV
                     commit_messages.append(message)
                 recent_commits = "; ".join(commit_messages)
@@ -3695,18 +3661,18 @@ class RepositoryDisplayService:
                 (fork_data.metrics.owner, fork_data.metrics.name)
                 for fork_url, fork_data in forks_needing_commits
             ]
-            
+
             # Batch process all forks against the same parent repository
             batch_results = await self.github_client.get_commits_ahead_batch(
                 fork_data_list, base_owner, base_repo, count=show_commits
             )
-            
+
             # Store raw commit objects for CSV processing
             for fork_url, fork_data in forks_needing_commits:
                 fork_full_name = f"{fork_data.metrics.owner}/{fork_data.metrics.name}"
                 commits_ahead = batch_results.get(fork_full_name, [])
                 raw_commits_cache[fork_url] = commits_ahead
-                
+
         except Exception as e:
             logger.warning(f"Batch processing failed for CSV export: {e}")
             # For CSV export, we'll just return empty commits on failure
@@ -3734,19 +3700,19 @@ class RepositoryDisplayService:
             ForkPreviewItem object for CSV export
         """
         from forklift.models.analysis import ForkPreviewItem
-        
+
         # Extract basic fork information
-        if hasattr(fork_data, 'metrics'):
+        if hasattr(fork_data, "metrics"):
             # Standard fork data
             metrics = fork_data.metrics
             fork_url = metrics.html_url
-            owner = metrics.full_name.split('/')[0]
-            name = metrics.full_name.split('/')[1]
+            owner = metrics.full_name.split("/")[0]
+            name = metrics.full_name.split("/")[1]
             stars = metrics.stargazers_count
             last_push_date = metrics.pushed_at
-            
+
             # Format commits information for CSV export including behind commits
-            if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+            if has_exact_counts and hasattr(fork_data, "exact_commits_ahead"):
                 commits_ahead = self._format_commit_count_for_csv(fork_data)
             else:
                 # Use status-based information from metrics
@@ -3757,25 +3723,25 @@ class RepositoryDisplayService:
                     commits_ahead = "Unknown"
                 else:
                     commits_ahead = "Unknown"
-                    
+
             # Determine activity status
-            activity_status = getattr(fork_data, 'activity_status', 'Unknown')
-            
+            activity_status = getattr(fork_data, "activity_status", "Unknown")
+
         else:
             # Detailed fork data structure
-            fork_url = getattr(fork_data, 'html_url', '')
-            owner_obj = getattr(fork_data, 'owner', {})
-            owner = owner_obj.get('login', '') if isinstance(owner_obj, dict) else getattr(owner_obj, 'login', '')
-            name = getattr(fork_data, 'name', '')
-            stars = getattr(fork_data, 'stargazers_count', 0)
-            last_push_date = getattr(fork_data, 'pushed_at', None)
-            
+            fork_url = getattr(fork_data, "html_url", "")
+            owner_obj = getattr(fork_data, "owner", {})
+            owner = owner_obj.get("login", "") if isinstance(owner_obj, dict) else getattr(owner_obj, "login", "")
+            name = getattr(fork_data, "name", "")
+            stars = getattr(fork_data, "stargazers_count", 0)
+            last_push_date = getattr(fork_data, "pushed_at", None)
+
             # For detailed data, check exact commits ahead and behind
-            if hasattr(fork_data, 'exact_commits_ahead'):
+            if hasattr(fork_data, "exact_commits_ahead"):
                 commits_ahead = self._format_commit_count_for_csv(fork_data)
             else:
                 commits_ahead = "Unknown"
-                
+
             activity_status = "Unknown"
 
         # Format recent commits for CSV export with date, hash, and message
@@ -3791,9 +3757,9 @@ class RepositoryDisplayService:
                     else:
                         # Fallback format: "hash: message"
                         formatted_commit = f"{commit.short_sha}: {commit.message}"
-                    
+
                     commit_entries.append(formatted_commit)
-                
+
                 # Join multiple commits with semicolon separator for CSV
                 recent_commits_text = "; ".join(commit_entries)
 
@@ -3829,19 +3795,19 @@ class RepositoryDisplayService:
             ForkPreviewItem object for table display
         """
         from forklift.models.analysis import ForkPreviewItem
-        
+
         # Extract basic fork information
-        if hasattr(fork_data, 'metrics'):
+        if hasattr(fork_data, "metrics"):
             # Standard fork data
             metrics = fork_data.metrics
             fork_url = metrics.html_url
-            owner = metrics.full_name.split('/')[0]
-            name = metrics.full_name.split('/')[1]
+            owner = metrics.full_name.split("/")[0]
+            name = metrics.full_name.split("/")[1]
             stars = metrics.stargazers_count
             last_push_date = metrics.pushed_at
-            
+
             # Format commits information
-            if has_exact_counts and hasattr(fork_data, 'exact_commits_ahead'):
+            if has_exact_counts and hasattr(fork_data, "exact_commits_ahead"):
                 if isinstance(fork_data.exact_commits_ahead, int):
                     commits_ahead = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else "None"
                 else:
@@ -3855,28 +3821,28 @@ class RepositoryDisplayService:
                     commits_ahead = "Unknown"
                 else:
                     commits_ahead = "Unknown"
-                    
+
             # Determine activity status
-            activity_status = getattr(fork_data, 'activity_status', 'Unknown')
-            
+            activity_status = getattr(fork_data, "activity_status", "Unknown")
+
         else:
             # Detailed fork data structure
-            fork_url = getattr(fork_data, 'html_url', '')
-            owner_obj = getattr(fork_data, 'owner', {})
-            owner = owner_obj.get('login', '') if isinstance(owner_obj, dict) else getattr(owner_obj, 'login', '')
-            name = getattr(fork_data, 'name', '')
-            stars = getattr(fork_data, 'stargazers_count', 0)
-            last_push_date = getattr(fork_data, 'pushed_at', None)
-            
+            fork_url = getattr(fork_data, "html_url", "")
+            owner_obj = getattr(fork_data, "owner", {})
+            owner = owner_obj.get("login", "") if isinstance(owner_obj, dict) else getattr(owner_obj, "login", "")
+            name = getattr(fork_data, "name", "")
+            stars = getattr(fork_data, "stargazers_count", 0)
+            last_push_date = getattr(fork_data, "pushed_at", None)
+
             # For detailed data, check exact commits ahead
-            if hasattr(fork_data, 'exact_commits_ahead'):
+            if hasattr(fork_data, "exact_commits_ahead"):
                 if isinstance(fork_data.exact_commits_ahead, int):
                     commits_ahead = str(fork_data.exact_commits_ahead) if fork_data.exact_commits_ahead > 0 else "None"
                 else:
                     commits_ahead = "Unknown"
             else:
                 commits_ahead = "Unknown"
-                
+
             activity_status = "Unknown"
 
         # For table display, use the formatted commit strings from cache
@@ -3888,7 +3854,7 @@ class RepositoryDisplayService:
                 formatted_commits_string = commits_cache[fork_key]
                 # Convert newline-separated commits to semicolon-separated for CSV compatibility
                 if formatted_commits_string and not formatted_commits_string.startswith("[dim]"):
-                    commit_lines = formatted_commits_string.split('\n')
+                    commit_lines = formatted_commits_string.split("\n")
                     recent_commits_text = "; ".join(commit_lines)
 
         return ForkPreviewItem(
@@ -3905,8 +3871,8 @@ class RepositoryDisplayService:
         )
 
     def display_validation_summary(
-        self, 
-        validation_summary: ValidationSummary, 
+        self,
+        validation_summary: ValidationSummary,
         verbose: bool = False,
         csv_export: bool = False
     ) -> None:
@@ -3922,21 +3888,22 @@ class RepositoryDisplayService:
         """
         if not validation_summary.has_errors():
             return
-            
+
         # Choose appropriate console for output
         output_console = self.console
         if csv_export:
             # In CSV export mode, send validation messages to stderr to keep stdout clean
             import sys
+
             from rich.console import Console
             output_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
-        
+
         # Display basic validation summary
         error_count = validation_summary.skipped
         total_processed = validation_summary.processed + validation_summary.skipped
-        
+
         output_console.print(
-            f"\n[yellow]⚠️  Validation Issues Encountered[/yellow]"
+            "\n[yellow]⚠️  Validation Issues Encountered[/yellow]"
         )
         output_console.print(
             f"[dim]• {error_count} repositories skipped due to validation errors[/dim]"
@@ -3947,43 +3914,43 @@ class RepositoryDisplayService:
         output_console.print(
             f"[dim]• {total_processed} total repositories processed[/dim]"
         )
-        
+
         if verbose and validation_summary.errors:
             self._display_detailed_validation_errors(validation_summary.errors, output_console)
         elif validation_summary.errors:
             # Show brief error summary
             output_console.print(
-                f"[dim]• Use --verbose flag to see detailed validation errors[/dim]"
+                "[dim]• Use --verbose flag to see detailed validation errors[/dim]"
             )
-            
+
             # Show a sample of error types
             error_types = {}
             for error in validation_summary.errors[:5]:  # Sample first 5 errors
-                error_msg = error.get('error', 'Unknown error')
+                error_msg = error.get("error", "Unknown error")
                 # Extract error type from validation error message
-                if 'consecutive periods' in error_msg.lower():
-                    error_types['consecutive_periods'] = error_types.get('consecutive_periods', 0) + 1
-                elif 'start or end with a period' in error_msg.lower():
-                    error_types['leading_trailing_periods'] = error_types.get('leading_trailing_periods', 0) + 1
-                elif 'invalid' in error_msg.lower():
-                    error_types['invalid_format'] = error_types.get('invalid_format', 0) + 1
+                if "consecutive periods" in error_msg.lower():
+                    error_types["consecutive_periods"] = error_types.get("consecutive_periods", 0) + 1
+                elif "start or end with a period" in error_msg.lower():
+                    error_types["leading_trailing_periods"] = error_types.get("leading_trailing_periods", 0) + 1
+                elif "invalid" in error_msg.lower():
+                    error_types["invalid_format"] = error_types.get("invalid_format", 0) + 1
                 else:
-                    error_types['other'] = error_types.get('other', 0) + 1
-            
+                    error_types["other"] = error_types.get("other", 0) + 1
+
             if error_types:
                 output_console.print("[dim]• Common validation issues:[/dim]")
                 for error_type, count in error_types.items():
                     error_desc = {
-                        'consecutive_periods': 'Repository names with consecutive periods',
-                        'leading_trailing_periods': 'Repository names with leading/trailing periods',
-                        'invalid_format': 'Invalid repository name format',
-                        'other': 'Other validation issues'
+                        "consecutive_periods": "Repository names with consecutive periods",
+                        "leading_trailing_periods": "Repository names with leading/trailing periods",
+                        "invalid_format": "Invalid repository name format",
+                        "other": "Other validation issues"
                     }.get(error_type, error_type)
                     output_console.print(f"[dim]  - {error_desc}: {count} repositories[/dim]")
 
     def _display_detailed_validation_errors(
-        self, 
-        errors: list[dict], 
+        self,
+        errors: list[dict],
         output_console,
         max_errors: int = 10
     ) -> None:
@@ -3997,45 +3964,45 @@ class RepositoryDisplayService:
             
         Requirements: 3.3, 3.4
         """
-        output_console.print(f"\n[bold red]Detailed Validation Errors:[/bold red]")
-        
+        output_console.print("\n[bold red]Detailed Validation Errors:[/bold red]")
+
         # Create table for detailed error display
         error_table = Table(expand=False)
         error_table.add_column("Repository", style="cyan", min_width=25, no_wrap=True, overflow="fold")
         error_table.add_column("Error", style="red", min_width=40, no_wrap=True, overflow="fold")
         error_table.add_column("Type", style="yellow", width=15, no_wrap=True)
-        
+
         errors_to_show = min(len(errors), max_errors)
-        
+
         for i, error in enumerate(errors[:errors_to_show]):
-            repo_name = error.get('repository', 'Unknown')
-            error_msg = error.get('error', 'Unknown error')
-            
+            repo_name = error.get("repository", "Unknown")
+            error_msg = error.get("error", "Unknown error")
+
             # Categorize error type
-            if 'consecutive periods' in error_msg.lower():
+            if "consecutive periods" in error_msg.lower():
                 error_type = "Consecutive Periods"
-            elif 'start or end with a period' in error_msg.lower():
+            elif "start or end with a period" in error_msg.lower():
                 error_type = "Leading/Trailing"
-            elif 'invalid' in error_msg.lower():
+            elif "invalid" in error_msg.lower():
                 error_type = "Invalid Format"
             else:
                 error_type = "Other"
-            
+
             # Truncate long error messages for table display
             if len(error_msg) > 60:
                 error_msg = error_msg[:57] + "..."
-            
+
             error_table.add_row(repo_name, error_msg, error_type)
-        
+
         output_console.print(error_table)
-        
+
         # Show summary if there are more errors
         if len(errors) > max_errors:
             remaining = len(errors) - max_errors
             output_console.print(f"[dim]... and {remaining} more validation errors[/dim]")
-        
+
         # Provide actionable information
-        output_console.print(f"\n[bold yellow]Actionable Information:[/bold yellow]")
+        output_console.print("\n[bold yellow]Actionable Information:[/bold yellow]")
         output_console.print("[dim]• These repositories were skipped but processing continued[/dim]")
         output_console.print("[dim]• Individual validation failures do not affect other repositories[/dim]")
         output_console.print("[dim]• Check repository names for unusual characters or formatting[/dim]")
@@ -4061,32 +4028,33 @@ class RepositoryDisplayService:
         """
         if not validation_summary.has_errors():
             return
-            
+
         # Choose appropriate console for output
         output_console = self.console
         if csv_export:
             # In CSV export mode, send validation messages to stderr to keep stdout clean
             import sys
+
             from rich.console import Console
             output_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
-        
+
         # Display context-aware validation summary
         error_count = validation_summary.skipped
         success_count = validation_summary.processed
-        
+
         output_console.print(
             f"\n[yellow]⚠️  Validation Issues During {context.title()}[/yellow]"
         )
-        
+
         if success_count > 0:
             output_console.print(
                 f"[green]✓ {success_count} repositories processed successfully[/green]"
             )
-        
+
         output_console.print(
             f"[yellow]⚠️  {error_count} repositories skipped due to validation errors[/yellow]"
         )
-        
+
         # Calculate success rate
         total_attempted = success_count + error_count
         if total_attempted > 0:
@@ -4094,13 +4062,13 @@ class RepositoryDisplayService:
             output_console.print(
                 f"[dim]• Success rate: {success_rate:.1f}% ({success_count}/{total_attempted})[/dim]"
             )
-        
+
         # Show detailed errors if requested
         if verbose and validation_summary.errors:
             self._display_detailed_validation_errors(validation_summary.errors, output_console)
         elif validation_summary.errors:
             output_console.print(
-                f"[dim]• Use --verbose flag to see detailed validation errors[/dim]"
+                "[dim]• Use --verbose flag to see detailed validation errors[/dim]"
             )
 
     async def collect_detailed_fork_data_with_validation(
@@ -4126,36 +4094,38 @@ class RepositoryDisplayService:
             
         Requirements: 1.2, 1.3, 4.1, 4.2
         """
-        from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+        from forklift.analysis.fork_data_collection_engine import (
+            ForkDataCollectionEngine,
+        )
         from forklift.github.fork_list_processor import ForkListProcessor
-        
+
         owner, repo_name = self._parse_repository_url(repo_url)
-        
+
         logger.info(f"Collecting fork data with validation for {owner}/{repo_name}")
-        
+
         try:
             # Initialize components
             fork_processor = ForkListProcessor(self.github_client)
             data_engine = ForkDataCollectionEngine()
-            
+
             # Get all forks data from GitHub API
             forks_list_data = await fork_processor.get_all_forks_list_data(
                 owner, repo_name
             )
-            
+
             if not forks_list_data:
                 # Return empty results with no validation errors
                 from forklift.models.validation_handler import ValidationSummary
                 empty_summary = ValidationSummary(processed=0, skipped=0, errors=[])
                 return [], empty_summary
-            
+
             # Apply max_forks limit if specified
             if max_forks and len(forks_list_data) > max_forks:
                 forks_list_data = forks_list_data[:max_forks]
-            
+
             # Use graceful validation method to collect Repository objects
             repositories, validation_summary = data_engine.collect_fork_data(forks_list_data)
-            
+
             # Convert Repository objects back to CollectedForkData format for compatibility
             # This maintains compatibility with existing display methods
             collected_forks = []
@@ -4163,16 +4133,16 @@ class RepositoryDisplayService:
                 # Create a CollectedForkData-like structure from Repository
                 fork_data = self._convert_repository_to_collected_fork_data(repo)
                 collected_forks.append(fork_data)
-            
+
             return collected_forks, validation_summary
-            
+
         except Exception as e:
             logger.error(f"Failed to collect fork data with validation: {e}")
             # Return empty results with error information
             from forklift.models.validation_handler import ValidationSummary
             error_summary = ValidationSummary(
-                processed=0, 
-                skipped=1, 
+                processed=0,
+                skipped=1,
                 errors=[{"repository": f"{owner}/{repo_name}", "error": str(e), "data": {}}]
             )
             return [], error_summary
@@ -4189,7 +4159,7 @@ class RepositoryDisplayService:
         """
         from forklift.analysis.fork_data_collection_engine import CollectedForkData
         from forklift.models.fork_qualification import ForkQualificationMetrics
-        
+
         # Create ForkQualificationMetrics from Repository data
         metrics = ForkQualificationMetrics(
             id=repository.id or 0,  # Use 0 as default if id is None
@@ -4216,30 +4186,30 @@ class RepositoryDisplayService:
             homepage=None,  # Not available in Repository model
             topics=[]  # Not available in Repository model
         )
-        
+
         return CollectedForkData(metrics=metrics)
-    
+
     def _calculate_days_since_push(self, pushed_at):
         """Calculate days since last push."""
         if not pushed_at:
-            return float('inf')
-        
+            return float("inf")
+
         from datetime import datetime
         now = datetime.utcnow()
         if pushed_at.tzinfo:
             pushed_at = pushed_at.replace(tzinfo=None)
-        
+
         return (now - pushed_at).days
-    
+
     def _can_skip_analysis(self, repository):
         """Determine if repository can skip analysis based on timestamps."""
         if not repository.created_at or not repository.pushed_at:
             return True
-        
+
         # Remove timezone info for comparison
         created_at = repository.created_at.replace(tzinfo=None)
         pushed_at = repository.pushed_at.replace(tzinfo=None)
-        
+
         # If created_at >= pushed_at, fork has no new commits
         return created_at >= pushed_at
 
@@ -4267,21 +4237,21 @@ class RepositoryDisplayService:
         Requirements: 1.4, 3.3, 3.4
         """
         owner, repo_name = self._parse_repository_url(repo_url)
-        
+
         logger.info(f"Displaying forks with validation summary for {owner}/{repo_name}")
-        
+
         try:
             # Collect fork data with graceful validation
             collected_forks, validation_summary = await self.collect_detailed_fork_data_with_validation(
                 repo_url
             )
-            
+
             # Display the main fork results (simplified display)
             if collected_forks:
                 if not csv_export:
                     self.console.print(f"\n[bold blue]Fork Analysis Results for {owner}/{repo_name}[/bold blue]")
                     self.console.print(f"Successfully processed {len(collected_forks)} forks")
-                
+
                 # Create a simple table showing the forks
                 if not csv_export:
                     fork_table = Table(title=f"Processed Forks ({len(collected_forks)} found)", expand=False)
@@ -4289,21 +4259,21 @@ class RepositoryDisplayService:
                     fork_table.add_column("Owner", style="blue", min_width=15, no_wrap=True, overflow="fold")
                     fork_table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
                     fork_table.add_column("Last Activity", style="magenta", width=15, no_wrap=True)
-                    
+
                     # Show first 10 forks as example
                     for i, fork_data in enumerate(collected_forks[:10]):
                         metrics = fork_data.metrics
                         last_activity = self._format_datetime(metrics.pushed_at)
-                        
+
                         fork_table.add_row(
                             metrics.name,
                             metrics.owner,
                             str(metrics.stargazers_count),
                             last_activity
                         )
-                    
+
                     self.console.print(fork_table)
-                    
+
                     if len(collected_forks) > 10:
                         self.console.print(f"[dim]... and {len(collected_forks) - 10} more forks[/dim]")
                 else:
@@ -4316,7 +4286,7 @@ class RepositoryDisplayService:
             else:
                 if not csv_export:
                     self.console.print("[yellow]No forks were successfully processed.[/yellow]")
-            
+
             # Display validation summary if there were issues
             if validation_summary.has_errors():
                 self.display_validation_summary_with_context(
@@ -4325,19 +4295,19 @@ class RepositoryDisplayService:
                     verbose=verbose,
                     csv_export=csv_export
                 )
-            
+
             return {
                 "total_forks": validation_summary.processed + validation_summary.skipped,
                 "processed_forks": validation_summary.processed,
                 "skipped_forks": validation_summary.skipped,
                 "collected_forks": collected_forks,
-                "validation_summary": validation_summary.dict() if hasattr(validation_summary, 'dict') else {
+                "validation_summary": validation_summary.dict() if hasattr(validation_summary, "dict") else {
                     "processed": validation_summary.processed,
                     "skipped": validation_summary.skipped,
                     "errors": validation_summary.errors
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to display forks with validation summary: {e}")
             if not csv_export:

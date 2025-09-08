@@ -1960,58 +1960,66 @@ class TestRepositoryDisplayService:
         assert result[1].message == "No date commit"
         assert result[2].message == "Another no date"
 
-    def test_truncate_commit_message_no_truncation_needed(self):
-        """Test _truncate_commit_message when message fits within limit."""
-        message = "Short message"
-        result = self.service._truncate_commit_message(message, 50)
-        assert result == "Short message"
+    def test_clean_commit_message_normal_message(self):
+        """Test _clean_commit_message with normal message."""
+        message = "Fix bug in authentication"
+        result = self.service._clean_commit_message(message)
+        assert result == "Fix bug in authentication"
 
-    def test_truncate_commit_message_empty_message(self):
-        """Test _truncate_commit_message with empty message."""
-        result = self.service._truncate_commit_message("", 50)
+    def test_clean_commit_message_empty_message(self):
+        """Test _clean_commit_message with empty message."""
+        result = self.service._clean_commit_message("")
         assert result == ""
 
-    def test_truncate_commit_message_at_word_boundary(self):
-        """Test _truncate_commit_message truncates at word boundary when possible."""
-        message = "This is a very long commit message that needs truncation"
-        result = self.service._truncate_commit_message(message, 25)
+    def test_clean_commit_message_with_newlines(self):
+        """Test _clean_commit_message removes newlines and normalizes whitespace."""
+        message = "Fix bug\nin authentication\n\nsystem"
+        result = self.service._clean_commit_message(message)
+        assert result == "Fix bug in authentication system"
 
-        # Should truncate at word boundary and add ellipsis
-        assert result.endswith("...")
-        assert len(result) <= 25
-        # Should not break words if possible
-        assert not result.replace("...", "").endswith("ver")  # Shouldn't break "very"
+    def test_clean_commit_message_with_extra_whitespace(self):
+        """Test _clean_commit_message normalizes extra whitespace."""
+        message = "Fix   bug    in     authentication"
+        result = self.service._clean_commit_message(message)
+        assert result == "Fix bug in authentication"
 
-    def test_truncate_commit_message_no_good_break_point(self):
-        """Test _truncate_commit_message when no good word boundary exists."""
-        message = "Verylongwordwithoutspaces"
-        result = self.service._truncate_commit_message(message, 15)
+    def test_clean_commit_message_with_mixed_whitespace(self):
+        """Test _clean_commit_message handles mixed whitespace characters."""
+        message = "Fix\tbug\n\nin   authentication\r\nsystem"
+        result = self.service._clean_commit_message(message)
+        assert result == "Fix bug in authentication system"
 
-        assert result.endswith("...")
-        assert len(result) == 15
-
-    def test_truncate_commit_message_very_short_limit(self):
-        """Test _truncate_commit_message with very short max_length."""
-        message = "Long message"
-        result = self.service._truncate_commit_message(message, 3)
-
-        assert len(result) == 3
-        assert result == "Lon"  # No ellipsis for very short limits
-
-    def test_truncate_commit_message_preserves_readability(self):
-        """Test _truncate_commit_message preserves readability by avoiding mid-word breaks."""
-        message = "Fix critical bug in authentication system"
-        result = self.service._truncate_commit_message(message, 20)
-
-        # Should find a good break point
-        assert result.endswith("...")
-        assert len(result) <= 20
-        # Should break at a space, not mid-word
-        words_in_result = result.replace("...", "").strip().split()
-        # Last word should be complete (not broken)
-        if words_in_result:
-            last_word = words_in_result[-1]
-            assert last_word in message  # Last word should exist completely in original
+    def test_format_recent_commits_no_truncation(self):
+        """Test format_recent_commits displays full commit messages without truncation."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime, timezone
+        
+        # Create commits with long messages
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="This is a very long commit message that would previously be truncated with ellipsis but should now be displayed in full",
+                date=datetime(2024, 1, 15, tzinfo=timezone.utc)
+            ),
+            RecentCommit(
+                short_sha="def5678",
+                message="Another long commit message with detailed explanation of changes made to the codebase",
+                date=datetime(2024, 1, 14, tzinfo=timezone.utc)
+            )
+        ]
+        
+        result = self.service.format_recent_commits(commits, column_width=30)  # Small column width
+        
+        # Should not contain truncation indicators
+        assert "..." not in result
+        
+        # Should contain full messages
+        assert "This is a very long commit message that would previously be truncated with ellipsis but should now be displayed in full" in result
+        assert "Another long commit message with detailed explanation of changes made to the codebase" in result
+        
+        # Should maintain proper format
+        assert "2024-01-15 abc1234" in result
+        assert "2024-01-14 def5678" in result
 
     def test_calculate_commits_column_width_empty_data(self):
         """Test calculate_commits_column_width with empty commits data."""
@@ -2104,11 +2112,11 @@ class TestRepositoryDisplayService:
         assert "Add new feature for users" in lines[1]
 
     def test_format_recent_commits_handles_long_messages(self):
-        """Test format_recent_commits properly truncates long commit messages."""
+        """Test format_recent_commits displays long commit messages in full without truncation."""
         from forklift.models.github import RecentCommit
         from datetime import datetime
 
-        long_message = "This is a very long commit message that should be truncated to fit within the column width constraints"
+        long_message = "This is a very long commit message that should be displayed in full without truncation to fit within the column width constraints"
         commits = [
             RecentCommit(
                 short_sha="abc1234",
@@ -2119,14 +2127,15 @@ class TestRepositoryDisplayService:
 
         result = self.service.format_recent_commits(commits, column_width=40)
 
-        # Should be truncated to fit within column width
+        # Should display full message without truncation
         lines = result.split("\n")
         assert len(lines) == 1
-        # Total line length should be reasonable for the column width
-        assert len(lines[0]) <= 40
-        # Should contain ellipsis if truncated
-        if len(long_message) > (40 - 19):  # 19 is base width for date and hash
-            assert "..." in lines[0]
+        # Should contain the full message
+        assert long_message in lines[0]
+        # Should not contain truncation indicators
+        assert "..." not in lines[0]
+        # Should maintain proper format with date and hash
+        assert "2024-01-15 abc1234" in lines[0]
 
     def test_format_recent_commits_mixed_date_availability(self):
         """Test format_recent_commits handles mixed date availability correctly."""
