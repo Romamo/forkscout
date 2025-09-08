@@ -59,7 +59,7 @@
   - Fix rich console formatting test expectations
   - _Requirements: 7.1, 7.2, 7.3, 7.5_
 
-- [-] 9. Fix terminal detection and environment-specific tests
+- [x] 9. Fix terminal detection and environment-specific tests
   - Update terminal width detection tests for different environments
   - Fix parent process detection tests that depend on execution environment
   - Make environment-dependent tests more robust or skip appropriately
