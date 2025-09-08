@@ -11,6 +11,8 @@ from forklift.models.fork_qualification import (
     QualificationStats,
     QualifiedForksResult,
 )
+from forklift.models.github import Repository
+from forklift.models.validation_handler import ValidationHandler, ValidationSummary
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,63 @@ class ForkDataCollectionEngine:
     def __init__(self) -> None:
         """Initialize fork data collection engine."""
         pass
+
+    def collect_fork_data(
+        self, forks: list[dict[str, Any]]
+    ) -> tuple[list[Repository], ValidationSummary]:
+        """
+        Collect fork data with graceful validation handling.
+
+        This method processes a list of fork data from the GitHub API and creates
+        Repository objects while handling validation errors gracefully. Individual
+        validation failures do not stop the entire process.
+
+        Args:
+            forks: List of fork data dictionaries from GitHub API
+
+        Returns:
+            Tuple containing:
+            - List of successfully created Repository objects
+            - ValidationSummary with processing statistics and error details
+
+        Requirements: 1.2, 1.3, 4.1, 4.2
+        """
+        logger.info(
+            f"Collecting fork data from {len(forks)} forks with graceful validation"
+        )
+        start_time = time.time()
+
+        # Initialize validation handler
+        validation_handler = ValidationHandler()
+        valid_repositories = []
+
+        try:
+            for fork_data in forks:
+                # Attempt to create Repository with graceful error handling
+                repository = validation_handler.safe_create_repository(fork_data)
+                if repository:
+                    valid_repositories.append(repository)
+                    validation_handler.processed_count += 1
+
+            # Log processing summary
+            processing_time = time.time() - start_time
+            validation_handler.log_summary()
+
+            logger.info(
+                f"Fork data collection completed in {processing_time:.2f}s: "
+                f"{validation_handler.processed_count} successful, "
+                f"{validation_handler.skipped_count} skipped"
+            )
+
+            return valid_repositories, validation_handler.get_summary()
+
+        except Exception as e:
+            processing_time = time.time() - start_time
+            logger.error(
+                f"Fork data collection failed after {processing_time:.2f}s: {e}",
+                exc_info=True,
+            )
+            raise ForkDataCollectionError(f"Failed to collect fork data: {e}") from e
 
     def collect_fork_data_from_list(
         self, forks_list_data: list[dict[str, Any]]
