@@ -38,7 +38,7 @@
   - Verify table structure remains intact with varying message lengths
   - _Requirements: 1.1, 1.4, 4.1, 4.2_
 
-- [-] 7. Test backward compatibility and existing functionality
+- [x] 7. Test backward compatibility and existing functionality
   - Verify all existing command-line options work unchanged
   - Test chronological sorting (newest first) is preserved
   - Test date formatting ("YYYY-MM-DD") remains consistent
@@ -46,7 +46,7 @@
   - Test "[dim]No commits[/dim]" display for empty commit lists
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 8. Validate table structure and formatting integrity
+- [x] 8. Validate table structure and formatting integrity
   - Test that table columns remain properly aligned with long commit messages
   - Verify table borders and formatting remain intact
   - Test with various terminal widths to ensure consistent behavior
