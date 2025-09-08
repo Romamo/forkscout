@@ -387,17 +387,19 @@ class RecentCommit(BaseModel):
         return v
 
     @classmethod
-    def from_github_api(cls, data: dict[str, Any], max_message_length: int = 50) -> "RecentCommit":
-        """Create RecentCommit from GitHub API response."""
+    def from_github_api(cls, data: dict[str, Any], max_message_length: int | None = None) -> "RecentCommit":
+        """Create RecentCommit from GitHub API response.
+
+        Args:
+            data: GitHub API response data
+            max_message_length: Deprecated parameter, kept for backward compatibility but ignored
+        """
         commit_data = data.get("commit", data)
         full_sha = data["sha"]
         short_sha = full_sha[:7]
 
         message = commit_data["message"]
-        # Truncate message if needed
-        if len(message) > max_message_length:
-            message = message[:max_message_length - 3] + "..."
-
+        # Use full message without truncation
         # Remove newlines and extra whitespace
         message = " ".join(message.split())
 

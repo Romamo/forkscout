@@ -1,12 +1,12 @@
 # Implementation Plan
 
-- [-] 1. Remove commit message truncation logic
+- [x] 1. Remove commit message truncation logic
   - Remove the `_truncate_commit_message()` method from RepositoryDisplayService class
   - Update `format_recent_commits()` method to use full cleaned messages without truncation
   - Preserve existing message cleaning logic (whitespace normalization, newline removal)
   - _Requirements: 1.1, 2.1, 2.2_
 
-- [ ] 2. Update commit message formatting to use full content
+- [-] 2. Update commit message formatting to use full content
   - Modify the commit formatting logic to use cleaned messages directly
   - Remove `max_message_length` calculation and usage in commit formatting
   - Ensure both date-based format ("YYYY-MM-DD abc1234 message") and fallback format ("abc1234: message") use full messages

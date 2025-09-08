@@ -1135,19 +1135,20 @@ class TestRecentCommit:
         assert commit.message == "Test commit message"
 
     def test_recent_commit_from_github_api_long_message(self):
-        """Test creating RecentCommit from GitHub API data with long message."""
+        """Test creating RecentCommit from GitHub API data with long message (no truncation)."""
+        long_message = "This is a very long commit message that should be displayed in full without truncation because we want to show complete information"
         api_data = {
             "sha": "abcdef1234567890abcdef1234567890abcdef12",
             "commit": {
-                "message": "This is a very long commit message that should be truncated because it exceeds the maximum length limit"
+                "message": long_message
             }
         }
         
-        commit = RecentCommit.from_github_api(api_data, max_message_length=50)
+        commit = RecentCommit.from_github_api(api_data)
         
         assert commit.short_sha == "abcdef1"
-        assert len(commit.message) == 50
-        assert commit.message.endswith("...")
+        assert commit.message == long_message
+        assert not commit.message.endswith("...")
 
     def test_recent_commit_from_github_api_multiline_message(self):
         """Test creating RecentCommit from GitHub API data with multiline message."""
@@ -1158,7 +1159,7 @@ class TestRecentCommit:
             }
         }
         
-        commit = RecentCommit.from_github_api(api_data, max_message_length=100)
+        commit = RecentCommit.from_github_api(api_data)
         
         assert commit.short_sha == "abcdef1"
         assert "\n" not in commit.message

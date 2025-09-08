@@ -2163,6 +2163,49 @@ class TestRepositoryDisplayService:
         # Second line (without date) should use fallback format
         assert lines[1].startswith("def5678:")
         assert "Without date" in lines[1]
+
+    def test_format_recent_commits_task_requirements(self):
+        """Test that format_recent_commits meets task 2 requirements:
+        - Uses full content without truncation
+        - Both date-based and fallback formats use full messages
+        - No max_message_length calculation affects output
+        """
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        # Create commits with very long messages to test no truncation
+        long_message = "This is an extremely long commit message that would have been truncated in the old implementation but should now be displayed in full without any truncation or ellipsis because we want to show complete information to users"
+        
+        commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message=long_message,
+                date=datetime(2024, 1, 15, 10, 30),
+            ),
+            RecentCommit(
+                short_sha="def5678", 
+                message=long_message
+            ),  # No date - fallback format
+        ]
+
+        # Use small column width to ensure it doesn't affect message display
+        result = self.service.format_recent_commits(commits, column_width=30)
+
+        lines = result.split("\n")
+        assert len(lines) == 2
+        
+        # Verify date-based format uses full message
+        assert lines[0] == f"2024-01-15 abc1234 {long_message}"
+        assert "..." not in lines[0]
+        
+        # Verify fallback format uses full message  
+        assert lines[1] == f"def5678: {long_message}"
+        assert "..." not in lines[1]
+        
+        # Verify both formats contain the complete long message
+        assert long_message in lines[0]
+        assert long_message in lines[1]
+
     def test_display_fork_insights_excluded_by_default(self):
         """Test that fork insights section is excluded by default."""
         from unittest.mock import Mock, patch
