@@ -2680,10 +2680,11 @@ class RepositoryDisplayService:
         min_width: int = 30,
         max_width: int = 60,
     ) -> int:
-        """Calculate optimal width for Recent Commits column based on actual content.
+        """Calculate optimal width for Recent Commits column based on table layout needs.
 
-        This method analyzes the actual commit data to determine the best column width
-        that balances readability with table layout constraints.
+        This method determines the column width based on table structure requirements
+        rather than content truncation. The width is calculated to provide adequate
+        space for commit display while maintaining table layout integrity.
 
         Args:
             commits_data: Dictionary mapping fork keys to commit lists
@@ -2697,48 +2698,22 @@ class RepositoryDisplayService:
         if not commits_data or show_commits == 0:
             return min_width
 
-        max_content_width = 0
-        sample_count = 0
-        total_message_length = 0
+        # Calculate width based on table layout needs, not message length
+        # Base width accounts for date format and hash display
+        # Format: "YYYY-MM-DD abc1234 " (19 chars) + message space
+        base_width = 19  # Date (10) + space (1) + hash (7) + space (1)
 
-        for fork_commits in commits_data.values():
-            if fork_commits:
-                # Calculate width needed for this fork's commits
-                sorted_commits = self._sort_commits_chronologically(
-                    fork_commits[:show_commits]
-                )
-                for commit in sorted_commits:
-                    sample_count += 1
-
-                    if commit.date:
-                        # Format: "YYYY-MM-DD abc1234 message"
-                        # Date: 10 chars, space: 1, hash: 7, space: 1, message: variable
-                        base_width = 19  # 10 + 1 + 7 + 1
-                        message_width = len(commit.message)
-                        total_width = base_width + message_width
-                        max_content_width = max(max_content_width, total_width)
-                        total_message_length += message_width
-                    else:
-                        # Format: "abc1234: message"
-                        # Hash: 7, colon and space: 2, message: variable
-                        base_width = 9  # 7 + 2
-                        message_width = len(commit.message)
-                        total_width = base_width + message_width
-                        max_content_width = max(max_content_width, total_width)
-                        total_message_length += message_width
-
-        # Calculate average message length for better width estimation
-        if sample_count > 0:
-            avg_message_length = total_message_length / sample_count
-            # Use average + some buffer for more reasonable width
-            estimated_width = 19 + int(avg_message_length * 1.2)  # 20% buffer
-            # Take the smaller of max content width and estimated width
-            optimal_width = min(max_content_width, estimated_width)
+        # Determine optimal width based on number of commits to display
+        # More commits per fork may need slightly more width for readability
+        if show_commits <= 1:
+            layout_width = base_width + 15  # Minimal additional space
+        elif show_commits <= 3:
+            layout_width = base_width + 25  # Moderate additional space
         else:
-            optimal_width = min_width
+            layout_width = base_width + 35  # More space for multiple commits
 
         # Return width within bounds, accounting for padding
-        return max(min_width, min(max_width, optimal_width + 4))  # 4 chars padding
+        return max(min_width, min(max_width, layout_width + 4))  # 4 chars padding
 
     def _display_forks_preview_table(self, fork_items: list[dict[str, Any]]) -> None:
         """Display forks preview in a lightweight table format with compact commit formatting.
@@ -2960,6 +2935,9 @@ class RepositoryDisplayService:
     ) -> int:
         """Calculate optimal width for Recent Commits column (universal version).
         
+        This method calculates column width based on table layout requirements
+        rather than content truncation, allowing full commit messages to be displayed.
+        
         Args:
             fork_data_list: List of fork data objects
             show_commits: Number of commits to show
@@ -2971,11 +2949,20 @@ class RepositoryDisplayService:
         min_width = ForkTableConfig.COLUMN_WIDTHS["recent_commits_base"]
         max_width = 1000  # Much larger for wide console output
 
-        # For now, use a reasonable default based on show_commits - no truncation
-        # This can be enhanced later with actual commit data analysis
-        base_width = 19  # Date and hash with spaces
-        estimated_message_width = min(800, 1000 // max(1, show_commits))  # Much larger for full messages
-        commits_width = max(min_width, min(max_width, base_width + estimated_message_width))
+        # Calculate width based on table layout needs, not message length
+        # Base width accounts for date format and hash display
+        base_width = 19  # Date (10) + space (1) + hash (7) + space (1)
+
+        # Determine layout width based on number of commits to display
+        # Provide generous space for full commit messages without truncation
+        if show_commits <= 1:
+            layout_width = base_width + 50   # Generous space for single commit
+        elif show_commits <= 3:
+            layout_width = base_width + 80   # More space for multiple commits
+        else:
+            layout_width = base_width + 120  # Maximum space for many commits
+
+        commits_width = max(min_width, min(max_width, layout_width))
 
         return commits_width
 

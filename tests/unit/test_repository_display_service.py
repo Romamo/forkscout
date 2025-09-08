@@ -2033,7 +2033,7 @@ class TestRepositoryDisplayService:
         assert result == 30  # Should return min_width
 
     def test_calculate_commits_column_width_with_commits(self):
-        """Test calculate_commits_column_width calculates appropriate width."""
+        """Test calculate_commits_column_width calculates appropriate width based on layout needs."""
         from forklift.models.github import RecentCommit
         from datetime import datetime
 
@@ -2055,17 +2055,19 @@ class TestRepositoryDisplayService:
             commits_data, 2, min_width=30, max_width=80
         )
 
-        # Should be between min and max, accounting for content
+        # Should be between min and max, based on layout needs not message length
         assert 30 <= result <= 80
-        # Should be reasonable for the content (not just min_width)
-        assert result > 30
+        # Should be calculated based on show_commits count and layout needs
+        # For 2 commits, expect base_width (19) + layout space (25) + padding (4) = 48
+        expected_width = 19 + 25 + 4  # base + layout + padding
+        assert result == min(80, expected_width)  # Bounded by max_width
 
     def test_calculate_commits_column_width_respects_bounds(self):
-        """Test calculate_commits_column_width respects min/max bounds."""
+        """Test calculate_commits_column_width respects min/max bounds regardless of message length."""
         from forklift.models.github import RecentCommit
         from datetime import datetime
 
-        # Very long message that would exceed max_width
+        # Very long message - width should not be based on message length anymore
         long_message = "This is an extremely long commit message " * 5
         commits = [
             RecentCommit(
@@ -2080,8 +2082,48 @@ class TestRepositoryDisplayService:
             commits_data, 1, min_width=30, max_width=60
         )
 
-        # Should not exceed max_width
+        # Should not exceed max_width and should be based on layout needs, not message length
         assert result <= 60
+        # For 1 commit, expect base_width (19) + layout space (15) + padding (4) = 38
+        expected_width = 19 + 15 + 4  # base + layout + padding
+        assert result == min(60, expected_width)  # Bounded by max_width
+
+    def test_calculate_commits_column_width_ignores_message_length(self):
+        """Test that column width calculation ignores message length and focuses on layout."""
+        from forklift.models.github import RecentCommit
+        from datetime import datetime
+
+        # Create commits with very different message lengths
+        short_commits = [
+            RecentCommit(
+                short_sha="abc1234",
+                message="Fix",
+                date=datetime(2024, 1, 15),
+            ),
+        ]
+
+        long_commits = [
+            RecentCommit(
+                short_sha="def5678",
+                message="This is an extremely long commit message that would previously affect column width calculation but should no longer do so",
+                date=datetime(2024, 1, 14),
+            ),
+        ]
+
+        # Both should return the same width for the same show_commits count
+        short_result = self.service.calculate_commits_column_width(
+            {"fork1": short_commits}, 1, min_width=30, max_width=80
+        )
+        long_result = self.service.calculate_commits_column_width(
+            {"fork2": long_commits}, 1, min_width=30, max_width=80
+        )
+
+        # Width should be the same regardless of message length
+        assert short_result == long_result
+        # Should be based on layout calculation: base (19) + layout (15) + padding (4) = 38
+        expected_width = 19 + 15 + 4
+        assert short_result == expected_width
+        assert long_result == expected_width
 
     def test_format_recent_commits_improved_formatting(self):
         """Test format_recent_commits uses improved formatting with consistent dates."""

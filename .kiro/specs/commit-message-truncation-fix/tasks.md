@@ -6,19 +6,19 @@
   - Preserve existing message cleaning logic (whitespace normalization, newline removal)
   - _Requirements: 1.1, 2.1, 2.2_
 
-- [-] 2. Update commit message formatting to use full content
+- [x] 2. Update commit message formatting to use full content
   - Modify the commit formatting logic to use cleaned messages directly
   - Remove `max_message_length` calculation and usage in commit formatting
   - Ensure both date-based format ("YYYY-MM-DD abc1234 message") and fallback format ("abc1234: message") use full messages
   - _Requirements: 1.1, 1.3, 3.2, 3.3_
 
-- [ ] 3. Create message cleaning helper method
+- [x] 3. Create message cleaning helper method
   - Extract message cleaning logic into a separate `_clean_commit_message()` method
   - Implement whitespace normalization and newline removal
   - Handle empty and null message edge cases
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 4. Update column width calculation logic
+- [-] 4. Update column width calculation logic
   - Review `calculate_commits_column_width()` method to remove message length constraints
   - Maintain minimum and maximum width bounds for table structure
   - Ensure column width calculation focuses on table layout rather than content truncation
