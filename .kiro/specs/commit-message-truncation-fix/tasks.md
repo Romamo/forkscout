@@ -18,27 +18,27 @@
   - Handle empty and null message edge cases
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [-] 4. Update column width calculation logic
+- [x] 4. Update column width calculation logic
   - Review `calculate_commits_column_width()` method to remove message length constraints
   - Maintain minimum and maximum width bounds for table structure
   - Ensure column width calculation focuses on table layout rather than content truncation
   - _Requirements: 2.1, 4.1, 4.3_
 
-- [ ] 5. Add unit tests for non-truncated commit formatting
+- [x] 5. Add unit tests for non-truncated commit formatting
   - Test that long commit messages are displayed without "..." truncation
   - Test that message cleaning logic works correctly (newlines, whitespace)
   - Test that commit format structure remains unchanged (date, hash, message)
   - Test edge cases (empty messages, special characters, very long messages)
   - _Requirements: 1.1, 2.2, 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 6. Add integration tests for full commit display
+- [x] 6. Add integration tests for full commit display
   - Test `show-forks` command with `--show-commits` option using real repositories
   - Verify that no commit messages contain "..." truncation in output
   - Test with repositories known to have long commit messages
   - Verify table structure remains intact with varying message lengths
   - _Requirements: 1.1, 1.4, 4.1, 4.2_
 
-- [ ] 7. Test backward compatibility and existing functionality
+- [-] 7. Test backward compatibility and existing functionality
   - Verify all existing command-line options work unchanged
   - Test chronological sorting (newest first) is preserved
   - Test date formatting ("YYYY-MM-DD") remains consistent
