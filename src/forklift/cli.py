@@ -12,7 +12,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
-    MofNCompleteColumn,
     Progress,
     SpinnerColumn,
     TaskProgressColumn,
@@ -38,7 +37,6 @@ from forklift.analysis.interactive_steps import (
 from forklift.analysis.override_control import create_override_controller
 from forklift.analysis.repository_analyzer import RepositoryAnalyzer
 from forklift.config.settings import ForkliftConfig, load_config
-from forklift.models.commit_count_config import CommitCountConfig
 from forklift.display.detailed_commit_display import (
     DetailedCommitDisplay,
 )
@@ -47,7 +45,6 @@ from forklift.display.interaction_mode import (
     get_interaction_mode_detector,
 )
 from forklift.display.progress_reporter import (
-    ProgressReporterFactory,
     get_progress_reporter,
     reset_progress_reporter,
 )
@@ -73,9 +70,13 @@ from forklift.github.exceptions import (
     GitHubRateLimitError,
     GitHubTimeoutError,
 )
+from forklift.models.commit_count_config import CommitCountConfig
 from forklift.models.github import Commit
+from forklift.models.validation_handler import ValidationSummary
 from forklift.ranking.feature_ranking_engine import FeatureRankingEngine
-from forklift.reporting.csv_output_manager import create_csv_context, create_csv_output_manager
+from forklift.reporting.csv_output_manager import (
+    create_csv_context,
+)
 from forklift.storage.analysis_cache import AnalysisCacheManager
 
 console = Console(file=sys.stdout, width=999999, soft_wrap=False)
@@ -100,6 +101,94 @@ def set_error_handler(handler: ErrorHandler) -> None:
     _error_handler = handler
 
 
+def _handle_cli_error_with_context(
+    error_handler: ErrorHandler,
+    error: Exception,
+    context: str,
+    verbose_validation: bool = False
+) -> None:
+    """Handle CLI errors with enhanced context and user-friendly messaging.
+    
+    Args:
+        error_handler: The error handler instance
+        error: The exception that occurred
+        context: Context description for the error
+        verbose_validation: Whether to show verbose validation information
+        
+    Requirements: 3.1, 3.2, 3.3, 3.4
+    """
+    # Enhance error message with user-friendly context
+    if isinstance(error, ForkliftValidationError):
+        if "repository name validation" in str(error).lower():
+            enhanced_message = (
+                f"Repository name validation failed: {error}\n\n"
+                f"This may be due to unusual characters in repository names from the GitHub API. "
+                f"The system has been designed to handle most edge cases gracefully."
+            )
+            if verbose_validation:
+                enhanced_message += (
+                    "\n\nTroubleshooting tips:\n"
+                    "• Check if the repository name contains unusual characters\n"
+                    "• Try using the --verbose-validation flag for more details\n"
+                    "• Individual validation failures should not prevent other repositories from being processed"
+                )
+            enhanced_error = ForkliftValidationError(enhanced_message)
+            enhanced_error.exit_code = error.exit_code
+            error_handler.handle_error(enhanced_error, context)
+        else:
+            error_handler.handle_error(error, context)
+    elif isinstance(error, ForkliftAuthenticationError):
+        enhanced_message = (
+            f"Authentication failed: {error}\n\n"
+            f"Please check your GitHub token configuration:\n"
+            f"• Run 'forklift configure' to set up your GitHub token\n"
+            f"• Ensure your token has the necessary permissions\n"
+            f"• Verify the token is not expired"
+        )
+        enhanced_error = ForkliftAuthenticationError(enhanced_message)
+        enhanced_error.exit_code = error.exit_code
+        error_handler.handle_error(enhanced_error, context)
+    elif isinstance(error, ForkliftNetworkError):
+        enhanced_message = (
+            f"Network error: {error}\n\n"
+            f"This may be a temporary issue. You can try:\n"
+            f"• Checking your internet connection\n"
+            f"• Waiting a few minutes and trying again\n"
+            f"• Using --verbose flag for more detailed error information"
+        )
+        enhanced_error = ForkliftNetworkError(enhanced_message)
+        enhanced_error.exit_code = error.exit_code
+        error_handler.handle_error(enhanced_error, context)
+    else:
+        # For other errors, use the original error handler
+        error_handler.handle_error(error, context)
+
+
+def _get_validation_error_exit_code(validation_summary: "ValidationSummary | None") -> int:
+    """Determine appropriate exit code based on validation summary.
+    
+    Args:
+        validation_summary: Validation summary from processing
+        
+    Returns:
+        Appropriate exit code (0 for success, 1 for partial failure, 2 for complete failure)
+        
+    Requirements: 3.1, 3.2
+    """
+    if not validation_summary:
+        return 0  # No validation issues
+
+    if not validation_summary.has_errors():
+        return 0  # No validation errors
+
+    # If we processed some repositories successfully, it's a partial failure
+    if validation_summary.processed > 0:
+        return 1  # Partial success - some repositories processed
+
+    # If no repositories were processed successfully, it's a complete failure
+    return 2  # Complete failure - no repositories processed
+
+
 def initialize_cli_environment() -> tuple[InteractionMode, bool]:
     """Initialize CLI environment with interactive mode detection.
     
@@ -109,10 +198,10 @@ def initialize_cli_environment() -> tuple[InteractionMode, bool]:
     # Get interaction mode detector
     detector = get_interaction_mode_detector()
     interaction_mode = detector.get_interaction_mode()
-    
+
     # Log detected interaction mode for debugging
     logger.debug(f"Detected interaction mode: {interaction_mode.value}")
-    
+
     # Configure console based on interaction mode
     global console
     if interaction_mode == InteractionMode.NON_INTERACTIVE:
@@ -122,20 +211,20 @@ def initialize_cli_environment() -> tuple[InteractionMode, bool]:
         # For all other modes, keep console on stdout
         # Interactive elements (progress bars, prompts) will be handled separately
         console = Console(file=sys.stdout, soft_wrap=False, width=999999)
-    
+
     # Reset progress reporter to ensure it uses the correct mode
     reset_progress_reporter()
-    
+
     # Determine if user prompts should be supported
     supports_prompts = detector.supports_user_prompts()
-    
+
     # Log configuration for debugging
-    logger.debug(f"CLI environment initialized:")
+    logger.debug("CLI environment initialized:")
     logger.debug(f"  - Interaction mode: {interaction_mode.value}")
     logger.debug(f"  - Supports user prompts: {supports_prompts}")
     logger.debug(f"  - Supports progress bars: {detector.supports_progress_bars()}")
     logger.debug(f"  - Should use colors: {detector.should_use_colors()}")
-    
+
     return interaction_mode, supports_prompts
 
 
@@ -160,7 +249,7 @@ def handle_user_prompt(
         # In non-interactive mode, use default and log the decision
         logger.info(f"Auto-proceeding with default choice ({default}) for: {message}")
         return default
-    
+
     # In interactive mode, show the prompt
     try:
         return Confirm.ask(message, default=default)
@@ -251,21 +340,21 @@ def validate_repository_url(url: str) -> tuple[str, str]:
         match = re.match(pattern, url)
         if match:
             owner, repo = match.groups()
-            
+
             # Validate owner and repo names
             if not owner or not repo:
                 raise ForkliftValidationError(f"Invalid repository format: {url}")
-            
+
             # Basic validation for GitHub username/repo name rules
-            if not re.match(r'^[a-zA-Z0-9._-]+$', owner):
+            if not re.match(r"^[a-zA-Z0-9._-]+$", owner):
                 raise ForkliftValidationError(f"Invalid owner name: {owner}")
-            if not re.match(r'^[a-zA-Z0-9._-]+$', repo):
+            if not re.match(r"^[a-zA-Z0-9._-]+$", repo):
                 raise ForkliftValidationError(f"Invalid repository name: {repo}")
-            
+
             # Additional validation: owner shouldn't contain domain names
-            if '.' in owner and len(owner.split('.')) > 2:
+            if "." in owner and len(owner.split(".")) > 2:
                 raise ForkliftValidationError(f"Invalid owner name (looks like domain): {owner}")
-            
+
             return owner, repo
 
     raise ForkliftValidationError(f"Invalid GitHub repository URL format: {url}")
@@ -473,7 +562,7 @@ def display_fork_details(fork, fork_metrics=None) -> None:
 
 
 async def interactive_fork_selection(
-    forks: list, 
+    forks: list,
     config: ForkliftConfig,
     interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
     supports_prompts: bool = True
@@ -644,7 +733,7 @@ async def interactive_fork_selection(
         # Ask if user wants to continue
         if choice != "5":
             if not handle_user_prompt(
-                "\n[dim]Continue with interactive mode?[/dim]", 
+                "\n[dim]Continue with interactive mode?[/dim]",
                 default=True,
                 supports_prompts=supports_prompts,
                 interaction_mode=interaction_mode
@@ -759,6 +848,11 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, config: str | None) -> N
     is_flag=True,
     help="Export analysis results in CSV format with multi-row commit details to stdout (suppresses all interactive elements)",
 )
+@click.option(
+    "--verbose-validation",
+    is_flag=True,
+    help="Show detailed validation error information when repository processing issues occur",
+)
 @click.pass_context
 def analyze(
     ctx: click.Context,
@@ -774,6 +868,7 @@ def analyze(
     explain: bool,
     disable_cache: bool,
     csv: bool,
+    verbose_validation: bool,
 ) -> None:
     """Analyze a repository and its forks for valuable features.
 
@@ -814,7 +909,7 @@ def analyze(
     config.output_format = output_format
 
     error_handler: ErrorHandler = ctx.obj["error_handler"]
-    
+
     try:
         # Validate repository URL
         owner, repo_name = validate_repository_url(repository_url)
@@ -833,7 +928,7 @@ def analyze(
             results = asyncio.run(
                 _run_interactive_analysis(
                     config, owner, repo_name, verbose, scan_all, explain, disable_cache,
-                    interaction_mode, supports_prompts
+                    interaction_mode, supports_prompts, verbose_validation
                 )
             )
         else:
@@ -841,7 +936,7 @@ def analyze(
             results = asyncio.run(
                 _run_analysis(
                     config, owner, repo_name, verbose, scan_all, explain, disable_cache,
-                    interaction_mode, supports_prompts
+                    interaction_mode, supports_prompts, verbose_validation
                 )
             )
 
@@ -884,39 +979,73 @@ def analyze(
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
+        # Check for validation issues in results and display summary
+        validation_summary = results.get("validation_summary")
+        if validation_summary and validation_summary.has_errors():
+            # Create display service for validation summary
+            from forklift.github.client import GitHubClient
+            github_client = GitHubClient(config.github)
+            display_service = RepositoryDisplayService(github_client, console)
+
+            # Display validation summary with context
+            display_service.display_validation_summary_with_context(
+                validation_summary,
+                context="repository analysis",
+                verbose=verbose_validation,
+                csv_export=csv
+            )
+
+            # Set appropriate exit code based on validation results
+            validation_exit_code = _get_validation_error_exit_code(validation_summary)
+            if validation_exit_code > 0:
+                sys.exit(validation_exit_code)
+
+        # Ensure all output is flushed for redirection
+        sys.stdout.flush()
+
     except (ForkliftValidationError, ForkliftConfigurationError, ForkliftOutputError, ForkliftUnicodeError) as e:
-        error_handler.handle_error(e, "Repository analysis")
+        _handle_cli_error_with_context(error_handler, e, "Repository analysis", verbose_validation)
     except GitHubAuthenticationError as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftAuthenticationError(f"GitHub authentication failed: {e}"),
-            "Repository analysis"
+            "Repository analysis",
+            verbose_validation
         )
     except GitHubRateLimitError as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftNetworkError(f"GitHub rate limit exceeded: {e}"),
-            "Repository analysis"
+            "Repository analysis",
+            verbose_validation
         )
     except (GitHubNotFoundError, GitHubPrivateRepositoryError, GitHubEmptyRepositoryError, GitHubForkAccessError) as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftValidationError(f"Repository access issue: {e}"),
-            "Repository analysis"
+            "Repository analysis",
+            verbose_validation
         )
     except GitHubTimeoutError as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftNetworkError(f"Network timeout: {e}"),
-            "Repository analysis"
+            "Repository analysis",
+            verbose_validation
         )
     except KeyboardInterrupt:
-        error_handler.handle_error(KeyboardInterrupt(), "Repository analysis")
+        _handle_cli_error_with_context(error_handler, KeyboardInterrupt(), "Repository analysis", verbose_validation)
     except Exception as e:
         # Handle unexpected errors
         if isinstance(e, UnicodeError):
-            error_handler.handle_error(
+            _handle_cli_error_with_context(
+                error_handler,
                 ForkliftUnicodeError(f"Unicode processing error: {e}"),
-                "Repository analysis"
+                "Repository analysis",
+                verbose_validation
             )
         else:
-            error_handler.handle_error(e, "Repository analysis")
+            _handle_cli_error_with_context(error_handler, e, "Repository analysis", verbose_validation)
 
 
 @cli.command()
@@ -1232,6 +1361,11 @@ def show_repo(ctx: click.Context, repository_url: str) -> None:
     help="Seconds to wait between retries when circuit breaker is open (default: 30). "
          "Lower values retry faster but may hit rate limits more frequently.",
 )
+@click.option(
+    "--verbose-validation",
+    is_flag=True,
+    help="Show detailed validation error information when repository processing issues occur",
+)
 @click.pass_context
 def show_forks(
     ctx: click.Context,
@@ -1248,6 +1382,7 @@ def show_forks(
     continue_on_circuit_open: bool,
     skip_failed_forks: bool,
     circuit_open_retry_interval: float,
+    verbose_validation: bool,
 ) -> None:
     """Display a summary table of repository forks with key metrics.
 
@@ -1336,7 +1471,7 @@ def show_forks(
     supports_prompts: bool = ctx.obj["supports_prompts"]
 
     error_handler: ErrorHandler = ctx.obj["error_handler"]
-    
+
     try:
         # Validate GitHub token
         if not config.github.token:
@@ -1367,7 +1502,7 @@ def show_forks(
 
         # Create resilience configuration from CLI options
         from forklift.github.rate_limiter import CircuitBreakerConfig, DegradationConfig
-        
+
         # Build circuit breaker config with CLI overrides
         circuit_breaker_config = None
         if circuit_breaker_threshold is not None:
@@ -1375,7 +1510,7 @@ def show_forks(
                 base_failure_threshold=circuit_breaker_threshold,
                 large_repo_failure_threshold=circuit_breaker_threshold
             )
-        
+
         # Build degradation config
         degradation_config = DegradationConfig(
             continue_on_circuit_open=continue_on_circuit_open,
@@ -1384,7 +1519,7 @@ def show_forks(
         )
 
         # Run forks summary display
-        asyncio.run(
+        validation_summary = asyncio.run(
             _show_forks_summary(
                 config,
                 repository_url,
@@ -1400,45 +1535,76 @@ def show_forks(
                 commit_count_config,
                 circuit_breaker_config,
                 degradation_config,
+                verbose_validation,
             )
         )
+
+        # Display validation summary if there were issues
+        if validation_summary and validation_summary.has_errors():
+            # Create display service for validation summary
+            from forklift.github.client import GitHubClient
+            github_client = GitHubClient(config.github)
+            display_service = RepositoryDisplayService(github_client, console)
+
+            # Display validation summary with context
+            display_service.display_validation_summary_with_context(
+                validation_summary,
+                context="fork processing",
+                verbose=verbose_validation,
+                csv_export=csv
+            )
+
+            # Set appropriate exit code based on validation results
+            validation_exit_code = _get_validation_error_exit_code(validation_summary)
+            if validation_exit_code > 0:
+                sys.exit(validation_exit_code)
 
         # Ensure all output is flushed for redirection
         sys.stdout.flush()
 
     except (ForkliftValidationError, ForkliftConfigurationError, ForkliftAuthenticationError, ForkliftOutputError, ForkliftUnicodeError) as e:
-        error_handler.handle_error(e, "Show forks")
+        _handle_cli_error_with_context(error_handler, e, "Show forks", verbose_validation)
     except GitHubAuthenticationError as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftAuthenticationError(f"GitHub authentication failed: {e}"),
-            "Show forks"
+            "Show forks",
+            verbose_validation
         )
     except GitHubRateLimitError as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftNetworkError(f"GitHub rate limit exceeded: {e}"),
-            "Show forks"
+            "Show forks",
+            verbose_validation
         )
     except (GitHubNotFoundError, GitHubPrivateRepositoryError, GitHubEmptyRepositoryError, GitHubForkAccessError) as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftValidationError(f"Repository access issue: {e}"),
-            "Show forks"
+            "Show forks",
+            verbose_validation
         )
     except GitHubTimeoutError as e:
-        error_handler.handle_error(
+        _handle_cli_error_with_context(
+            error_handler,
             ForkliftNetworkError(f"Network timeout: {e}"),
-            "Show forks"
+            "Show forks",
+            verbose_validation
         )
     except KeyboardInterrupt:
-        error_handler.handle_error(KeyboardInterrupt(), "Show forks")
+        _handle_cli_error_with_context(error_handler, KeyboardInterrupt(), "Show forks", verbose_validation)
     except Exception as e:
         # Handle unexpected errors
         if isinstance(e, UnicodeError):
-            error_handler.handle_error(
+            _handle_cli_error_with_context(
+                error_handler,
                 ForkliftUnicodeError(f"Unicode processing error: {e}"),
-                "Show forks"
+                "Show forks",
+                verbose_validation
             )
         else:
-            error_handler.handle_error(e, "Show forks")
+            _handle_cli_error_with_context(error_handler, e, "Show forks", verbose_validation)
 
 
 @cli.command("list-forks")
@@ -1688,10 +1854,10 @@ def show_promising(
         title="Show Promising Forks",
         border_style="yellow"
     ))
-    
+
     console.print("\n[bold blue]Suggested command:[/bold blue]")
     console.print(f"[green]forklift show-forks {repository_url} --min-commits-ahead {min_commits_ahead} --min-stars {min_stars}[/green]")
-    
+
     sys.exit(1)
 
 
@@ -2199,7 +2365,8 @@ async def _show_forks_summary(
     commit_count_config: "CommitCountConfig | None" = None,
     circuit_breaker_config: "CircuitBreakerConfig | None" = None,
     degradation_config: "DegradationConfig | None" = None,
-) -> None:
+    verbose_validation: bool = False,
+) -> "ValidationSummary | None":
     """Show forks summary using pagination-only fork data collection.
 
     Args:
@@ -2217,32 +2384,34 @@ async def _show_forks_summary(
     """
     # Create repository-size-aware GitHub client for better resilience with large repositories
     github_client = await GitHubClient.create_resilient_client(
-        config.github, 
+        config.github,
         repository_url,
         circuit_breaker_config
     )
-    
+
     async with github_client:
         # Create appropriate console for main content output
         # Always use stdout for main content, regardless of interaction mode
         content_console = Console(file=sys.stdout, soft_wrap=False, width=999999)
-        
+
         # Use provided commit count config or fall back to config default
         effective_commit_config = commit_count_config or config.commit_count
-        
+
         display_service = RepositoryDisplayService(
-            github_client, 
+            github_client,
             content_console,
             commit_count_config=effective_commit_config
         )
-        
+
         # Log interaction mode for debugging
         logger.debug(f"show-forks using interaction mode: {interaction_mode.value}")
 
         try:
+            validation_summary = None
+
             if csv:
                 # CSV export mode - route to CSV processing
-                await _export_forks_csv(
+                validation_summary = await _export_forks_csv(
                     display_service,
                     repository_url,
                     max_forks,
@@ -2262,6 +2431,9 @@ async def _show_forks_summary(
                     ahead_only=ahead_only,
                     csv_export=False,
                 )
+
+                # Extract validation summary from result
+                validation_summary = fork_data_result.get("validation_summary")
 
                 if verbose:
                     total_forks = fork_data_result["total_forks"]
@@ -2288,12 +2460,19 @@ async def _show_forks_summary(
                     csv_export=False,
                 )
 
+                # Extract validation summary from result
+                validation_summary = fork_data_result.get("validation_summary")
+
                 if verbose:
                     total_forks = fork_data_result["total_forks"]
                     displayed_forks = fork_data_result["displayed_forks"]
                     content_console.print(
                         f"\n[green]✓ Displayed {displayed_forks} of {total_forks} forks using pagination-only requests[/green]"
                     )
+
+            return validation_summary
+
+            return validation_summary
 
         except Exception as e:
             logger.error(f"Failed to display forks data: {e}")
@@ -2317,8 +2496,7 @@ async def _export_analysis_csv(results: dict, explain: bool) -> None:
         ForkliftUnicodeError: If Unicode handling fails
     """
     from forklift.reporting.csv_exporter import CSVExportConfig
-    from forklift.reporting.csv_output_manager import create_csv_context
-    
+
     try:
         # Configure CSV export for analysis results
         csv_config = CSVExportConfig(
@@ -2328,11 +2506,11 @@ async def _export_analysis_csv(results: dict, explain: bool) -> None:
             include_urls=True,
             commit_date_format="%Y-%m-%d"  # Use new format
         )
-        
+
         # Create CSV output context to suppress progress indicators
         with create_csv_context(suppress_progress=True) as csv_manager:
             csv_manager.configure_exporter(csv_config)
-            
+
             # Export fork analyses to CSV
             fork_analyses = results.get("fork_analyses", [])
             if fork_analyses:
@@ -2340,7 +2518,7 @@ async def _export_analysis_csv(results: dict, explain: bool) -> None:
             else:
                 # Export empty CSV with headers
                 csv_manager.export_to_stdout([])
-                
+
     except Exception as e:
         if isinstance(e, (ForkliftOutputError, ForkliftUnicodeError)):
             raise
@@ -2362,14 +2540,14 @@ def _validate_fork_data_structure(fork_data: dict) -> list:
     """
     if not fork_data or not isinstance(fork_data, dict):
         return []
-    
+
     # Try different possible key names for backward compatibility
     for key in ["collected_forks", "forks"]:
         if key in fork_data:
             fork_list = fork_data[key]
             if isinstance(fork_list, list):
                 return fork_list
-    
+
     # Log warning about unexpected structure
     logger.warning(f"Unexpected fork data structure: {list(fork_data.keys())}")
     return []
@@ -2383,7 +2561,7 @@ async def _export_forks_csv(
     show_commits: int,
     force_all_commits: bool,
     ahead_only: bool
-) -> None:
+) -> "ValidationSummary | None":
     """Export fork data in CSV format with proper error handling and progress suppression.
     
     Args:
@@ -2399,14 +2577,15 @@ async def _export_forks_csv(
         ForkliftOutputError: If CSV export fails
         ForkliftUnicodeError: If Unicode handling fails
     """
-    from forklift.reporting.csv_output_manager import create_csv_context
-    
+
     try:
+        validation_summary = None
+
         # Create CSV output context to suppress progress indicators during fork data collection
         with create_csv_context(suppress_progress=True):
             if detail:
                 # Use detailed fork display with exact commit counts for CSV
-                await display_service.show_fork_data_detailed(
+                fork_data_result = await display_service.show_fork_data_detailed(
                     repository_url,
                     max_forks=max_forks,
                     disable_cache=False,
@@ -2415,9 +2594,11 @@ async def _export_forks_csv(
                     ahead_only=ahead_only,
                     csv_export=True,  # Enable CSV export mode
                 )
+                # Extract validation summary from result
+                validation_summary = fork_data_result.get("validation_summary")
             else:
                 # Use standard fork data display for CSV
-                await display_service.show_fork_data(
+                fork_data_result = await display_service.show_fork_data(
                     repository_url,
                     exclude_archived=False,
                     exclude_disabled=False,
@@ -2429,10 +2610,13 @@ async def _export_forks_csv(
                     ahead_only=ahead_only,
                     csv_export=True,  # Enable CSV export mode
                 )
-        
+                # Extract validation summary from result
+                validation_summary = fork_data_result.get("validation_summary")
+
         # The repository display service handles CSV export internally
         # CSV output is already written to stdout by the display service
-                
+        return validation_summary
+
     except UnicodeError as e:
         raise ForkliftUnicodeError(f"Unicode error in CSV export: {e}")
     except Exception as e:
@@ -2452,6 +2636,7 @@ async def _run_analysis(
     disable_cache: bool = False,
     interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
     supports_prompts: bool = True,
+    verbose_validation: bool = False,
 ) -> dict:
     """Run the actual repository analysis.
 
@@ -2518,7 +2703,7 @@ async def _run_analysis(
 
     # Use adaptive progress reporting
     progress_reporter = get_progress_reporter()
-    
+
     try:
 
         # Step 1: Discover and filter forks
@@ -2623,7 +2808,7 @@ async def _run_analysis(
                     )
 
         progress_reporter.complete_operation(f"Analyzed {analyzed_count} forks")
-        
+
         results["analyzed_forks"] = analyzed_count
         results["total_features"] = total_features
         results["high_value_features"] = high_value_features
@@ -2694,6 +2879,7 @@ async def _run_interactive_analysis(
     disable_cache: bool = False,
     interaction_mode: InteractionMode = InteractionMode.FULLY_INTERACTIVE,
     supports_prompts: bool = True,
+    verbose_validation: bool = False,
 ) -> dict:
     """Run interactive repository analysis with user confirmation stops.
 
@@ -3138,7 +3324,7 @@ async def _show_commits(
 
             # Use adaptive progress reporting
             progress_reporter = get_progress_reporter()
-            
+
             try:
                 progress_reporter.start_operation("Fetching repository information")
 
@@ -3555,7 +3741,7 @@ async def _display_ai_summaries_for_commits(
 
             # Use adaptive progress reporting for AI summary generation
             progress_reporter = get_progress_reporter()
-            
+
             try:
                 progress_reporter.start_operation("Fetching commit diffs", len(commits))
 
@@ -3605,7 +3791,7 @@ async def _display_ai_summaries_for_commits(
                     repository=repository,
                     progress_callback=progress_callback,
                 )
-                
+
                 progress_reporter.complete_operation("AI summaries generated")
             except Exception as e:
                 progress_reporter.log_message(f"Failed to generate AI summaries: {e}", "error")
@@ -3730,7 +3916,7 @@ async def _display_detailed_commits(
 
                     # Generate detailed view for all commits
                     progress_reporter = get_progress_reporter()
-                    
+
                     try:
                         progress_reporter.start_operation(
                             "Generating detailed commit information", len(commits)
@@ -3746,7 +3932,7 @@ async def _display_detailed_commits(
                                 commits, repo_obj, progress_callback, force=force
                             )
                         )
-                        
+
                         progress_reporter.complete_operation("Detailed commit information generated")
                     except Exception as e:
                         progress_reporter.log_message(f"Failed to generate detailed view: {e}", "error")
@@ -3800,7 +3986,7 @@ async def _display_detailed_commits(
 
             # Generate detailed view without AI summaries
             progress_reporter = get_progress_reporter()
-            
+
             try:
                 progress_reporter.start_operation(
                     "Generating detailed commit information", len(commits)
@@ -3814,7 +4000,7 @@ async def _display_detailed_commits(
                 detailed_commits = await detailed_display.generate_detailed_view(
                     commits, repo_obj, progress_callback, force=force
                 )
-                
+
                 progress_reporter.complete_operation("Detailed commit information generated")
             except Exception as e:
                 progress_reporter.log_message(f"Failed to generate detailed view: {e}", "error")

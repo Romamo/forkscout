@@ -20,21 +20,21 @@
   - Add logging for validation issues during processing
   - _Requirements: 1.2, 1.3, 4.1, 4.2_
 
-- [-] 4. Update display service to show validation summaries
+- [x] 4. Update display service to show validation summaries
   - Modify `src/forklift/display/repository_display_service.py` to handle validation summaries
   - Add display of validation error summary when issues occur
   - Implement user-friendly messaging for validation issues
   - Add support for verbose error reporting
   - _Requirements: 1.4, 3.3, 3.4_
 
-- [ ] 5. Add comprehensive unit tests for validation handling
+- [x] 5. Add comprehensive unit tests for validation handling
   - Create test file `tests/unit/test_repository_validation.py` with edge-case repository name tests
   - Test Repository model validation with various name patterns including consecutive periods
   - Test ValidationHandler error collection and summary generation
   - Create test fixtures with problematic repository names from real-world cases
   - _Requirements: 2.3, 4.4_
 
-- [ ] 6. Add integration tests for end-to-end validation handling
+- [x] 6. Add integration tests for end-to-end validation handling
   - Create test file `tests/integration/test_validation_error_handling.py`
   - Test full fork processing pipeline with mixed valid/invalid repository data
   - Test display service behavior when validation errors occur
@@ -48,7 +48,7 @@
   - Verify that our validation rules match GitHub's actual behavior
   - _Requirements: 2.1, 2.2_
 
-- [ ] 8. Update CLI error handling and user messaging
+- [-] 8. Update CLI error handling and user messaging
   - Modify CLI command handlers to catch and display validation summaries
   - Add user-friendly error messages when validation issues occur
   - Implement verbose mode flag for detailed validation error reporting
