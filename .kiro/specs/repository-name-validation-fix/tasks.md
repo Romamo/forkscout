@@ -13,14 +13,14 @@
   - Create ValidationSummary model for structured error reporting
   - _Requirements: 4.1, 4.2, 4.3, 3.2_
 
-- [-] 3. Update fork data collection to use graceful validation
+- [x] 3. Update fork data collection to use graceful validation
   - Modify `collect_fork_data` method in `src/forklift/analysis/fork_data_collection_engine.py`
   - Integrate ValidationHandler to handle individual repository validation failures
   - Return both valid repositories and validation summary
   - Add logging for validation issues during processing
   - _Requirements: 1.2, 1.3, 4.1, 4.2_
 
-- [ ] 4. Update display service to show validation summaries
+- [-] 4. Update display service to show validation summaries
   - Modify `src/forklift/display/repository_display_service.py` to handle validation summaries
   - Add display of validation error summary when issues occur
   - Implement user-friendly messaging for validation issues

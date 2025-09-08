@@ -30,6 +30,7 @@ from forklift.models.ahead_only_filter import (
 from forklift.models.analysis import ForkPreviewItem, ForksPreview
 from forklift.models.filters import PromisingForksFilter
 from forklift.models.github import Repository
+from forklift.models.validation_handler import ValidationSummary
 from forklift.storage.analysis_cache import AnalysisCacheManager
 from forklift.storage.cache_validation import CacheValidationError, CacheValidator
 
@@ -3902,3 +3903,443 @@ class RepositoryDisplayService:
             commits_behind="Unknown",  # Default value, not available in this context
             recent_commits=recent_commits_text if show_commits > 0 else None
         )
+
+    def display_validation_summary(
+        self, 
+        validation_summary: ValidationSummary, 
+        verbose: bool = False,
+        csv_export: bool = False
+    ) -> None:
+        """
+        Display validation error summary when issues occur.
+        
+        Args:
+            validation_summary: ValidationSummary with processing statistics and error details
+            verbose: If True, show detailed error information
+            csv_export: If True, send output to stderr to keep stdout clean
+            
+        Requirements: 1.4, 3.3, 3.4
+        """
+        if not validation_summary.has_errors():
+            return
+            
+        # Choose appropriate console for output
+        output_console = self.console
+        if csv_export:
+            # In CSV export mode, send validation messages to stderr to keep stdout clean
+            import sys
+            from rich.console import Console
+            output_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
+        
+        # Display basic validation summary
+        error_count = validation_summary.skipped
+        total_processed = validation_summary.processed + validation_summary.skipped
+        
+        output_console.print(
+            f"\n[yellow]⚠️  Validation Issues Encountered[/yellow]"
+        )
+        output_console.print(
+            f"[dim]• {error_count} repositories skipped due to validation errors[/dim]"
+        )
+        output_console.print(
+            f"[dim]• {validation_summary.processed} repositories processed successfully[/dim]"
+        )
+        output_console.print(
+            f"[dim]• {total_processed} total repositories processed[/dim]"
+        )
+        
+        if verbose and validation_summary.errors:
+            self._display_detailed_validation_errors(validation_summary.errors, output_console)
+        elif validation_summary.errors:
+            # Show brief error summary
+            output_console.print(
+                f"[dim]• Use --verbose flag to see detailed validation errors[/dim]"
+            )
+            
+            # Show a sample of error types
+            error_types = {}
+            for error in validation_summary.errors[:5]:  # Sample first 5 errors
+                error_msg = error.get('error', 'Unknown error')
+                # Extract error type from validation error message
+                if 'consecutive periods' in error_msg.lower():
+                    error_types['consecutive_periods'] = error_types.get('consecutive_periods', 0) + 1
+                elif 'start or end with a period' in error_msg.lower():
+                    error_types['leading_trailing_periods'] = error_types.get('leading_trailing_periods', 0) + 1
+                elif 'invalid' in error_msg.lower():
+                    error_types['invalid_format'] = error_types.get('invalid_format', 0) + 1
+                else:
+                    error_types['other'] = error_types.get('other', 0) + 1
+            
+            if error_types:
+                output_console.print("[dim]• Common validation issues:[/dim]")
+                for error_type, count in error_types.items():
+                    error_desc = {
+                        'consecutive_periods': 'Repository names with consecutive periods',
+                        'leading_trailing_periods': 'Repository names with leading/trailing periods',
+                        'invalid_format': 'Invalid repository name format',
+                        'other': 'Other validation issues'
+                    }.get(error_type, error_type)
+                    output_console.print(f"[dim]  - {error_desc}: {count} repositories[/dim]")
+
+    def _display_detailed_validation_errors(
+        self, 
+        errors: list[dict], 
+        output_console,
+        max_errors: int = 10
+    ) -> None:
+        """
+        Display detailed validation error information.
+        
+        Args:
+            errors: List of validation error dictionaries
+            output_console: Console to output to
+            max_errors: Maximum number of errors to display in detail
+            
+        Requirements: 3.3, 3.4
+        """
+        output_console.print(f"\n[bold red]Detailed Validation Errors:[/bold red]")
+        
+        # Create table for detailed error display
+        error_table = Table(expand=False)
+        error_table.add_column("Repository", style="cyan", min_width=25, no_wrap=True, overflow="fold")
+        error_table.add_column("Error", style="red", min_width=40, no_wrap=True, overflow="fold")
+        error_table.add_column("Type", style="yellow", width=15, no_wrap=True)
+        
+        errors_to_show = min(len(errors), max_errors)
+        
+        for i, error in enumerate(errors[:errors_to_show]):
+            repo_name = error.get('repository', 'Unknown')
+            error_msg = error.get('error', 'Unknown error')
+            
+            # Categorize error type
+            if 'consecutive periods' in error_msg.lower():
+                error_type = "Consecutive Periods"
+            elif 'start or end with a period' in error_msg.lower():
+                error_type = "Leading/Trailing"
+            elif 'invalid' in error_msg.lower():
+                error_type = "Invalid Format"
+            else:
+                error_type = "Other"
+            
+            # Truncate long error messages for table display
+            if len(error_msg) > 60:
+                error_msg = error_msg[:57] + "..."
+            
+            error_table.add_row(repo_name, error_msg, error_type)
+        
+        output_console.print(error_table)
+        
+        # Show summary if there are more errors
+        if len(errors) > max_errors:
+            remaining = len(errors) - max_errors
+            output_console.print(f"[dim]... and {remaining} more validation errors[/dim]")
+        
+        # Provide actionable information
+        output_console.print(f"\n[bold yellow]Actionable Information:[/bold yellow]")
+        output_console.print("[dim]• These repositories were skipped but processing continued[/dim]")
+        output_console.print("[dim]• Individual validation failures do not affect other repositories[/dim]")
+        output_console.print("[dim]• Check repository names for unusual characters or formatting[/dim]")
+        output_console.print("[dim]• Consider reporting persistent validation issues as bugs[/dim]")
+
+    def display_validation_summary_with_context(
+        self,
+        validation_summary: ValidationSummary,
+        context: str,
+        verbose: bool = False,
+        csv_export: bool = False
+    ) -> None:
+        """
+        Display validation summary with additional context information.
+        
+        Args:
+            validation_summary: ValidationSummary with processing statistics and error details
+            context: Context description (e.g., "fork processing", "repository analysis")
+            verbose: If True, show detailed error information
+            csv_export: If True, send output to stderr to keep stdout clean
+            
+        Requirements: 1.4, 3.3, 3.4
+        """
+        if not validation_summary.has_errors():
+            return
+            
+        # Choose appropriate console for output
+        output_console = self.console
+        if csv_export:
+            # In CSV export mode, send validation messages to stderr to keep stdout clean
+            import sys
+            from rich.console import Console
+            output_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
+        
+        # Display context-aware validation summary
+        error_count = validation_summary.skipped
+        success_count = validation_summary.processed
+        
+        output_console.print(
+            f"\n[yellow]⚠️  Validation Issues During {context.title()}[/yellow]"
+        )
+        
+        if success_count > 0:
+            output_console.print(
+                f"[green]✓ {success_count} repositories processed successfully[/green]"
+            )
+        
+        output_console.print(
+            f"[yellow]⚠️  {error_count} repositories skipped due to validation errors[/yellow]"
+        )
+        
+        # Calculate success rate
+        total_attempted = success_count + error_count
+        if total_attempted > 0:
+            success_rate = (success_count / total_attempted) * 100
+            output_console.print(
+                f"[dim]• Success rate: {success_rate:.1f}% ({success_count}/{total_attempted})[/dim]"
+            )
+        
+        # Show detailed errors if requested
+        if verbose and validation_summary.errors:
+            self._display_detailed_validation_errors(validation_summary.errors, output_console)
+        elif validation_summary.errors:
+            output_console.print(
+                f"[dim]• Use --verbose flag to see detailed validation errors[/dim]"
+            )
+
+    async def collect_detailed_fork_data_with_validation(
+        self,
+        repo_url: str,
+        max_forks: int | None = None
+    ) -> tuple[list, ValidationSummary]:
+        """
+        Collect detailed fork data with graceful validation handling.
+        
+        This method fetches fork data from GitHub API and processes it with
+        graceful validation error handling, returning both the processed data
+        and a validation summary.
+        
+        Args:
+            repo_url: Repository URL in format owner/repo or full GitHub URL
+            max_forks: Maximum number of forks to process (None for all)
+            
+        Returns:
+            Tuple containing:
+            - List of successfully processed fork data
+            - ValidationSummary with processing statistics and error details
+            
+        Requirements: 1.2, 1.3, 4.1, 4.2
+        """
+        from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+        from forklift.github.fork_list_processor import ForkListProcessor
+        
+        owner, repo_name = self._parse_repository_url(repo_url)
+        
+        logger.info(f"Collecting fork data with validation for {owner}/{repo_name}")
+        
+        try:
+            # Initialize components
+            fork_processor = ForkListProcessor(self.github_client)
+            data_engine = ForkDataCollectionEngine()
+            
+            # Get all forks data from GitHub API
+            forks_list_data = await fork_processor.get_all_forks_list_data(
+                owner, repo_name
+            )
+            
+            if not forks_list_data:
+                # Return empty results with no validation errors
+                from forklift.models.validation_handler import ValidationSummary
+                empty_summary = ValidationSummary(processed=0, skipped=0, errors=[])
+                return [], empty_summary
+            
+            # Apply max_forks limit if specified
+            if max_forks and len(forks_list_data) > max_forks:
+                forks_list_data = forks_list_data[:max_forks]
+            
+            # Use graceful validation method to collect Repository objects
+            repositories, validation_summary = data_engine.collect_fork_data(forks_list_data)
+            
+            # Convert Repository objects back to CollectedForkData format for compatibility
+            # This maintains compatibility with existing display methods
+            collected_forks = []
+            for repo in repositories:
+                # Create a CollectedForkData-like structure from Repository
+                fork_data = self._convert_repository_to_collected_fork_data(repo)
+                collected_forks.append(fork_data)
+            
+            return collected_forks, validation_summary
+            
+        except Exception as e:
+            logger.error(f"Failed to collect fork data with validation: {e}")
+            # Return empty results with error information
+            from forklift.models.validation_handler import ValidationSummary
+            error_summary = ValidationSummary(
+                processed=0, 
+                skipped=1, 
+                errors=[{"repository": f"{owner}/{repo_name}", "error": str(e), "data": {}}]
+            )
+            return [], error_summary
+
+    def _convert_repository_to_collected_fork_data(self, repository):
+        """
+        Convert Repository object to CollectedForkData format for compatibility.
+        
+        Args:
+            repository: Repository object from graceful validation
+            
+        Returns:
+            CollectedForkData-like object for display compatibility
+        """
+        from forklift.analysis.fork_data_collection_engine import CollectedForkData
+        from forklift.models.fork_qualification import ForkQualificationMetrics
+        
+        # Create ForkQualificationMetrics from Repository data
+        metrics = ForkQualificationMetrics(
+            id=repository.id or 0,  # Use 0 as default if id is None
+            name=repository.name,
+            owner=repository.owner,
+            full_name=repository.full_name,
+            html_url=repository.html_url,
+            stargazers_count=repository.stars,
+            forks_count=repository.forks_count,
+            watchers_count=repository.watchers_count,
+            open_issues_count=repository.open_issues_count,
+            size=repository.size,
+            language=repository.language,
+            archived=repository.is_archived,
+            disabled=False,  # Not available in Repository model
+            fork=repository.is_fork,
+            created_at=repository.created_at,
+            updated_at=repository.updated_at,
+            pushed_at=repository.pushed_at,
+            # Optional fields
+            description=repository.description,
+            license_key=None,  # Not directly available in Repository model
+            license_name=repository.license_name,
+            homepage=None,  # Not available in Repository model
+            topics=[]  # Not available in Repository model
+        )
+        
+        return CollectedForkData(metrics=metrics)
+    
+    def _calculate_days_since_push(self, pushed_at):
+        """Calculate days since last push."""
+        if not pushed_at:
+            return float('inf')
+        
+        from datetime import datetime
+        now = datetime.utcnow()
+        if pushed_at.tzinfo:
+            pushed_at = pushed_at.replace(tzinfo=None)
+        
+        return (now - pushed_at).days
+    
+    def _can_skip_analysis(self, repository):
+        """Determine if repository can skip analysis based on timestamps."""
+        if not repository.created_at or not repository.pushed_at:
+            return True
+        
+        # Remove timezone info for comparison
+        created_at = repository.created_at.replace(tzinfo=None)
+        pushed_at = repository.pushed_at.replace(tzinfo=None)
+        
+        # If created_at >= pushed_at, fork has no new commits
+        return created_at >= pushed_at
+
+    async def show_forks_with_validation_summary(
+        self,
+        repo_url: str,
+        verbose: bool = False,
+        csv_export: bool = False
+    ) -> dict[str, Any]:
+        """
+        Display forks with validation error summary when issues occur.
+        
+        This method demonstrates the validation summary display functionality
+        by using the graceful validation approach and showing validation
+        summaries when validation errors are encountered.
+        
+        Args:
+            repo_url: Repository URL in format owner/repo or full GitHub URL
+            verbose: If True, show detailed validation error information
+            csv_export: If True, export data in CSV format instead of table format
+            
+        Returns:
+            Dictionary containing fork data and validation results
+            
+        Requirements: 1.4, 3.3, 3.4
+        """
+        owner, repo_name = self._parse_repository_url(repo_url)
+        
+        logger.info(f"Displaying forks with validation summary for {owner}/{repo_name}")
+        
+        try:
+            # Collect fork data with graceful validation
+            collected_forks, validation_summary = await self.collect_detailed_fork_data_with_validation(
+                repo_url
+            )
+            
+            # Display the main fork results (simplified display)
+            if collected_forks:
+                if not csv_export:
+                    self.console.print(f"\n[bold blue]Fork Analysis Results for {owner}/{repo_name}[/bold blue]")
+                    self.console.print(f"Successfully processed {len(collected_forks)} forks")
+                
+                # Create a simple table showing the forks
+                if not csv_export:
+                    fork_table = Table(title=f"Processed Forks ({len(collected_forks)} found)", expand=False)
+                    fork_table.add_column("Fork Name", style="cyan", min_width=25, no_wrap=True, overflow="fold")
+                    fork_table.add_column("Owner", style="blue", min_width=15, no_wrap=True, overflow="fold")
+                    fork_table.add_column("Stars", style="yellow", justify="right", width=8, no_wrap=True)
+                    fork_table.add_column("Last Activity", style="magenta", width=15, no_wrap=True)
+                    
+                    # Show first 10 forks as example
+                    for i, fork_data in enumerate(collected_forks[:10]):
+                        metrics = fork_data.metrics
+                        last_activity = self._format_datetime(metrics.pushed_at)
+                        
+                        fork_table.add_row(
+                            metrics.name,
+                            metrics.owner,
+                            str(metrics.stargazers_count),
+                            last_activity
+                        )
+                    
+                    self.console.print(fork_table)
+                    
+                    if len(collected_forks) > 10:
+                        self.console.print(f"[dim]... and {len(collected_forks) - 10} more forks[/dim]")
+                else:
+                    # CSV export mode - output to stdout
+                    print("fork_name,owner,stars,last_activity")
+                    for fork_data in collected_forks:
+                        metrics = fork_data.metrics
+                        last_activity = self._format_datetime(metrics.pushed_at)
+                        print(f"{metrics.name},{metrics.owner},{metrics.stargazers_count},{last_activity}")
+            else:
+                if not csv_export:
+                    self.console.print("[yellow]No forks were successfully processed.[/yellow]")
+            
+            # Display validation summary if there were issues
+            if validation_summary.has_errors():
+                self.display_validation_summary_with_context(
+                    validation_summary,
+                    "fork processing",
+                    verbose=verbose,
+                    csv_export=csv_export
+                )
+            
+            return {
+                "total_forks": validation_summary.processed + validation_summary.skipped,
+                "processed_forks": validation_summary.processed,
+                "skipped_forks": validation_summary.skipped,
+                "collected_forks": collected_forks,
+                "validation_summary": validation_summary.dict() if hasattr(validation_summary, 'dict') else {
+                    "processed": validation_summary.processed,
+                    "skipped": validation_summary.skipped,
+                    "errors": validation_summary.errors
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to display forks with validation summary: {e}")
+            if not csv_export:
+                self.console.print(f"[red]Error: Failed to display forks with validation summary: {e}[/red]")
+            raise
