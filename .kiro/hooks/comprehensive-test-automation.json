@@ -1,0 +1,159 @@
+{
+  "name": "Comprehensive Test Automation",
+  "description": "Runs comprehensive test suite including unit, integration, and contract tests based on changes",
+  "version": "1.0.0",
+  "trigger": {
+    "type": "multiple",
+    "conditions": [
+      {
+        "type": "file_change",
+        "patterns": ["src/**/*.py", "tests/**/*.py"]
+      },
+      {
+        "type": "branch_event",
+        "events": ["pre_merge", "pre_commit"]
+      },
+      {
+        "type": "manual_trigger",
+        "command": "run_comprehensive_tests"
+      }
+    ]
+  },
+  "conditions": {
+    "branch_patterns": ["main", "feature/*", "bugfix/*"],
+    "exclude_branches": ["experimental/*", "draft/*"]
+  },
+  "test_strategy": {
+    "parallel_execution": true,
+    "fail_fast": false,
+    "retry_flaky_tests": true,
+    "max_retries": 2
+  },
+  "actions": [
+    {
+      "name": "Unit Tests",
+      "command": "uv run pytest tests/unit/ -v --tb=short --maxfail=10",
+      "timeout": 300,
+      "required": true,
+      "on_failure": "continue",
+      "parallel": true,
+      "coverage": {
+        "enabled": true,
+        "min_coverage": 85,
+        "fail_under": true
+      }
+    },
+    {
+      "name": "Integration Tests",
+      "command": "uv run pytest tests/integration/ -v --tb=short -m 'not billable'",
+      "timeout": 600,
+      "required": true,
+      "on_failure": "continue",
+      "parallel": false,
+      "dependencies": ["Unit Tests"]
+    },
+    {
+      "name": "Contract Tests",
+      "command": "uv run pytest tests/contract/ -v --tb=short",
+      "timeout": 300,
+      "required": false,
+      "on_failure": "warn",
+      "parallel": true,
+      "conditions": ["external_api_changes"]
+    },
+    {
+      "name": "Online Tests (Free)",
+      "command": "uv run pytest tests/online/ -v --tb=short -m 'not billable'",
+      "timeout": 900,
+      "required": false,
+      "on_failure": "warn",
+      "parallel": false,
+      "conditions": ["main_branch", "pre_merge"],
+      "rate_limit": {
+        "enabled": true,
+        "max_per_hour": 10
+      }
+    },
+    {
+      "name": "Performance Tests",
+      "command": "uv run pytest tests/performance/ -v --tb=short",
+      "timeout": 600,
+      "required": false,
+      "on_failure": "warn",
+      "parallel": false,
+      "conditions": ["performance_critical_changes"]
+    },
+    {
+      "name": "Security Tests",
+      "command": "uv run pytest tests/security/ -v --tb=short",
+      "timeout": 300,
+      "required": false,
+      "on_failure": "warn",
+      "parallel": true,
+      "conditions": ["security_sensitive_changes"]
+    }
+  ],
+  "reporting": {
+    "generate_html_report": true,
+    "generate_junit_xml": true,
+    "output_directory": "test_reports/",
+    "include_coverage_report": true,
+    "include_performance_metrics": true
+  },
+  "notifications": {
+    "on_success": {
+      "message": "Comprehensive test suite passed! All systems go! 🚀",
+      "include_summary": true,
+      "include_coverage": true,
+      "include_performance": true
+    },
+    "on_failure": {
+      "message": "Test failures detected in comprehensive suite. Review required. 🔍",
+      "include_logs": true,
+      "include_failed_tests": true,
+      "include_suggestions": true
+    },
+    "on_partial_success": {
+      "message": "Core tests passed, some optional tests failed. Review recommended. ⚠️",
+      "include_summary": true,
+      "include_warnings": true
+    }
+  },
+  "ai_assistance": {
+    "enabled": true,
+    "tasks": [
+      {
+        "name": "Analyze Test Failures",
+        "prompt": "Analyze test failures and suggest fixes",
+        "trigger": "on_failure",
+        "apply_automatically": false
+      },
+      {
+        "name": "Generate Missing Tests",
+        "prompt": "Identify untested code paths and generate test cases",
+        "trigger": "low_coverage",
+        "apply_automatically": false
+      },
+      {
+        "name": "Optimize Test Performance",
+        "prompt": "Suggest optimizations for slow-running tests",
+        "trigger": "slow_tests",
+        "apply_automatically": false
+      }
+    ]
+  },
+  "cleanup": {
+    "enabled": true,
+    "actions": [
+      "remove_temp_files",
+      "cleanup_test_databases",
+      "reset_test_environment"
+    ]
+  },
+  "metadata": {
+    "created_by": "Kiro Agent Hook System",
+    "created_date": "2024-01-15",
+    "last_modified": "2024-01-15",
+    "tags": ["testing", "automation", "comprehensive", "quality-assurance"]
+  }
+}

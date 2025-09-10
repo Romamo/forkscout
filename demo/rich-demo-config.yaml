@@ -1,0 +1,32 @@
+github:
+  token: ${GITHUB_TOKEN}
+  
+analysis:
+  max_forks_to_analyze: 10      # Optimized for demo performance
+  min_score_threshold: 60.0     # Show good quality features
+  excluded_file_patterns:
+    - "*.md"
+    - "*.txt"
+    - ".github/*"
+    - "docs/*"
+
+commit_count:
+  max_count_limit: 30           # Faster commit counting
+  display_limit: 3              # Clean display for video
+  use_unlimited_counting: false
+  timeout_seconds: 10           # Prevent demo delays
+
+display:
+  terminal_width: 120           # Optimal for screen recording
+  max_commits_to_show: 5        # Clear, focused output
+  
+cache:
+  duration_hours: 24            # Ensure consistent demo results
+  max_size_mb: 100
+
+scoring:
+  code_quality_weight: 0.3
+  community_engagement_weight: 0.2
+  test_coverage_weight: 0.2
+  documentation_weight: 0.15
+  recency_weight: 0.15

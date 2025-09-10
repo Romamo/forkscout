@@ -1,0 +1,120 @@
+{
+  "name": "Spec Validation and Consistency Checking",
+  "description": "Validates spec files for consistency, completeness, and adherence to standards",
+  "version": "1.0.0",
+  "trigger": {
+    "type": "file_change",
+    "patterns": [
+      ".kiro/specs/**/*.md",
+      ".kiro/steering/**/*.md"
+    ],
+    "exclude_patterns": [
+      "**/.DS_Store",
+      "**/temp_*"
+    ]
+  },
+  "conditions": {
+    "branch_patterns": ["*"],
+    "change_types": ["added", "modified"]
+  },
+  "actions": [
+    {
+      "name": "Validate Spec Structure",
+      "command": "python scripts/validate_spec_structure.py",
+      "timeout": 120,
+      "required": true,
+      "on_failure": "stop",
+      "validation_rules": [
+        "requirements.md exists",
+        "design.md exists", 
+        "tasks.md exists",
+        "proper markdown formatting",
+        "requirement numbering consistency"
+      ]
+    },
+    {
+      "name": "Check Task References",
+      "command": "python scripts/validate_task_references.py",
+      "timeout": 90,
+      "required": true,
+      "on_failure": "continue",
+      "validation_rules": [
+        "all tasks reference requirements",
+        "no orphaned requirements",
+        "task numbering is sequential",
+        "task status format is correct"
+      ]
+    },
+    {
+      "name": "Validate Steering Rules",
+      "command": "python scripts/validate_steering_rules.py",
+      "timeout": 60,
+      "required": false,
+      "on_failure": "warn",
+      "validation_rules": [
+        "steering files follow template",
+        "no conflicting rules",
+        "proper markdown structure",
+        "examples are valid"
+      ]
+    },
+    {
+      "name": "Check Cross-References",
+      "command": "python scripts/check_spec_cross_references.py",
+      "timeout": 120,
+      "required": false,
+      "on_failure": "warn",
+      "validation_rules": [
+        "file references exist",
+        "requirement links are valid",
+        "no broken internal links"
+      ]
+    }
+  ],
+  "ai_assistance": {
+    "enabled": true,
+    "tasks": [
+      {
+        "name": "Improve Spec Clarity",
+        "prompt": "Review spec for clarity and completeness, suggest improvements",
+        "apply_automatically": false,
+        "require_review": true
+      },
+      {
+        "name": "Generate Missing Sections",
+        "prompt": "Generate missing sections based on spec template",
+        "apply_automatically": false,
+        "require_review": true
+      },
+      {
+        "name": "Validate Requirements Format",
+        "prompt": "Ensure requirements follow EARS format and are testable",
+        "apply_automatically": false,
+        "require_review": true
+      }
+    ]
+  },
+  "notifications": {
+    "on_success": {
+      "message": "Spec validation passed! All specs are consistent and complete. ✅",
+      "include_summary": true
+    },
+    "on_failure": {
+      "message": "Spec validation issues found. Please review and fix. 📋",
+      "include_logs": true,
+      "include_validation_report": true
+    }
+  },
+  "reports": {
+    "generate_on_completion": true,
+    "output_path": "reports/spec_validation_report.md",
+    "include_metrics": true,
+    "include_recommendations": true
+  },
+  "metadata": {
+    "created_by": "Kiro Agent Hook System",
+    "created_date": "2024-01-15",
+    "last_modified": "2024-01-15",
+    "tags": ["spec-validation", "consistency", "quality-assurance"]
+  }
+}

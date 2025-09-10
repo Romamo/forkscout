@@ -165,13 +165,27 @@ cython_debug/
 # VS Code
 .vscode/
 
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # Forkscout specific
 *.db
 *.sqlite
+*.log
 cache/
 reports/
 logs/
 .forkscout/
+forklift_cache.db
+forkscout_cache.db
+forklift.log
+forkscout.log
 
 # Development artifacts (temporary files, test outputs, etc.)
 dev-artifacts/
@@ -180,6 +194,14 @@ dev-artifacts/
 forkscout.yaml
 forkscout.example.*
 .forkscout_session.json.backup
+
+# Generated reports and analysis files
+report.md
+*_analysis.json
+*_analysis.md
+*_validation_results.json
+*_summary.md
+*_report.md
 
 # Important: DO NOT ignore .kiro directory - it contains specs and steering
 # !.kiro/

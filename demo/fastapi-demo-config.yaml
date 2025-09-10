@@ -1,0 +1,32 @@
+github:
+  token: ${GITHUB_TOKEN}
+  
+analysis:
+  max_forks_to_analyze: 20      # Comprehensive but manageable
+  min_score_threshold: 65.0     # Slightly lower threshold for more examples
+  excluded_file_patterns:
+    - "*.md"
+    - "*.txt"
+    - ".github/*"
+    - "docs/*"
+
+commit_count:
+  max_count_limit: 30           # Fast execution
+  display_limit: 3
+  use_unlimited_counting: false
+  timeout_seconds: 10
+  
+display:
+  terminal_width: 120
+  max_commits_to_show: 4        # Focused output
+  
+cache:
+  duration_hours: 24
+  max_size_mb: 100
+
+scoring:
+  code_quality_weight: 0.3
+  community_engagement_weight: 0.2
+  test_coverage_weight: 0.2
+  documentation_weight: 0.15
+  recency_weight: 0.15

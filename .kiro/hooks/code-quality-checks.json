@@ -1,0 +1,83 @@
+{
+  "name": "Code Quality Checks and Formatting",
+  "description": "Automatically runs linting, formatting, and type checking on code changes",
+  "version": "1.0.0",
+  "trigger": {
+    "type": "file_change",
+    "patterns": [
+      "src/**/*.py",
+      "tests/**/*.py",
+      "scripts/**/*.py"
+    ],
+    "exclude_patterns": [
+      "**/__pycache__/**",
+      "**/*.pyc",
+      ".mypy_cache/**",
+      "**/.DS_Store"
+    ]
+  },
+  "conditions": {
+    "branch_patterns": ["*"],
+    "min_file_changes": 1
+  },
+  "actions": [
+    {
+      "name": "Format Code with Black",
+      "command": "uv run black --check src/ tests/ scripts/",
+      "timeout": 120,
+      "required": true,
+      "on_failure": "continue",
+      "auto_fix": {
+        "enabled": true,
+        "command": "uv run black src/ tests/ scripts/"
+      }
+    },
+    {
+      "name": "Lint with Ruff",
+      "command": "uv run ruff check src/ tests/ scripts/",
+      "timeout": 120,
+      "required": true,
+      "on_failure": "continue",
+      "auto_fix": {
+        "enabled": true,
+        "command": "uv run ruff check --fix src/ tests/ scripts/"
+      }
+    },
+    {
+      "name": "Type Check with MyPy",
+      "command": "uv run mypy src/",
+      "timeout": 180,
+      "required": false,
+      "on_failure": "warn"
+    },
+    {
+      "name": "Security Check with Bandit",
+      "command": "uv run bandit -r src/ -f json",
+      "timeout": 120,
+      "required": false,
+      "on_failure": "warn"
+    }
+  ],
+  "notifications": {
+    "on_success": {
+      "message": "Code quality checks passed! 🎉",
+      "include_summary": true
+    },
+    "on_failure": {
+      "message": "Code quality issues detected. Auto-fixes applied where possible. 🔧",
+      "include_logs": true,
+      "suggest_fixes": true
+    }
+  },
+  "auto_commit": {
+    "enabled": true,
+    "message": "style: auto-fix code quality issues",
+    "conditions": ["auto_fix_applied", "no_test_failures"]
+  },
+  "metadata": {
+    "created_by": "Kiro Agent Hook System",
+    "created_date": "2024-01-15",
+    "last_modified": "2024-01-15",
+    "tags": ["code-quality", "linting", "formatting", "automation"]
+  }
+}

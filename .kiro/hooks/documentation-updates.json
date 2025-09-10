@@ -1,0 +1,108 @@
+{
+  "name": "Documentation Updates on Feature Changes",
+  "description": "Automatically updates documentation when new features are added or modified",
+  "version": "1.0.0",
+  "trigger": {
+    "type": "file_change",
+    "patterns": [
+      "src/**/*.py",
+      ".kiro/specs/**/*.md"
+    ],
+    "exclude_patterns": [
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "tests/**/*.py"
+    ]
+  },
+  "conditions": {
+    "branch_patterns": ["feature/*", "main"],
+    "change_types": ["added", "modified"],
+    "min_significance": "medium"
+  },
+  "actions": [
+    {
+      "name": "Update API Documentation",
+      "command": "python scripts/generate_api_docs.py",
+      "timeout": 180,
+      "required": false,
+      "on_failure": "warn",
+      "conditions": ["src/forkscout/api/**/*.py changed"]
+    },
+    {
+      "name": "Update CLI Documentation",
+      "command": "python scripts/generate_cli_docs.py",
+      "timeout": 120,
+      "required": false,
+      "on_failure": "warn",
+      "conditions": ["src/forkscout/cli/**/*.py changed"]
+    },
+    {
+      "name": "Update README Examples",
+      "command": "python scripts/update_readme_examples.py",
+      "timeout": 120,
+      "required": false,
+      "on_failure": "warn",
+      "conditions": ["new public methods added"]
+    },
+    {
+      "name": "Generate Spec Documentation",
+      "command": "python scripts/generate_spec_docs.py",
+      "timeout": 180,
+      "required": false,
+      "on_failure": "warn",
+      "conditions": [".kiro/specs/**/*.md changed"]
+    },
+    {
+      "name": "Update Changelog",
+      "command": "python scripts/update_changelog.py",
+      "timeout": 60,
+      "required": false,
+      "on_failure": "warn",
+      "conditions": ["feature branch", "significant changes"]
+    }
+  ],
+  "ai_assistance": {
+    "enabled": true,
+    "tasks": [
+      {
+        "name": "Generate Docstrings",
+        "prompt": "Generate comprehensive docstrings for new functions and classes",
+        "apply_automatically": true
+      },
+      {
+        "name": "Update Feature Documentation",
+        "prompt": "Update documentation to reflect new features and changes",
+        "apply_automatically": false,
+        "require_review": true
+      },
+      {
+        "name": "Generate Usage Examples",
+        "prompt": "Create practical usage examples for new functionality",
+        "apply_automatically": false,
+        "require_review": true
+      }
+    ]
+  },
+  "notifications": {
+    "on_success": {
+      "message": "Documentation updated successfully! 📚",
+      "include_summary": true,
+      "include_changes": true
+    },
+    "on_failure": {
+      "message": "Documentation update issues detected. Manual review needed. 📝",
+      "include_logs": true
+    }
+  },
+  "auto_commit": {
+    "enabled": true,
+    "message": "docs: auto-update documentation for feature changes",
+    "conditions": ["documentation_generated", "no_conflicts"]
+  },
+  "metadata": {
+    "created_by": "Kiro Agent Hook System",
+    "created_date": "2024-01-15",
+    "last_modified": "2024-01-15",
+    "tags": ["documentation", "automation", "ai-assistance"]
+  }
+}
