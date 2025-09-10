@@ -56,7 +56,7 @@ This feature addresses the challenges of analyzing very large repositories (>200
 
 #### Acceptance Criteria
 
-1. WHEN running forklift THEN the system SHALL accept command-line options to configure circuit breaker thresholds, batch sizes, and retry counts
+1. WHEN running forkscout THEN the system SHALL accept command-line options to configure circuit breaker thresholds, batch sizes, and retry counts
 2. WHEN processing repositories of different sizes THEN the system SHALL automatically adjust default parameters based on the number of forks detected
 3. WHEN network conditions are poor THEN users SHALL be able to increase timeout values and retry counts through configuration
 4. WHEN debugging issues THEN the system SHALL provide verbose logging options that show circuit breaker state changes and retry attempts

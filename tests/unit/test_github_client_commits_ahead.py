@@ -5,10 +5,10 @@ import respx
 import httpx
 from datetime import datetime
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import GitHubAPIError
-from forklift.models.github import RecentCommit
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import GitHubAPIError
+from forkscout.models.github import RecentCommit
 
 
 class TestGitHubClientCommitsAhead:
@@ -655,7 +655,7 @@ class TestGitHubClientCommitsAhead:
     async def test_cache_cleared_on_close(self, client):
         """Test that cache is cleared when client is closed."""
         # Manually add something to cache
-        from forklift.models.github import Repository
+        from forkscout.models.github import Repository
         
         repo_data = {
             "id": 1,

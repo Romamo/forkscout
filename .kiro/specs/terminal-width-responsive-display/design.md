@@ -248,8 +248,8 @@ class DisplayConfig:
 ### Environment Variables
 ```bash
 # Potential environment overrides
-FORKLIFT_MAX_COLUMN_WIDTH=1000
-FORKLIFT_FORCE_TERMINAL_WIDTH=120
+FORKSCOUT_MAX_COLUMN_WIDTH=1000
+FORKSCOUT_FORCE_TERMINAL_WIDTH=120
 ```
 
 ## Migration Strategy

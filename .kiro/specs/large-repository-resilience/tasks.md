@@ -122,9 +122,9 @@ This implementation plan focuses on enhancing the existing circuit breaker and r
 
 ### Integration Points
 
-1. **CircuitBreaker Class**: Enhance existing class in `src/forklift/github/rate_limiter.py`
-2. **GitHubClient Class**: Modify constructor in `src/forklift/github/client.py` to accept enhanced circuit breaker
-3. **CLI Commands**: Update `src/forklift/cli.py` to add resilience options and use repository-size-aware client creation
+1. **CircuitBreaker Class**: Enhance existing class in `src/forkscout/github/rate_limiter.py`
+2. **GitHubClient Class**: Modify constructor in `src/forkscout/github/client.py` to accept enhanced circuit breaker
+3. **CLI Commands**: Update `src/forkscout/cli.py` to add resilience options and use repository-size-aware client creation
 4. **Existing Rate Limiting**: Preserve all existing `RateLimitHandler` functionality unchanged
 
 ### Testing Strategy

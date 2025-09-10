@@ -15,8 +15,8 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from forklift.analysis.optimization_recommender import OptimizationRecommender
-from forklift.analysis.optimization_report_generator import OptimizationReportGenerator
+from forkscout.analysis.optimization_recommender import OptimizationRecommender
+from forkscout.analysis.optimization_report_generator import OptimizationReportGenerator
 
 
 def setup_logging(verbose: bool = False) -> None:

@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from forklift.exceptions import ForkliftOutputError, ForkliftUnicodeError
+from forkscout.exceptions import ForkscoutOutputError, ForkscoutUnicodeError
 
 
 class TestValidateForkDataStructure:
@@ -343,7 +343,7 @@ class TestExportForksCSV:
         mock_display_service.show_fork_data.side_effect = UnicodeError("Unicode test error")
         
         # Execute and verify exception
-        with pytest.raises(ForkliftUnicodeError) as exc_info:
+        with pytest.raises(ForkscoutUnicodeError) as exc_info:
             await _export_forks_csv(
                 mock_display_service,
                 "owner/repo",
@@ -365,7 +365,7 @@ class TestExportForksCSV:
         mock_display_service.show_fork_data.side_effect = Exception("General test error")
         
         # Execute and verify exception
-        with pytest.raises(ForkliftOutputError) as exc_info:
+        with pytest.raises(ForkscoutOutputError) as exc_info:
             await _export_forks_csv(
                 mock_display_service,
                 "owner/repo",

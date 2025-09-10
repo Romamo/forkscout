@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from forklift.ai.client import OpenAIClient, OpenAIResponse
-from forklift.ai.summary_engine import AICommitSummaryEngine
-from forklift.models.ai_summary import AISummaryConfig, AIUsageTracker
-from forklift.models.github import Commit, Repository, User
+from forkscout.ai.client import OpenAIClient, OpenAIResponse
+from forkscout.ai.summary_engine import AICommitSummaryEngine
+from forkscout.models.ai_summary import AISummaryConfig, AIUsageTracker
+from forkscout.models.github import Commit, Repository, User
 
 
 @pytest.fixture

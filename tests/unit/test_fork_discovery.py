@@ -5,18 +5,18 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.analysis.fork_discovery import ForkDiscoveryError, ForkDiscoveryService
-from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
-from forklift.github.fork_list_processor import ForkListProcessor
-from forklift.models.analysis import ForkMetrics
-from forklift.models.fork_qualification import (
+from forkscout.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+from forkscout.analysis.fork_discovery import ForkDiscoveryError, ForkDiscoveryService
+from forkscout.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
+from forkscout.github.fork_list_processor import ForkListProcessor
+from forkscout.models.analysis import ForkMetrics
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
     QualifiedForksResult,
 )
-from forklift.models.github import Commit, Fork, Repository, User
+from forkscout.models.github import Commit, Fork, Repository, User
 
 
 @pytest.fixture
@@ -1705,7 +1705,7 @@ class TestForkDiscoveryServiceEdgeCases:
         """Test the _has_no_commits_ahead method with different timestamp scenarios."""
         from datetime import datetime
 
-        from forklift.models.github import Fork, Repository, User
+        from forkscout.models.github import Fork, Repository, User
 
         # Helper to create test fork
         def create_test_fork(full_name, created_at, pushed_at):

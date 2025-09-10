@@ -7,11 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rich.console import Console
 
-from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.github.fork_list_processor import ForkListProcessor
-from forklift.models.github import RecentCommit, Repository
+from forkscout.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.github.fork_list_processor import ForkListProcessor
+from forkscout.models.github import RecentCommit, Repository
 
 
 class TestShowForksCommitsOptimizationIntegration:

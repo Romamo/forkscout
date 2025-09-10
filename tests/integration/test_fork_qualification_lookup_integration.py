@@ -4,22 +4,22 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
-from forklift.analysis.fork_qualification_lookup import ForkQualificationLookup
-from forklift.config.settings import ForkliftConfig
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import (
+from forkscout.analysis.fork_qualification_lookup import ForkQualificationLookup
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import (
     QualifiedForksResult,
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
 )
-from forklift.storage.analysis_cache import AnalysisCacheManager
+from forkscout.storage.analysis_cache import AnalysisCacheManager
 
 
 @pytest.fixture
 async def github_client():
     """Create a real GitHub client for testing."""
-    config = ForkliftConfig()
+    config = ForkscoutConfig()
     if not config.github.token:
         pytest.skip("GitHub token not configured")
     

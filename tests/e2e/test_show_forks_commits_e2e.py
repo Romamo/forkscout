@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from click.testing import CliRunner
 from datetime import datetime, timezone
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig
-from forklift.models.github import Repository, Commit, User
-from forklift.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.github import Repository, Commit, User
+from forkscout.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics
 
 
 class TestShowForksCommitsE2E:
@@ -17,7 +17,7 @@ class TestShowForksCommitsE2E:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github.token = "test_token"
         config.github.rate_limit_delay = 0.1
         return config

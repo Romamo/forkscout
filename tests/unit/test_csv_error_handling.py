@@ -8,9 +8,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
-from forklift.models.github import Commit, Fork, Repository, User
-from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+from forkscout.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
+from forkscout.models.github import Commit, Fork, Repository, User
+from forkscout.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVErrorHandling:

@@ -11,11 +11,11 @@ from datetime import datetime
 
 # Imports are now handled by proper test structure
 
-from forklift.github.client import GitHubClient
-from forklift.config import GitHubConfig
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.commit_count_config import CommitCountConfig
+from forkscout.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.commit_count_config import CommitCountConfig
 from rich.console import Console
 
 

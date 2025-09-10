@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.cli import _export_forks_csv, _show_forks_summary
-from forklift.config.settings import ForkliftConfig
-from forklift.display.interaction_mode import InteractionMode
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
+from forkscout.cli import _export_forks_csv, _show_forks_summary
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.display.interaction_mode import InteractionMode
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
 
 
 class TestCSVExportIntegration:
@@ -25,7 +25,7 @@ class TestCSVExportIntegration:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github = MagicMock()
         config.github.token = "test_token"
         return config
@@ -35,7 +35,7 @@ class TestCSVExportIntegration:
         """Create sample fork data for testing."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -365,7 +365,7 @@ class TestCSVExportIntegration:
         """Test CSV export with --show-commits flag integration."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -421,7 +421,7 @@ class TestCSVExportIntegration:
         with patch("sys.stdout", captured_output):
             with patch.object(display_service, "_fetch_raw_commits_for_csv") as mock_fetch_raw_commits:
                 # Mock RecentCommit objects for CSV export
-                from forklift.models.github import RecentCommit
+                from forkscout.models.github import RecentCommit
                 from datetime import datetime, UTC
                 
                 mock_recent_commits = [
@@ -479,7 +479,7 @@ class TestCSVExportIntegration:
         """Test CSV export optimization skips forks with no commits ahead."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -557,7 +557,7 @@ class TestCSVExportIntegration:
         """Test that CSV export maintains the same fork sorting as table display."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )

@@ -7,9 +7,9 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import GitHubRateLimitError, GitHubAuthenticationError
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import GitHubRateLimitError, GitHubAuthenticationError
 
 
 class TestEnhancedRateLimitDetection:
@@ -175,7 +175,7 @@ class TestEnhancedRateLimitDetection:
             self.client._client = mock_client
             
             # Should raise GitHubAPIError (not GitHubRateLimitError) for 403 without rate limit indicators
-            from forklift.github.exceptions import GitHubAPIError
+            from forkscout.github.exceptions import GitHubAPIError
             with pytest.raises(GitHubAPIError) as exc_info:
                 await self.client._request("GET", "/test")
             

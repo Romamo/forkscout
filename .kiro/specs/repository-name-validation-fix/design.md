@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design addresses the repository name validation issue that causes the `forklift show-forks` command to fail when encountering GitHub repository names with consecutive periods. The solution involves updating the validation logic to be more permissive while maintaining data integrity, implementing graceful error handling, and ensuring robust processing of fork data.
+This design addresses the repository name validation issue that causes the `forkscout show-forks` command to fail when encountering GitHub repository names with consecutive periods. The solution involves updating the validation logic to be more permissive while maintaining data integrity, implementing graceful error handling, and ensuring robust processing of fork data.
 
 ## Architecture
 
@@ -31,7 +31,7 @@ The design follows a **graceful degradation** strategy:
 
 ### 1. Updated Repository Model Validation
 
-**File**: `src/forklift/models/github.py`
+**File**: `src/forkscout/models/github.py`
 
 ```python
 @field_validator("owner", "name")
@@ -56,7 +56,7 @@ def validate_github_name(cls, v: str) -> str:
 
 ### 2. Graceful Error Handling Service
 
-**New Component**: `src/forklift/models/validation_handler.py`
+**New Component**: `src/forkscout/models/validation_handler.py`
 
 ```python
 class ValidationHandler:
@@ -91,7 +91,7 @@ class ValidationHandler:
 
 ### 3. Updated Fork Data Collection
 
-**File**: `src/forklift/analysis/fork_data_collection_engine.py`
+**File**: `src/forkscout/analysis/fork_data_collection_engine.py`
 
 The fork data collection engine needs to be updated to use the graceful validation handler:
 
@@ -119,7 +119,7 @@ async def collect_fork_data(self, forks: List[dict]) -> Tuple[List[Repository], 
 
 ### 4. Enhanced Display Service
 
-**File**: `src/forklift/display/repository_display_service.py`
+**File**: `src/forkscout/display/repository_display_service.py`
 
 Update the display service to show validation summary:
 
@@ -331,4 +331,4 @@ If the changes cause issues:
 2. Add specific exception for the problematic repository name pattern
 3. Implement temporary workaround while investigating root cause
 
-This design ensures that the `forklift show-forks` command will be robust against edge-case repository names while providing users with clear information about any data processing issues encountered.
+This design ensures that the `forkscout show-forks` command will be robust against edge-case repository names while providing users with clear information about any data processing issues encountered.

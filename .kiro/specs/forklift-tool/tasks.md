@@ -9,7 +9,7 @@
 - Task 6.1 enhanced to integrate with all detection and AI systems
 
 - [x] 1. Set up project structure and core dependencies
-  - Create directory structure with src/forklift package layout
+  - Create directory structure with src/forkscout package layout
   - Initialize pyproject.toml with uv package manager configuration
   - Add essential dependencies: httpx (GitHub API), click (CLI), pydantic (data models)
   - Add development dependencies: pytest, black, ruff
@@ -24,7 +24,7 @@
   - _Requirements: 1.1, 1.2, 2.1_
 
 - [x] 2.2 Implement configuration management system
-  - Create ForkliftConfig and ScoringConfig classes with Pydantic
+  - Create ForkscoutConfig and ScoringConfig classes with Pydantic
   - Add support for YAML/JSON configuration file loading
   - Implement environment variable override functionality
   - Write tests for configuration loading and validation
@@ -400,7 +400,7 @@
 - [ ] 8.9.4 Add explanation configuration support
   - Create ExplanationConfig model with settings for explanation behavior
   - Add configuration options for explanation length, confidence thresholds, and template styles
-  - Integrate explanation config into main ForkliftConfig
+  - Integrate explanation config into main ForkscoutConfig
   - Write unit tests for configuration loading and validation
   - _Requirements: 8.1, 8.9_
 
@@ -563,7 +563,7 @@
   - _Requirements: 14.3, 14.9_
 
 - [ ] 13.7 Add pagination configuration and limits
-  - Integrate PaginationConfig into main ForkliftConfig system
+  - Integrate PaginationConfig into main ForkscoutConfig system
   - Add CLI options for max_forks, max_commits, and max_branches limits
   - Implement configurable batch sizes and concurrent request limits
   - Create pagination performance tuning options for different repository sizes
@@ -690,19 +690,19 @@
 - [ ] 16. Replace custom cache system with Hishel HTTP caching (HIGH PRIORITY)
 - [ ] 16.1 Remove custom cache system and add Hishel dependency
   - Add hishel dependency to pyproject.toml for HTTP caching
-  - Remove custom cache models (CacheConfig, CacheEntry, CacheStats, CacheKey) from src/forklift/models/cache.py
-  - Remove custom cache management code (CacheManager, CacheWarmingConfig, CacheCleanupConfig, etc.) from src/forklift/storage/cache_manager.py
-  - Remove custom SQLite cache implementation from src/forklift/storage/cache.py
-  - Remove cache validation utilities from src/forklift/storage/cache_validation.py
-  - Remove analysis cache manager from src/forklift/storage/analysis_cache.py
-  - Remove entire src/forklift/storage/ directory as it will no longer be needed
+  - Remove custom cache models (CacheConfig, CacheEntry, CacheStats, CacheKey) from src/forkscout/models/cache.py
+  - Remove custom cache management code (CacheManager, CacheWarmingConfig, CacheCleanupConfig, etc.) from src/forkscout/storage/cache_manager.py
+  - Remove custom SQLite cache implementation from src/forkscout/storage/cache.py
+  - Remove cache validation utilities from src/forkscout/storage/cache_validation.py
+  - Remove analysis cache manager from src/forkscout/storage/analysis_cache.py
+  - Remove entire src/forkscout/storage/ directory as it will no longer be needed
   - Update imports throughout codebase to remove cache dependencies
   - Remove cache-related tests from tests/unit/test_cache*.py files
   - Write migration notes documenting the simplification (~850 lines of code removed)
   - _Requirements: 21.1, 21.8_
 
 - [ ] 16.2 Integrate Hishel with GitHub client
-  - Update GitHubClient in src/forklift/github/client.py to use Hishel-wrapped httpx client for automatic HTTP caching
+  - Update GitHubClient in src/forkscout/github/client.py to use Hishel-wrapped httpx client for automatic HTTP caching
   - Configure Hishel with SQLite storage backend and appropriate cache settings
   - Set default TTL of 30 minutes for GitHub API responses
   - Remove all custom cache integration code from GitHub client
@@ -768,17 +768,17 @@
   - _Requirements: 21.4, 21.12_
 
 - [ ] 16.4 Simplify cache configuration and remove custom config
-  - Remove complex CacheConfig from src/forklift/models/cache.py and replace with simple Hishel configuration
-  - Update ForkliftConfig in src/forklift/config/settings.py to use minimal cache settings for Hishel
+  - Remove complex CacheConfig from src/forkscout/models/cache.py and replace with simple Hishel configuration
+  - Update ForkscoutConfig in src/forkscout/config/settings.py to use minimal cache settings for Hishel
   - Remove cache warming, cleanup, and monitoring configuration classes
   - Add basic cache location and size limit configuration for Hishel
   - Write unit tests for simplified cache configuration
   - _Requirements: 21.5, 21.10, 21.11_
 
 - [ ] 16.5 Update all service classes to remove custom cache dependencies
-  - Remove CacheManager and AnalysisCacheManager dependencies from RepositoryDisplayService in src/forklift/display/repository_display_service.py
+  - Remove CacheManager and AnalysisCacheManager dependencies from RepositoryDisplayService in src/forkscout/display/repository_display_service.py
   - Remove cache_manager parameters from service constructors
-  - Update CLI commands in src/forklift/cli.py to remove custom cache initialization code
+  - Update CLI commands in src/forkscout/cli.py to remove custom cache initialization code
   - Ensure all services use the simplified Hishel-enabled GitHub client
   - Remove cache management complexity from service constructors
   - Write integration tests for simplified service initialization
@@ -862,7 +862,7 @@
 
 - [-] 19. Fix show-forks command to use pagination-only requests (CRITICAL)
 - [ ] 19.1 Update CLI to use pagination-only fork data collection
-  - Change _show_forks_summary function in src/forklift/cli.py to call show_fork_data instead of show_forks_summary
+  - Change _show_forks_summary function in src/forkscout/cli.py to call show_fork_data instead of show_forks_summary
   - Remove the old show_forks_summary method from RepositoryDisplayService that makes expensive API calls
   - Ensure show-forks command uses only `/repos/{owner}/{repo}/forks?per_page=100&page=N` endpoint
   - Test that no individual repository API calls or comparison API calls are made
@@ -980,9 +980,9 @@
   - _Requirements: 18.6, 18.9, 18.12_
 
 - [ ] 17.6 Update all CLI commands and display services with formatting compatibility
-  - Update src/forklift/cli.py to use new ConsoleOutput abstraction
-  - Modify src/forklift/display/repository_display_service.py for formatting compatibility
-  - Update explanation formatting in src/forklift/pr/explanation_formatter.py
+  - Update src/forkscout/cli.py to use new ConsoleOutput abstraction
+  - Modify src/forkscout/display/repository_display_service.py for formatting compatibility
+  - Update explanation formatting in src/forkscout/pr/explanation_formatter.py
   - Ensure all show_commit_summary.py and other scripts support plain text mode
   - Write integration tests for all CLI commands with --plain-text flag
   - _Requirements: 18.2, 18.3, 18.4, 18.11_
@@ -1040,7 +1040,7 @@
 - [x] 16.1 Create core AI summary data models and configuration
   - Implement AISummary Pydantic model with structured summary fields (what_changed, why_changed, potential_side_effects)
   - Create AISummaryConfig model with OpenAI API settings, token limits, and cost tracking options
-  - Add openai_api_key field to ForkliftConfig with optional validation
+  - Add openai_api_key field to ForkscoutConfig with optional validation
   - Update CommitDetails model to include optional ai_summary field
   - Write unit tests for all new data models including validation and serialization
   - _Requirements: 17.3, 17.5, 17.9, 17.13_
@@ -1113,7 +1113,7 @@
   - Update CLI help documentation to include --ai-summary flag and usage examples
   - Create comprehensive README section explaining AI summary functionality and costs
   - Add troubleshooting guide for common AI summary issues and API errors
-  - Implement final integration testing with existing forklift commands and workflows
+  - Implement final integration testing with existing forkscout commands and workflows
   - Write performance benchmarks and cost analysis for AI summary usage
   - _Requirements: 17.1, 17.11, 17.13, 17.15_
 -
@@ -1146,7 +1146,7 @@
   - Add --no-color and --plain-text CLI flags to force simple formatting
   - Implement automatic terminal capability detection for fallback to plain text
   - Create configuration options for default formatting mode
-  - Add environment variable support for FORKLIFT_PLAIN_TEXT mode
+  - Add environment variable support for FORKSCOUT_PLAIN_TEXT mode
   - Write unit tests for plain text mode activation and detection
   - _Requirements: 18.5, 18.6, 18.11_
 
@@ -1221,7 +1221,7 @@
 
 - [ ] 19. Implement show-forks --detail functionality with commits ahead API calls
 - [x] 19.1 Add --detail flag to show-forks CLI command
-  - Add --detail click option to show-forks command in src/forklift/cli.py
+  - Add --detail click option to show-forks command in src/forkscout/cli.py
   - Update _show_forks_summary function to accept and pass detail parameter
   - Modify command help text to document --detail flag functionality
   - Add parameter validation and error handling for detail mode
@@ -1686,7 +1686,7 @@
 
 - [ ] 27. Implement CSV export functionality for show-forks command
 - [x] 27.1 Add --csv flag to show-forks CLI command
-  - Add --csv click option to existing show-forks command in src/forklift/cli.py
+  - Add --csv click option to existing show-forks command in src/forkscout/cli.py
   - Update command function signature to accept csv_export parameter
   - Modify command help text to document --csv flag functionality and usage examples
   - Add CSV export mode detection early in command processing
@@ -1695,7 +1695,7 @@
   - _Requirements: 26.1, 26.10_
 
 - [x] 27.2 Create CSV export data models and core functionality
-  - Implement CSVExporter class in new src/forklift/reporting/csv_exporter.py module
+  - Implement CSVExporter class in new src/forkscout/reporting/csv_exporter.py module
   - Create CSVExportConfig dataclass for export configuration (include_commits, detail_mode, etc.)
   - Add generate_headers method that creates appropriate CSV headers based on configuration
   - Implement format_row method with proper CSV escaping for special characters

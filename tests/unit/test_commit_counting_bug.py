@@ -5,8 +5,8 @@ import respx
 import httpx
 from unittest.mock import AsyncMock, patch
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
 
 
 class TestCommitCountingBug:

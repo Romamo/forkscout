@@ -4,9 +4,9 @@ import pytest
 from click.testing import CliRunner
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig
-from forklift.display.interaction_mode import InteractionMode
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.display.interaction_mode import InteractionMode
 
 
 class TestCLICSVExport:

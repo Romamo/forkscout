@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.models.analysis import ForkAnalysis, RankedFeature
-from forklift.models.github import Commit, Fork, Repository, User
-from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+from forkscout.models.analysis import ForkAnalysis, RankedFeature
+from forkscout.models.github import Commit, Fork, Repository, User
+from forkscout.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVMultiRowRealDataIntegration:
@@ -283,7 +283,7 @@ class TestCSVMultiRowRealDataIntegration:
             # Create mock features from commits
             features = []
             if commits:
-                from forklift.models.analysis import Feature, FeatureCategory
+                from forkscout.models.analysis import Feature, FeatureCategory
                 feature = Feature(
                     id=f"feature_{fork.repository.id}",
                     title=f"Enhanced functionality in {fork.repository.name}",
@@ -295,7 +295,7 @@ class TestCSVMultiRowRealDataIntegration:
                 )
                 features.append(feature)
             
-            from forklift.models.analysis import ForkMetrics
+            from forkscout.models.analysis import ForkMetrics
             
             metrics = ForkMetrics(
                 stars=fork.repository.stars,
@@ -532,7 +532,7 @@ class TestCSVMultiRowRealDataIntegration:
                     commits.append(commit)
             
             # Create features from commits
-            from forklift.models.analysis import Feature, FeatureCategory, ForkMetrics
+            from forkscout.models.analysis import Feature, FeatureCategory, ForkMetrics
             features = []
             if commits:
                 feature = Feature(
@@ -778,7 +778,7 @@ class TestCSVMultiRowRealDataIntegration:
         
         # Create a corrupted analysis by manually creating invalid data
         # We'll create a valid analysis first, then corrupt it
-        from forklift.models.analysis import ForkMetrics
+        from forkscout.models.analysis import ForkMetrics
         
         # Create a minimal valid analysis first
         valid_fork = realistic_fork_analyses[0].fork
@@ -916,7 +916,7 @@ class TestCSVMultiRowRealDataIntegration:
                 commits.append(commit)
             
             # Create analysis
-            from forklift.models.analysis import Feature, FeatureCategory, ForkMetrics
+            from forkscout.models.analysis import Feature, FeatureCategory, ForkMetrics
             feature = Feature(
                 id=f"feature_{i}",
                 title=f"Feature {i}",

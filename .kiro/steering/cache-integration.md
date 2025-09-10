@@ -126,7 +126,7 @@ async def test_component_with_real_cache():
 ### Enable Cache Validation Logging
 ```python
 import logging
-logging.getLogger('forklift.storage.cache_validation').setLevel(logging.DEBUG)
+logging.getLogger('forkscout.storage.cache_validation').setLevel(logging.DEBUG)
 ```
 
 ### Monitor Cache Performance

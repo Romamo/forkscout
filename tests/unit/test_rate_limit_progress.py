@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from forklift.github.rate_limit_progress import (
+from forkscout.github.rate_limit_progress import (
     RateLimitProgressTracker,
     RateLimitProgressManager,
     get_progress_manager

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from forklift.models.ai_summary import (
+from forkscout.models.ai_summary import (
     AISummaryConfig,
     AIUsageStats,
     AIUsageTracker,

@@ -1,8 +1,8 @@
-# Forklift Version 2.0 Features Requirements
+# Forkscout Version 2.0 Features Requirements
 
 ## Introduction
 
-This specification outlines the advanced features planned for Forklift Version 2.0 and beyond. These features build upon the solid foundation of Version 1.0 to provide sophisticated repository analysis capabilities, advanced automation, and enterprise-grade functionality. Version 2.0 focuses on comprehensive reporting, advanced PR automation, enhanced feature ranking, and enterprise integration capabilities.
+This specification outlines the advanced features planned for Forkscout Version 2.0 and beyond. These features build upon the solid foundation of Version 1.0 to provide sophisticated repository analysis capabilities, advanced automation, and enterprise-grade functionality. Version 2.0 focuses on comprehensive reporting, advanced PR automation, enhanced feature ranking, and enterprise integration capabilities.
 
 ## Requirements
 

@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from rich.console import Console
 
-from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.validation_handler import ValidationHandler, ValidationSummary
+from forkscout.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.validation_handler import ValidationHandler, ValidationSummary
 
 
 class TestValidationErrorHandlingIntegration:

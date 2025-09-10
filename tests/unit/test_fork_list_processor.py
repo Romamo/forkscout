@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from forklift.github.client import GitHubAPIError, GitHubClient
-from forklift.github.fork_list_processor import (
+from forkscout.github.client import GitHubAPIError, GitHubClient
+from forkscout.github.fork_list_processor import (
     ForkListProcessingError,
     ForkListProcessor,
 )
-from forklift.models.fork_qualification import (
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     QualifiedForksResult,
 )

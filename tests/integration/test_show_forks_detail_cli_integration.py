@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig, GitHubConfig
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
 
 
 class TestShowForksDetailCLIIntegration:
@@ -16,7 +16,7 @@ class TestShowForksDetailCLIIntegration:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration for testing."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github = GitHubConfig(token="ghp_1234567890123456789012345678901234567890")
         return config
 
@@ -277,7 +277,7 @@ class TestShowForksDetailCLIIntegration:
     ):
         """Test show-forks --detail without GitHub token CLI integration."""
         # Setup config without GitHub token
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github = GitHubConfig(token=None)
         mock_load_config.return_value = config
 

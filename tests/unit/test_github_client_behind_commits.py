@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.models.commit_count_result import BatchCommitCountResult, CommitCountResult
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.models.commit_count_result import BatchCommitCountResult, CommitCountResult
 
 
 class TestGitHubClientBehindCommits:

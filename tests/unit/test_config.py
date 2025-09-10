@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from forklift.config import (
+from forkscout.config import (
     AnalysisConfig,
     CacheConfig,
-    ForkliftConfig,
+    ForkscoutConfig,
     GitHubConfig,
     LoggingConfig,
     RateLimitConfig,
@@ -201,10 +201,10 @@ class TestLoggingConfig:
         """Test LoggingConfig with default values."""
         config = LoggingConfig()
 
-        assert config.level == "INFO"
+        assert config.level == "CRITICAL"
         assert "%(asctime)s" in config.format
         assert config.file_enabled is True
-        assert config.file_path == "forklift.log"
+        assert config.file_path == "forkscout.log"
         assert config.max_file_size_mb == 10
         assert config.backup_count == 5
         assert config.console_enabled is True
@@ -226,12 +226,12 @@ class TestLoggingConfig:
             LoggingConfig(level="INVALID")
 
 
-class TestForkliftConfig:
-    """Test cases for ForkliftConfig."""
+class TestForkscoutConfig:
+    """Test cases for ForkscoutConfig."""
 
     def test_forklift_config_defaults(self):
-        """Test ForkliftConfig with default values."""
-        config = ForkliftConfig()
+        """Test ForkscoutConfig with default values."""
+        config = ForkscoutConfig()
 
         assert isinstance(config.github, GitHubConfig)
         assert isinstance(config.analysis, AnalysisConfig)
@@ -245,38 +245,38 @@ class TestForkliftConfig:
         assert config.output_format == "markdown"
 
     def test_forklift_config_output_format_validation(self):
-        """Test ForkliftConfig output format validation."""
+        """Test ForkscoutConfig output format validation."""
         valid_formats = ["markdown", "json", "yaml"]
 
         for fmt in valid_formats:
-            config = ForkliftConfig(output_format=fmt)
+            config = ForkscoutConfig(output_format=fmt)
             assert config.output_format == fmt
 
         # Test case insensitive
-        config = ForkliftConfig(output_format="MARKDOWN")
+        config = ForkscoutConfig(output_format="MARKDOWN")
         assert config.output_format == "markdown"
 
         # Invalid format
         with pytest.raises(ValueError, match="Invalid output format"):
-            ForkliftConfig(output_format="invalid")
+            ForkscoutConfig(output_format="invalid")
 
     def test_forklift_config_from_dict(self):
-        """Test ForkliftConfig creation from dictionary."""
+        """Test ForkscoutConfig creation from dictionary."""
         data = {
             "github": {"token": "ghp_1234567890abcdef1234567890abcdef12345678"},
             "analysis": {"min_score_threshold": 80.0},
             "debug": True,
         }
 
-        config = ForkliftConfig.from_dict(data)
+        config = ForkscoutConfig.from_dict(data)
 
         assert config.github.token == "ghp_1234567890abcdef1234567890abcdef12345678"
         assert config.analysis.min_score_threshold == 80.0
         assert config.debug is True
 
     def test_forklift_config_to_dict(self):
-        """Test ForkliftConfig conversion to dictionary."""
-        config = ForkliftConfig(debug=True)
+        """Test ForkscoutConfig conversion to dictionary."""
+        config = ForkscoutConfig(debug=True)
         data = config.to_dict()
 
         assert isinstance(data, dict)
@@ -285,8 +285,8 @@ class TestForkliftConfig:
         assert "analysis" in data
 
     def test_forklift_config_to_yaml(self):
-        """Test ForkliftConfig conversion to YAML."""
-        config = ForkliftConfig(debug=True)
+        """Test ForkscoutConfig conversion to YAML."""
+        config = ForkscoutConfig(debug=True)
         yaml_str = config.to_yaml()
 
         assert isinstance(yaml_str, str)
@@ -297,8 +297,8 @@ class TestForkliftConfig:
         assert parsed["debug"] is True
 
     def test_forklift_config_to_json(self):
-        """Test ForkliftConfig conversion to JSON."""
-        config = ForkliftConfig(debug=True)
+        """Test ForkscoutConfig conversion to JSON."""
+        config = ForkscoutConfig(debug=True)
         json_str = config.to_json()
 
         assert isinstance(json_str, str)
@@ -308,7 +308,7 @@ class TestForkliftConfig:
         assert parsed["debug"] is True
 
     def test_forklift_config_from_yaml_file(self):
-        """Test ForkliftConfig loading from YAML file."""
+        """Test ForkscoutConfig loading from YAML file."""
         yaml_content = """
         github:
           token: ghp_1234567890abcdef1234567890abcdef12345678
@@ -322,7 +322,7 @@ class TestForkliftConfig:
             f.flush()
 
             try:
-                config = ForkliftConfig.from_file(f.name)
+                config = ForkscoutConfig.from_file(f.name)
 
                 assert config.github.token == "ghp_1234567890abcdef1234567890abcdef12345678"
                 assert config.analysis.min_score_threshold == 85.0
@@ -331,7 +331,7 @@ class TestForkliftConfig:
                 os.unlink(f.name)
 
     def test_forklift_config_from_json_file(self):
-        """Test ForkliftConfig loading from JSON file."""
+        """Test ForkscoutConfig loading from JSON file."""
         json_content = {
             "github": {"token": "ghp_1234567890abcdef1234567890abcdef12345678"},
             "analysis": {"min_score_threshold": 85.0},
@@ -343,7 +343,7 @@ class TestForkliftConfig:
             f.flush()
 
             try:
-                config = ForkliftConfig.from_file(f.name)
+                config = ForkscoutConfig.from_file(f.name)
 
                 assert config.github.token == "ghp_1234567890abcdef1234567890abcdef12345678"
                 assert config.analysis.min_score_threshold == 85.0
@@ -352,58 +352,58 @@ class TestForkliftConfig:
                 os.unlink(f.name)
 
     def test_forklift_config_from_file_not_found(self):
-        """Test ForkliftConfig loading from non-existent file."""
+        """Test ForkscoutConfig loading from non-existent file."""
         with pytest.raises(FileNotFoundError):
-            ForkliftConfig.from_file("nonexistent.yaml")
+            ForkscoutConfig.from_file("nonexistent.yaml")
 
     def test_forklift_config_from_file_invalid_format(self):
-        """Test ForkliftConfig loading from unsupported file format."""
+        """Test ForkscoutConfig loading from unsupported file format."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("invalid content")
             f.flush()
 
             try:
                 with pytest.raises(ValueError, match="Unsupported config file format"):
-                    ForkliftConfig.from_file(f.name)
+                    ForkscoutConfig.from_file(f.name)
             finally:
                 os.unlink(f.name)
 
     def test_forklift_config_save_to_yaml_file(self):
-        """Test ForkliftConfig saving to YAML file."""
-        config = ForkliftConfig(debug=True)
+        """Test ForkscoutConfig saving to YAML file."""
+        config = ForkscoutConfig(debug=True)
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             try:
                 config.save_to_file(f.name)
 
                 # Load and verify
-                loaded_config = ForkliftConfig.from_file(f.name)
+                loaded_config = ForkscoutConfig.from_file(f.name)
                 assert loaded_config.debug is True
             finally:
                 os.unlink(f.name)
 
     def test_forklift_config_save_to_json_file(self):
-        """Test ForkliftConfig saving to JSON file."""
-        config = ForkliftConfig(debug=True)
+        """Test ForkscoutConfig saving to JSON file."""
+        config = ForkscoutConfig(debug=True)
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             try:
                 config.save_to_file(f.name)
 
                 # Load and verify
-                loaded_config = ForkliftConfig.from_file(f.name)
+                loaded_config = ForkscoutConfig.from_file(f.name)
                 assert loaded_config.debug is True
             finally:
                 os.unlink(f.name)
 
     def test_forklift_config_merge_with_env(self, monkeypatch):
-        """Test ForkliftConfig merging with environment variables."""
+        """Test ForkscoutConfig merging with environment variables."""
         # Set environment variables
         monkeypatch.setenv("GITHUB_TOKEN", "ghp_1234567890abcdef1234567890abcdef12345678")
         monkeypatch.setenv("DEBUG", "true")
         monkeypatch.setenv("MIN_SCORE_THRESHOLD", "85.5")
 
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         merged_config = config.merge_with_env()
 
         assert merged_config.github.token == "ghp_1234567890abcdef1234567890abcdef12345678"
@@ -411,33 +411,33 @@ class TestForkliftConfig:
         assert merged_config.analysis.min_score_threshold == 85.5
 
     def test_forklift_config_validate_github_token(self):
-        """Test ForkliftConfig GitHub token validation."""
+        """Test ForkscoutConfig GitHub token validation."""
         # No token
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = None  # Explicitly set to None to override .env
         assert config.validate_github_token() is False
 
         # Valid token
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "ghp_1234567890abcdef1234567890abcdef12345678"
         assert config.validate_github_token() is True
 
         # Invalid token
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "invalid_token"
         assert config.validate_github_token() is False
 
     def test_forklift_config_get_cache_path(self):
-        """Test ForkliftConfig cache path resolution."""
-        config = ForkliftConfig()
+        """Test ForkscoutConfig cache path resolution."""
+        config = ForkscoutConfig()
         cache_path = config.get_cache_path()
 
         assert isinstance(cache_path, Path)
         assert cache_path.name == "cache"
 
     def test_forklift_config_get_log_path(self):
-        """Test ForkliftConfig log path resolution."""
-        config = ForkliftConfig()
+        """Test ForkscoutConfig log path resolution."""
+        config = ForkscoutConfig()
         log_path = config.get_log_path()
 
         assert isinstance(log_path, Path)
@@ -451,7 +451,7 @@ class TestLoadConfig:
         """Test load_config with no configuration file."""
         # Should return default config
         config = load_config()
-        assert isinstance(config, ForkliftConfig)
+        assert isinstance(config, ForkscoutConfig)
 
     def test_load_config_with_file(self, monkeypatch):
         """Test load_config with specific file."""

@@ -189,9 +189,9 @@ class ForkDataCollectionTestRunner:
 
         # Check source files exist
         required_source_files = [
-            "src/forklift/analysis/fork_data_collection_engine.py",
-            "src/forklift/github/fork_list_processor.py",
-            "src/forklift/models/fork_qualification.py",
+            "src/forkscout/analysis/fork_data_collection_engine.py",
+            "src/forkscout/github/fork_list_processor.py",
+            "src/forkscout/models/fork_qualification.py",
         ]
 
         for file_path in required_source_files:

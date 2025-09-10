@@ -4,10 +4,10 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from io import StringIO
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.validation_handler import ValidationSummary, ValidationHandler
-from forklift.models.github import Repository
-from forklift.github.client import GitHubClient
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.validation_handler import ValidationSummary, ValidationHandler
+from forkscout.models.github import Repository
+from forkscout.github.client import GitHubClient
 from rich.console import Console
 
 

@@ -8,9 +8,9 @@ import httpx
 import pytest
 import respx
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import (
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubPrivateRepositoryError,
@@ -24,7 +24,7 @@ class TestComprehensiveCommitCounting:
     @pytest.fixture
     def client(self):
         """Create a GitHub client for testing."""
-        from forklift.github.rate_limiter import RateLimitHandler
+        from forkscout.github.rate_limiter import RateLimitHandler
         
         config = GitHubConfig(
             token="ghp_1234567890abcdef1234567890abcdef12345678",

@@ -17,9 +17,9 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 import logging
 
-from forklift.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
-from forklift.models.github import Commit, Fork, Repository, User
-from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
+from forkscout.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
+from forkscout.models.github import Commit, Fork, Repository, User
+from forkscout.reporting.csv_exporter import CSVExporter, CSVExportConfig
 
 
 @pytest.fixture

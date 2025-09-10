@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
 
 
 class TestCSVExportEndToEnd:
@@ -21,7 +21,7 @@ class TestCSVExportEndToEnd:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github = MagicMock()
         config.github.token = "test_token"
         config.analysis = MagicMock()
@@ -44,7 +44,7 @@ class TestCSVExportEndToEnd:
     def sample_repository_data(self):
         """Create sample repository data for end-to-end testing."""
         from datetime import UTC, datetime
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -181,7 +181,7 @@ class TestCSVExportEndToEnd:
                 }
                 
                 # Simulate CSV export call
-                from forklift.cli import _export_forks_csv
+                from forkscout.cli import _export_forks_csv
                 
                 await _export_forks_csv(
                     display_service,
@@ -249,7 +249,7 @@ class TestCSVExportEndToEnd:
                     mock_show_fork_data.side_effect = Exception("GitHub API error")
                     
                     # CSV export should handle the error gracefully
-                    from forklift.cli import _export_forks_csv
+                    from forkscout.cli import _export_forks_csv
                     
                     with pytest.raises(Exception, match="GitHub API error"):
                         await _export_forks_csv(
@@ -275,7 +275,7 @@ class TestCSVExportEndToEnd:
         display_service = RepositoryDisplayService(mock_github_client)
         
         # Mock commit data
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
         from datetime import datetime, UTC
         
         mock_commits = {
@@ -366,7 +366,7 @@ class TestCSVExportEndToEnd:
     ):
         """Test CSV export workflow with a large repository simulation."""
         # Create a large dataset to simulate a popular repository
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )

@@ -4,8 +4,8 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
-from forklift.github.error_handler import EnhancedErrorHandler
-from forklift.github.exceptions import (
+from forkscout.github.error_handler import EnhancedErrorHandler
+from forkscout.github.exceptions import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubEmptyRepositoryError,
@@ -370,8 +370,8 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_repository_no_commits(self):
         """Test handling of repositories with no commits."""
-        from forklift.github.client import GitHubClient
-        from forklift.config import GitHubConfig
+        from forkscout.github.client import GitHubClient
+        from forkscout.config import GitHubConfig
 
         config = GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678")
         client = GitHubClient(config)
@@ -386,8 +386,8 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_private_fork_access_denied(self):
         """Test handling of private forks that cannot be accessed."""
-        from forklift.github.client import GitHubClient
-        from forklift.config import GitHubConfig
+        from forkscout.github.client import GitHubClient
+        from forkscout.config import GitHubConfig
 
         config = GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678")
         client = GitHubClient(config)
@@ -402,8 +402,8 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_rate_limit_with_reset_time(self):
         """Test rate limit handling with reset time."""
-        from forklift.github.client import GitHubClient
-        from forklift.config import GitHubConfig
+        from forkscout.github.client import GitHubClient
+        from forkscout.config import GitHubConfig
 
         config = GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678")
         client = GitHubClient(config)
@@ -430,8 +430,8 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_timeout_during_commit_fetching(self):
         """Test timeout handling during slow commit fetching operations."""
-        from forklift.github.client import GitHubClient
-        from forklift.config import GitHubConfig
+        from forkscout.github.client import GitHubClient
+        from forkscout.config import GitHubConfig
 
         config = GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678", timeout_seconds=1.0)
         client = GitHubClient(config)
@@ -449,9 +449,9 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_fork_deleted_during_analysis(self):
         """Test handling of forks that are deleted during analysis."""
-        from forklift.analysis.fork_discovery import ForkDiscoveryService
-        from forklift.github.client import GitHubClient
-        from forklift.config import GitHubConfig
+        from forkscout.analysis.fork_discovery import ForkDiscoveryService
+        from forkscout.github.client import GitHubClient
+        from forkscout.config import GitHubConfig
 
         config = GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678")
         client = GitHubClient(config)
@@ -485,7 +485,7 @@ class TestErrorHandlingEdgeCases:
 
     def test_error_message_display_formatting(self):
         """Test that error messages are properly formatted for display."""
-        from forklift.github.error_handler import EnhancedErrorHandler
+        from forkscout.github.error_handler import EnhancedErrorHandler
 
         handler = EnhancedErrorHandler()
 
@@ -507,8 +507,8 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_graceful_degradation_with_partial_failures(self):
         """Test graceful degradation when some operations fail but others succeed."""
-        from forklift.github.client import GitHubClient
-        from forklift.config import GitHubConfig
+        from forkscout.github.client import GitHubClient
+        from forkscout.config import GitHubConfig
 
         config = GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678")
         client = GitHubClient(config)

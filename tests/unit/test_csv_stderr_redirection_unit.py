@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 import pytest
 from rich.console import Console
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.ahead_only_filter import FilteredForkResult
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.ahead_only_filter import FilteredForkResult
 
 
 class TestCSVStderrRedirectionUnit:
@@ -37,7 +37,7 @@ class TestCSVStderrRedirectionUnit:
             # Simulate the filtering message print in CSV mode
             if True:  # csv_export = True
                 # Always use stderr for CSV mode to keep stdout clean
-                stderr_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
+                stderr_console = Console(file=sys.stderr, soft_wrap=False, width=400)
                 stderr_console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
         
         # Verify the message went to stderr
@@ -100,7 +100,7 @@ class TestCSVStderrRedirectionUnit:
             # Simulate the condition check
             if filter_result.total_excluded > 0:
                 # This should not execute
-                stderr_console = Console(file=sys.stderr, soft_wrap=False, width=999999)
+                stderr_console = Console(file=sys.stderr, soft_wrap=False, width=400)
                 stderr_console.print(f"[dim]{filter_result.exclusion_summary}[/dim]")
         
         # Verify no message was printed

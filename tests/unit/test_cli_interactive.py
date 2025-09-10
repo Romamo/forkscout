@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import (
+from forkscout.cli import (
     cli,
     display_fork_details,
     display_forks_summary,
     display_repository_details,
 )
-from forklift.exceptions import CLIError
+from forkscout.exceptions import CLIError
 
 
 class TestInteractiveDisplays:
@@ -281,10 +281,10 @@ class TestInteractiveAnalysisFunction:
     @patch("forklift.cli.Confirm.ask")
     async def test_run_interactive_analysis_no_token(self, mock_confirm, mock_fork_discovery, mock_github_client):
         """Test interactive analysis without GitHub token."""
-        from forklift.cli import CLIError, _run_interactive_analysis
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import CLIError, _run_interactive_analysis
+        from forkscout.config.settings import ForkscoutConfig
 
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = None
 
         with pytest.raises(CLIError, match="GitHub token not configured"):
@@ -297,10 +297,10 @@ class TestInteractiveAnalysisFunction:
     @patch("forklift.cli.Prompt.ask")
     async def test_run_interactive_analysis_user_cancels(self, mock_prompt, mock_confirm, mock_fork_discovery, mock_github_client):
         """Test interactive analysis when user cancels."""
-        from forklift.cli import _run_interactive_analysis
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import _run_interactive_analysis
+        from forkscout.config.settings import ForkscoutConfig
 
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "ghp_1234567890abcdef1234567890abcdef12345678"
 
         # Setup mocks
@@ -329,10 +329,10 @@ class TestInteractiveAnalysisFunction:
     @patch("forklift.cli.Prompt.ask")
     async def test_run_interactive_analysis_no_forks(self, mock_prompt, mock_confirm, mock_fork_discovery, mock_github_client):
         """Test interactive analysis with no forks found."""
-        from forklift.cli import _run_interactive_analysis
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import _run_interactive_analysis
+        from forkscout.config.settings import ForkscoutConfig
 
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "ghp_1234567890abcdef1234567890abcdef12345678"
 
         # Setup mocks

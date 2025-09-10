@@ -4,11 +4,11 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from forklift.cli import _show_commits, _get_parent_repository_url
-from forklift.config.settings import ForkliftConfig
-from forklift.github.client import GitHubClient
-from forklift.models.github import Repository, Commit, User
-from forklift.models.fork_qualification import (
+from forkscout.cli import _show_commits, _get_parent_repository_url
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import Repository, Commit, User
+from forkscout.models.fork_qualification import (
     QualifiedForksResult,
     CollectedForkData,
     ForkQualificationMetrics,

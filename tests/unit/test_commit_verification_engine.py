@@ -5,10 +5,10 @@ import pytest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from forklift.analysis.commit_verification_engine import CommitVerificationEngine, VerificationCache
-from forklift.github.exceptions import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
-from forklift.models.github import Repository
+from forkscout.analysis.commit_verification_engine import CommitVerificationEngine, VerificationCache
+from forkscout.github.exceptions import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.models.github import Repository
 
 
 class TestVerificationCache:

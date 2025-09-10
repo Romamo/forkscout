@@ -13,11 +13,11 @@ inclusion: always
 - Include meaningful error messages and context
 
 ```python
-class ForkliftError(Exception):
-    """Base exception for Forklift application"""
+class ForkscoutError(Exception):
+    """Base exception for Forkscout application"""
     pass
 
-class GitHubAPIError(ForkliftError):
+class GitHubAPIError(ForkscoutError):
     """Raised when GitHub API operations fail"""
     def __init__(self, message: str, status_code: int = None, response_data: dict = None):
         super().__init__(message)

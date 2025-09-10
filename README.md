@@ -1,4 +1,4 @@
-# Forklift 🚀
+# Forkscout 🚀
 
 A powerful GitHub repository fork analysis tool that automatically discovers valuable features across all forks of a repository, ranks them by impact, and can create pull requests to integrate the best improvements back to the upstream project.
 
@@ -31,12 +31,24 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 pip install uv
 ```
 
-### Install Forklift
+### Install Forkscout
+
+#### From PyPI (Recommended)
+
+```bash
+# Install with pip
+pip install forkscout
+
+# Or with uv
+uv add forkscout
+```
+
+#### From Source (Development)
 
 ```bash
 # Clone the repository
-git clone https://github.com/forklift-team/forklift.git
-cd forklift
+git clone https://github.com/Romamo/forkscout.git
+cd forkscout
 
 # Install dependencies
 uv sync
@@ -55,22 +67,22 @@ uv pip install -e .
 
 2. **Analyze a repository**:
    ```bash
-   uv run forklift analyze https://github.com/owner/repo
+   uv run forkscout analyze https://github.com/pallets/click
    ```
 
 3. **Generate a report**:
    ```bash
-   uv run forklift analyze https://github.com/owner/repo --output report.md
+   uv run forkscout analyze https://github.com/psf/requests --output report.md
    ```
 
 4. **Auto-create PRs for high-value features**:
    ```bash
-   uv run forklift analyze https://github.com/owner/repo --auto-pr --min-score 80
+   uv run forkscout analyze https://github.com/Textualize/rich --auto-pr --min-score 80
    ```
 
 ## Configuration
 
-Create a `forklift.yaml` configuration file:
+Create a `forkscout.yaml` configuration file:
 
 ```yaml
 github:
@@ -107,37 +119,37 @@ cache:
 
 ### Basic Analysis
 ```bash
-forklift analyze https://github.com/fastapi/fastapi
+forkscout analyze https://github.com/pallets/click
 ```
 
 ### Fork Analysis Commands
 ```bash
 # Show all forks with compact commit status
-forklift show-forks https://github.com/fastapi/fastapi
+forkscout show-forks https://github.com/psf/requests
 
 # Show forks with recent commits in a separate column
-forklift show-forks https://github.com/fastapi/fastapi --show-commits 3
+forkscout show-forks https://github.com/Textualize/rich --show-commits 3
 
 # Show detailed fork information with exact commit counts
-forklift show-forks https://github.com/fastapi/fastapi --detail
+forkscout show-forks https://github.com/pytest-dev/pytest --detail
 ```
 
 ### Commit Counting Options
 ```bash
 # Basic exact commit counting (default: count up to 100 commits)
-forklift show-forks owner/repo --detail
+forkscout show-forks https://github.com/newmarcel/KeepingYouAwake --detail
 
 # Unlimited commit counting for maximum accuracy (slower)
-forklift show-forks owner/repo --detail --max-commits-count 0
+forkscout show-forks https://github.com/aarigs/pandas-ta --detail --max-commits-count 0
 
 # Fast processing with lower commit limit
-forklift show-forks owner/repo --detail --max-commits-count 50
+forkscout show-forks https://github.com/NoMore201/googleplay-api --detail --max-commits-count 50
 
 # Custom display limit for commit messages
-forklift show-forks owner/repo --show-commits 3 --commit-display-limit 10
+forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --show-commits 3 --commit-display-limit 10
 
 # Focus on active forks only
-forklift show-forks owner/repo --detail --ahead-only
+forkscout show-forks https://github.com/maliayas/github-network-ninja --detail --ahead-only
 ```
 
 ### Understanding Commit Status Format
@@ -151,17 +163,17 @@ The fork tables display commit status in a compact "+X -Y" format:
 
 ### With Custom Configuration
 ```bash
-forklift analyze https://github.com/fastapi/fastapi --config my-config.yaml
+forkscout analyze https://github.com/virattt/ai-hedge-fund --config my-config.yaml
 ```
 
 ### Automated PR Creation
 ```bash
-forklift analyze https://github.com/fastapi/fastapi --auto-pr --min-score 85
+forkscout analyze https://github.com/xgboosted/pandas-ta-classic --auto-pr --min-score 85
 ```
 
 ### Verbose Output
 ```bash
-forklift analyze https://github.com/fastapi/fastapi --verbose
+forkscout analyze https://github.com/pallets/click --verbose
 ```
 
 ## Troubleshooting
@@ -190,8 +202,8 @@ For comprehensive troubleshooting, see [docs/COMMIT_COUNTING_TROUBLESHOOTING.md]
 
 ```bash
 # Clone and setup
-git clone https://github.com/forklift-team/forklift.git
-cd forklift
+git clone https://github.com/Romamo/forkscout.git
+cd forkscout
 uv sync --dev
 
 # Install pre-commit hooks
@@ -229,7 +241,7 @@ uv run mypy src/
 
 ## Evaluation Criteria
 
-Forklift uses a sophisticated evaluation system to analyze commits and determine their value for the main repository. This section explains how the system makes decisions about commit categorization, impact assessment, and value determination.
+Forkscout uses a sophisticated evaluation system to analyze commits and determine their value for the main repository. This section explains how the system makes decisions about commit categorization, impact assessment, and value determination.
 
 ### Commit Categorization
 

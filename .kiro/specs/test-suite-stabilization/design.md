@@ -52,7 +52,7 @@ class ImportResolver:
 ```
 
 **Key Fixes Needed**:
-- `CLIError` - Import from `forklift.exceptions`
+- `CLIError` - Import from `forkscout.exceptions`
 - `table_context` - Define or import from appropriate module
 - `CommitDataFormatter` - Update import path or create if missing
 - `ForkQualificationResult` - Fix import path

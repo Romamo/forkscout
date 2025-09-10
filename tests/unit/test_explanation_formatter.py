@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 import pytest
 from rich.table import Table
 
-from forklift.analysis.explanation_formatter import ExplanationFormatter
-from forklift.models.analysis import (
+from forkscout.analysis.explanation_formatter import ExplanationFormatter
+from forkscout.models.analysis import (
     CategoryType,
     CommitCategory,
     CommitExplanation,
@@ -17,7 +17,7 @@ from forklift.models.analysis import (
     ImpactLevel,
     MainRepoValue,
 )
-from forklift.models.github import Commit
+from forkscout.models.github import Commit
 
 
 class TestExplanationFormatter:
@@ -36,7 +36,7 @@ class TestExplanationFormatter:
     @pytest.fixture
     def sample_commit(self):
         """Create a sample commit for testing."""
-        from forklift.models.github import User
+        from forkscout.models.github import User
 
         author = User(
             login="testuser",
@@ -211,7 +211,7 @@ class TestExplanationFormatter:
         commits_with_explanations = []
 
         for i in range(3):
-            from forklift.models.github import User
+            from forkscout.models.github import User
 
             author = User(
                 login="testuser",
@@ -480,7 +480,7 @@ class TestExplanationFormatter:
         formatter = ExplanationFormatter(use_simple_tables=True)
 
         # Create sample data
-        from forklift.models.github import User
+        from forkscout.models.github import User
 
         author = User(
             login="testuser",

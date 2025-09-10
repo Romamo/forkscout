@@ -12,9 +12,9 @@ import pytest
 from rich.console import Console
 from rich.table import Table
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.github import RecentCommit
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import RecentCommit
 
 # Mock helpers not needed for this test
 
@@ -221,7 +221,7 @@ class TestTableStructureFormattingIntegrity:
         # Test with very wide console to ensure no artificial truncation
         output = io.StringIO()
         console = Console(
-            file=output, width=999999, force_terminal=True, soft_wrap=False
+            file=output, width=400, force_terminal=True, soft_wrap=False
         )
         display_service.console = console
 

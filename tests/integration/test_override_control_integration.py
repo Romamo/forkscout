@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from rich.console import Console
 from io import StringIO
 
-from forklift.analysis.override_control import (
+from forkscout.analysis.override_control import (
     OverrideController,
     create_override_controller,
 )
-from forklift.analysis.fork_discovery import ForkDiscoveryService
-from forklift.github.client import GitHubClient
-from forklift.models.github import Fork, Repository
+from forkscout.analysis.fork_discovery import ForkDiscoveryService
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import Fork, Repository
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def sample_repository():
 @pytest.fixture
 def sample_forks():
     """Create sample fork objects for testing."""
-    from forklift.models.github import User
+    from forkscout.models.github import User
     
     forks = []
     

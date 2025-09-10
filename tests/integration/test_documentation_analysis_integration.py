@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from forklift.analysis.documentation_analyzer import DocumentationAnalyzer
-from forklift.analysis.documentation_report_generator import DocumentationReportGenerator
+from forkscout.analysis.documentation_analyzer import DocumentationAnalyzer
+from forkscout.analysis.documentation_report_generator import DocumentationReportGenerator
 
 
 class TestDocumentationAnalysisIntegration:

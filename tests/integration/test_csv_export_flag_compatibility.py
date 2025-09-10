@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.cli import _export_forks_csv, _show_forks_summary
-from forklift.config.settings import ForkliftConfig
-from forklift.display.interaction_mode import InteractionMode
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import (
+from forkscout.cli import _export_forks_csv, _show_forks_summary
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.display.interaction_mode import InteractionMode
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
 )
@@ -29,7 +29,7 @@ class TestCSVExportFlagCompatibility:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github = MagicMock()
         config.github.token = "test_token"
         return config
@@ -234,7 +234,7 @@ class TestCSVExportFlagCompatibility:
         display_service = RepositoryDisplayService(mock_github_client)
         
         # Mock commit data
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
         
         mock_commits = {}
         for fork in comprehensive_fork_data:
@@ -282,7 +282,7 @@ class TestCSVExportFlagCompatibility:
         display_service = RepositoryDisplayService(mock_github_client)
         
         # Mock commit data for all forks (including those with no commits ahead)
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
         
         mock_commits = {}
         for fork in comprehensive_fork_data:

@@ -4,8 +4,8 @@ import logging
 
 import pytest
 
-from forklift.models.github import Repository
-from forklift.models.validation_handler import ValidationHandler
+from forkscout.models.github import Repository
+from forkscout.models.validation_handler import ValidationHandler
 
 # Test fixtures with problematic repository names from real-world cases
 REPOSITORY_NAME_TEST_CASES = [

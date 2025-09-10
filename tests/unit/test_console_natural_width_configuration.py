@@ -25,7 +25,7 @@ class TestConsoleNaturalWidthConfiguration:
         from src.forklift.cli import console as updated_console
         
         # Verify console configuration
-        assert updated_console.width == 999999, f"CLI console width should be 999999, got {updated_console.width}"
+        assert updated_console.width == 400, f"CLI console width should be 400, got {updated_console.width}"
         assert updated_console.soft_wrap is False, f"CLI console soft_wrap should be False, got {updated_console.soft_wrap}"
 
     def test_repository_display_service_console_configuration(self):
@@ -34,11 +34,11 @@ class TestConsoleNaturalWidthConfiguration:
         service = RepositoryDisplayService(mock_github_client)
         
         # Verify console configuration
-        assert service.console.width == 999999, f"Repository Display Service console width should be 999999, got {service.console.width}"
+        assert service.console.width == 400, f"Repository Display Service console width should be 400, got {service.console.width}"
         assert service.console.soft_wrap is False, f"Repository Display Service console soft_wrap should be False, got {service.console.soft_wrap}"
         
         # Verify progress console configuration
-        assert service.progress_console.width == 999999, f"Repository Display Service progress console width should be 999999, got {service.progress_console.width}"
+        assert service.progress_console.width == 400, f"Repository Display Service progress console width should be 400, got {service.progress_console.width}"
         assert service.progress_console.soft_wrap is False, f"Repository Display Service progress console soft_wrap should be False, got {service.progress_console.soft_wrap}"
 
     def test_detailed_commit_display_console_configuration(self):
@@ -47,7 +47,7 @@ class TestConsoleNaturalWidthConfiguration:
         detailed_display = DetailedCommitDisplay(mock_github_client, None, None)
         
         # Verify console configuration
-        assert detailed_display.console.width == 999999, f"Detailed Commit Display console width should be 999999, got {detailed_display.console.width}"
+        assert detailed_display.console.width == 400, f"Detailed Commit Display console width should be 400, got {detailed_display.console.width}"
         assert detailed_display.console.soft_wrap is False, f"Detailed Commit Display console soft_wrap should be False, got {detailed_display.console.soft_wrap}"
 
     def test_ai_display_formatter_console_configuration(self):
@@ -55,7 +55,7 @@ class TestConsoleNaturalWidthConfiguration:
         ai_formatter = AISummaryDisplayFormatter()
         
         # Verify console configuration
-        assert ai_formatter.console.width == 999999, f"AI Display Formatter console width should be 999999, got {ai_formatter.console.width}"
+        assert ai_formatter.console.width == 400, f"AI Display Formatter console width should be 400, got {ai_formatter.console.width}"
         assert ai_formatter.console.soft_wrap is False, f"AI Display Formatter console soft_wrap should be False, got {ai_formatter.console.soft_wrap}"
 
     def test_explanation_formatter_console_configuration(self):
@@ -63,7 +63,7 @@ class TestConsoleNaturalWidthConfiguration:
         explanation_formatter = ExplanationFormatter()
         
         # Verify console configuration
-        assert explanation_formatter.console.width == 999999, f"Explanation Formatter console width should be 999999, got {explanation_formatter.console.width}"
+        assert explanation_formatter.console.width == 400, f"Explanation Formatter console width should be 400, got {explanation_formatter.console.width}"
         assert explanation_formatter.console.soft_wrap is False, f"Explanation Formatter console soft_wrap should be False, got {explanation_formatter.console.soft_wrap}"
 
     def test_interactive_orchestrator_console_configuration(self):
@@ -73,7 +73,7 @@ class TestConsoleNaturalWidthConfiguration:
         orchestrator = InteractiveAnalysisOrchestrator(mock_github_client, mock_config)
         
         # Verify console configuration
-        assert orchestrator.console.width == 999999, f"Interactive Orchestrator console width should be 999999, got {orchestrator.console.width}"
+        assert orchestrator.console.width == 400, f"Interactive Orchestrator console width should be 400, got {orchestrator.console.width}"
         assert orchestrator.console.soft_wrap is False, f"Interactive Orchestrator console soft_wrap should be False, got {orchestrator.console.soft_wrap}"
 
     def test_interactive_analyzer_console_configuration(self):
@@ -82,7 +82,7 @@ class TestConsoleNaturalWidthConfiguration:
         analyzer = InteractiveAnalyzer(mock_github_client)
         
         # Verify console configuration
-        assert analyzer.console.width == 999999, f"Interactive Analyzer console width should be 999999, got {analyzer.console.width}"
+        assert analyzer.console.width == 400, f"Interactive Analyzer console width should be 400, got {analyzer.console.width}"
         assert analyzer.console.soft_wrap is False, f"Interactive Analyzer console soft_wrap should be False, got {analyzer.console.soft_wrap}"
 
     def test_console_with_provided_instance(self):
@@ -105,7 +105,7 @@ class TestConsoleNaturalWidthConfiguration:
         from io import StringIO
         
         # Create console with natural width configuration
-        console = Console(width=999999, soft_wrap=False)
+        console = Console(width=400, soft_wrap=False)
         
         # Create a table with very long content
         table = Table(expand=False)
@@ -119,7 +119,7 @@ class TestConsoleNaturalWidthConfiguration:
         
         # Capture output
         string_io = StringIO()
-        test_console = Console(file=string_io, width=999999, soft_wrap=False)
+        test_console = Console(file=string_io, width=400, soft_wrap=False)
         test_console.print(table)
         output = string_io.getvalue()
         
@@ -131,7 +131,7 @@ class TestConsoleNaturalWidthConfiguration:
     def test_console_configuration_consistency(self):
         """Test that all console configurations are consistent across the application."""
         # This test verifies that all console instances use the same configuration
-        # for natural width rendering (width=999999, soft_wrap=False)
+        # for natural width rendering (width=400, soft_wrap=False)
         
         mock_github_client = Mock()
         
@@ -149,5 +149,5 @@ class TestConsoleNaturalWidthConfiguration:
         for service in services:
             console = getattr(service, 'console', None)
             if console:
-                assert console.width == 999999, f"{service.__class__.__name__} console width should be 999999"
+                assert console.width == 400, f"{service.__class__.__name__} console width should be 400"
                 assert console.soft_wrap is False, f"{service.__class__.__name__} console soft_wrap should be False"

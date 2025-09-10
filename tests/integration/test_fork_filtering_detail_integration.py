@@ -5,19 +5,19 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
-from forklift.display.detailed_commit_display import (
+from forkscout.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+from forkscout.display.detailed_commit_display import (
     DetailedCommitDisplay,
     DetailedCommitProcessor,
 )
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import (
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
     QualifiedForksResult,
 )
-from forklift.models.github import Commit, Repository
+from forkscout.models.github import Commit, Repository
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def mock_repository_no_commits():
 @pytest.fixture
 def mock_commits():
     """Create mock commits."""
-    from forklift.models.github import User
+    from forkscout.models.github import User
 
     author = User(
         id=123,
@@ -317,7 +317,7 @@ async def test_detailed_commit_display_generate_detailed_view_processes_with_com
     with patch.object(checker, "has_commits_ahead", return_value=True):
         # Mock the _fetch_commit_details method to avoid actual API calls
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -365,7 +365,7 @@ async def test_detailed_commit_processor_force_processing(
     # Mock the checker to return False, but force should override
     with patch.object(checker, "has_commits_ahead", return_value=False):
         with patch.object(processor, "_process_single_commit") as mock_process:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_process.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo_no_commits/commit/abc123"
@@ -402,7 +402,7 @@ async def test_detailed_commit_display_process_multiple_repositories(
 
     with patch.object(checker, "has_commits_ahead", side_effect=mock_has_commits):
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -519,7 +519,7 @@ async def test_detailed_commit_display_process_commits_with_filtering_has_commit
     # Mock the checker to return True
     with patch.object(checker, "has_commits_ahead", return_value=True):
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -567,7 +567,7 @@ async def test_detailed_commit_display_process_commits_with_filtering_force(
     # Mock the checker to return False, but force should override
     with patch.object(checker, "has_commits_ahead", return_value=False):
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo_no_commits/commit/abc123"
@@ -604,7 +604,7 @@ async def test_detailed_commit_display_batch_processing_with_mixed_repositories(
 
     with patch.object(checker, "has_commits_ahead", side_effect=mock_has_commits):
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -634,7 +634,7 @@ async def test_detailed_commit_processor_integration_with_fork_filtering(
     # Test repository with commits
     with patch.object(checker, "has_commits_ahead", return_value=True):
         with patch.object(processor, "_process_single_commit") as mock_process:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_process.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -673,7 +673,7 @@ async def test_fork_filtering_error_handling_in_batch_operations(
     # Mock the checker to raise an exception
     with patch.object(checker, "has_commits_ahead", side_effect=Exception("API Error")):
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -704,7 +704,7 @@ async def test_fork_filtering_with_qualification_data_integration(
         mock_check.return_value = True
 
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"
@@ -756,7 +756,7 @@ async def test_fork_filtering_performance_with_large_batch(
 
     with patch.object(checker, "has_commits_ahead", side_effect=mock_has_commits):
         with patch.object(display, "_fetch_commit_details") as mock_fetch:
-            from forklift.display.detailed_commit_display import DetailedCommitInfo
+            from forkscout.display.detailed_commit_display import DetailedCommitInfo
             mock_fetch.return_value = DetailedCommitInfo(
                 commit=mock_commits[0],
                 github_url="https://github.com/test_owner/test_repo/commit/abc123"

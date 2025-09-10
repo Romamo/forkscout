@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 from rich.console import Console
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.github import RecentCommit
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.github import RecentCommit
 
 
 class TestBackwardCompatibilityCommitFormatting:

@@ -6,9 +6,9 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from forklift.ai.display_formatter import AISummaryDisplayFormatter
-from forklift.models.ai_summary import AISummary, AIUsageStats
-from forklift.models.github import Commit, User
+from forkscout.ai.display_formatter import AISummaryDisplayFormatter
+from forkscout.models.ai_summary import AISummary, AIUsageStats
+from forkscout.models.github import Commit, User
 
 
 @pytest.fixture

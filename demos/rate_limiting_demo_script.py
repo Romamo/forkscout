@@ -8,9 +8,9 @@ and implements retry logic with exponential backoff.
 
 import asyncio
 import logging
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.rate_limiter import RateLimitHandler, CircuitBreaker
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.rate_limiter import RateLimitHandler, CircuitBreaker
 
 # Configure logging to see the retry behavior
 logging.basicConfig(

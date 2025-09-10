@@ -7,21 +7,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.analysis.fork_commit_status_checker import (
+from forkscout.analysis.fork_commit_status_checker import (
     ForkCommitStatusChecker,
     ForkCommitStatusError,
 )
-from forklift.cli import cli
-from forklift.display.detailed_commit_display import DetailedCommitDisplay
-from forklift.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
-from forklift.models.fork_filtering import ForkFilteringConfig
-from forklift.models.fork_qualification import (
+from forkscout.cli import cli
+from forkscout.display.detailed_commit_display import DetailedCommitDisplay
+from forkscout.github.client import GitHubAPIError, GitHubClient, GitHubNotFoundError
+from forkscout.models.fork_filtering import ForkFilteringConfig
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
     QualifiedForksResult,
 )
-from forklift.models.github import Commit, Repository, User
+from forkscout.models.github import Commit, Repository, User
 
 
 class TestSmartForkFilteringIntegration:
@@ -661,9 +661,9 @@ class TestSmartForkFilteringCLIIntegration:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration for CLI tests."""
-        from forklift.config.settings import ForkliftConfig, GitHubConfig
+        from forkscout.config.settings import ForkscoutConfig, GitHubConfig
 
-        return ForkliftConfig(
+        return ForkscoutConfig(
             github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
             openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef"
         )
@@ -811,7 +811,7 @@ class TestSmartForkFilteringCLIIntegration:
         """Test that help text includes information about fork filtering."""
         runner = CliRunner()
 
-        from forklift.cli import show_commits
+        from forkscout.cli import show_commits
         result = runner.invoke(show_commits, ["--help"])
 
         assert result.exit_code == 0

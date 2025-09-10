@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.fork_qualification import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
 )

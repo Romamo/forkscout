@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to run code quality analysis on the Forklift codebase
+Script to run code quality analysis on the Forkscout codebase
 """
 
 import sys
@@ -10,12 +10,12 @@ from pathlib import Path
 # Add src to path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from forklift.analysis.code_quality_analyzer import CodeQualityAnalyzer
-from forklift.analysis.quality_report_generator import QualityReportGenerator
+from forkscout.analysis.code_quality_analyzer import CodeQualityAnalyzer
+from forkscout.analysis.quality_report_generator import QualityReportGenerator
 
 
 def main():
-    """Run code quality analysis on the Forklift codebase"""
+    """Run code quality analysis on the Forkscout codebase"""
     
     # Configure logging
     logging.basicConfig(
@@ -26,7 +26,7 @@ def main():
     logger = logging.getLogger(__name__)
     
     try:
-        # Initialize analyzer for the Forklift source code
+        # Initialize analyzer for the Forkscout source code
         source_path = Path(__file__).parent.parent / "src"
         logger.info(f"Analyzing code quality in: {source_path}")
         

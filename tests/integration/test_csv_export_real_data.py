@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
 )
-from forklift.models.github import RecentCommit
-from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+from forkscout.models.github import RecentCommit
+from forkscout.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVExportRealDataIntegration:
@@ -319,7 +319,7 @@ class TestCSVExportRealDataIntegration:
         exporter = CSVExporter()
         
         # Convert to ForksPreview format for testing
-        from forklift.models.analysis import ForkPreviewItem, ForksPreview
+        from forkscout.models.analysis import ForkPreviewItem, ForksPreview
         
         preview_items = []
         for fork_data in realistic_fork_data:
@@ -383,7 +383,7 @@ class TestCSVExportRealDataIntegration:
         detailed_exporter = CSVExporter(detailed_config)
         
         # Convert to ForksPreview for testing
-        from forklift.models.analysis import ForkPreviewItem, ForksPreview
+        from forkscout.models.analysis import ForkPreviewItem, ForksPreview
         
         preview_items = []
         for fork_data in realistic_fork_data[:2]:  # Use first 2 for faster testing
@@ -469,7 +469,7 @@ class TestCSVExportRealDataIntegration:
         exporter = CSVExporter()
         
         # Convert to ForksPreview format
-        from forklift.models.analysis import ForkPreviewItem, ForksPreview
+        from forkscout.models.analysis import ForkPreviewItem, ForksPreview
         
         preview_items = []
         for i, fork_data in enumerate(large_dataset):
@@ -509,7 +509,7 @@ class TestCSVExportRealDataIntegration:
         exporter = CSVExporter()
         
         # Convert to ForksPreview format
-        from forklift.models.analysis import ForkPreviewItem, ForksPreview
+        from forkscout.models.analysis import ForkPreviewItem, ForksPreview
         
         preview_items = []
         for fork_data in realistic_fork_data:

@@ -7,13 +7,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.analysis import ForkPreviewItem, ForksPreview
-from forklift.models.fork_qualification import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.analysis import ForkPreviewItem, ForksPreview
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
 )
-from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+from forkscout.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVDetailMode:

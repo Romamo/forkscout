@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from rich.console import Console
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubAPIError
-from forklift.models.github import Repository
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubAPIError
+from forkscout.models.github import Repository
 
 
 class TestRepositoryDisplayService:
@@ -373,7 +373,7 @@ class TestRepositoryDisplayService:
         """Test that fork data table uses detailed format with URL, Stars, Forks, Commits Ahead, Last Push columns."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
             QualificationStats,
@@ -671,7 +671,7 @@ class TestRepositoryDisplayService:
     @pytest.mark.asyncio
     async def test_show_promising_forks_success(self):
         """Test successful promising forks display."""
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
 
         # Setup mock forks data (reuse from show_forks_summary test)
         mock_fork1 = Repository(
@@ -747,7 +747,7 @@ class TestRepositoryDisplayService:
     @pytest.mark.asyncio
     async def test_show_promising_forks_no_matches(self):
         """Test promising forks display with no matches."""
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
 
         # Setup mock fork that won't match strict criteria
         mock_fork = Repository(
@@ -800,7 +800,7 @@ class TestRepositoryDisplayService:
     @pytest.mark.asyncio
     async def test_show_promising_forks_no_forks(self):
         """Test promising forks display with no forks at all."""
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
 
         filters = PromisingForksFilter()
 
@@ -819,7 +819,7 @@ class TestRepositoryDisplayService:
 
     def test_display_promising_forks_table(self):
         """Test promising forks table display."""
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
 
         # Create test fork data
         mock_fork = Repository(
@@ -857,7 +857,7 @@ class TestRepositoryDisplayService:
 
     def test_display_promising_forks_table_empty(self):
         """Test promising forks table display with no forks."""
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
 
         filters = PromisingForksFilter()
 
@@ -1077,7 +1077,7 @@ class TestRepositoryDisplayService:
         """Test commits sort key generation with integer commits ahead/behind values."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1108,7 +1108,7 @@ class TestRepositoryDisplayService:
         """Test commits sort key generation with unknown commit status."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1139,7 +1139,7 @@ class TestRepositoryDisplayService:
         """Test commits sort key generation with no commits ahead."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1170,7 +1170,7 @@ class TestRepositoryDisplayService:
         """Test commits sort key generation with None values."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1200,7 +1200,7 @@ class TestRepositoryDisplayService:
         """Test sorting forks by commits using the new compact format."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1283,7 +1283,7 @@ class TestRepositoryDisplayService:
         """Test sorting forks by commits with secondary sort by commits behind."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1334,7 +1334,7 @@ class TestRepositoryDisplayService:
         """Test enhanced fork sorting with compact commit format support."""
         from datetime import UTC, datetime
 
-        from forklift.models.fork_qualification import (
+        from forkscout.models.fork_qualification import (
             CollectedForkData,
             ForkQualificationMetrics,
         )
@@ -1404,7 +1404,7 @@ class TestRepositoryDisplayService:
 
     def test_display_filter_criteria(self):
         """Test filter criteria display."""
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
 
         filters = PromisingForksFilter(
             min_stars=5,
@@ -1552,7 +1552,7 @@ class TestRepositoryDisplayService:
         """Test commits ahead status calculation using corrected logic."""
         from datetime import datetime
 
-        from forklift.models.github import Repository
+        from forkscout.models.github import Repository
 
         # Test case 1: created_at == pushed_at (no commits)
         fork1 = Repository(
@@ -1720,7 +1720,7 @@ class TestRepositoryDisplayService:
         """Test formatting single commit with date."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commit = RecentCommit(
             short_sha="abc1234",
@@ -1732,7 +1732,7 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_single_commit_no_date(self):
         """Test formatting single commit without date (fallback to old format)."""
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commit = RecentCommit(short_sha="abc1234", message="Fix bug in parser")
         result = self.service.format_recent_commits([commit])
@@ -1742,7 +1742,7 @@ class TestRepositoryDisplayService:
         """Test formatting multiple commits with dates."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -1768,7 +1768,7 @@ class TestRepositoryDisplayService:
         """Test successful commits ahead fetching and formatting."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Setup mock commits with dates
         mock_commits = [
@@ -1799,7 +1799,7 @@ class TestRepositoryDisplayService:
     @pytest.mark.asyncio
     async def test_get_and_format_commits_ahead_api_error(self):
         """Test commits ahead fetching with API error."""
-        from forklift.github.client import GitHubAPIError
+        from forkscout.github.client import GitHubAPIError
 
         self.mock_github_client.get_commits_ahead = AsyncMock(
             side_effect=GitHubAPIError("API error")
@@ -1922,7 +1922,7 @@ class TestRepositoryDisplayService:
         """Test _sort_commits_chronologically sorts newest first."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -1953,7 +1953,7 @@ class TestRepositoryDisplayService:
         """Test _sort_commits_chronologically handles None dates correctly."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commits = [
             RecentCommit(short_sha="abc1234", message="No date commit"),  # No date
@@ -2005,7 +2005,7 @@ class TestRepositoryDisplayService:
         """Test format_recent_commits displays full commit messages without truncation."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Create commits with long messages
         commits = [
@@ -2049,7 +2049,7 @@ class TestRepositoryDisplayService:
         """Test calculate_commits_column_width calculates appropriate width based on layout needs."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -2080,7 +2080,7 @@ class TestRepositoryDisplayService:
         """Test calculate_commits_column_width respects min/max bounds regardless of message length."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Very long message - width should not be based on message length anymore
         long_message = "This is an extremely long commit message " * 5
@@ -2107,7 +2107,7 @@ class TestRepositoryDisplayService:
         """Test that column width calculation ignores message length and focuses on layout."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Create commits with very different message lengths
         short_commits = [
@@ -2145,7 +2145,7 @@ class TestRepositoryDisplayService:
         """Test format_recent_commits uses improved formatting with consistent dates."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -2174,7 +2174,7 @@ class TestRepositoryDisplayService:
         """Test format_recent_commits displays long commit messages in full without truncation."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         long_message = "This is a very long commit message that should be displayed in full without truncation to fit within the column width constraints"
         commits = [
@@ -2201,7 +2201,7 @@ class TestRepositoryDisplayService:
         """Test format_recent_commits handles mixed date availability correctly."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         commits = [
             RecentCommit(
@@ -2233,7 +2233,7 @@ class TestRepositoryDisplayService:
         """
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Create commits with very long messages to test no truncation
         long_message = "This is an extremely long commit message that would have been truncated in the old implementation but should now be displayed in full without any truncation or ellipsis because we want to show complete information to users"
@@ -2274,7 +2274,7 @@ class TestRepositoryDisplayService:
         """Test that extremely long commit messages are displayed without truncation."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Create an extremely long commit message (over 200 characters)
         very_long_message = (
@@ -2311,7 +2311,7 @@ class TestRepositoryDisplayService:
         """Test that message cleaning works correctly without losing content."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Test various whitespace and newline scenarios
         test_cases = [
@@ -2353,7 +2353,7 @@ class TestRepositoryDisplayService:
         """Test that commit format structure remains unchanged regardless of message length."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Test with messages of varying lengths
         test_messages = [
@@ -2391,7 +2391,7 @@ class TestRepositoryDisplayService:
         """Test edge cases including empty messages and special characters."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Test edge cases
         test_cases = [
@@ -2432,7 +2432,7 @@ class TestRepositoryDisplayService:
 
     def test_format_recent_commits_fallback_format_no_truncation(self):
         """Test that fallback format (no date) also displays full messages without truncation."""
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Create commits without dates (fallback format)
         long_message = "This is a very long commit message for testing the fallback format when no date is available and we want to ensure it also displays the complete message without any truncation"
@@ -2461,7 +2461,7 @@ class TestRepositoryDisplayService:
         """Test mixed date/no-date commits both display full messages without truncation."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         long_message_with_date = "Long commit message with date that should be displayed in full using the date-based format without any truncation"
         long_message_no_date = "Long commit message without date that should be displayed in full using the fallback format without any truncation"
@@ -2550,7 +2550,7 @@ class TestRepositoryDisplayService:
         """Test that chronological ordering (newest first) is preserved with full messages."""
         from datetime import datetime
 
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         # Create commits in non-chronological order
         commits = [
@@ -2971,7 +2971,7 @@ class TestRepositoryDisplayService:
         """Test format_commit_info in detailed mode."""
         from unittest.mock import Mock
 
-        from forklift.display.repository_display_service import RepositoryDisplayService
+        from forkscout.display.repository_display_service import RepositoryDisplayService
 
         mock_client = Mock()
         service = RepositoryDisplayService(mock_client)
@@ -3003,7 +3003,7 @@ class TestRepositoryDisplayService:
         """Test format_commit_info in standard mode."""
         from unittest.mock import Mock
 
-        from forklift.display.repository_display_service import RepositoryDisplayService
+        from forkscout.display.repository_display_service import RepositoryDisplayService
 
         mock_client = Mock()
         service = RepositoryDisplayService(mock_client)

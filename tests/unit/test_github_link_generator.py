@@ -2,7 +2,7 @@
 
 import pytest
 
-from forklift.analysis.github_link_generator import GitHubLinkGenerator
+from forkscout.analysis.github_link_generator import GitHubLinkGenerator
 
 
 class TestGitHubLinkGenerator:

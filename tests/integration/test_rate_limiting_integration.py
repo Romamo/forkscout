@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.rate_limiter import CircuitBreaker, RateLimitHandler
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.rate_limiter import CircuitBreaker, RateLimitHandler
 
 
 @pytest.mark.asyncio

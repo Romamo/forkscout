@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from forklift.models.github import Commit, Fork, Repository, User
+from forkscout.models.github import Commit, Fork, Repository, User
 
 
 class TestUser:

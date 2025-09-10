@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from rich.console import Console
 
-from forklift.analysis.interactive_analyzer import InteractiveAnalyzer
-from forklift.github.client import GitHubAPIError
-from forklift.models.filters import BranchInfo, ForkDetails, ForkDetailsFilter
-from forklift.models.github import Repository
+from forkscout.analysis.interactive_analyzer import InteractiveAnalyzer
+from forkscout.github.client import GitHubAPIError
+from forkscout.models.filters import BranchInfo, ForkDetails, ForkDetailsFilter
+from forkscout.models.github import Repository
 
 
 class TestInteractiveAnalyzer:

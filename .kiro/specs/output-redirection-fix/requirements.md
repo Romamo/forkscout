@@ -12,7 +12,7 @@ This specification addresses the issue where the Recent Commits column gets cut 
 
 #### Acceptance Criteria
 
-1. WHEN a user redirects forklift output to a file (`> file.txt`) THEN the Recent Commits column SHALL display up to 1000 characters per commit message
+1. WHEN a user redirects forkscout output to a file (`> file.txt`) THEN the Recent Commits column SHALL display up to 1000 characters per commit message
 2. WHEN output is redirected THEN commit messages SHALL NOT be truncated due to table width constraints
 3. WHEN viewing the redirected file THEN all commit message content SHALL be preserved and readable
 4. WHEN commit messages are shorter than 1000 characters THEN they SHALL be displayed in full without padding

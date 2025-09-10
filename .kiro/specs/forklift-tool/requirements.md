@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Forklift tool is a GitHub repository analysis system built with Python 3.12 and managed using uv package manager that automatically discovers and evaluates valuable features across all forks of a repository. It scans forks to identify meaningful changes, ranks them by value and impact, generates comprehensive reports for maintainers, and can automatically create pull requests to propose the most valuable features back to the upstream repository. This tool aims to help open source maintainers discover and integrate valuable contributions that might otherwise be lost in the ecosystem of forks.
+The Forkscout tool is a GitHub repository analysis system built with Python 3.12 and managed using uv package manager that automatically discovers and evaluates valuable features across all forks of a repository. It scans forks to identify meaningful changes, ranks them by value and impact, generates comprehensive reports for maintainers, and can automatically create pull requests to propose the most valuable features back to the upstream repository. This tool aims to help open source maintainers discover and integrate valuable contributions that might otherwise be lost in the ecosystem of forks.
 
 The tool provides both comprehensive batch analysis and step-by-step interactive analysis commands to help users understand repository ecosystems incrementally. For testing and development, the system uses small repositories like https://github.com/maliayas/github-network-ninja and https://github.com/sanila2007/youtube-bot-telegram to ensure reliable and fast testing scenarios.
 
@@ -84,13 +84,13 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-repo <url>` THEN the system SHALL display detailed repository information including name, description, stars, forks count, last activity, primary language, and license
-2. WHEN I run `forklift list-forks <url>` THEN the system SHALL display a lightweight preview of all forks using minimal API calls showing fork name, owner, stars, last push date, and commits ahead status (None/Unknown) without detailed commit analysis
-3. WHEN I run `forklift show-forks <url>` THEN the system SHALL display a detailed summary table of all forks showing fork name, owner, stars, last activity, commits ahead/behind, and activity status
-4. WHEN I run `forklift show-promising <url>` THEN the system SHALL display a filtered list of significant forks based on configurable criteria like minimum stars, recent activity, and commits ahead
-5. WHEN I run `forklift show-fork-details <fork-url>` THEN the system SHALL show detailed fork information including all branches, commit counts per branch, and branch activity timestamps
-6. WHEN I run `forklift analyze-fork <fork-url> --branch <branch-name>` THEN the system SHALL analyze the specific fork/branch combination and show feature analysis
-7. WHEN I run `forklift show-commits <fork-url> --branch <branch-name>` THEN the system SHALL display all commits in that branch with SHA, message, author, date, and file change summary
+1. WHEN I run `forkscout show-repo <url>` THEN the system SHALL display detailed repository information including name, description, stars, forks count, last activity, primary language, and license
+2. WHEN I run `forkscout list-forks <url>` THEN the system SHALL display a lightweight preview of all forks using minimal API calls showing fork name, owner, stars, last push date, and commits ahead status (None/Unknown) without detailed commit analysis
+3. WHEN I run `forkscout show-forks <url>` THEN the system SHALL display a detailed summary table of all forks showing fork name, owner, stars, last activity, commits ahead/behind, and activity status
+4. WHEN I run `forkscout show-promising <url>` THEN the system SHALL display a filtered list of significant forks based on configurable criteria like minimum stars, recent activity, and commits ahead
+5. WHEN I run `forkscout show-fork-details <fork-url>` THEN the system SHALL show detailed fork information including all branches, commit counts per branch, and branch activity timestamps
+6. WHEN I run `forkscout analyze-fork <fork-url> --branch <branch-name>` THEN the system SHALL analyze the specific fork/branch combination and show feature analysis
+7. WHEN I run `forkscout show-commits <fork-url> --branch <branch-name>` THEN the system SHALL display all commits in that branch with SHA, message, author, date, and file change summary
 8. WHEN using any step-by-step command THEN the system SHALL provide clear output formatting with tables, colors, and progress indicators for better readability
 9. WHEN commands encounter errors THEN the system SHALL provide helpful error messages and suggest next steps or alternative commands
 
@@ -112,7 +112,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift analyze <repo-url> --explain` THEN the system SHALL provide short explanations for each commit being analyzed
+1. WHEN I run `forkscout analyze <repo-url> --explain` THEN the system SHALL provide short explanations for each commit being analyzed
 2. WHEN analyzing commits with --explain THEN the system SHALL generate explanations that describe what the commit does in simple terms
 3. WHEN displaying commit explanations THEN the system SHALL show the commit SHA, message, author, and generated explanation in a readable format
 4. WHEN the --explain flag is not provided THEN the system SHALL run the standard analysis without detailed commit explanations
@@ -219,7 +219,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift analyze <repo-url> --interactive` THEN the system SHALL execute analysis in interactive mode with user confirmation stops after each major step
+1. WHEN I run `forkscout analyze <repo-url> --interactive` THEN the system SHALL execute analysis in interactive mode with user confirmation stops after each major step
 2. WHEN in interactive mode THEN the system SHALL display clear step descriptions and progress indicators before requesting user confirmation
 3. WHEN prompted for confirmation THEN the system SHALL provide options to continue or abort the entire analysis
 4. WHEN displaying step results THEN the system SHALL show intermediate results in a formatted, easy-to-read manner with key metrics and summaries
@@ -241,7 +241,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift analyze <repo-url> --disable-cache` THEN the system SHALL bypass all caching mechanisms and fetch fresh data from GitHub API
+1. WHEN I run `forkscout analyze <repo-url> --disable-cache` THEN the system SHALL bypass all caching mechanisms and fetch fresh data from GitHub API
 2. WHEN --disable-cache flag is provided THEN the system SHALL not read from existing cache entries for repository, fork, or commit data
 3. WHEN --disable-cache flag is provided THEN the system SHALL not write new data to cache during the analysis process
 4. WHEN using --disable-cache THEN the system SHALL display a warning that analysis may take longer due to increased API calls
@@ -258,7 +258,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-commits <fork-url> --branch <branch-name> --ai-summary` THEN the system SHALL generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
+1. WHEN I run `forkscout show-commits <fork-url> --branch <branch-name> --ai-summary` THEN the system SHALL generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
 2. WHEN generating AI summaries THEN the system SHALL use a compact prompt "Summarize this commit: what changed, why, impact" without buzzwords or verbose instructions
 3. WHEN creating AI summaries THEN the system SHALL include both the commit message and diff text in the analysis
 4. WHEN AI summary generation is enabled THEN the system SHALL display commit SHA, GitHub URL, original commit message, and AI-generated summary
@@ -282,7 +282,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN running any forklift command THEN the system SHALL use simple, compatible formatting by default that works in all terminal environments
+1. WHEN running any forkscout command THEN the system SHALL use simple, compatible formatting by default that works in all terminal environments
 1.1. WHEN displaying commit explanations THEN the system SHALL NOT use emoji characters (📝, ❓, 🟢, ❔) or Unicode box drawing characters that may display as literal text
 2. WHEN displaying output THEN the system SHALL avoid complex Rich formatting, emojis, and special Unicode characters that may not render properly
 3. WHEN showing tables THEN the system SHALL use simple ASCII characters (|, -, +) instead of Unicode box drawing characters
@@ -320,7 +320,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-commits <fork-url> --detail` THEN the system SHALL display comprehensive commit information for each commit including full GitHub URL, AI summary, commit message, and diff content
+1. WHEN I run `forkscout show-commits <fork-url> --detail` THEN the system SHALL display comprehensive commit information for each commit including full GitHub URL, AI summary, commit message, and diff content
 2. WHEN using --detail flag THEN the system SHALL generate clickable GitHub commit URLs in the format `https://github.com/{owner}/{repo}/commit/{sha}`
 3. WHEN --detail is specified THEN the system SHALL automatically generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
 4. WHEN displaying detailed commit information THEN the system SHALL show the original commit message with proper formatting and line breaks
@@ -358,8 +358,8 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN running any forklift command THEN the system SHALL automatically detect if output is being redirected or piped
-2. WHEN stdout is redirected (e.g., `forklift analyze repo > output.txt`) THEN the system SHALL automatically disable progress bars and rich formatting
+1. WHEN running any forkscout command THEN the system SHALL automatically detect if output is being redirected or piped
+2. WHEN stdout is redirected (e.g., `forkscout analyze repo > output.txt`) THEN the system SHALL automatically disable progress bars and rich formatting
 3. WHEN running in a non-TTY environment THEN the system SHALL use plain text output without progress indicators
 4. WHEN running in CI/automation environments THEN the system SHALL detect common CI environment variables and disable interactive features
 5. WHEN stdin and stdout are both connected to a terminal THEN the system SHALL enable full interactive mode with progress bars and rich formatting
@@ -383,7 +383,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url> --ahead-only` THEN the system SHALL display only forks that have commits ahead of the upstream repository
+1. WHEN I run `forkscout show-forks <repo-url> --ahead-only` THEN the system SHALL display only forks that have commits ahead of the upstream repository
 2. WHEN using --ahead-only flag THEN the system SHALL automatically exclude all private forks from the results regardless of their commit status
 3. WHEN filtering with --ahead-only THEN the system SHALL use the created_at < pushed_at comparison to identify forks with commits ahead
 4. WHEN --ahead-only is specified THEN the system SHALL display a summary showing total forks found vs forks displayed after filtering
@@ -423,7 +423,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url> --show-commits=N` THEN the system SHALL accept any positive integer value for N without artificial upper limits
+1. WHEN I run `forkscout show-forks <repo-url> --show-commits=N` THEN the system SHALL accept any positive integer value for N without artificial upper limits
 2. WHEN --show-commits value is very large (>1000) THEN the system SHALL inform the user about potential performance impact but still proceed
 3. WHEN fetching commits THEN the system SHALL use GitHub Compare API pagination to retrieve all requested commits regardless of count, using multiple paginated requests when needed
 4. WHEN GitHub Compare API returns 250 commits but more are requested THEN the system SHALL automatically use pagination to fetch additional pages until the requested count is reached
@@ -462,7 +462,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-commits <fork-url> --detail` THEN the system SHALL check if the fork has no commits ahead using already downloaded fork qualification data
+1. WHEN I run `forkscout show-commits <fork-url> --detail` THEN the system SHALL check if the fork has no commits ahead using already downloaded fork qualification data
 2. WHEN using --detail flag on a fork with no commits ahead THEN the system SHALL display a clear message stating "Fork has no commits ahead of upstream - skipping detailed analysis" and exit gracefully
 3. WHEN determining if a fork has commits ahead THEN the system SHALL use the created_at >= pushed_at comparison from previously collected fork data without making additional API calls
 4. WHEN --detail flag is used on forks with commits ahead THEN the system SHALL proceed with normal detailed analysis including AI summaries, commit messages, and diffs
@@ -502,7 +502,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift analyze <repo-url> --disable-cache` THEN the system SHALL successfully execute without throwing "unexpected keyword argument 'disable_cache'" errors
+1. WHEN I run `forkscout analyze <repo-url> --disable-cache` THEN the system SHALL successfully execute without throwing "unexpected keyword argument 'disable_cache'" errors
 2. WHEN --disable-cache flag is provided THEN the GitHubClient methods SHALL accept and properly handle the disable_cache parameter
 3. WHEN disable_cache=True is passed to GitHub API methods THEN the system SHALL bypass cache read operations and fetch fresh data from GitHub API
 4. WHEN disable_cache=True is passed to GitHub API methods THEN the system SHALL bypass cache write operations and not store fetched data in cache
@@ -519,7 +519,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url> --detail` THEN the system SHALL make additional API requests to fetch exact commits ahead count for each fork
+1. WHEN I run `forkscout show-forks <repo-url> --detail` THEN the system SHALL make additional API requests to fetch exact commits ahead count for each fork
 2. WHEN using --detail flag THEN the system SHALL display a "Detailed Fork Information" table with URL as the first column, followed by Stars, Forks, Commits Ahead, and Last Push columns only
 3. WHEN --detail flag is provided THEN the system SHALL remove Fork Name, Owner, Activity, and Status columns from the table to focus on essential metrics
 4. WHEN fetching detailed commit information THEN the system SHALL use GitHub's compare API endpoint to get accurate commits ahead count between fork and upstream repository
@@ -560,7 +560,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url> --show-commits=N` THEN the system SHALL add a "Recent Commits" column showing the last N commits for each fork
+1. WHEN I run `forkscout show-forks <repo-url> --show-commits=N` THEN the system SHALL add a "Recent Commits" column showing the last N commits for each fork
 2. WHEN --show-commits is specified THEN the system SHALL display each commit as "short_sha: commit_message" format (e.g., "a1b2c3d: Add user authentication")
 3. WHEN showing multiple commits THEN the system SHALL display each commit on a separate line within the cell for better readability
 4. WHEN --show-commits=0 or not specified THEN the system SHALL not show the Recent Commits column (default behavior)
@@ -580,7 +580,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN using `forklift show-forks <repo-url> --show-commits=N` THEN the system SHALL check each fork's commits ahead status before attempting to download commit information
+1. WHEN using `forkscout show-forks <repo-url> --show-commits=N` THEN the system SHALL check each fork's commits ahead status before attempting to download commit information
 2. WHEN a fork has no commits ahead (created_at >= pushed_at) THEN the system SHALL skip downloading commits for that fork and display "No commits ahead" in the Recent Commits column
 3. WHEN a fork has commits ahead (pushed_at > created_at) THEN the system SHALL proceed with downloading the requested number of recent commits
 4. WHEN fork commit status is determined from already collected fork data THEN the system SHALL not make additional API calls to check commits ahead status
@@ -616,7 +616,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url>` THEN the system SHALL display the "All Forks" table using the same detailed formatting as the --detail flag for consistency
+1. WHEN I run `forkscout show-forks <repo-url>` THEN the system SHALL display the "All Forks" table using the same detailed formatting as the --detail flag for consistency
 2. WHEN using --show-commits flag THEN the system SHALL download and display only commits that are ahead of the upstream repository, not all commits
 3. WHEN displaying commits in the Recent Commits column THEN the system SHALL include the commit date, hash, and commit message for better temporal context
 4. WHEN showing recent commits THEN the system SHALL format the information as "YYYY-MM-DD hash commit message" for clear identification and temporal context
@@ -634,7 +634,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url>` and `forklift show-forks <repo-url> --detail` THEN both commands SHALL use the same table structure, column widths, and formatting styles for consistency
+1. WHEN I run `forkscout show-forks <repo-url>` and `forkscout show-forks <repo-url> --detail` THEN both commands SHALL use the same table structure, column widths, and formatting styles for consistency
 2. WHEN displaying fork tables THEN the system SHALL use a universal rendering method that adapts the commit data presentation based on available information (status vs exact counts)
 3. WHEN using the universal renderer THEN column widths SHALL be consistent across both modes (URL: 35, Stars: 8, Forks: 8, Commits: 15, Last Push: 14)
 4. WHEN displaying commit information THEN the system SHALL show exact counts when available (--detail mode) or status indicators when not available (standard mode) in the same column format
@@ -675,7 +675,7 @@ https://github.com/sanila2007/youtube-bot-telegram 19 forks
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo-url> --csv` THEN the system SHALL export the main fork table data to CSV format instead of displaying the table
+1. WHEN I run `forkscout show-forks <repo-url> --csv` THEN the system SHALL export the main fork table data to CSV format instead of displaying the table
 2. WHEN using --csv flag THEN the system SHALL output CSV data to stdout with proper comma-separated values and quoted fields containing commas or special characters
 3. WHEN exporting to CSV THEN the system SHALL include all main table columns: Fork URL, Stars, Forks, Commits Ahead, Last Push, and Language
 4. WHEN --csv is combined with --show-commits THEN the system SHALL include the Recent Commits column data in the CSV export with commit messages properly escaped

@@ -176,7 +176,7 @@ stages:
 @pytest.mark.integration
 async def test_with_detailed_logging():
     # Enable detailed logging for debugging
-    logging.getLogger('forklift').setLevel(logging.DEBUG)
+    logging.getLogger('forkscout').setLevel(logging.DEBUG)
     
     # Test operations with full logging
     result = await component_under_test()

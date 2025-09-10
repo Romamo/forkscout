@@ -4,12 +4,12 @@ import logging
 import pytest
 from unittest.mock import patch, MagicMock
 
-from forklift.analysis.fork_data_collection_engine import (
+from forkscout.analysis.fork_data_collection_engine import (
     ForkDataCollectionEngine,
     ForkDataCollectionError,
 )
-from forklift.models.github import Repository
-from forklift.models.validation_handler import ValidationSummary
+from forkscout.models.github import Repository
+from forkscout.models.validation_handler import ValidationSummary
 
 
 class TestForkDataCollectionGracefulValidation:

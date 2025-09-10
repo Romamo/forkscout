@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rich.console import Console
 
-from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.config.settings import ForkliftConfig, GitHubConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.github.fork_list_processor import ForkListProcessor
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.github.fork_list_processor import ForkListProcessor
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 class TestShowForksDetailComprehensive:
@@ -21,7 +21,7 @@ class TestShowForksDetailComprehensive:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration for testing."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github = GitHubConfig(token="ghp_1234567890123456789012345678901234567890")
         return config
 

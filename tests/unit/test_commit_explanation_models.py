@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from forklift.models import (
+from forkscout.models import (
     AnalysisContext,
     CategoryType,
     Commit,

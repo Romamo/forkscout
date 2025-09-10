@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass
 from typing import Any
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.config import GitHubConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.config import GitHubConfig
 
 
 @dataclass

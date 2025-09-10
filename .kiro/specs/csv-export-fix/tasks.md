@@ -17,7 +17,7 @@
   - Add detailed error messages for CSV export failures
   - Log data structure information for debugging
   - Ensure errors are sent to stderr while keeping stdout clean for CSV
-  - Add proper exception handling with ForkliftOutputError
+  - Add proper exception handling with ForkscoutOutputError
   - _Requirements: 2.4, 1.5_
 
 - [x] 4. Create unit tests for CSV export fix
@@ -40,7 +40,7 @@
   - Test complete command execution with CSV output to stdout
   - Test CSV output redirection to files
   - Test CSV parsing by external tools to ensure valid format
-  - Test with the original failing command: `forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --csv --show-commits=2`
+  - Test with the original failing command: `forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --csv --show-commits=2`
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3, 3.4, 3.5_
 
 - [ ] 7. Redirect filtering messages to stderr in CSV mode

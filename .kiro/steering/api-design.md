@@ -412,7 +412,7 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
 app = FastAPI(
-    title="Forklift API",
+    title="Forkscout API",
     description="GitHub repository fork analysis API",
     version="1.0.0",
     contact={

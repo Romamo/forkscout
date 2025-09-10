@@ -2,7 +2,7 @@
 
 ## Overview
 
-Forklift now displays both **ahead** and **behind** commit counts when analyzing repository forks. This provides a complete picture of how forks have diverged from their parent repository.
+Forkscout now displays both **ahead** and **behind** commit counts when analyzing repository forks. This provides a complete picture of how forks have diverged from their parent repository.
 
 ## Display Format
 
@@ -37,19 +37,19 @@ fork,another,2,"-5",Active,https://github.com/another/fork
 ### Basic Usage
 ```bash
 # Show forks with basic commit status
-forklift show-forks owner/repo
+forkscout show-forks owner/repo
 
 # Show detailed commit counts (ahead and behind)
-forklift show-forks owner/repo --detail
+forkscout show-forks owner/repo --detail
 ```
 
 ### Filtering Options
 ```bash
 # Show only forks with commits ahead (includes diverged forks)
-forklift show-forks owner/repo --detail --ahead-only
+forkscout show-forks owner/repo --detail --ahead-only
 
 # Export to CSV with behind commits included
-forklift show-forks owner/repo --detail --csv > forks.csv
+forkscout show-forks owner/repo --detail --csv > forks.csv
 ```
 
 ## Technical Details
@@ -100,8 +100,8 @@ forklift show-forks owner/repo --detail --csv > forks.csv
 ### Debug Information
 ```bash
 # Enable debug logging to see API calls
-export FORKLIFT_LOG_LEVEL=DEBUG
-forklift show-forks owner/repo --detail
+export FORKSCOUT_LOG_LEVEL=DEBUG
+forkscout show-forks owner/repo --detail
 ```
 
 ## Related Documentation

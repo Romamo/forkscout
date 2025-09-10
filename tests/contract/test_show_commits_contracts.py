@@ -4,10 +4,10 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
-from forklift.config.settings import ForkliftConfig
-from forklift.models.github import Repository, Commit, User
-from forklift.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics
-from forklift.display.repository_display_service import RepositoryDisplayService
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.github import Repository, Commit, User
+from forkscout.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics
+from forkscout.display.repository_display_service import RepositoryDisplayService
 
 
 class TestShowCommitsContracts:
@@ -16,7 +16,7 @@ class TestShowCommitsContracts:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github = MagicMock()
         config.github.token = "test_token"
         return config
@@ -253,7 +253,7 @@ class TestShowCommitsContracts:
     @pytest.mark.asyncio
     async def test_fork_qualification_result_contract(self, sample_fork_data):
         """Test that QualifiedForksResult maintains its expected structure."""
-        from forklift.models.fork_qualification import QualificationStats
+        from forkscout.models.fork_qualification import QualificationStats
         
         stats = QualificationStats(
             total_forks_discovered=1,

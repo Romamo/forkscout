@@ -4,13 +4,13 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
-from forklift.models.ahead_only_filter import (
+from forkscout.models.ahead_only_filter import (
     AheadOnlyConfig,
     AheadOnlyFilter,
     FilteredForkResult,
     create_default_ahead_only_filter,
 )
-from forklift.models.github import Repository
+from forkscout.models.github import Repository
 
 
 class TestFilteredForkResult:

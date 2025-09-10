@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from src.forklift.models.cache import CacheConfig, CacheStats
-from src.forklift.storage.cache import CacheDatabase, ForkliftCache
+from src.forklift.storage.cache import CacheDatabase, ForkscoutCache
 
 
 @pytest.fixture
@@ -32,8 +32,8 @@ async def cache_db(temp_cache_config):
 
 @pytest.fixture
 async def forklift_cache(temp_cache_config):
-    """Create and initialize a ForkliftCache for testing."""
-    cache = ForkliftCache(temp_cache_config)
+    """Create and initialize a ForkscoutCache for testing."""
+    cache = ForkscoutCache(temp_cache_config)
     await cache.initialize()
     yield cache
     await cache.close()
@@ -215,12 +215,12 @@ class TestCacheDatabase:
             await db.set("test_key", {"data": "test"}, "test")
 
 
-class TestForkliftCache:
-    """Test cases for ForkliftCache class."""
+class TestForkscoutCache:
+    """Test cases for ForkscoutCache class."""
 
     async def test_cache_initialization(self, temp_cache_config):
         """Test cache initialization and cleanup."""
-        cache = ForkliftCache(temp_cache_config)
+        cache = ForkscoutCache(temp_cache_config)
 
         # Should not be initialized initially
         with pytest.raises(RuntimeError, match="Cache not initialized"):
@@ -236,7 +236,7 @@ class TestForkliftCache:
 
     async def test_context_manager(self, temp_cache_config):
         """Test using cache as async context manager."""
-        async with ForkliftCache(temp_cache_config) as cache:
+        async with ForkscoutCache(temp_cache_config) as cache:
             await cache.set_json("test_key", {"data": "test"}, "test")
             result = await cache.get_json("test_key")
             assert result == {"data": "test"}
@@ -365,7 +365,7 @@ class TestForkliftCache:
 
     async def test_default_config(self):
         """Test using default configuration."""
-        cache = ForkliftCache()
+        cache = ForkscoutCache()
         assert isinstance(cache.config, CacheConfig)
         assert cache.config.database_path == "forklift_cache.db"
         assert cache.config.default_ttl_hours == 24

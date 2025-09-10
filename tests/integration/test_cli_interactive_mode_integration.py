@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.cli import cli, initialize_cli_environment
-from forklift.display.interaction_mode import InteractionMode
-from forklift.display.progress_reporter import (
+from forkscout.cli import cli, initialize_cli_environment
+from forkscout.display.interaction_mode import InteractionMode
+from forkscout.display.progress_reporter import (
     PlainTextProgressReporter,
     RichProgressReporter,
     StderrProgressReporter,
@@ -205,7 +205,7 @@ class TestCLIInteractiveModeIntegration:
 
     def test_handle_user_prompt_interactive_mode(self):
         """Test user prompt handling in interactive mode."""
-        from forklift.cli import handle_user_prompt
+        from forkscout.cli import handle_user_prompt
 
         with patch("forklift.cli.Confirm.ask") as mock_confirm:
             mock_confirm.return_value = True
@@ -222,7 +222,7 @@ class TestCLIInteractiveModeIntegration:
 
     def test_handle_user_prompt_non_interactive_mode(self):
         """Test user prompt handling in non-interactive mode."""
-        from forklift.cli import handle_user_prompt
+        from forkscout.cli import handle_user_prompt
 
         with patch("forklift.cli.Confirm.ask") as mock_confirm:
             result = handle_user_prompt(
@@ -237,7 +237,7 @@ class TestCLIInteractiveModeIntegration:
 
     def test_handle_user_prompt_keyboard_interrupt(self):
         """Test user prompt handling with keyboard interrupt."""
-        from forklift.cli import handle_user_prompt
+        from forkscout.cli import handle_user_prompt
 
         with patch("forklift.cli.Confirm.ask") as mock_confirm:
             mock_confirm.side_effect = KeyboardInterrupt()

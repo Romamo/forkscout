@@ -4,7 +4,7 @@
 
 This document outlines the design for fixing the column truncation issue in Forklift's terminal display when running commands like:
 ```
-uv run forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=2
+uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=2
 ```
 
 The issue is that columns are being truncated or wrapped, making it difficult to read the output, especially the first column which should not be empty. The fix will ensure all columns are visible without truncation or wrapping, even when the content is longer than the terminal width.
@@ -187,7 +187,7 @@ This fix will only modify the `_display_detailed_fork_table` function in `src/fo
 
 1. **Basic Display Test**:
    ```
-   uv run forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=2
+   uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=2
    ```
    - Verify first column (URL) is not empty
    - Confirm all columns are visible without truncation
@@ -213,7 +213,7 @@ This fix will only modify the `_display_detailed_fork_table` function in `src/fo
 
 1. Run the specific command that was causing the issue:
    ```
-   uv run forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=2
+   uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=2
    ```
 
 2. Verify that the first column (URL) is no longer empty

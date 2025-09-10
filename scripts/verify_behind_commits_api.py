@@ -26,7 +26,7 @@ if not GITHUB_TOKEN:
 HEADERS = {
     'Authorization': f'token {GITHUB_TOKEN}',
     'Accept': 'application/vnd.github.v3+json',
-    'User-Agent': 'forklift-behind-commits-verification'
+    'User-Agent': 'forkscout-behind-commits-verification'
 }
 
 BASE_URL = 'https://api.github.com'
@@ -212,7 +212,7 @@ async def verify_behind_commits():
         console.print("[green]The behind commits functionality is working correctly - there simply are no behind commits to display.[/green]")
     else:
         console.print(f"\n[bold red]⚠️  FOUND: {behind_count} fork(s) with commits behind[/bold red]")
-        console.print("[red]These should be displayed with '-X' format in the forklift output.[/red]")
+        console.print("[red]These should be displayed with '-X' format in the forkscout output.[/red]")
     
     # Show raw API data for first few comparisons
     console.print("\n[bold]Step 4: Raw API Response Sample[/bold]")

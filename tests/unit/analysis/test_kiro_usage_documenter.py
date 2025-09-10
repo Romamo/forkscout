@@ -331,7 +331,7 @@ assert result == expected
     def test_determine_development_method(self, documenter):
         """Test determination of development method."""
         # Test spec-driven
-        analysis_file = Path("src/forklift/analysis/test.py")
+        analysis_file = Path("src/forkscout/analysis/test.py")
         method = documenter._determine_development_method(analysis_file, "content")
         assert method == "spec-driven"
         
@@ -494,7 +494,7 @@ simple code
     
     def test_get_component_name(self, documenter):
         """Test component name extraction."""
-        file_path = Path("src/forklift/analysis/test_component.py")
+        file_path = Path("src/forkscout/analysis/test_component.py")
         name = documenter._get_component_name(file_path)
         
         assert name == "Test Component"

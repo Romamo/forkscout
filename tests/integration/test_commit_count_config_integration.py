@@ -3,16 +3,16 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from forklift.models.commit_count_config import CommitCountConfig
-from forklift.config.settings import ForkliftConfig
+from forkscout.models.commit_count_config import CommitCountConfig
+from forkscout.config.settings import ForkscoutConfig
 
 
 class TestCommitCountConfigIntegration:
     """Integration tests for commit count configuration."""
 
     def test_config_in_forklift_settings(self):
-        """Test that CommitCountConfig is properly integrated in ForkliftConfig."""
-        config = ForkliftConfig()
+        """Test that CommitCountConfig is properly integrated in ForkscoutConfig."""
+        config = ForkscoutConfig()
         
         # Should have commit_count attribute
         assert hasattr(config, 'commit_count')
@@ -33,7 +33,7 @@ class TestCommitCountConfigIntegration:
             }
         }
         
-        config = ForkliftConfig.from_dict(config_dict)
+        config = ForkscoutConfig.from_dict(config_dict)
         
         assert config.commit_count.max_count_limit == 0  # Should be 0 due to unlimited flag
         assert config.commit_count.display_limit == 3
@@ -42,13 +42,13 @@ class TestCommitCountConfigIntegration:
 
     def test_config_serialization(self):
         """Test that commit count config can be serialized and deserialized."""
-        original_config = ForkliftConfig()
+        original_config = ForkscoutConfig()
         original_config.commit_count.max_count_limit = 200
         original_config.commit_count.display_limit = 10
         
         # Convert to dict and back
         config_dict = original_config.to_dict()
-        restored_config = ForkliftConfig.from_dict(config_dict)
+        restored_config = ForkscoutConfig.from_dict(config_dict)
         
         assert restored_config.commit_count.max_count_limit == 200
         assert restored_config.commit_count.display_limit == 10
@@ -56,12 +56,12 @@ class TestCommitCountConfigIntegration:
     @patch('forklift.display.repository_display_service.RepositoryDisplayService')
     def test_cli_passes_config_to_display_service(self, mock_display_service):
         """Test that CLI properly passes commit count config to display service."""
-        from forklift.cli import _show_forks_summary
-        from forklift.config.settings import ForkliftConfig
-        from forklift.display.interaction_mode import InteractionMode
+        from forkscout.cli import _show_forks_summary
+        from forkscout.config.settings import ForkscoutConfig
+        from forkscout.display.interaction_mode import InteractionMode
         
         # Create test configuration
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         commit_config = CommitCountConfig(max_count_limit=50, display_limit=3)
         
         # Mock the display service constructor
@@ -106,7 +106,7 @@ class TestCommitCountConfigIntegration:
 
     def test_commit_data_formatter_with_config(self):
         """Test that format_commit_info uses configuration correctly."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
+        from forkscout.display.repository_display_service import RepositoryDisplayService
         from unittest.mock import Mock
         
         mock_client = Mock()
@@ -146,9 +146,9 @@ class TestCommitCountConfigIntegration:
 
     def test_repository_display_service_stores_config(self):
         """Test that RepositoryDisplayService properly stores commit count config."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
-        from forklift.github.client import GitHubClient
-        from forklift.config.settings import GitHubConfig
+        from forkscout.display.repository_display_service import RepositoryDisplayService
+        from forkscout.github.client import GitHubClient
+        from forkscout.config.settings import GitHubConfig
         
         # Create mock GitHub client with valid token format
         github_config = GitHubConfig(token="ghp_1234567890123456789012345678901234567890")

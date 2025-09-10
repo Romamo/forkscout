@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pytest
 
-from forklift.models.github import Repository
-from forklift.storage.cache_validation import (
+from forkscout.models.github import Repository
+from forkscout.storage.cache_validation import (
     CacheValidationError,
     CacheValidator,
     add_schema_version,

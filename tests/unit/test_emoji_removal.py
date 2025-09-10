@@ -1,8 +1,8 @@
 """Test that emoji and Unicode characters have been removed from output formatting."""
 
 
-from forklift.analysis.explanation_formatter import ExplanationFormatter
-from forklift.models.analysis import (
+from forkscout.analysis.explanation_formatter import ExplanationFormatter
+from forkscout.models.analysis import (
     CategoryType,
     ImpactLevel,
     MainRepoValue,
@@ -62,7 +62,7 @@ class TestEmojiRemoval:
 
     def test_simple_table_formatter_uses_ascii_characters(self):
         """Test that SimpleTableFormatter uses ASCII characters for table borders."""
-        from forklift.analysis.simple_table_formatter import SimpleTableFormatter
+        from forkscout.analysis.simple_table_formatter import SimpleTableFormatter
 
         formatter = SimpleTableFormatter()
 

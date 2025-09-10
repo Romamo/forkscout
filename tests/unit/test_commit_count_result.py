@@ -2,7 +2,7 @@
 
 import pytest
 
-from forklift.models.commit_count_result import BatchCommitCountResult, CommitCountResult
+from forkscout.models.commit_count_result import BatchCommitCountResult, CommitCountResult
 
 
 class TestCommitCountResult:

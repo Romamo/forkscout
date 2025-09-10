@@ -4,14 +4,14 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
-from forklift.cli import _show_commits, CLIError
-from forklift.config.settings import ForkliftConfig
-from forklift.models.github import Repository
-from forklift.models.fork_qualification import ForkQualificationMetrics, CollectedForkData, QualifiedForksResult, QualificationStats
+from forkscout.cli import _show_commits, CLIError
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.github import Repository
+from forkscout.models.fork_qualification import ForkQualificationMetrics, CollectedForkData, QualifiedForksResult, QualificationStats
 
 
 def create_mock_config():
-    """Create a properly mocked ForkliftConfig for testing."""
+    """Create a properly mocked ForkscoutConfig for testing."""
     mock_config = Mock()
     mock_config.github = Mock()
     mock_config.github.token = "ghp_1234567890abcdef1234567890abcdef12345678"

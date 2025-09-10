@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
+from forkscout.cli import cli
 
 
 class TestCLIBackwardCompatibilityIntegration:

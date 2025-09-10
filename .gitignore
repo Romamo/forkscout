@@ -165,21 +165,21 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Forklift specific
+# Forkscout specific
 *.db
 *.sqlite
 cache/
 reports/
 logs/
-.forklift/
+.forkscout/
 
 # Development artifacts (temporary files, test outputs, etc.)
 dev-artifacts/
 *.txt
 *.csv
-forklift.yaml
-forklift.example.*
-.forklift_session.json.backup
+forkscout.yaml
+forkscout.example.*
+.forkscout_session.json.backup
 
 # Important: DO NOT ignore .kiro directory - it contains specs and steering
 # !.kiro/

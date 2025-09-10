@@ -15,9 +15,9 @@ import pytest_asyncio
 import asyncio
 from unittest.mock import MagicMock
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.display.repository_display_service import RepositoryDisplayService
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.display.repository_display_service import RepositoryDisplayService
 
 
 @pytest.mark.online

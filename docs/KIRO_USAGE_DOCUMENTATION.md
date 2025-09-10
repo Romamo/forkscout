@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a comprehensive overview of how Kiro was used throughout the development of the Forklift project, demonstrating advanced spec-driven development practices, steering rule implementation, and sophisticated AI-assisted development workflows.
+This document provides a comprehensive overview of how Kiro was used throughout the development of the Forkscout project, demonstrating advanced spec-driven development practices, steering rule implementation, and sophisticated AI-assisted development workflows.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This document provides a comprehensive overview of how Kiro was used throughout 
 
 ### Overview of Spec-Driven Development
 
-The Forklift project was built using Kiro's spec-driven development methodology, which follows a structured workflow:
+The Forkscout project was built using Kiro's spec-driven development methodology, which follows a structured workflow:
 
 **Requirements → Design → Tasks → Implementation**
 
@@ -29,8 +29,8 @@ This approach enabled systematic development of complex features through iterati
 The project utilized 16 different specifications, each focusing on specific aspects of the system:
 
 #### Core System Specs
-1. **forklift-tool** - Main application specification with comprehensive requirements
-2. **forklift-version-2-features** - Advanced features for future development
+1. **forkscout-tool** - Main application specification with comprehensive requirements
+2. **forkscout-version-2-features** - Advanced features for future development
 3. **hackathon-submission-preparation** - Current submission preparation spec
 
 #### Feature Enhancement Specs
@@ -54,9 +54,9 @@ The project utilized 16 different specifications, each focusing on specific aspe
 
 ### Requirements Gathering and Refinement Process
 
-#### Example: Forklift Tool Requirements Evolution
+#### Example: Forkscout Tool Requirements Evolution
 
-The main forklift-tool spec demonstrates sophisticated requirements gathering:
+The main forkscout-tool spec demonstrates sophisticated requirements gathering:
 
 **Initial User Story:**
 ```markdown
@@ -292,7 +292,7 @@ src/
 
 **Actual Project Structure:**
 ```
-src/forklift/
+src/forkscout/
 ├── models/          # Pydantic data models
 ├── analysis/        # Repository analysis services
 ├── github/          # GitHub API client and utilities
@@ -411,11 +411,11 @@ async def test_openai_commit_explanation():
 **Implementation Impact:**
 ```python
 # Custom exception hierarchy
-class ForkliftError(Exception):
-    """Base exception for Forklift application"""
+class ForkscoutError(Exception):
+    """Base exception for Forkscout application"""
     pass
 
-class GitHubAPIError(ForkliftError):
+class GitHubAPIError(ForkscoutError):
     """Raised when GitHub API operations fail"""
     def __init__(self, message: str, status_code: int = None, response_data: dict = None):
         super().__init__(message)
@@ -461,12 +461,12 @@ for fork in filtered_forks:
 
 ### Chronological Development Overview
 
-The development of Forklift followed a systematic progression through multiple specs, each building upon previous work while adding new capabilities.
+The development of Forkscout followed a systematic progression through multiple specs, each building upon previous work while adding new capabilities.
 
 ### Phase 1: Foundation (Specs 1-3)
 **Timeline: Project Initiation**
 
-#### 1. forklift-tool (Core System)
+#### 1. forkscout-tool (Core System)
 **Status: Completed**
 - **Initial Concept**: Basic fork analysis tool
 - **Evolution**: Comprehensive repository analysis system with 22 requirements
@@ -487,8 +487,8 @@ focused steps, so that I can understand the fork ecosystem incrementally and mak
 informed decisions at each stage.
 
 #### Acceptance Criteria (22 detailed criteria added)
-1. WHEN I run `forklift show-repo <url>` THEN the system SHALL display detailed repository information
-2. WHEN I run `forklift list-forks <url>` THEN the system SHALL display a lightweight preview
+1. WHEN I run `forkscout show-repo <url>` THEN the system SHALL display detailed repository information
+2. WHEN I run `forkscout list-forks <url>` THEN the system SHALL display a lightweight preview
 [... 20 more detailed criteria]
 ```
 
@@ -589,7 +589,7 @@ Rather than complex scoring algorithms, the system focuses on answering two key 
 - **Purpose**: Improve CSV data structure
 - **Key Features**: Better column organization, enhanced data export
 
-#### 16. forklift-version-2-features
+#### 16. forkscout-version-2-features
 **Status: Planned**
 - **Purpose**: Advanced features for future development
 - **Scope**: PR automation, enhanced ranking, enterprise features
@@ -631,7 +631,7 @@ could benefit all main repository users
 
 **Iteration 3: AI Integration**
 ```markdown
-WHEN I run `forklift show-commits <fork-url> --ai-summary` THEN the system SHALL generate 
+WHEN I run `forkscout show-commits <fork-url> --ai-summary` THEN the system SHALL generate 
 AI-powered summaries for each commit using OpenAI GPT-4 mini model
 ```
 
@@ -678,7 +678,7 @@ This shows how specs evolved to incorporate better architectural decisions.
 - **Total Specs Created**: 16
 - **Specs Completed**: 13
 - **Specs In Progress**: 1 (hackathon-submission-preparation)
-- **Specs Planned**: 2 (forklift-version-2-features)
+- **Specs Planned**: 2 (forkscout-version-2-features)
 
 #### Task Completion
 - **Total Tasks Defined**: 150+ across all specs

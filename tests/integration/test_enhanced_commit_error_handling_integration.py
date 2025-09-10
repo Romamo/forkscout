@@ -3,17 +3,17 @@
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubCommitComparisonError,
     GitHubDivergentHistoryError,
     GitHubPrivateRepositoryError,
 )
-from forklift.config import GitHubConfig
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.config import GitHubConfig
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 def create_mock_repo_response(owner: str, name: str) -> dict:
@@ -225,7 +225,7 @@ class TestEnhancedCommitErrorHandlingIntegration:
 
         # Mock individual comparison to raise authentication error on first fork
         async def mock_compare_repositories(base_owner, base_repo, fork_owner, fork_repo):
-            from forklift.github.exceptions import GitHubAuthenticationError
+            from forkscout.github.exceptions import GitHubAuthenticationError
             raise GitHubAuthenticationError("Authentication failed", status_code=401)
 
         github_client.compare_repositories = AsyncMock(side_effect=mock_compare_repositories)

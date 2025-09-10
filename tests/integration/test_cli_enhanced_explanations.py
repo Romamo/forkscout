@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.models.analysis import (
+from forkscout.cli import cli
+from forkscout.models.analysis import (
     CategoryType,
     CommitCategory,
     CommitExplanation,
@@ -15,7 +15,7 @@ from forklift.models.analysis import (
     ImpactLevel,
     MainRepoValue,
 )
-from forklift.models.github import Commit, Repository, User
+from forkscout.models.github import Commit, Repository, User
 
 
 class TestCLIEnhancedExplanations:
@@ -157,7 +157,7 @@ class TestCLIEnhancedExplanations:
 
     def test_display_commit_explanations_function_import(self):
         """Test that the display_commit_explanations function imports correctly."""
-        from forklift.cli import display_commit_explanations
+        from forkscout.cli import display_commit_explanations
 
         # Function should exist and be callable
         assert callable(display_commit_explanations)
@@ -165,7 +165,7 @@ class TestCLIEnhancedExplanations:
     @patch("forklift.analysis.explanation_formatter.ExplanationFormatter")
     def test_display_commit_explanations_uses_formatter(self, mock_formatter_class):
         """Test that display_commit_explanations uses the ExplanationFormatter."""
-        from forklift.cli import display_commit_explanations
+        from forkscout.cli import display_commit_explanations
 
         # Create mock formatter
         mock_formatter = Mock()
@@ -186,7 +186,7 @@ class TestCLIEnhancedExplanations:
 
     def test_explanation_formatter_integration(self):
         """Test that ExplanationFormatter integrates correctly with CLI."""
-        from forklift.analysis.explanation_formatter import ExplanationFormatter
+        from forkscout.analysis.explanation_formatter import ExplanationFormatter
 
         # Create formatter
         formatter = ExplanationFormatter(use_colors=True, use_icons=True)
@@ -203,7 +203,7 @@ class TestCLIEnhancedExplanations:
     @patch("forklift.cli.console")
     def test_enhanced_explanation_display_output(self, mock_console):
         """Test that enhanced explanation display produces expected output."""
-        from forklift.cli import display_commit_explanations
+        from forkscout.cli import display_commit_explanations
 
         # Create mock fork analysis with no explanations
         mock_fork_analysis = Mock()
@@ -217,7 +217,7 @@ class TestCLIEnhancedExplanations:
 
     def test_github_link_generator_integration(self):
         """Test that GitHubLinkGenerator is properly integrated."""
-        from forklift.analysis.github_link_generator import GitHubLinkGenerator
+        from forkscout.analysis.github_link_generator import GitHubLinkGenerator
 
         # Test basic functionality
         url = GitHubLinkGenerator.generate_commit_url(

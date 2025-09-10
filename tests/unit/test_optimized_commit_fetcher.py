@@ -5,20 +5,20 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import GitHubAPIError
-from forklift.github.optimized_commit_fetcher import (
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import GitHubAPIError
+from forkscout.github.optimized_commit_fetcher import (
     CommitFetchingStats,
     OptimizedCommitFetcher,
     OptimizedCommitFetchingError,
 )
-from forklift.models.fork_qualification import (
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
     QualifiedForksResult,
 )
-from forklift.models.github import RecentCommit
+from forkscout.models.github import RecentCommit
 
 
 class TestCommitFetchingStats:

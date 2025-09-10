@@ -4,9 +4,9 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.github import RecentCommit
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.github import RecentCommit
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 class TestConcurrentCommitFetching:

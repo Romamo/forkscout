@@ -4,9 +4,9 @@ import pytest
 import logging
 from unittest.mock import patch
 
-from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.models.github import Repository
-from forklift.models.validation_handler import ValidationSummary
+from forkscout.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+from forkscout.models.github import Repository
+from forkscout.models.validation_handler import ValidationSummary
 
 
 class TestForkDataCollectionGracefulValidationIntegration:

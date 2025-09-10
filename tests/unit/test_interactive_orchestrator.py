@@ -8,10 +8,10 @@ from unittest.mock import Mock, patch
 import pytest
 from rich.console import Console
 
-from forklift.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
-from forklift.analysis.interactive_step import InteractiveStep
-from forklift.github.client import GitHubClient
-from forklift.models.interactive import InteractiveConfig, StepResult, UserChoice
+from forkscout.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
+from forkscout.analysis.interactive_step import InteractiveStep
+from forkscout.github.client import GitHubClient
+from forkscout.models.interactive import InteractiveConfig, StepResult, UserChoice
 
 
 class MockInteractiveStep(InteractiveStep):

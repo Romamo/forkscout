@@ -1,27 +1,27 @@
 # Implementation Plan
 
 - [x] 1. Update Repository model validation to be more permissive
-  - Modify `validate_github_name` method in `src/forklift/models/github.py` to log warnings instead of raising errors for consecutive periods
+  - Modify `validate_github_name` method in `src/forkscout/models/github.py` to log warnings instead of raising errors for consecutive periods
   - Keep strict validation only for patterns GitHub definitely doesn't allow (leading/trailing periods)
   - Add comprehensive logging for edge cases to help with debugging
   - _Requirements: 1.1, 2.1, 2.2, 3.1_
 
 - [x] 2. Create ValidationHandler service for graceful error handling
-  - Create new file `src/forklift/models/validation_handler.py` with ValidationHandler class
+  - Create new file `src/forkscout/models/validation_handler.py` with ValidationHandler class
   - Implement `safe_create_repository` method that catches ValidationError and continues processing
   - Add error collection and summary reporting functionality
   - Create ValidationSummary model for structured error reporting
   - _Requirements: 4.1, 4.2, 4.3, 3.2_
 
 - [x] 3. Update fork data collection to use graceful validation
-  - Modify `collect_fork_data` method in `src/forklift/analysis/fork_data_collection_engine.py`
+  - Modify `collect_fork_data` method in `src/forkscout/analysis/fork_data_collection_engine.py`
   - Integrate ValidationHandler to handle individual repository validation failures
   - Return both valid repositories and validation summary
   - Add logging for validation issues during processing
   - _Requirements: 1.2, 1.3, 4.1, 4.2_
 
 - [x] 4. Update display service to show validation summaries
-  - Modify `src/forklift/display/repository_display_service.py` to handle validation summaries
+  - Modify `src/forkscout/display/repository_display_service.py` to handle validation summaries
   - Add display of validation error summary when issues occur
   - Implement user-friendly messaging for validation issues
   - Add support for verbose error reporting

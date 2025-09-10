@@ -5,13 +5,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from forklift.analysis.interactive_steps import (
+from forkscout.analysis.interactive_steps import (
     FeatureRankingStep,
     ForkAnalysisStep,
     ForkDiscoveryStep,
     ForkFilteringStep,
 )
-from forklift.models.github import Fork, Repository, User
+from forkscout.models.github import Fork, Repository, User
 
 
 @pytest.fixture

@@ -12,11 +12,11 @@ import pytest
 from rich.console import Console
 from rich.table import Table
 
-from forklift.display.repository_display_service import (
+from forkscout.display.repository_display_service import (
     ForkTableConfig,
     RepositoryDisplayService,
 )
-from forklift.models.github import RecentCommit
+from forkscout.models.github import RecentCommit
 
 
 class TestTableStructureFormattingIntegrityUnit:

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.models.ai_summary import AISummary
-from forklift.models.github import Commit, Repository, User
+from forkscout.cli import cli
+from forkscout.models.ai_summary import AISummary
+from forkscout.models.github import Commit, Repository, User
 
 
 def create_mock_commit_data(commit):
@@ -42,9 +42,9 @@ def create_mock_commit_data(commit):
 @pytest.fixture
 def mock_config():
     """Create a mock configuration."""
-    from forklift.config.settings import ForkliftConfig, GitHubConfig, LoggingConfig
+    from forkscout.config.settings import ForkscoutConfig, GitHubConfig, LoggingConfig
 
-    config = ForkliftConfig(
+    config = ForkscoutConfig(
         github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
         openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef",
         logging=LoggingConfig(level="INFO")
@@ -183,7 +183,7 @@ class TestCLIDetailFlag:
         runner = CliRunner()
 
         # Use a simpler approach that doesn't require full CLI context
-        from forklift.cli import show_commits
+        from forkscout.cli import show_commits
         result = runner.invoke(show_commits, ["--help"])
 
         assert result.exit_code == 0
@@ -234,7 +234,7 @@ class TestDetailedCommitsDisplay:
     @patch("forklift.cli.AICommitSummaryEngine")
     async def test_display_detailed_commits_with_ai(self, mock_ai_engine_class, mock_openai_client, mock_display_class, mock_config, sample_commits, sample_repository):
         """Test _display_detailed_commits function with AI engine."""
-        from forklift.cli import _display_detailed_commits
+        from forkscout.cli import _display_detailed_commits
 
         # Setup mocks
         mock_github_client = AsyncMock()
@@ -270,7 +270,7 @@ class TestDetailedCommitsDisplay:
     @patch("forklift.cli.DetailedCommitDisplay")
     async def test_display_detailed_commits_without_ai(self, mock_display_class, mock_config, sample_commits, sample_repository):
         """Test _display_detailed_commits function without AI engine."""
-        from forklift.cli import _display_detailed_commits
+        from forkscout.cli import _display_detailed_commits
 
         # Setup config without OpenAI key
         mock_config.openai_api_key = None
@@ -303,7 +303,7 @@ class TestDetailedCommitsDisplay:
     @patch("forklift.cli.console")
     async def test_display_detailed_commits_error_handling(self, mock_console, mock_display_class, mock_config, sample_commits, sample_repository):
         """Test error handling in _display_detailed_commits function."""
-        from forklift.cli import _display_detailed_commits
+        from forkscout.cli import _display_detailed_commits
 
         mock_github_client = AsyncMock()
 
@@ -336,7 +336,7 @@ class TestDetailedCommitsIntegration:
     @patch("forklift.cli.console")
     async def test_full_detailed_commits_workflow(self, mock_console, mock_openai_client, mock_github_client_class, mock_load_config, mock_config, sample_commits, sample_repository):
         """Test full workflow of detailed commits display."""
-        from forklift.cli import _show_commits
+        from forkscout.cli import _show_commits
 
         # Setup mocks
         mock_load_config.return_value = mock_config
@@ -402,7 +402,7 @@ class TestDetailedCommitsIntegration:
     @patch("forklift.cli.GitHubClient")
     async def test_detailed_commits_with_no_commits(self, mock_github_client_class, mock_load_config, mock_config, sample_repository):
         """Test detailed commits display with no commits found."""
-        from forklift.cli import _show_commits
+        from forkscout.cli import _show_commits
 
         mock_load_config.return_value = mock_config
 

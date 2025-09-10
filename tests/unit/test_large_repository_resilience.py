@@ -4,7 +4,7 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-from forklift.github.rate_limiter import (
+from forkscout.github.rate_limiter import (
     CircuitBreaker,
     CircuitBreakerConfig,
     FailureType,
@@ -12,7 +12,7 @@ from forklift.github.rate_limiter import (
     DegradationConfig,
     GracefulDegradationHandler,
 )
-from forklift.github.exceptions import (
+from forkscout.github.exceptions import (
     GitHubRateLimitError,
     GitHubNotFoundError,
     GitHubAuthenticationError,

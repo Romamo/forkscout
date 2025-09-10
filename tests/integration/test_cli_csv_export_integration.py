@@ -5,11 +5,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig
-from forklift.models.analysis import ForkAnalysis
-from forklift.models.github import Fork, Repository, User, Commit
-from forklift.display.interaction_mode import InteractionMode
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.analysis import ForkAnalysis
+from forkscout.models.github import Fork, Repository, User, Commit
+from forkscout.display.interaction_mode import InteractionMode
 
 
 class TestCLICSVExportIntegration:
@@ -122,7 +122,7 @@ class TestCLICSVExportIntegration:
         ]
         
         # Create mock feature with commits
-        from forklift.models.analysis import Feature, FeatureCategory
+        from forkscout.models.analysis import Feature, FeatureCategory
         feature = Feature(
             id="feature_1",
             title="Test Feature",
@@ -134,7 +134,7 @@ class TestCLICSVExportIntegration:
         )
         
         # Create mock metrics
-        from forklift.models.analysis import ForkMetrics
+        from forkscout.models.analysis import ForkMetrics
         metrics = ForkMetrics(
             stars=10,
             forks=5,
@@ -297,10 +297,10 @@ class TestCLICSVExportIntegration:
                     
                     with patch('forklift.cli.asyncio.run') as mock_asyncio_run:
                         # Make asyncio.run raise an exception to simulate CSV export failure
-                        from forklift.exceptions import ForkliftOutputError
+                        from forkscout.exceptions import ForkscoutOutputError
                         mock_asyncio_run.side_effect = [
                             {"repository": "owner/repo", "fork_analyses": []},  # First call (analysis)
-                            ForkliftOutputError("CSV export failed")  # Second call (CSV export)
+                            ForkscoutOutputError("CSV export failed")  # Second call (CSV export)
                         ]
                         
                         result = runner.invoke(cli, [

@@ -4,11 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from forklift.analysis.explanation_generator import (
+from forkscout.analysis.explanation_generator import (
     ExplanationGenerator,
     ExplanationTemplates,
 )
-from forklift.models import (
+from forkscout.models import (
     CategoryType,
     Commit,
     FileChange,

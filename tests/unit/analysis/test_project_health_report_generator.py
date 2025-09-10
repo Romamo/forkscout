@@ -445,19 +445,19 @@ class TestProjectHealthReportGenerator:
         """Test module coverage extraction"""
         test_data = {
             'files': {
-                'src/forklift/analysis/module1.py': {
+                'src/forkscout/analysis/module1.py': {
                     'summary': {
                         'num_statements': 100,
                         'covered_lines': 85
                     }
                 },
-                'src/forklift/github/module2.py': {
+                'src/forkscout/github/module2.py': {
                     'summary': {
                         'num_statements': 200,
                         'covered_lines': 160
                     }
                 },
-                'src/forklift/core.py': {
+                'src/forkscout/core.py': {
                     'summary': {
                         'num_statements': 50,
                         'covered_lines': 40

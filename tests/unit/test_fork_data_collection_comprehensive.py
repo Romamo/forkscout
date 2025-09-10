@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from forklift.analysis.fork_data_collection_engine import (
+from forkscout.analysis.fork_data_collection_engine import (
     ForkDataCollectionEngine,
 )
-from forklift.github.fork_list_processor import (
+from forkscout.github.fork_list_processor import (
     ForkListProcessor,
 )
-from forklift.models.fork_qualification import (
+from forkscout.models.fork_qualification import (
     ForkQualificationMetrics,
     QualifiedForksResult,
 )

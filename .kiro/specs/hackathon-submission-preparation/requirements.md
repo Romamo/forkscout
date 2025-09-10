@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This specification outlines the requirements for preparing the Forklift project for submission to the Code with Kiro Hackathon. Forklift is a sophisticated GitHub repository fork analysis tool that demonstrates advanced spec-driven development using Kiro. The project needs final completion of core features, comprehensive documentation of the Kiro development process, and preparation of submission materials.
+This specification outlines the requirements for preparing the Forkscout project for submission to the Code with Kiro Hackathon. Forkscout is a sophisticated GitHub repository fork analysis tool that demonstrates advanced spec-driven development using Kiro. The project needs final completion of core features, comprehensive documentation of the Kiro development process, and preparation of submission materials.
 
 ## Requirements
 
@@ -45,7 +45,7 @@ This specification outlines the requirements for preparing the Forklift project 
 
 ### Requirement 4: Prepare PyPI Package Distribution
 
-**User Story:** As a potential user, I want to easily install Forklift from PyPI, so that I can use the tool without complex setup procedures.
+**User Story:** As a potential user, I want to easily install Forkscout from PyPI, so that I can use the tool without complex setup procedures.
 
 #### Acceptance Criteria
 

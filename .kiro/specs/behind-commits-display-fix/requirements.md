@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This specification addresses the missing behind commits display functionality in forklift. Currently, when a fork has commits behind the parent repository (as indicated by the `behind_by` field in GitHub's compare API), forklift only shows the ahead commits (+X) but completely ignores the behind commits (-Y). The system should display both ahead and behind commits in the format "+X -Y" when both exist, or just "-Y" when only behind commits exist.
+This specification addresses the missing behind commits display functionality in forkscout. Currently, when a fork has commits behind the parent repository (as indicated by the `behind_by` field in GitHub's compare API), forkscout only shows the ahead commits (+X) but completely ignores the behind commits (-Y). The system should display both ahead and behind commits in the format "+X -Y" when both exist, or just "-Y" when only behind commits exist.
 
 ## Requirements
 

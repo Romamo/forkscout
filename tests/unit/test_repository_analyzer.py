@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from forklift.analysis.repository_analyzer import (
+from forkscout.analysis.repository_analyzer import (
     RepositoryAnalysisError,
     RepositoryAnalyzer,
 )
-from forklift.github.client import GitHubAPIError, GitHubClient
-from forklift.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
-from forklift.models.github import Commit, Fork, Repository, User
+from forkscout.github.client import GitHubAPIError, GitHubClient
+from forkscout.models.analysis import Feature, FeatureCategory, ForkAnalysis, ForkMetrics
+from forkscout.models.github import Commit, Fork, Repository, User
 
 
 @pytest.fixture

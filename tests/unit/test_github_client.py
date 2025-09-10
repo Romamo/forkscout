@@ -5,15 +5,15 @@ import httpx
 import pytest
 import respx
 
-from forklift.config import GitHubConfig
-from forklift.github import (
+from forkscout.config import GitHubConfig
+from forkscout.github import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubClient,
     GitHubNotFoundError,
     GitHubRateLimitError,
 )
-from forklift.models.github import Commit, RecentCommit, Repository, User
+from forkscout.models.github import Commit, RecentCommit, Repository, User
 
 
 class TestGitHubClient:

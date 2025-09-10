@@ -6,9 +6,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.exceptions import ForkliftOutputError, ForkliftUnicodeError
-from forklift.reporting.csv_exporter import CSVExportConfig
-from forklift.reporting.csv_output_manager import (
+from forkscout.exceptions import ForkscoutOutputError, ForkscoutUnicodeError
+from forkscout.reporting.csv_exporter import CSVExportConfig
+from forkscout.reporting.csv_output_manager import (
     CSVOutputContext,
     CSVOutputManager,
     create_csv_context,
@@ -53,7 +53,7 @@ class TestCSVOutputManager:
         test_data = [{"name": "test", "value": "data"}]
         
         with patch.object(manager, '_generate_csv_safely', side_effect=Exception("Generation failed")):
-            with pytest.raises(ForkliftOutputError) as exc_info:
+            with pytest.raises(ForkscoutOutputError) as exc_info:
                 manager.export_to_stdout(test_data)
             
             assert "Failed to export CSV data" in str(exc_info.value)
@@ -63,8 +63,8 @@ class TestCSVOutputManager:
         manager = CSVOutputManager()
         test_data = [{"name": "test", "value": "data"}]
         
-        with patch.object(manager, '_generate_csv_safely', side_effect=ForkliftUnicodeError("Unicode error")):
-            with pytest.raises(ForkliftUnicodeError):
+        with patch.object(manager, '_generate_csv_safely', side_effect=ForkscoutUnicodeError("Unicode error")):
+            with pytest.raises(ForkscoutUnicodeError):
                 manager.export_to_stdout(test_data)
 
     @patch('builtins.open')
@@ -94,7 +94,7 @@ class TestCSVOutputManager:
         # First mock the CSV generation to succeed, then the file write to fail
         with patch.object(manager, '_generate_csv_safely', return_value="test,csv\ndata,value\n"):
             with patch('builtins.open', side_effect=PermissionError("Permission denied")):
-                with pytest.raises(ForkliftOutputError) as exc_info:
+                with pytest.raises(ForkscoutOutputError) as exc_info:
                     manager.export_to_file(test_data, "test.csv")
                 
                 assert "Failed to export CSV to file 'test.csv'" in str(exc_info.value)
@@ -114,7 +114,7 @@ class TestCSVOutputManager:
         test_data = [{"name": "test", "value": "data"}]
         
         with patch.object(manager.exporter, 'export_to_csv', side_effect=UnicodeError("Unicode error")):
-            with pytest.raises(ForkliftUnicodeError) as exc_info:
+            with pytest.raises(ForkscoutUnicodeError) as exc_info:
                 manager._generate_csv_safely(test_data)
             
             assert "Unicode error in CSV generation" in str(exc_info.value)
@@ -125,7 +125,7 @@ class TestCSVOutputManager:
         test_data = [{"name": "test", "value": "data"}]
         
         with patch.object(manager.exporter, 'export_to_csv', side_effect=ValueError("Generation error")):
-            with pytest.raises(ForkliftOutputError) as exc_info:
+            with pytest.raises(ForkscoutOutputError) as exc_info:
                 manager._generate_csv_safely(test_data)
             
             assert "CSV generation failed" in str(exc_info.value)
@@ -155,9 +155,9 @@ class TestCSVOutputManager:
         
         # Mock the method to simulate failure
         with patch.object(manager, '_validate_csv_unicode') as mock_validate:
-            mock_validate.side_effect = ForkliftUnicodeError("Cannot create Unicode-safe CSV content")
+            mock_validate.side_effect = ForkscoutUnicodeError("Cannot create Unicode-safe CSV content")
             
-            with pytest.raises(ForkliftUnicodeError) as exc_info:
+            with pytest.raises(ForkscoutUnicodeError) as exc_info:
                 manager._validate_csv_unicode("test content")
             
             assert "Cannot create Unicode-safe CSV content" in str(exc_info.value)
@@ -193,7 +193,7 @@ class TestCSVOutputManager:
         content = "test,csv,content\n"
         
         with patch('sys.stdout.write', side_effect=Exception("Write failed")):
-            with pytest.raises(ForkliftOutputError) as exc_info:
+            with pytest.raises(ForkscoutOutputError) as exc_info:
                 manager._write_to_stdout(content)
             
             assert "Failed to write CSV to stdout" in str(exc_info.value)
@@ -337,8 +337,8 @@ class TestCSVOutputIntegration:
                     print("Progress: Processing...", file=sys.stderr)
                     
                     # Simulate an error
-                    raise ForkliftOutputError("Export failed")
-            except ForkliftOutputError:
+                    raise ForkscoutOutputError("Export failed")
+            except ForkscoutOutputError:
                 pass
         
         # Progress messages should have been captured and not displayed
@@ -377,8 +377,8 @@ class TestCSVOutputIntegration:
         manager._has_output = True
         
         with patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
-            with patch.object(manager, '_generate_csv_safely', side_effect=ForkliftOutputError("Generation failed")):
-                with pytest.raises(ForkliftOutputError):
+            with patch.object(manager, '_generate_csv_safely', side_effect=ForkscoutOutputError("Generation failed")):
+                with pytest.raises(ForkscoutOutputError):
                     manager.export_to_stdout([{"test": "data"}])
         
         # Should have logged cleanup warning

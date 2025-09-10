@@ -4,9 +4,9 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock
 
-from forklift.models.analysis import ForkAnalysis, Feature, FeatureCategory, ForkMetrics
-from forklift.models.github import Fork, Repository, User, Commit
-from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
+from forkscout.models.analysis import ForkAnalysis, Feature, FeatureCategory, ForkMetrics
+from forkscout.models.github import Fork, Repository, User, Commit
+from forkscout.reporting.csv_exporter import CSVExporter, CSVExportConfig
 
 
 @pytest.fixture

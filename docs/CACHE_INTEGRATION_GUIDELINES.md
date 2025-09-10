@@ -2,14 +2,14 @@
 
 ## Overview
 
-This document outlines best practices for integrating with the Forklift caching system to prevent data serialization/deserialization issues.
+This document outlines best practices for integrating with the Forkscout caching system to prevent data serialization/deserialization issues.
 
 ## Core Principles
 
 ### 1. **Always Validate Before Caching**
 
 ```python
-from forklift.storage.cache_validation import validate_before_cache, CacheValidationError
+from forkscout.storage.cache_validation import validate_before_cache, CacheValidationError
 
 # ✅ Good: Validate data before caching
 try:
@@ -63,7 +63,7 @@ cached_repo_data = {
 ### 4. **Use Schema Versioning**
 
 ```python
-from forklift.storage.cache_validation import add_schema_version
+from forkscout.storage.cache_validation import add_schema_version
 
 # ✅ Good: Add schema version to cached data
 data_to_cache = add_schema_version(repo_data, "1.0")
@@ -200,7 +200,7 @@ Before committing code that uses caching:
 
 ```python
 import logging
-logging.getLogger('forklift.storage.cache_validation').setLevel(logging.DEBUG)
+logging.getLogger('forkscout.storage.cache_validation').setLevel(logging.DEBUG)
 ```
 
 ### 2. **Use Cache Statistics**

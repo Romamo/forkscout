@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from forklift.models.analysis import (
+from forkscout.models.analysis import (
     CategoryType,
     CommitCategory,
     CommitExplanation,
@@ -22,8 +22,8 @@ from forklift.models.analysis import (
     MainRepoValue,
     RankedFeature,
 )
-from forklift.models.github import Commit, Fork, Repository, User
-from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+from forkscout.models.github import Commit, Fork, Repository, User
+from forkscout.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVExportConfig:

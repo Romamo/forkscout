@@ -4,18 +4,18 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from forklift.analysis.fork_qualification_lookup import (
+from forkscout.analysis.fork_qualification_lookup import (
     ForkQualificationLookup,
     ForkQualificationLookupError,
 )
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import (
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import (
     QualifiedForksResult,
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
 )
-from forklift.storage.analysis_cache import AnalysisCacheManager
+from forkscout.storage.analysis_cache import AnalysisCacheManager
 
 
 @pytest.fixture

@@ -8,11 +8,11 @@ from io import StringIO
 
 from rich.console import Console
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.github.fork_list_processor import ForkListProcessor
-from forklift.models.github import Repository
-from forklift.models.fork_qualification import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.github.fork_list_processor import ForkListProcessor
+from forkscout.models.github import Repository
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,

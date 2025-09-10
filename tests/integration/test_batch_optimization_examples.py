@@ -7,8 +7,8 @@ import asyncio
 import os
 import time
 import pytest
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
 
 
 @pytest.mark.asyncio

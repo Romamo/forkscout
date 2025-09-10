@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The CSV export functionality for the `show-forks` command is currently broken due to a mismatch between the data structure keys returned by the repository display service and what the CSV export logic expects. When users run commands like `forklift show-forks <repo> --csv --detail --ahead-only --show-commits=2`, no CSV output is generated because the export logic looks for a `"forks"` key in the returned data, but the actual key is `"collected_forks"`.
+The CSV export functionality for the `show-forks` command is currently broken due to a mismatch between the data structure keys returned by the repository display service and what the CSV export logic expects. When users run commands like `forkscout show-forks <repo> --csv --detail --ahead-only --show-commits=2`, no CSV output is generated because the export logic looks for a `"forks"` key in the returned data, but the actual key is `"collected_forks"`.
 
 ## Requirements
 
@@ -12,10 +12,10 @@ The CSV export functionality for the `show-forks` command is currently broken du
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo> --csv` THEN the system SHALL output valid CSV data to stdout
-2. WHEN I run `forklift show-forks <repo> --csv --detail` THEN the system SHALL output detailed CSV data with exact commit counts
-3. WHEN I run `forklift show-forks <repo> --csv --ahead-only` THEN the system SHALL output CSV data only for forks with commits ahead
-4. WHEN I run `forklift show-forks <repo> --csv --show-commits=N` THEN the system SHALL include commit details in the CSV output
+1. WHEN I run `forkscout show-forks <repo> --csv` THEN the system SHALL output valid CSV data to stdout
+2. WHEN I run `forkscout show-forks <repo> --csv --detail` THEN the system SHALL output detailed CSV data with exact commit counts
+3. WHEN I run `forkscout show-forks <repo> --csv --ahead-only` THEN the system SHALL output CSV data only for forks with commits ahead
+4. WHEN I run `forkscout show-forks <repo> --csv --show-commits=N` THEN the system SHALL include commit details in the CSV output
 5. WHEN there are no forks to export THEN the system SHALL output CSV headers with no data rows
 
 ### Requirement 2
@@ -47,7 +47,7 @@ The CSV export functionality for the `show-forks` command is currently broken du
 
 #### Acceptance Criteria
 
-1. WHEN I run `forklift show-forks <repo> --csv > output.csv` THEN the output file SHALL contain only valid CSV data
+1. WHEN I run `forkscout show-forks <repo> --csv > output.csv` THEN the output file SHALL contain only valid CSV data
 2. WHEN filtering is applied with `--ahead-only` THEN filtering statistics messages SHALL be sent to stderr, not stdout
 3. WHEN CSV export is active THEN informational messages SHALL not contaminate the CSV output stream
 4. WHEN I redirect stdout to a file THEN I SHALL still see filtering and progress messages on stderr

@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import MagicMock
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 class TestBehindCommitsDisplayFormatting:

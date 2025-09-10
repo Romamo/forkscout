@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This specification documents a comprehensive review of the Forklift project to assess completeness, identify critical missing features, evaluate excess functionality, and provide recommendations for project optimization. The review covers code quality, test coverage, documentation completeness, and overall project health to ensure the tool meets its intended purpose as a GitHub repository fork analysis system.
+This specification documents a comprehensive review of the Forkscout project to assess completeness, identify critical missing features, evaluate excess functionality, and provide recommendations for project optimization. The review covers code quality, test coverage, documentation completeness, and overall project health to ensure the tool meets its intended purpose as a GitHub repository fork analysis system.
 
 ## Requirements
 

@@ -5,8 +5,8 @@ from datetime import UTC
 
 import pytest
 
-from forklift.models import Feature, Fork, RankedFeature, Repository, User
-from forklift.models.analysis import FeatureCategory
+from forkscout.models import Feature, Fork, RankedFeature, Repository, User
+from forkscout.models.analysis import FeatureCategory
 
 
 def test_feature_model():
@@ -163,7 +163,7 @@ def test_fork_preview_item_model():
     """Test ForkPreviewItem model creation and validation."""
     from datetime import datetime
 
-    from forklift.models.analysis import ForkPreviewItem
+    from forkscout.models.analysis import ForkPreviewItem
 
     fork_item = ForkPreviewItem(
         name="test-repo",
@@ -186,7 +186,7 @@ def test_fork_preview_item_model():
 
 def test_fork_preview_item_model_defaults():
     """Test ForkPreviewItem model with default values."""
-    from forklift.models.analysis import ForkPreviewItem
+    from forkscout.models.analysis import ForkPreviewItem
 
     fork_item = ForkPreviewItem(
         name="test-repo",
@@ -209,7 +209,7 @@ def test_forks_preview_model():
     """Test ForksPreview model creation and validation."""
     from datetime import datetime
 
-    from forklift.models.analysis import ForkPreviewItem, ForksPreview
+    from forkscout.models.analysis import ForkPreviewItem, ForksPreview
 
     fork_item1 = ForkPreviewItem(
         name="test-repo",
@@ -246,7 +246,7 @@ def test_fork_preview_item_activity_status_validation():
     """Test ForkPreviewItem model activity status field validation."""
     import pytest
 
-    from forklift.models.analysis import ForkPreviewItem
+    from forkscout.models.analysis import ForkPreviewItem
 
     # Test valid activity statuses
     valid_statuses = ["Active", "Stale", "No commits"]
@@ -274,7 +274,7 @@ def test_fork_preview_item_activity_status_validation():
 
 def test_forks_preview_model_empty():
     """Test ForksPreview model with empty forks list."""
-    from forklift.models.analysis import ForksPreview
+    from forkscout.models.analysis import ForksPreview
 
     forks_preview = ForksPreview(total_forks=0)
 

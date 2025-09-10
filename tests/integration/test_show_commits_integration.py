@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from click.testing import CliRunner
 from datetime import datetime, timezone
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig
-from forklift.models.github import Repository, Commit, User
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.github import Repository, Commit, User
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 class TestShowCommitsIntegration:
@@ -18,9 +18,9 @@ class TestShowCommitsIntegration:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        from forklift.config.settings import ForkliftConfig, GitHubConfig, LoggingConfig
+        from forkscout.config.settings import ForkscoutConfig, GitHubConfig, LoggingConfig
 
-        return ForkliftConfig(
+        return ForkscoutConfig(
             github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
             openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef",
             logging=LoggingConfig(level="INFO")

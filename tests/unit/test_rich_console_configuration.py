@@ -7,9 +7,9 @@ from unittest.mock import Mock, patch
 from rich.console import Console
 from rich.table import Table
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.analysis.explanation_formatter import ExplanationFormatter
-from forklift.ai.display_formatter import AISummaryDisplayFormatter
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.analysis.explanation_formatter import ExplanationFormatter
+from forkscout.ai.display_formatter import AISummaryDisplayFormatter
 
 
 class TestRichConsoleConfiguration:
@@ -263,15 +263,15 @@ class TestRichConsoleConfiguration:
 
     def test_rich_console_configuration_integration(self):
         """Integration test for Rich Console configuration across components."""
-        from forklift.display.detailed_commit_display import DetailedCommitDisplay
-        from forklift.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
-        from forklift.analysis.interactive_analyzer import InteractiveAnalyzer
-        from forklift.analysis.override_control import OverrideController, OverrideConfig
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.display.detailed_commit_display import DetailedCommitDisplay
+        from forkscout.analysis.interactive_orchestrator import InteractiveAnalysisOrchestrator
+        from forkscout.analysis.interactive_analyzer import InteractiveAnalyzer
+        from forkscout.analysis.override_control import OverrideController, OverrideConfig
+        from forkscout.config.settings import ForkscoutConfig
         
         # Test that all components can be initialized with proper console configuration
         mock_github_client = Mock()
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         override_config = OverrideConfig()
         console = Console(soft_wrap=False)
         

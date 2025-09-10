@@ -3,11 +3,11 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from forklift.config.settings import ForkliftConfig, GitHubConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.github import RecentCommit, Repository
-from forklift.models.fork_qualification import (
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import RecentCommit, Repository
+from forkscout.models.fork_qualification import (
     CollectedForkData, 
     ForkQualificationMetrics,
     QualifiedForksResult,
@@ -26,7 +26,7 @@ class TestConcurrentCommitIntegration:
     @pytest.fixture
     def forklift_config(self, github_config):
         """Create Forklift configuration."""
-        return ForkliftConfig(github=github_config)
+        return ForkscoutConfig(github=github_config)
 
     @pytest.fixture
     async def github_client(self, github_config):

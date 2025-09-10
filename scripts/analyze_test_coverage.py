@@ -2,7 +2,7 @@
 """
 Test Coverage Analysis Script
 
-Analyzes test coverage and quality for the Forklift project and generates a comprehensive report.
+Analyzes test coverage and quality for the Forkscout project and generates a comprehensive report.
 """
 
 import sys
@@ -12,8 +12,8 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from forklift.analysis.test_coverage_analyzer import TestCoverageAnalyzer
-from forklift.analysis.test_coverage_report_generator import TestCoverageReportGenerator
+from forkscout.analysis.test_coverage_analyzer import TestCoverageAnalyzer
+from forkscout.analysis.test_coverage_report_generator import TestCoverageReportGenerator
 
 def main():
     """Run test coverage analysis and generate report."""

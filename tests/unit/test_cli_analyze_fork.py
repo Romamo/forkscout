@@ -6,18 +6,18 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig, GitHubConfig
-from forklift.models.filters import BranchInfo, ForkDetails
-from forklift.models.github import Commit, Repository, User
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
+from forkscout.models.filters import BranchInfo, ForkDetails
+from forkscout.models.github import Commit, Repository, User
 
 
 @pytest.fixture
 def mock_config():
     """Create a mock configuration."""
-    from forklift.config.settings import AnalysisConfig, CacheConfig, ScoringConfig
+    from forkscout.config.settings import AnalysisConfig, CacheConfig, ScoringConfig
 
-    return ForkliftConfig(
+    return ForkscoutConfig(
         github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
         analysis=AnalysisConfig(
             min_score_threshold=70.0,
@@ -248,10 +248,10 @@ class TestAnalyzeForkCommand:
     @patch("forklift.cli.load_config")
     def test_analyze_fork_no_token(self, mock_load_config):
         """Test analyze-fork command without GitHub token."""
-        from forklift.config.settings import AnalysisConfig, CacheConfig, ScoringConfig
+        from forkscout.config.settings import AnalysisConfig, CacheConfig, ScoringConfig
 
         # Setup config without token
-        config = ForkliftConfig(
+        config = ForkscoutConfig(
             github=GitHubConfig(token=None),
             analysis=AnalysisConfig(),
             scoring=ScoringConfig(),
@@ -305,7 +305,7 @@ class TestAnalyzeForkHelpers:
 
     def test_format_datetime_simple(self):
         """Test datetime formatting helper."""
-        from forklift.cli import _format_datetime_simple
+        from forkscout.cli import _format_datetime_simple
 
         # Test various time differences
         now = datetime.utcnow()
@@ -325,7 +325,7 @@ class TestAnalyzeForkHelpers:
     @patch("forklift.cli.console")
     def test_display_feature_analysis_summary(self, mock_console, mock_fork_details):
         """Test feature analysis summary display."""
-        from forklift.cli import _display_feature_analysis_summary
+        from forkscout.cli import _display_feature_analysis_summary
 
         branch_analysis = {
             "commits": [Mock() for _ in range(25)],
@@ -343,7 +343,7 @@ class TestAnalyzeForkHelpers:
     @patch("forklift.cli.console")
     def test_display_commits_table(self, mock_console, mock_commits, mock_repository):
         """Test commits table display."""
-        from forklift.cli import _display_commits_table
+        from forkscout.cli import _display_commits_table
 
         # Should not raise any exceptions
         _display_commits_table(mock_commits, mock_repository, "main", True, True)
@@ -354,7 +354,7 @@ class TestAnalyzeForkHelpers:
     @patch("forklift.cli.console")
     def test_display_commits_table_empty(self, mock_console, mock_repository):
         """Test commits table display with empty commits."""
-        from forklift.cli import _display_commits_table
+        from forkscout.cli import _display_commits_table
 
         # Should handle empty commits gracefully
         _display_commits_table([], mock_repository, "main", False, False)
@@ -365,7 +365,7 @@ class TestAnalyzeForkHelpers:
     @patch("forklift.cli.console")
     def test_display_commit_statistics(self, mock_console, mock_commits):
         """Test commit statistics display."""
-        from forklift.cli import _display_commit_statistics
+        from forkscout.cli import _display_commit_statistics
 
         # Should not raise any exceptions
         _display_commit_statistics(mock_commits)
@@ -376,7 +376,7 @@ class TestAnalyzeForkHelpers:
     @patch("forklift.cli.console")
     def test_display_file_changes(self, mock_console, mock_commits):
         """Test file changes display."""
-        from forklift.cli import _display_file_changes
+        from forkscout.cli import _display_file_changes
 
         # Should not raise any exceptions
         _display_file_changes(mock_commits)

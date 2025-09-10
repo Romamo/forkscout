@@ -7,15 +7,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
-from forklift.models.fork_filtering import ForkFilteringConfig
-from forklift.models.fork_qualification import (
+from forkscout.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+from forkscout.models.fork_filtering import ForkFilteringConfig
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
     QualifiedForksResult,
 )
-from forklift.models.github import Repository
+from forkscout.models.github import Repository
 
 
 class TestSmartForkFilteringPerformance:

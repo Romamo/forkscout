@@ -20,9 +20,9 @@ import pytest
 from rich.console import Console
 from rich.table import Table
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.github import RecentCommit
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import RecentCommit
 
 
 class TestTableStructureValidationComprehensive:

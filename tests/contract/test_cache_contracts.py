@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.cache import CacheConfig
-from forklift.models.github import Repository
-from forklift.storage.analysis_cache import AnalysisCacheManager
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.cache import CacheConfig
+from forkscout.models.github import Repository
+from forkscout.storage.analysis_cache import AnalysisCacheManager
 
 
 @pytest.mark.asyncio

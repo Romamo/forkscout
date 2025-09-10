@@ -6,11 +6,11 @@ import pytest_asyncio
 import asyncio
 from datetime import datetime
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.fork_list_processor import ForkListProcessor
-from forklift.github.optimized_commit_fetcher import OptimizedCommitFetcher
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.fork_list_processor import ForkListProcessor
+from forkscout.github.optimized_commit_fetcher import OptimizedCommitFetcher
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 @pytest.mark.integration

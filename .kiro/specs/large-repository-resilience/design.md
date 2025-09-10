@@ -108,7 +108,7 @@ class EnhancedCircuitBreaker:
     
     def classify_failure(self, exception: Exception) -> FailureType:
         """Classify failure type based on exception."""
-        from forklift.github.exceptions import (
+        from forkscout.github.exceptions import (
             GitHubRateLimitError,
             GitHubNotFoundError,
             GitHubAuthenticationError

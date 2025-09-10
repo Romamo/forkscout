@@ -9,8 +9,8 @@ to reduce API calls when analyzing multiple forks of the same parent repository.
 import asyncio
 import os
 import time
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
 
 
 async def demonstrate_parent_repo_caching():
@@ -158,7 +158,7 @@ async def demonstrate_cache_expiration():
             client.clear_parent_repo_cache()
             
             # Mock a repository for caching
-            from forklift.models.github import Repository
+            from forkscout.models.github import Repository
             
             repo_data = {
                 "id": 1,

@@ -3,10 +3,10 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import GitHubAPIError, GitHubNotFoundError
-from forklift.models.commit_count_result import CommitCountResult
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import GitHubAPIError, GitHubNotFoundError
+from forkscout.models.commit_count_result import CommitCountResult
 
 
 class TestBehindCommitsErrorHandling:
@@ -163,8 +163,8 @@ class TestBehindCommitsErrorHandling:
 
     def test_display_formatting_error_handling(self):
         """Test display formatting handles various error conditions."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forkscout.display.repository_display_service import RepositoryDisplayService
+        from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
         
         github_client = MagicMock()
         display_service = RepositoryDisplayService(github_client)
@@ -196,8 +196,8 @@ class TestBehindCommitsErrorHandling:
 
     def test_display_formatting_handles_missing_attributes(self):
         """Test display formatting when fork data is missing commit attributes."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forkscout.display.repository_display_service import RepositoryDisplayService
+        from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
         
         github_client = MagicMock()
         display_service = RepositoryDisplayService(github_client)

@@ -3,21 +3,51 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "forklift"
-version = "0.1.0"
-description = "GitHub repository fork analysis tool"
-readme = "README.md"
+name = "forkscout"
+version = "1.0.5"
+description = "Forkscout: Powerful GitHub repository fork analysis tool that discovers valuable features across forks, ranks them by impact, and can create pull requests to integrate improvements back to upstream projects"
+readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
 authors = [
-    {name = "Forklift Team", email = "team@forklift.dev"}
+    {name = "Roman Medvedev", email = "pypi@romavm.dev"}
+]
+maintainers = [
+    {name = "Roman Medvedev", email = "pypi@romavm.dev"}
+]
+keywords = [
+    "github",
+    "fork",
+    "analysis",
+    "repository",
+    "git",
+    "code-analysis",
+    "feature-discovery",
+    "pull-request",
+    "automation",
+    "developer-tools",
+    "productivity",
+    "workflow",
+    "open-source",
+    "collaboration",
+    "code-quality"
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
     "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+    "Environment :: Console",
+    "Natural Language :: English",
+    "Typing :: Typed"
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -50,15 +80,61 @@ dev = [
 ]
 
 [project.scripts]
-forklift = "forklift.cli:cli"
+forkscout = "forkscout.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/forklift-team/forklift"
-Repository = "https://github.com/forklift-team/forklift"
-Issues = "https://github.com/forklift-team/forklift/issues"
+Homepage = "https://github.com/Romamo/forkscout"
+Repository = "https://github.com/Romamo/forkscout"
+Documentation = "https://github.com/Romamo/forkscout#readme"
+Issues = "https://github.com/Romamo/forkscout/issues"
+Changelog = "https://github.com/Romamo/forkscout/releases"
+"Bug Reports" = "https://github.com/Romamo/forkscout/issues"
+"Feature Requests" = "https://github.com/Romamo/forkscout/issues"
+"Source Code" = "https://github.com/Romamo/forkscout"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/forklift"]
+packages = ["src/forkscout"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+exclude = [
+    "/.git",
+    "/.github",
+    "/.kiro",
+    "/.mypy_cache",
+    "/.pytest_cache",
+    "/.ruff_cache",
+    "/.venv",
+    "/htmlcov",
+    "/__pycache__",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".DS_Store",
+    "*.egg-info",
+    "/build",
+    "/dist",
+    "/dev-artifacts",
+    "/demo",
+    "/demos",
+    "/docs",
+    "/reports",
+    "/scripts",
+    "forkscout.log",
+    "forkscout_cache.db",
+    ".coverage",
+    ".env",
+    ".forkscout_session.json.backup"
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.black]
 line-length = 88
@@ -116,7 +192,7 @@ max-complexity = 10
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/**/*" = ["ARG001", "S101"]
-"src/forklift/cli.py" = ["ARG001"]  # CLI functions have unused args by design
+"src/forkscout/cli.py" = ["ARG001"]  # CLI functions have unused args by design
 
 [tool.mypy]
 python_version = "3.12"
@@ -187,5 +263,8 @@ directory = "htmlcov"
 [dependency-groups]
 dev = [
     "psutil>=7.0.0",
+    "pytest-asyncio>=1.1.0",
     "pytest-timeout>=2.4.0",
+    "respx>=0.22.0",
+    "twine>=6.2.0",
 ]

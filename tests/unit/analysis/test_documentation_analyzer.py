@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.analysis.documentation_analyzer import (
+from forkscout.analysis.documentation_analyzer import (
     DocumentationAnalyzer,
     DocumentationAssessment,
     DocumentationGap,

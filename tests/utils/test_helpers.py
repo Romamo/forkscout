@@ -30,8 +30,8 @@ async def mock_rate_limiter(client) -> AsyncGenerator[None, None]:
 
 def create_test_github_client():
     """Create a GitHub client configured for testing."""
-    from forklift.config import GitHubConfig
-    from forklift.github.client import GitHubClient
+    from forkscout.config import GitHubConfig
+    from forkscout.github.client import GitHubClient
     
     config = GitHubConfig(
         token="ghp_1234567890abcdef1234567890abcdef12345678",

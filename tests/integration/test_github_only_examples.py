@@ -5,8 +5,8 @@ Test GitHub API functionality integration test
 
 import os
 import pytest
-from forklift.github.client import GitHubClient
-from forklift.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.config import GitHubConfig
 
 
 @pytest.mark.asyncio

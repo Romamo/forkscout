@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-from forklift.github.client import GitHubClient
-from forklift.github.error_handler import EnhancedErrorHandler
-from forklift.github.exceptions import (
+from forkscout.github.client import GitHubClient
+from forkscout.github.error_handler import EnhancedErrorHandler
+from forkscout.github.exceptions import (
     GitHubAPIError,
     GitHubCommitAccessError,
     GitHubCommitComparisonError,
@@ -15,7 +15,7 @@ from forklift.github.exceptions import (
     GitHubNotFoundError,
     GitHubRateLimitError,
 )
-from forklift.config import GitHubConfig
+from forkscout.config import GitHubConfig
 
 
 class TestEnhancedCommitErrorHandling:

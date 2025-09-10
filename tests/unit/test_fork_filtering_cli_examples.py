@@ -8,9 +8,9 @@ import pytest
 
 # Imports are now handled by proper test structure
 
-from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
-from forklift.github.client import GitHubClient
-from forklift.config import GitHubConfig
+from forkscout.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+from forkscout.github.client import GitHubClient
+from forkscout.config import GitHubConfig
 from unittest.mock import AsyncMock
 
 

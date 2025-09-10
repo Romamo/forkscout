@@ -2,7 +2,7 @@
 
 import pytest
 
-from forklift.models.commit_count_config import CommitCountConfig
+from forkscout.models.commit_count_config import CommitCountConfig
 
 
 class TestCommitCountConfig:

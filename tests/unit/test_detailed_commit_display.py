@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from forklift.display.detailed_commit_display import (
+from forkscout.display.detailed_commit_display import (
     DetailedCommitDisplay,
     DetailedCommitInfo,
     DetailedCommitProcessor,
 )
-from forklift.models.ai_summary import AISummary
-from forklift.models.github import Commit, Repository, User
+from forkscout.models.ai_summary import AISummary
+from forkscout.models.github import Commit, Repository, User
 
 
 @pytest.fixture

@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.cli import _display_comprehensive_fork_data, _show_comprehensive_fork_data
-from forklift.config.settings import ForkliftConfig, GitHubConfig
-from forklift.models.fork_qualification import (
+from forkscout.cli import _display_comprehensive_fork_data, _show_comprehensive_fork_data
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
@@ -16,8 +16,8 @@ from forklift.models.fork_qualification import (
 
 @pytest.fixture
 def mock_config():
-    """Create a mock ForkliftConfig for testing."""
-    config = ForkliftConfig()
+    """Create a mock ForkscoutConfig for testing."""
+    config = ForkscoutConfig()
     config.github = GitHubConfig(token="ghp_1234567890123456789012345678901234567890")
     return config
 
@@ -218,7 +218,7 @@ def test_display_comprehensive_fork_data(sample_qualification_result, capsys):
 
 def test_display_comprehensive_fork_data_no_forks():
     """Test display function with no forks."""
-    from forklift.models.fork_qualification import (
+    from forkscout.models.fork_qualification import (
         QualificationStats,
         QualifiedForksResult,
     )
@@ -361,7 +361,7 @@ def test_collected_fork_data_activity_summary():
 async def test_repository_display_service_show_fork_data(mock_config, sample_fork_data):
     """Test RepositoryDisplayService show_fork_data method."""
 
-    from forklift.display.repository_display_service import RepositoryDisplayService
+    from forkscout.display.repository_display_service import RepositoryDisplayService
 
     with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor, \
          patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine:
@@ -427,7 +427,7 @@ async def test_repository_display_service_show_fork_data(mock_config, sample_for
 @pytest.mark.asyncio
 async def test_repository_display_service_show_fork_data_with_filters(mock_config, sample_fork_data):
     """Test RepositoryDisplayService show_fork_data method with filters."""
-    from forklift.display.repository_display_service import RepositoryDisplayService
+    from forkscout.display.repository_display_service import RepositoryDisplayService
 
     with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor, \
          patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine:
@@ -489,7 +489,7 @@ async def test_repository_display_service_show_fork_data_with_filters(mock_confi
 @pytest.mark.asyncio
 async def test_repository_display_service_show_fork_data_no_forks():
     """Test RepositoryDisplayService show_fork_data method with no forks."""
-    from forklift.display.repository_display_service import RepositoryDisplayService
+    from forkscout.display.repository_display_service import RepositoryDisplayService
 
     with patch("forklift.github.fork_list_processor.ForkListProcessor") as mock_processor, \
          patch("forklift.analysis.fork_data_collection_engine.ForkDataCollectionEngine") as mock_engine:
@@ -527,7 +527,7 @@ def test_repository_display_service_sort_forks():
     """Test fork sorting functionality."""
     from datetime import datetime, timedelta
 
-    from forklift.display.repository_display_service import RepositoryDisplayService
+    from forkscout.display.repository_display_service import RepositoryDisplayService
 
     # Create test data with different metrics
     metrics1 = ForkQualificationMetrics(
@@ -572,7 +572,7 @@ def test_repository_display_service_enhanced_sort_forks():
     """Test enhanced fork sorting functionality."""
     from datetime import datetime, timedelta
 
-    from forklift.display.repository_display_service import RepositoryDisplayService
+    from forkscout.display.repository_display_service import RepositoryDisplayService
 
     base_time = datetime.utcnow()
 

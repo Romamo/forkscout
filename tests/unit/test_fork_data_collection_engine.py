@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.analysis.fork_data_collection_engine import (
+from forkscout.analysis.fork_data_collection_engine import (
     ForkDataCollectionEngine,
     ForkDataCollectionError,
 )
-from forklift.models.fork_qualification import (
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualifiedForksResult,

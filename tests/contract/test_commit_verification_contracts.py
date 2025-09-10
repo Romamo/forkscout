@@ -4,10 +4,10 @@ import os
 import pytest
 from datetime import UTC, datetime, timedelta
 
-from forklift.analysis.commit_verification_engine import CommitVerificationEngine
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+from forkscout.analysis.commit_verification_engine import CommitVerificationEngine
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
 
 
 @pytest.mark.contract

@@ -7,12 +7,12 @@ from datetime import datetime, timezone
 
 from rich.console import Console
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.analysis.explanation_formatter import ExplanationFormatter
-from forklift.ai.display_formatter import AISummaryDisplayFormatter
-from forklift.models.github import Repository, Commit, User
-from forklift.models.analysis import CommitExplanation, CommitWithExplanation, CategoryType, ImpactLevel, MainRepoValue, CommitCategory, ImpactAssessment
-from forklift.models.ai_summary import AISummary
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.analysis.explanation_formatter import ExplanationFormatter
+from forkscout.ai.display_formatter import AISummaryDisplayFormatter
+from forkscout.models.github import Repository, Commit, User
+from forkscout.models.analysis import CommitExplanation, CommitWithExplanation, CategoryType, ImpactLevel, MainRepoValue, CommitCategory, ImpactAssessment
+from forkscout.models.ai_summary import AISummary
 
 
 class TestRichConsoleIntegration:

@@ -5,8 +5,8 @@ import asyncio
 import logging
 import os
 import pytest
-from forklift.config import ForkliftConfig
-from forklift.github.client import GitHubClient
+from forkscout.config import ForkscoutConfig
+from forkscout.github.client import GitHubClient
 
 # Set up logging to see debug messages
 logging.basicConfig(
@@ -19,8 +19,8 @@ logging.basicConfig(
 async def test_rate_limit_fix():
     """Test the rate limit fix with mocked GitHub API calls."""
     from unittest.mock import AsyncMock, patch
-    from forklift.config import load_config
-    from forklift.models.github import Repository
+    from forkscout.config import load_config
+    from forkscout.models.github import Repository
     
     # Load config
     config = load_config()

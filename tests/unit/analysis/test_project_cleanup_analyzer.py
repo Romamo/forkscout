@@ -129,7 +129,7 @@ def public_function():
 
     def test_assess_file_safety_core_files(self, analyzer):
         """Test safety assessment for core application files."""
-        safety = analyzer._assess_file_safety("src/forklift/main.py", False, False, False, False, 5)
+        safety = analyzer._assess_file_safety("src/forkscout/main.py", False, False, False, False, 5)
         assert safety == "unsafe"
 
     def test_assess_file_safety_config_files(self, analyzer):

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a chronological timeline of how the 16 specifications evolved throughout the Forklift project development, showing the iterative refinement process and parallel development patterns that enabled systematic feature development.
+This document provides a chronological timeline of how the 16 specifications evolved throughout the Forkscout project development, showing the iterative refinement process and parallel development patterns that enabled systematic feature development.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ This document provides a chronological timeline of how the 16 specifications evo
 
 #### Week 1-2: Core System Specification
 
-**1. forklift-tool (Primary Spec)**
+**1. forkscout-tool (Primary Spec)**
 - **Initial Creation**: Basic fork analysis concept
 - **Status**: Comprehensive development (22 requirements)
 - **Evolution Pattern**: Continuous expansion and refinement
@@ -126,7 +126,7 @@ focused steps, so that I can understand the fork ecosystem incrementally and mak
 informed decisions at each stage.
 
 #### Acceptance Criteria (15 detailed criteria)
-1. WHEN I run `forklift analyze <repo-url> --interactive` THEN the system SHALL execute analysis in interactive mode
+1. WHEN I run `forkscout analyze <repo-url> --interactive` THEN the system SHALL execute analysis in interactive mode
 2. WHEN in interactive mode THEN the system SHALL display clear step descriptions and progress indicators
 [... 13 more detailed criteria]
 ```
@@ -156,7 +156,7 @@ WHEN explaining commits THEN the system SHALL identify if it adds new features
 that could benefit all main repository users
 
 # Week 8: AI Integration
-WHEN I run `forklift show-commits <fork-url> --ai-summary` THEN the system SHALL 
+WHEN I run `forkscout show-commits <fork-url> --ai-summary` THEN the system SHALL 
 generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
 ```
 
@@ -177,7 +177,7 @@ The CSV export functionality is broken due to a mismatch between data structure 
 Export logic looks for "forks" key but actual key is "collected_forks".
 
 # Week 9: Solution Requirements
-1. WHEN I run `forklift show-forks <repo> --csv` THEN the system SHALL output valid CSV data
+1. WHEN I run `forkscout show-forks <repo> --csv` THEN the system SHALL output valid CSV data
 2. WHEN the data structure contains "collected_forks" key THEN the CSV export SHALL use that key
 3. WHEN I redirect stdout to a file THEN I SHALL still see filtering messages on stderr
 ```
@@ -260,7 +260,7 @@ opening after consecutive API failures.
 
 #### Week 15-16: Advanced Features and Future Planning
 
-**15. forklift-version-2-features**
+**15. forkscout-version-2-features**
 - **Creation Date**: Week 15
 - **Purpose**: Advanced features for future development
 - **Status**: Planned (not implemented)
@@ -320,7 +320,7 @@ gantt
 **Concurrent Development:**
 - **commit-explanation-feature**: Core explanation logic
 - **commit-explanation-enhancements**: Advanced AI features
-- **forklift-tool**: Integration of explanation system
+- **forkscout-tool**: Integration of explanation system
 
 #### Pattern 2: Problem-Solution Parallel Development
 **Timeline: Weeks 11-12**
@@ -346,7 +346,7 @@ gantt
 
 #### Pattern 1: Foundation → Enhancement → Optimization
 ```
-forklift-tool (Foundation)
+forkscout-tool (Foundation)
     ↓
 interactive-analysis-mode (Enhancement)
     ↓
@@ -412,7 +412,7 @@ that could benefit all main repository users
 
 #### Iteration 3: AI Integration (Week 8)
 ```markdown
-WHEN I run `forklift show-commits <fork-url> --ai-summary` THEN the system SHALL 
+WHEN I run `forkscout show-commits <fork-url> --ai-summary` THEN the system SHALL 
 generate AI-powered summaries for each commit using OpenAI GPT-4 mini model
 ```
 
@@ -456,10 +456,10 @@ and enhanced data organization
 
 ```mermaid
 gantt
-    title Forklift Project Spec Evolution Timeline
+    title Forkscout Project Spec Evolution Timeline
     dateFormat  YYYY-MM-DD
     section Foundation Phase
-    forklift-tool                 :active, 2024-01-01, 30d
+    forkscout-tool                 :active, 2024-01-01, 30d
     project-completeness-review   :2024-01-15, 7d
     
     section Feature Enhancement
@@ -479,7 +479,7 @@ gantt
     large-repository-resilience  :2024-02-26, 6d
     
     section Submission Preparation
-    forklift-version-2-features  :2024-03-01, 5d
+    forkscout-version-2-features  :2024-03-01, 5d
     hackathon-submission-preparation :active, 2024-03-04, 10d
 ```
 

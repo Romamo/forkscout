@@ -1,6 +1,6 @@
 # Show Commits Feature Guide
 
-This guide covers the `--show-commits` functionality in the Forklift tool, which allows you to display recent commits for each fork when using the `show-forks` command.
+This guide covers the `--show-commits` functionality in the Forkscout tool, which allows you to display recent commits for each fork when using the `show-forks` command.
 
 ## Overview
 
@@ -11,7 +11,7 @@ The `--show-commits` option enhances the `show-forks` command by adding a "Recen
 ### Show Forks Without Commits (Default)
 
 ```bash
-forklift show-forks owner/repository
+forkscout show-forks owner/repository
 ```
 
 This displays the standard fork summary table without commit information.
@@ -19,7 +19,7 @@ This displays the standard fork summary table without commit information.
 ### Show Forks With Recent Commits
 
 ```bash
-forklift show-forks owner/repository --show-commits=3
+forkscout show-forks owner/repository --show-commits=3
 ```
 
 This adds a "Recent Commits" column showing the last 3 commit messages for each fork.
@@ -27,7 +27,7 @@ This adds a "Recent Commits" column showing the last 3 commit messages for each 
 ## Command Syntax
 
 ```bash
-forklift show-forks <repository_url> [OPTIONS]
+forkscout show-forks <repository_url> [OPTIONS]
 ```
 
 ### Options
@@ -52,23 +52,23 @@ The tool accepts various repository URL formats:
 
 ```bash
 # Show forks with last 2 commits for each
-forklift show-forks microsoft/vscode --show-commits=2
+forkscout show-forks microsoft/vscode --show-commits=2
 
 # Show forks with last 5 commits, limited to 20 forks
-forklift show-forks facebook/react --show-commits=5 --max-forks=20
+forkscout show-forks facebook/react --show-commits=5 --max-forks=20
 
 # Show detailed fork info with commits
-forklift show-forks python/cpython --detail --show-commits=3
+forkscout show-forks python/cpython --detail --show-commits=3
 ```
 
 ### Advanced Usage
 
 ```bash
 # Maximum commits per fork (10)
-forklift show-forks owner/repo --show-commits=10
+forkscout show-forks owner/repo --show-commits=10
 
 # Combine with other options
-forklift show-forks owner/repo --show-commits=3 --max-forks=50 --detail
+forkscout show-forks owner/repo --show-commits=3 --max-forks=50 --detail
 ```
 
 ## Output Format
@@ -207,16 +207,16 @@ Warning: Network error fetching commits for 'owner/fork'. Retrying...
 
 ```bash
 # 1. Quick overview without commits
-forklift show-forks owner/repo
+forkscout show-forks owner/repo
 
 # 2. Detailed analysis with commits
-forklift show-forks owner/repo --detail --show-commits=3
+forkscout show-forks owner/repo --detail --show-commits=3
 
 # 3. Focus on specific fork
-forklift show-commits owner/specific-fork --branch=feature-branch
+forkscout show-commits owner/specific-fork --branch=feature-branch
 
 # 4. Comprehensive analysis
-forklift analyze owner/repo --interactive
+forkscout analyze owner/repo --interactive
 ```
 
 ### Command Combinations
@@ -234,7 +234,7 @@ The `--show-commits` feature works well with:
 Ensure your GitHub token is configured for optimal performance:
 
 ```bash
-forklift configure
+forkscout configure
 # Follow prompts to set GitHub token
 ```
 
@@ -242,7 +242,7 @@ forklift configure
 
 ```bash
 export GITHUB_TOKEN=your_token_here
-export FORKLIFT_MAX_FORKS=50  # Default max forks
+export FORKSCOUT_MAX_FORKS=50  # Default max forks
 ```
 
 ## Limitations

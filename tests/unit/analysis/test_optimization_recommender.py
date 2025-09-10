@@ -10,7 +10,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch, mock_open
 
-from forklift.analysis.optimization_recommender import (
+from forkscout.analysis.optimization_recommender import (
     OptimizationRecommender,
     Priority,
     EffortLevel,

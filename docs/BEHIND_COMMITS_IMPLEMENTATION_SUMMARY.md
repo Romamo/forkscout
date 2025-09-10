@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the implementation of the behind commits display feature in Forklift, which addresses the issue where forks only showed ahead commits but not behind commits.
+This document summarizes the implementation of the behind commits display feature in Forkscout, which addresses the issue where forks only showed ahead commits but not behind commits.
 
 ## Problem Statement
 
@@ -14,17 +14,17 @@ This document summarizes the implementation of the behind commits display featur
 
 ### 1. Data Model Updates
 
-**File**: `src/forklift/models/commit_count_result.py`
+**File**: `src/forkscout/models/commit_count_result.py`
 - Added `CommitCountResult` dataclass with both `ahead_count` and `behind_count`
 - Added `BatchCommitCountResult` for batch operations
 - Included error handling and status flags
 
-**File**: `src/forklift/github/fork_list_processor.py`
+**File**: `src/forkscout/github/fork_list_processor.py`
 - Added `exact_commits_behind: int | None = None` field to `ForkData` class
 
 ### 2. GitHub API Integration
 
-**File**: `src/forklift/github/client.py`
+**File**: `src/forkscout/github/client.py`
 - Enhanced `get_commits_ahead_and_behind_count()` method to extract both counts
 - Added `get_commits_ahead_and_behind_batch_counts()` for efficient batch processing
 - Added `_extract_commit_counts()` helper method with safe field extraction
@@ -43,7 +43,7 @@ This document summarizes the implementation of the behind commits display featur
 
 ### 3. Display Formatting
 
-**File**: `src/forklift/display/repository_display_service.py`
+**File**: `src/forkscout/display/repository_display_service.py`
 - Updated `_format_commit_count()` method to display both counts
 - Added `_format_commit_count_for_csv()` method for CSV export
 - Implemented color-coded display: `[green]+9[/green] [red]-11[/red]`
@@ -57,7 +57,7 @@ This document summarizes the implementation of the behind commits display featur
 
 ### 4. CSV Export Enhancement
 
-**File**: `src/forklift/reporting/csv_exporter.py`
+**File**: `src/forkscout/reporting/csv_exporter.py`
 - CSV export already supported `commits_behind` field in `Fork` model
 - Display service conversion properly formats combined counts for CSV
 - CSV shows `+9 -11` format in single `commits_ahead` column
@@ -105,16 +105,16 @@ This document summarizes the implementation of the behind commits display featur
 ### CLI Commands
 ```bash
 # Basic usage (shows ahead counts only)
-forklift show-forks owner/repo
+forkscout show-forks owner/repo
 
 # Detailed usage (shows both ahead and behind counts)
-forklift show-forks owner/repo --detail
+forkscout show-forks owner/repo --detail
 
 # Filter for forks with ahead commits (includes diverged forks)
-forklift show-forks owner/repo --detail --ahead-only
+forkscout show-forks owner/repo --detail --ahead-only
 
 # Export to CSV with behind commits
-forklift show-forks owner/repo --detail --csv > forks.csv
+forkscout show-forks owner/repo --detail --csv > forks.csv
 ```
 
 ### Programmatic Usage
@@ -134,10 +134,10 @@ batch_result = await github_client.get_commits_ahead_and_behind_batch_counts(
 ## Files Modified
 
 ### Core Implementation
-- `src/forklift/models/commit_count_result.py` (new)
-- `src/forklift/github/fork_list_processor.py` (updated)
-- `src/forklift/github/client.py` (enhanced)
-- `src/forklift/display/repository_display_service.py` (updated)
+- `src/forkscout/models/commit_count_result.py` (new)
+- `src/forkscout/github/fork_list_processor.py` (updated)
+- `src/forkscout/github/client.py` (enhanced)
+- `src/forkscout/display/repository_display_service.py` (updated)
 
 ### Documentation
 - `docs/BEHIND_COMMITS_FEATURE.md` (new)

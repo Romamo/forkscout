@@ -1,1 +1,1 @@
-"""Test package for Forklift application."""
+"""Test package for Forkscout application."""

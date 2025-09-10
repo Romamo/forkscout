@@ -55,7 +55,7 @@
   - _Requirements: 4.1, 4.2, 5.1_
 
 - [x] 10. Validate Fix with Original Bug Report
-  - Test the exact command from bug report: `uv run forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only`
+  - Test the exact command from bug report: `uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only`
   - Verify that forks now show correct commit counts instead of all "+1"
   - Ensure no regression in other functionality
   - _Requirements: 1.1, 1.2, 1.3, 1.4_

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from rich.console import Console
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.github import RecentCommit, Repository
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import RecentCommit, Repository
 
 
 class TestBackwardCompatibilityIntegration:
@@ -466,7 +466,7 @@ class TestBackwardCompatibilityIntegration:
         self, repository_display_service
     ):
         """Test that column_width parameter is maintained for backward compatibility."""
-        from forklift.models.github import RecentCommit
+        from forkscout.models.github import RecentCommit
 
         long_message = "This is a very long commit message that would have been truncated in the old implementation but should now be displayed in full regardless of the column width parameter"
 

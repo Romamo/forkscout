@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pytest
 
-from forklift.analysis.impact_assessor import FileCriticalityRules, ImpactAssessor
-from forklift.models import (
+from forkscout.analysis.impact_assessor import FileCriticalityRules, ImpactAssessor
+from forkscout.models import (
     AnalysisContext,
     Commit,
     FileChange,

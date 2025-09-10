@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The `forklift show-forks` command fails when processing repositories that contain forks with names that violate our current GitHub name validation rules. Specifically, the command fails with a Pydantic validation error when encountering repository names with consecutive periods (e.g., `maybe-finance.._..maybe`), even though such names appear to exist in the GitHub API response.
+The `forkscout show-forks` command fails when processing repositories that contain forks with names that violate our current GitHub name validation rules. Specifically, the command fails with a Pydantic validation error when encountering repository names with consecutive periods (e.g., `maybe-finance.._..maybe`), even though such names appear to exist in the GitHub API response.
 
 This issue prevents users from analyzing repositories that have forks with edge-case naming patterns, making the tool unreliable for real-world usage.
 
@@ -10,7 +10,7 @@ This issue prevents users from analyzing repositories that have forks with edge-
 
 ### Requirement 1
 
-**User Story:** As a user, I want the `forklift show-forks` command to handle all valid GitHub repository names returned by the GitHub API, so that the tool doesn't crash on edge-case naming patterns.
+**User Story:** As a user, I want the `forkscout show-forks` command to handle all valid GitHub repository names returned by the GitHub API, so that the tool doesn't crash on edge-case naming patterns.
 
 #### Acceptance Criteria
 

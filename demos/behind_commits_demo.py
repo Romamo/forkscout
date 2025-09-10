@@ -10,9 +10,9 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, 'src')
 
-from forklift.github.client import GitHubClient
-from forklift.config import GitHubConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
 from rich.console import Console
 
 
@@ -96,7 +96,7 @@ async def demo_behind_commits():
         
         print("\n✅ Demo completed successfully!")
         print("\nTo see this in action with the CLI:")
-        print("   forklift show-forks sanila2007/youtube-bot-telegram --detail --ahead-only")
+        print("   forkscout show-forks sanila2007/youtube-bot-telegram --detail --ahead-only")
         
     except Exception as e:
         print(f"❌ Demo failed: {e}")

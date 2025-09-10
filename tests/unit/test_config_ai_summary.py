@@ -1,38 +1,38 @@
-"""Unit tests for AI summary configuration in ForkliftConfig."""
+"""Unit tests for AI summary configuration in ForkscoutConfig."""
 
 import pytest
 from pydantic import ValidationError
 
-from forklift.config.settings import ForkliftConfig
-from forklift.models.ai_summary import AISummaryConfig
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.ai_summary import AISummaryConfig
 
 
-class TestForkliftConfigAISummary:
-    """Test cases for AI summary configuration in ForkliftConfig."""
+class TestForkscoutConfigAISummary:
+    """Test cases for AI summary configuration in ForkscoutConfig."""
 
     def test_forklift_config_includes_ai_summary_config(self):
-        """Test that ForkliftConfig includes AI summary configuration."""
-        config = ForkliftConfig()
+        """Test that ForkscoutConfig includes AI summary configuration."""
+        config = ForkscoutConfig()
 
         assert hasattr(config, "ai_summary")
         assert isinstance(config.ai_summary, AISummaryConfig)
         assert config.ai_summary.enabled is False  # Default value
 
     def test_forklift_config_includes_openai_api_key(self):
-        """Test that ForkliftConfig includes OpenAI API key field."""
+        """Test that ForkscoutConfig includes OpenAI API key field."""
         import os
         from unittest.mock import patch
 
         # Mock environment to avoid loading from .env file
         with patch.dict(os.environ, {}, clear=True):
-            config = ForkliftConfig(_env_file=None)  # Don't load from .env
+            config = ForkscoutConfig(_env_file=None)  # Don't load from .env
 
             assert hasattr(config, "openai_api_key")
             assert config.openai_api_key is None  # Default value when no env var
 
     def test_forklift_config_with_valid_openai_api_key(self):
-        """Test ForkliftConfig with valid OpenAI API key."""
-        config = ForkliftConfig(openai_api_key="sk-1234567890abcdef1234567890abcdef")
+        """Test ForkscoutConfig with valid OpenAI API key."""
+        config = ForkscoutConfig(openai_api_key="sk-1234567890abcdef1234567890abcdef")
 
         assert config.openai_api_key == "sk-1234567890abcdef1234567890abcdef"
 
@@ -44,7 +44,7 @@ class TestForkliftConfigAISummary:
         # Mock environment to avoid loading from .env file
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValidationError) as exc_info:
-                ForkliftConfig(openai_api_key="invalid-key-format", _env_file=None)
+                ForkscoutConfig(openai_api_key="invalid-key-format", _env_file=None)
 
             assert "must start with 'sk-'" in str(exc_info.value)
 
@@ -56,7 +56,7 @@ class TestForkliftConfigAISummary:
         # Mock environment to avoid loading from .env file
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValidationError) as exc_info:
-                ForkliftConfig(openai_api_key="sk-short", _env_file=None)
+                ForkscoutConfig(openai_api_key="sk-short", _env_file=None)
 
             assert "too short" in str(exc_info.value)
 
@@ -67,13 +67,13 @@ class TestForkliftConfigAISummary:
 
         # Mock environment to avoid loading from .env file
         with patch.dict(os.environ, {}, clear=True):
-            config = ForkliftConfig(openai_api_key=None, _env_file=None)
+            config = ForkscoutConfig(openai_api_key=None, _env_file=None)
 
             assert config.openai_api_key is None
 
     def test_forklift_config_ai_summary_custom_values(self):
-        """Test ForkliftConfig with custom AI summary configuration."""
-        config = ForkliftConfig(
+        """Test ForkscoutConfig with custom AI summary configuration."""
+        config = ForkscoutConfig(
             ai_summary=AISummaryConfig(
                 enabled=True,
                 model="gpt-4",
@@ -89,7 +89,7 @@ class TestForkliftConfigAISummary:
 
     def test_validate_openai_api_key_method_with_valid_key(self):
         """Test validate_openai_api_key_available method with valid key."""
-        config = ForkliftConfig(openai_api_key="sk-1234567890abcdef1234567890abcdef")
+        config = ForkscoutConfig(openai_api_key="sk-1234567890abcdef1234567890abcdef")
 
         assert config.validate_openai_api_key_available() is True
 
@@ -100,21 +100,21 @@ class TestForkliftConfigAISummary:
 
         # Mock environment to avoid loading from .env file
         with patch.dict(os.environ, {}, clear=True):
-            config = ForkliftConfig(openai_api_key=None, _env_file=None)
+            config = ForkscoutConfig(openai_api_key=None, _env_file=None)
 
             assert config.validate_openai_api_key_available() is False
 
     def test_validate_openai_api_key_method_with_invalid_key(self):
         """Test validate_openai_api_key_available method with invalid key."""
         # Create config without validation to test the method
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.openai_api_key = "invalid-key"  # Set directly to bypass validation
 
         assert config.validate_openai_api_key_available() is False
 
     def test_forklift_config_serialization_with_ai_summary(self):
-        """Test ForkliftConfig serialization includes AI summary fields."""
-        config = ForkliftConfig(
+        """Test ForkscoutConfig serialization includes AI summary fields."""
+        config = ForkscoutConfig(
             openai_api_key="sk-1234567890abcdef1234567890abcdef",
             ai_summary=AISummaryConfig(
                 enabled=True,
@@ -132,7 +132,7 @@ class TestForkliftConfigAISummary:
         assert data["ai_summary"]["max_tokens"] == 800
 
     def test_forklift_config_from_dict_with_ai_summary(self):
-        """Test ForkliftConfig creation from dict with AI summary fields."""
+        """Test ForkscoutConfig creation from dict with AI summary fields."""
         data = {
             "openai_api_key": "sk-1234567890abcdef1234567890abcdef",
             "ai_summary": {
@@ -143,7 +143,7 @@ class TestForkliftConfigAISummary:
             }
         }
 
-        config = ForkliftConfig.from_dict(data)
+        config = ForkscoutConfig.from_dict(data)
 
         assert config.openai_api_key == "sk-1234567890abcdef1234567890abcdef"
         assert config.ai_summary.enabled is True
@@ -159,7 +159,7 @@ class TestForkliftConfigAISummary:
         os.environ["OPENAI_API_KEY"] = "sk-test1234567890abcdef1234567890"
 
         try:
-            config = ForkliftConfig()
+            config = ForkscoutConfig()
             merged_config = config.merge_with_env()
 
             assert merged_config.openai_api_key == "sk-test1234567890abcdef1234567890"
@@ -169,8 +169,8 @@ class TestForkliftConfigAISummary:
                 del os.environ["OPENAI_API_KEY"]
 
     def test_forklift_config_yaml_serialization_with_ai_summary(self):
-        """Test ForkliftConfig YAML serialization includes AI summary fields."""
-        config = ForkliftConfig(
+        """Test ForkscoutConfig YAML serialization includes AI summary fields."""
+        config = ForkscoutConfig(
             openai_api_key="sk-1234567890abcdef1234567890abcdef",
             ai_summary=AISummaryConfig(enabled=True, model="gpt-4")
         )
@@ -183,8 +183,8 @@ class TestForkliftConfigAISummary:
         assert "model: gpt-4" in yaml_str
 
     def test_forklift_config_json_serialization_with_ai_summary(self):
-        """Test ForkliftConfig JSON serialization includes AI summary fields."""
-        config = ForkliftConfig(
+        """Test ForkscoutConfig JSON serialization includes AI summary fields."""
+        config = ForkscoutConfig(
             openai_api_key="sk-1234567890abcdef1234567890abcdef",
             ai_summary=AISummaryConfig(enabled=True, model="gpt-4")
         )
@@ -198,11 +198,11 @@ class TestForkliftConfigAISummary:
 
 
 class TestAISummaryConfigIntegration:
-    """Test cases for AISummaryConfig integration with ForkliftConfig."""
+    """Test cases for AISummaryConfig integration with ForkscoutConfig."""
 
     def test_ai_summary_config_defaults_in_forklift_config(self):
-        """Test that AISummaryConfig defaults are preserved in ForkliftConfig."""
-        config = ForkliftConfig()
+        """Test that AISummaryConfig defaults are preserved in ForkscoutConfig."""
+        config = ForkscoutConfig()
 
         assert config.ai_summary.enabled is False
         assert config.ai_summary.model == "gpt-4o-mini"
@@ -215,27 +215,27 @@ class TestAISummaryConfigIntegration:
         assert config.ai_summary.batch_size == 5
 
     def test_ai_summary_config_validation_in_forklift_config(self):
-        """Test that AISummaryConfig validation works within ForkliftConfig."""
+        """Test that AISummaryConfig validation works within ForkscoutConfig."""
         # Test invalid max_tokens
         with pytest.raises(ValidationError):
-            ForkliftConfig(
+            ForkscoutConfig(
                 ai_summary=AISummaryConfig(max_tokens=5000)  # Too high
             )
 
         # Test invalid temperature
         with pytest.raises(ValidationError):
-            ForkliftConfig(
+            ForkscoutConfig(
                 ai_summary=AISummaryConfig(temperature=3.0)  # Too high
             )
 
         # Test invalid batch_size
         with pytest.raises(ValidationError):
-            ForkliftConfig(
+            ForkscoutConfig(
                 ai_summary=AISummaryConfig(batch_size=25)  # Too high
             )
 
     def test_ai_summary_config_nested_dict_creation(self):
-        """Test creating ForkliftConfig with nested AI summary dict."""
+        """Test creating ForkscoutConfig with nested AI summary dict."""
         config_data = {
             "ai_summary": {
                 "enabled": True,
@@ -250,7 +250,7 @@ class TestAISummaryConfigIntegration:
             }
         }
 
-        config = ForkliftConfig(**config_data)
+        config = ForkscoutConfig(**config_data)
 
         assert config.ai_summary.enabled is True
         assert config.ai_summary.model == "gpt-4"
@@ -263,13 +263,13 @@ class TestAISummaryConfigIntegration:
         assert config.ai_summary.compact_mode is True
 
     def test_ai_summary_config_compact_mode_integration(self):
-        """Test ForkliftConfig integration with compact_mode setting."""
+        """Test ForkscoutConfig integration with compact_mode setting."""
         # Test default compact_mode is False
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         assert config.ai_summary.compact_mode is False
 
         # Test setting compact_mode to True
-        config_compact = ForkliftConfig(
+        config_compact = ForkscoutConfig(
             ai_summary=AISummaryConfig(compact_mode=True)
         )
         assert config_compact.ai_summary.compact_mode is True
@@ -279,5 +279,5 @@ class TestAISummaryConfigIntegration:
         assert data["ai_summary"]["compact_mode"] is True
 
         # Test deserialization preserves compact_mode
-        reconstructed = ForkliftConfig.from_dict(data)
+        reconstructed = ForkscoutConfig.from_dict(data)
         assert reconstructed.ai_summary.compact_mode is True

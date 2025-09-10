@@ -1,8 +1,8 @@
-# Forklift Version 2.0 Features Design
+# Forkscout Version 2.0 Features Design
 
 ## Overview
 
-This design document outlines the architecture and implementation approach for Forklift Version 2.0 features. Building upon the solid foundation of Version 1.0's core fork analysis capabilities, Version 2.0 introduces sophisticated reporting, advanced automation, enhanced AI integration, and enterprise-grade features. The design emphasizes modularity, scalability, and backward compatibility while providing significant new value for repository maintainers and development teams.
+This design document outlines the architecture and implementation approach for Forkscout Version 2.0 features. Building upon the solid foundation of Version 1.0's core fork analysis capabilities, Version 2.0 introduces sophisticated reporting, advanced automation, enhanced AI integration, and enterprise-grade features. The design emphasizes modularity, scalability, and backward compatibility while providing significant new value for repository maintainers and development teams.
 
 ## Architecture
 
@@ -652,4 +652,4 @@ class AdvancedTestSuite:
         """Test performance with large repositories"""
 ```
 
-This design provides a comprehensive framework for implementing Forklift Version 2.0 features while maintaining compatibility with the Version 1.0 foundation and ensuring scalability for enterprise use cases.
+This design provides a comprehensive framework for implementing Forkscout Version 2.0 features while maintaining compatibility with the Version 1.0 foundation and ensuring scalability for enterprise use cases.

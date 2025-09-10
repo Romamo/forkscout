@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
-from forklift.analysis.repository_analyzer import RepositoryAnalyzer
-from forklift.github.client import GitHubClient
-from forklift.models import (
+from forkscout.analysis.commit_explanation_engine import CommitExplanationEngine
+from forkscout.analysis.repository_analyzer import RepositoryAnalyzer
+from forkscout.github.client import GitHubClient
+from forkscout.models import (
     AnalysisContext,
     CategoryType,
     Commit,

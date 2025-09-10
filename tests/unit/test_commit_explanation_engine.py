@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.analysis.commit_categorizer import CommitCategorizer
-from forklift.analysis.commit_explanation_engine import CommitExplanationEngine
-from forklift.analysis.explanation_generator import ExplanationGenerator
-from forklift.analysis.impact_assessor import ImpactAssessor
-from forklift.models import (
+from forkscout.analysis.commit_categorizer import CommitCategorizer
+from forkscout.analysis.commit_explanation_engine import CommitExplanationEngine
+from forkscout.analysis.explanation_generator import ExplanationGenerator
+from forkscout.analysis.impact_assessor import ImpactAssessor
+from forkscout.models import (
     AnalysisContext,
     CategoryType,
     Commit,

@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.config.settings import ForkliftConfig, load_config
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.config.settings import ForkscoutConfig, load_config
 from rich.console import Console
 
 

@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pytest
 
-from forklift.analysis.commit_categorizer import CategoryPatterns, CommitCategorizer
-from forklift.models import (
+from forkscout.analysis.commit_categorizer import CategoryPatterns, CommitCategorizer
+from forkscout.models import (
     CategoryType,
     Commit,
     FileChange,

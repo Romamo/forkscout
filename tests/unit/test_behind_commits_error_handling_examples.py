@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 # Imports are now handled by proper test structure
 
-from forklift.github.client import GitHubClient
-from forklift.config import GitHubConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.commit_count_result import CommitCountResult
+from forkscout.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.commit_count_result import CommitCountResult
 from rich.console import Console
 
 

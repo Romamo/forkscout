@@ -5,17 +5,17 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.models.ai_summary import AISummary, AIUsageStats
-from forklift.models.github import Commit, Repository, User
+from forkscout.cli import cli
+from forkscout.models.ai_summary import AISummary, AIUsageStats
+from forkscout.models.github import Commit, Repository, User
 
 
 @pytest.fixture
 def mock_config():
-    """Mock ForkliftConfig with OpenAI API key."""
-    from forklift.config.settings import ForkliftConfig, GitHubConfig
+    """Mock ForkscoutConfig with OpenAI API key."""
+    from forkscout.config.settings import ForkscoutConfig, GitHubConfig
 
-    config = ForkliftConfig(
+    config = ForkscoutConfig(
         github=GitHubConfig(
             token="ghp_1234567890abcdef1234567890abcdef12345678"
         ),
@@ -239,10 +239,10 @@ class TestShowCommitsAISummary:
         from io import StringIO
         from unittest.mock import AsyncMock
 
-        from forklift.cli import _display_ai_summaries_for_commits
-        from forklift.config.settings import ForkliftConfig, GitHubConfig
+        from forkscout.cli import _display_ai_summaries_for_commits
+        from forkscout.config.settings import ForkscoutConfig, GitHubConfig
 
-        config = ForkliftConfig(
+        config = ForkscoutConfig(
             github=GitHubConfig(
                 token="ghp_1234567890abcdef1234567890abcdef12345678"
             ),
@@ -565,10 +565,10 @@ class TestShowCommitsAISummary:
         mock_github_client_class
     ):
         """Test --ai-summary-compact flag with no OpenAI API key."""
-        from forklift.config.settings import ForkliftConfig, GitHubConfig
+        from forkscout.config.settings import ForkscoutConfig, GitHubConfig
 
         # Config without OpenAI API key
-        config_no_key = ForkliftConfig(
+        config_no_key = ForkscoutConfig(
             github=GitHubConfig(
                 token="ghp_1234567890abcdef1234567890abcdef12345678"
             )

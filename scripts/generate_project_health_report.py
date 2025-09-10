@@ -15,7 +15,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from forklift.analysis.project_health_report_generator import ProjectHealthReportGenerator
+from forkscout.analysis.project_health_report_generator import ProjectHealthReportGenerator
 
 
 def setup_logging():
@@ -123,7 +123,7 @@ async def main():
             logger.warning(f"No data loaded for {analysis_type} from {file_path}")
     
     # Create report generator
-    generator = ProjectHealthReportGenerator(project_name="Forklift")
+    generator = ProjectHealthReportGenerator(project_name="Forkscout")
     
     # Generate comprehensive report
     try:

@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.github.exceptions import GitHubRateLimitError
-from forklift.github.rate_limiter import RateLimitHandler
+from forkscout.github.exceptions import GitHubRateLimitError
+from forkscout.github.rate_limiter import RateLimitHandler
 
 
 class TestRateLimitFixes:

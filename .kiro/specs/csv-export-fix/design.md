@@ -103,7 +103,7 @@ try:
 except Exception as e:
     logger.error(f"CSV export failed: {e}")
     logger.debug(f"Fork data structure: {fork_data.keys() if fork_data else 'None'}")
-    raise ForkliftOutputError(f"CSV export failed: {e}")
+    raise ForkscoutOutputError(f"CSV export failed: {e}")
 ```
 
 ## Data Models
@@ -151,13 +151,13 @@ class CSVExportConfig:
 ### 2. CSV Generation Errors
 
 - **Issue**: Fork data cannot be converted to CSV format
-- **Handling**: Log error with data structure details, raise ForkliftOutputError
+- **Handling**: Log error with data structure details, raise ForkscoutOutputError
 - **User Impact**: Clear error message indicating CSV export failure
 
 ### 3. Output Errors
 
 - **Issue**: Cannot write CSV to stdout
-- **Handling**: Raise ForkliftOutputError with Unicode handling
+- **Handling**: Raise ForkscoutOutputError with Unicode handling
 - **User Impact**: Error message about output redirection issues
 
 ## Testing Strategy

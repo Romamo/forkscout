@@ -7,8 +7,8 @@ from pathlib import Path
 import tempfile
 import json
 
-from forklift.analysis.test_coverage_analyzer import TestCoverageAnalyzer, TestCoverageAnalysis
-from forklift.analysis.test_coverage_report_generator import TestCoverageReportGenerator
+from forkscout.analysis.test_coverage_analyzer import TestCoverageAnalyzer, TestCoverageAnalysis
+from forkscout.analysis.test_coverage_report_generator import TestCoverageReportGenerator
 
 
 class TestCoverageAnalysisIntegration:
@@ -160,7 +160,7 @@ class TestCoverageAnalysisIntegration:
         
         mock_coverage_data = {
             "files": {
-                "src/forklift/analysis/module1.py": {
+                "src/forkscout/analysis/module1.py": {
                     "summary": {
                         "covered_lines": 80,
                         "num_statements": 100,
@@ -169,7 +169,7 @@ class TestCoverageAnalysisIntegration:
                     },
                     "missing_lines": [10, 20]
                 },
-                "src/forklift/github/module2.py": {
+                "src/forkscout/github/module2.py": {
                     "summary": {
                         "covered_lines": 90,
                         "num_statements": 100,
@@ -216,7 +216,7 @@ class TestCoverageAnalysisIntegration:
         assert score == 100.0
         
         # Test with some failures
-        from forklift.analysis.test_coverage_analyzer import TestFailure
+        from forkscout.analysis.test_coverage_analyzer import TestFailure
         
         failures = [
             TestFailure("test1", "file1.py", "Assertion Error", "msg1", False),
@@ -288,7 +288,7 @@ class TestCoverageReportGeneratorIntegration:
     def test_markdown_report_generation(self):
         """Test generation of markdown report."""
         # Create a mock analysis
-        from forklift.analysis.test_coverage_analyzer import (
+        from forkscout.analysis.test_coverage_analyzer import (
             TestCoverageAnalysis, TestCoverageMetrics, TestFailure, TestQualityIssue
         )
         
@@ -361,7 +361,7 @@ class TestCoverageReportGeneratorIntegration:
         assert "Forklift" in header
         
         # Test with minimal analysis data
-        from forklift.analysis.test_coverage_analyzer import (
+        from forkscout.analysis.test_coverage_analyzer import (
             TestCoverageAnalysis, TestCoverageMetrics
         )
         

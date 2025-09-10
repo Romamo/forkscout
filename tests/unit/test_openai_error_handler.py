@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import httpx
 
-from forklift.ai.error_handler import OpenAIErrorHandler
-from forklift.models.ai_summary import AIErrorType
+from forkscout.ai.error_handler import OpenAIErrorHandler
+from forkscout.models.ai_summary import AIErrorType
 
 
 class TestOpenAIErrorHandler:

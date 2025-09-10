@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import yaml
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.exceptions import CLIError
+from forkscout.cli import cli
+from forkscout.exceptions import CLIError
 
 
 class TestCLIIntegration:
@@ -216,7 +216,7 @@ class TestCLIIntegration:
                 yaml.dump(config_data, f)
 
             with patch("forklift.cli._run_analysis") as mock_run_analysis:
-                from forklift.cli import CLIError
+                from forkscout.cli import CLIError
                 mock_run_analysis.side_effect = CLIError("GitHub token not configured")
 
                 result = self.runner.invoke(cli, [

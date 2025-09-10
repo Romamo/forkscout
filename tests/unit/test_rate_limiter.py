@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from forklift.github.client import GitHubAPIError, GitHubRateLimitError
-from forklift.github.rate_limiter import CircuitBreaker, RateLimitHandler, RequestBatcher
+from forkscout.github.client import GitHubAPIError, GitHubRateLimitError
+from forkscout.github.rate_limiter import CircuitBreaker, RateLimitHandler, RequestBatcher
 
 
 class TestRateLimitHandler:
@@ -509,7 +509,7 @@ class TestRateLimitHandler:
         """Test user-friendly error messages for authentication errors."""
         handler = RateLimitHandler()
         
-        from forklift.github.exceptions import GitHubAuthenticationError
+        from forkscout.github.exceptions import GitHubAuthenticationError
         exception = GitHubAuthenticationError("Invalid token")
         
         message = handler._get_user_friendly_error_message(exception)
@@ -614,7 +614,7 @@ class TestRateLimitHandler:
         """Test that error logging includes enhanced context and user-friendly messages."""
         handler = RateLimitHandler(max_retries=1, base_delay=0.01)
         
-        from forklift.github.exceptions import GitHubAuthenticationError
+        from forkscout.github.exceptions import GitHubAuthenticationError
         auth_error = GitHubAuthenticationError("Invalid token", status_code=401)
         
         mock_func = AsyncMock(side_effect=auth_error)
@@ -688,7 +688,7 @@ class TestRequestBatcher:
         """Test that adaptive batching reduces batch size when hitting rate limits."""
         batcher = RequestBatcher(batch_size=4, adaptive_batching=True)
         
-        from forklift.github.exceptions import GitHubRateLimitError
+        from forkscout.github.exceptions import GitHubRateLimitError
         rate_limit_error = GitHubRateLimitError("Rate limited", reset_time=int(time.time()) + 60)
         
         # First batch will hit rate limits

@@ -5,9 +5,9 @@ import asyncio
 import io
 import sys
 from unittest.mock import patch, AsyncMock, MagicMock
-from forklift.config.settings import ForkliftConfig, GitHubConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
 
 
 class TestCSVExportIntegration:
@@ -16,7 +16,7 @@ class TestCSVExportIntegration:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github = GitHubConfig(token="test_token")
         return config
 
@@ -415,7 +415,7 @@ class TestCSVExportIntegration:
     async def test_csv_export_error_handling(self, display_service):
         """Test CSV export error handling."""
         from src.forklift.cli import _export_forks_csv
-        from forklift.exceptions import ForkliftOutputError
+        from forkscout.exceptions import ForkscoutOutputError
         
         with patch('forklift.github.fork_list_processor.ForkListProcessor') as mock_processor_class:
             # Setup mock to raise exception
@@ -424,7 +424,7 @@ class TestCSVExportIntegration:
             mock_processor_class.return_value = mock_processor
             
             # Verify exception is properly handled
-            with pytest.raises(ForkliftOutputError) as exc_info:
+            with pytest.raises(ForkscoutOutputError) as exc_info:
                 await _export_forks_csv(
                     display_service,
                     "owner/error-repo",
@@ -445,7 +445,7 @@ class TestCSVExportFlagCompatibility:
     async def test_csv_export_config_with_commits(self):
         """Test CSV export configuration with commit flags."""
         from src.forklift.cli import _export_forks_csv
-        from forklift.reporting.csv_exporter import CSVExportConfig
+        from forkscout.reporting.csv_exporter import CSVExportConfig
         
         display_service = MagicMock()
         display_service.show_fork_data = AsyncMock(return_value={

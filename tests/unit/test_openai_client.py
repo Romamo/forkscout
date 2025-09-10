@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
-from forklift.ai.client import OpenAIClient, OpenAIResponse
-from forklift.models.ai_summary import AISummaryConfig
+from forkscout.ai.client import OpenAIClient, OpenAIResponse
+from forkscout.models.ai_summary import AISummaryConfig
 
 
 class TestOpenAIClient:

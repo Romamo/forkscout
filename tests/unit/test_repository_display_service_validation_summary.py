@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, Mock, patch
 from io import StringIO
 import sys
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.validation_handler import ValidationSummary
-from forklift.models.github import Repository
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.validation_handler import ValidationSummary
+from forkscout.models.github import Repository
 from rich.console import Console
 
 

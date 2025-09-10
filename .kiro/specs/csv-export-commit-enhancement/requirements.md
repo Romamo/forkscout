@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This specification replaces the current CSV export functionality in the Forklift tool to provide better commit information display. Currently, the CSV export includes a single "recent_commits" column that contains concatenated commit data. This enhancement will completely replace that approach by splitting commit information into separate columns (date, SHA, description) and displaying each commit on its own row, while keeping repository information clean and complete on every row.
+This specification replaces the current CSV export functionality in the Forkscout tool to provide better commit information display. Currently, the CSV export includes a single "recent_commits" column that contains concatenated commit data. This enhancement will completely replace that approach by splitting commit information into separate columns (date, SHA, description) and displaying each commit on its own row, while keeping repository information clean and complete on every row.
 
 The enhancement focuses on improving the readability and usability of CSV exports for repository maintainers who need to analyze commit data in spreadsheet applications or other data analysis tools. The new format becomes the default and only CSV export format.
 

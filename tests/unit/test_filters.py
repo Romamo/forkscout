@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from forklift.models.filters import (
+from forkscout.models.filters import (
     BranchInfo,
     ForkDetails,
     ForkDetailsFilter,

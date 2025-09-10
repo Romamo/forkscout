@@ -11,8 +11,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from forklift.analysis.optimization_recommender import OptimizationRecommender
-from forklift.analysis.optimization_report_generator import OptimizationReportGenerator
+from forkscout.analysis.optimization_recommender import OptimizationRecommender
+from forkscout.analysis.optimization_report_generator import OptimizationReportGenerator
 
 
 class TestOptimizationRecommendationsIntegration:
@@ -63,7 +63,7 @@ class TestOptimizationRecommendationsIntegration:
                         "removal_reason": "Temporary or debug file"
                     },
                     {
-                        "path": "src/forklift/cli.py",
+                        "path": "src/forkscout/cli.py",
                         "size_bytes": 150000,
                         "safety_level": "unsafe",
                         "removal_reason": None
@@ -143,21 +143,21 @@ class TestOptimizationRecommendationsIntegration:
                 "timestamp": "2025-09-08T15:19:47.815057"
             },
             "files": {
-                "src/forklift/__init__.py": {
+                "src/forkscout/__init__.py": {
                     "summary": {
                         "covered_lines": 6,
                         "num_statements": 6,
                         "percent_covered": 100.0
                     }
                 },
-                "src/forklift/cli.py": {
+                "src/forkscout/cli.py": {
                     "summary": {
                         "covered_lines": 150,
                         "num_statements": 200,
                         "percent_covered": 75.0
                     }
                 },
-                "src/forklift/analysis/analyzer.py": {
+                "src/forkscout/analysis/analyzer.py": {
                     "summary": {
                         "covered_lines": 80,
                         "num_statements": 120,

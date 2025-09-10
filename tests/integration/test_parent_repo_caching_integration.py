@@ -6,8 +6,8 @@ import pytest_asyncio
 import asyncio
 from unittest.mock import patch, MagicMock
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
 
 
 @pytest.mark.integration
@@ -105,7 +105,7 @@ class TestParentRepositoryCachingIntegration:
             github_client.clear_parent_repo_cache()
             
             # Mock a simple repository for caching
-            from forklift.models.github import Repository
+            from forkscout.models.github import Repository
             
             repo_data = {
                 "id": 1,
@@ -162,7 +162,7 @@ class TestParentRepositoryCachingIntegration:
     async def test_cache_clearing_functionality(self, github_client):
         """Test cache clearing functionality."""
         # Mock and cache some repositories
-        from forklift.models.github import Repository
+        from forkscout.models.github import Repository
         
         repo_data = {
             "id": 1,
@@ -211,7 +211,7 @@ class TestParentRepositoryCachingIntegration:
 
     async def test_concurrent_cache_access(self, github_client):
         """Test that concurrent access to cache is safe."""
-        from forklift.models.github import Repository
+        from forkscout.models.github import Repository
         
         repo_data = {
             "id": 1,

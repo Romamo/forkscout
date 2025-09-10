@@ -118,7 +118,7 @@ class TestProjectHealthReportIntegration:
         # Create test coverage file
         coverage_data = {
             'files': {
-                'src/forklift/analysis/module1.py': {
+                'src/forkscout/analysis/module1.py': {
                     'summary': {
                         'num_statements': 150,
                         'covered_lines': 135,
@@ -127,7 +127,7 @@ class TestProjectHealthReportIntegration:
                         'missing_branches': 3
                     }
                 },
-                'src/forklift/github/client.py': {
+                'src/forkscout/github/client.py': {
                     'summary': {
                         'num_statements': 200,
                         'covered_lines': 170,
@@ -136,7 +136,7 @@ class TestProjectHealthReportIntegration:
                         'missing_branches': 5
                     }
                 },
-                'src/forklift/core/engine.py': {
+                'src/forkscout/core/engine.py': {
                     'summary': {
                         'num_statements': 100,
                         'covered_lines': 85,

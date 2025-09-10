@@ -7,17 +7,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.analysis.fork_commit_status_checker import ForkCommitStatusChecker
-from forklift.cli import cli
-from forklift.display.detailed_commit_display import DetailedCommitDisplay
-from forklift.models.fork_filtering import ForkFilteringConfig
-from forklift.models.fork_qualification import (
+from forkscout.analysis.fork_commit_status_checker import ForkCommitStatusChecker
+from forkscout.cli import cli
+from forkscout.display.detailed_commit_display import DetailedCommitDisplay
+from forkscout.models.fork_filtering import ForkFilteringConfig
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualificationStats,
     QualifiedForksResult,
 )
-from forklift.models.github import Commit, Repository, User
+from forkscout.models.github import Commit, Repository, User
 
 
 class TestSmartForkFilteringEndToEnd:
@@ -26,9 +26,9 @@ class TestSmartForkFilteringEndToEnd:
     @pytest.fixture
     def e2e_config(self):
         """Create configuration for end-to-end testing."""
-        from forklift.config.settings import ForkliftConfig, GitHubConfig
+        from forkscout.config.settings import ForkscoutConfig, GitHubConfig
 
-        return ForkliftConfig(
+        return ForkscoutConfig(
             github=GitHubConfig(token="ghp_1234567890abcdef1234567890abcdef12345678"),
             openai_api_key="sk-test1234567890abcdef1234567890abcdef1234567890abcdef"
         )
@@ -367,7 +367,7 @@ class TestSmartForkFilteringEndToEnd:
             ]
 
             with patch.object(display, "_fetch_commit_details") as mock_fetch:
-                from forklift.display.detailed_commit_display import DetailedCommitInfo
+                from forkscout.display.detailed_commit_display import DetailedCommitInfo
                 mock_fetch.return_value = DetailedCommitInfo(
                     commit=sample_commits_for_active_forks[0],
                     github_url="https://github.com/activedev1/feature-branch-fork/commit/e2e123"

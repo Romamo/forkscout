@@ -5,22 +5,22 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from forklift.analysis.interactive_steps import (
+from forkscout.analysis.interactive_steps import (
     FeatureRankingStep,
     ForkAnalysisStep,
     ForkDiscoveryStep,
     ForkFilteringStep,
     RepositoryDiscoveryStep,
 )
-from forklift.github.client import GitHubClient
-from forklift.models.analysis import (
+from forkscout.github.client import GitHubClient
+from forkscout.models.analysis import (
     Feature,
     FeatureCategory,
     ForkAnalysis,
     ForkMetrics,
     RankedFeature,
 )
-from forklift.models.github import Fork, Repository, User
+from forkscout.models.github import Fork, Repository, User
 
 
 @pytest.fixture

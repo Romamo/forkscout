@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from forklift.models.validation_handler import ValidationHandler, ValidationSummary
+from forkscout.models.validation_handler import ValidationHandler, ValidationSummary
 
 
 class TestValidationSummary:

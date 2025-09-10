@@ -7,14 +7,14 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli, validate_repository_url
-from forklift.config.settings import ForkliftConfig
-from forklift.display.interaction_mode import InteractionMode
-from forklift.exceptions import CLIError, ForkliftValidationError
+from forkscout.cli import cli, validate_repository_url
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.display.interaction_mode import InteractionMode
+from forkscout.exceptions import CLIError, ForkscoutValidationError
 
 
 def create_mock_config():
-    """Create a properly mocked ForkliftConfig for testing."""
+    """Create a properly mocked ForkscoutConfig for testing."""
     mock_config = Mock()
     mock_config.analysis = Mock()
     mock_config.github = Mock()
@@ -77,17 +77,17 @@ class TestRepositoryURLValidation:
 
     def test_validate_invalid_url(self):
         """Test validation of invalid URLs."""
-        with pytest.raises(ForkliftValidationError, match="Invalid GitHub repository URL"):
+        with pytest.raises(ForkscoutValidationError, match="Invalid GitHub repository URL"):
             validate_repository_url("not-a-valid-url")
 
     def test_validate_empty_url(self):
         """Test validation of empty URL."""
-        with pytest.raises(ForkliftValidationError, match="Repository URL is required"):
+        with pytest.raises(ForkscoutValidationError, match="Repository URL is required"):
             validate_repository_url("")
 
     def test_validate_non_github_url(self):
         """Test validation of non-GitHub URLs."""
-        with pytest.raises(ForkliftValidationError, match="Invalid GitHub repository URL"):
+        with pytest.raises(ForkscoutValidationError, match="Invalid GitHub repository URL"):
             validate_repository_url("https://gitlab.com/owner/repo")
 
 
@@ -116,7 +116,7 @@ class TestCLICommands:
     @patch("forklift.cli.load_config")
     def test_cli_with_config_file(self, mock_load_config):
         """Test CLI with configuration file."""
-        mock_config = Mock(spec=ForkliftConfig)
+        mock_config = Mock(spec=ForkscoutConfig)
         mock_load_config.return_value = mock_config
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -493,13 +493,13 @@ class TestRunAnalysis:
     @patch("forklift.cli.FeatureRankingEngine")
     async def test_run_analysis_success(self, mock_ranking_engine, mock_fork_discovery, mock_github_client, mock_repository_analyzer):
         """Test successful analysis run."""
-        from forklift.cli import _run_analysis
-        from forklift.config.settings import ForkliftConfig
-        from forklift.models.analysis import Feature, ForkAnalysis
-        from forklift.models.github import Fork, Repository
+        from forkscout.cli import _run_analysis
+        from forkscout.config.settings import ForkscoutConfig
+        from forkscout.models.analysis import Feature, ForkAnalysis
+        from forkscout.models.github import Fork, Repository
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Create mock repository and forks
@@ -579,13 +579,13 @@ class TestRunAnalysis:
     async def test_run_analysis_with_explanations(self, mock_ranking_engine, mock_fork_discovery, mock_github_client,
                                                  mock_repository_analyzer, mock_categorizer, mock_assessor, mock_generator, mock_explanation_engine):
         """Test successful analysis run with explanations enabled."""
-        from forklift.cli import _run_analysis
-        from forklift.config.settings import ForkliftConfig
-        from forklift.models.analysis import Feature, ForkAnalysis
-        from forklift.models.github import Fork, Repository
+        from forkscout.cli import _run_analysis
+        from forkscout.config.settings import ForkscoutConfig
+        from forkscout.models.analysis import Feature, ForkAnalysis
+        from forkscout.models.github import Fork, Repository
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Create mock repository and forks
@@ -668,10 +668,10 @@ class TestRunAnalysis:
     @pytest.mark.asyncio
     async def test_run_analysis_no_token(self):
         """Test analysis run without GitHub token."""
-        from forklift.cli import CLIError, _run_analysis
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import CLIError, _run_analysis
+        from forkscout.config.settings import ForkscoutConfig
 
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = None
 
         with pytest.raises(CLIError, match="GitHub token not configured"):
@@ -682,10 +682,10 @@ class TestRunAnalysis:
     @patch("forklift.cli.ForkDiscoveryService")
     async def test_run_analysis_discovery_error(self, mock_fork_discovery, mock_github_client):
         """Test analysis run with fork discovery error."""
-        from forklift.cli import CLIError, _run_analysis
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import CLIError, _run_analysis
+        from forkscout.config.settings import ForkscoutConfig
 
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks

@@ -8,15 +8,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.analysis import ForkPreviewItem, ForksPreview
-from forklift.models.fork_qualification import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.analysis import ForkPreviewItem, ForksPreview
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
 )
-from forklift.models.github import RecentCommit
-from forklift.reporting.csv_exporter import CSVExportConfig, CSVExporter
+from forkscout.models.github import RecentCommit
+from forkscout.reporting.csv_exporter import CSVExportConfig, CSVExporter
 
 
 class TestCSVExportPerformance:

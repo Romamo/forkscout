@@ -5,11 +5,11 @@ import time
 
 import pytest
 
-from forklift.analysis.fork_data_collection_engine import ForkDataCollectionEngine
-from forklift.analysis.fork_discovery import ForkDiscoveryService
-from forklift.config.settings import ForkliftConfig, GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.fork_list_processor import ForkListProcessor
+from forkscout.analysis.fork_data_collection_engine import ForkDataCollectionEngine
+from forkscout.analysis.fork_discovery import ForkDiscoveryService
+from forkscout.config.settings import ForkscoutConfig, GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.fork_list_processor import ForkListProcessor
 
 
 class TestForkDataCollectionEndToEnd:
@@ -43,8 +43,8 @@ class TestForkDataCollectionEndToEnd:
 
     @pytest.fixture
     def config(self, github_token):
-        """Create ForkliftConfig for testing."""
-        config = ForkliftConfig()
+        """Create ForkscoutConfig for testing."""
+        config = ForkscoutConfig()
         config.github = GitHubConfig(token=github_token)
         return config
 

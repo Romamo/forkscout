@@ -8,16 +8,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from forklift.exceptions import (
+from forkscout.exceptions import (
     CLIError,
-    ForkliftAuthenticationError,
-    ForkliftConfigurationError,
-    ForkliftNetworkError,
-    ForkliftOutputError,
-    ForkliftUnicodeError,
-    ForkliftValidationError,
+    ForkscoutAuthenticationError,
+    ForkscoutConfigurationError,
+    ForkscoutNetworkError,
+    ForkscoutOutputError,
+    ForkscoutUnicodeError,
+    ForkscoutValidationError,
 )
-from forklift.reporting.csv_output_manager import create_csv_context, create_csv_output_manager
+from forkscout.reporting.csv_output_manager import create_csv_context, create_csv_output_manager
 
 
 class TestCLIErrorHandling:
@@ -25,7 +25,7 @@ class TestCLIErrorHandling:
 
     def test_invalid_repository_url_handling(self):
         """Test handling of invalid repository URLs."""
-        from forklift.cli import validate_repository_url
+        from forkscout.cli import validate_repository_url
         
         invalid_urls = [
             "",
@@ -38,7 +38,7 @@ class TestCLIErrorHandling:
         
         for url in invalid_urls:
             try:
-                with pytest.raises(ForkliftValidationError) as exc_info:
+                with pytest.raises(ForkscoutValidationError) as exc_info:
                     validate_repository_url(url)
                 
                 # Check for various error message patterns
@@ -46,11 +46,11 @@ class TestCLIErrorHandling:
                 assert any(keyword in error_msg for keyword in ["Invalid", "required", "format"]), f"Unexpected error message: {error_msg}"
                 assert exc_info.value.exit_code == 3
             except Exception as e:
-                pytest.fail(f"URL '{url}' should raise ForkliftValidationError but got {type(e).__name__}: {e}")
+                pytest.fail(f"URL '{url}' should raise ForkscoutValidationError but got {type(e).__name__}: {e}")
 
     def test_valid_repository_url_parsing(self):
         """Test parsing of valid repository URLs."""
-        from forklift.cli import validate_repository_url
+        from forkscout.cli import validate_repository_url
         
         valid_urls = [
             ("https://github.com/owner/repo", ("owner", "repo")),
@@ -67,7 +67,7 @@ class TestCLIErrorHandling:
 
     def test_unicode_repository_names(self):
         """Test handling of repository names with Unicode characters."""
-        from forklift.cli import validate_repository_url
+        from forkscout.cli import validate_repository_url
         
         # These should fail validation (GitHub doesn't allow Unicode in repo names)
         unicode_urls = [
@@ -78,7 +78,7 @@ class TestCLIErrorHandling:
         ]
         
         for url in unicode_urls:
-            with pytest.raises(ForkliftValidationError):
+            with pytest.raises(ForkscoutValidationError):
                 validate_repository_url(url)
 
 
@@ -118,7 +118,7 @@ class TestCSVOutputErrorHandling:
         manager = create_csv_output_manager()
         
         # Create data that might cause Unicode issues - use proper data structure
-        from forklift.models.analysis import ForksPreview, ForkPreviewItem
+        from forkscout.models.analysis import ForksPreview, ForkPreviewItem
         
         problematic_data = ForksPreview(
             repository_name="test/repo",
@@ -160,7 +160,7 @@ class TestCSVOutputErrorHandling:
         manager = create_csv_output_manager()
         
         # Use proper data structure
-        from forklift.models.analysis import ForksPreview, ForkPreviewItem
+        from forkscout.models.analysis import ForksPreview, ForkPreviewItem
         
         test_data = ForksPreview(
             repository_name="test/repo",
@@ -180,7 +180,7 @@ class TestCSVOutputErrorHandling:
         )
         
         # Try to write to a directory that doesn't exist or has no permissions
-        with pytest.raises(ForkliftOutputError) as exc_info:
+        with pytest.raises(ForkscoutOutputError) as exc_info:
             manager.export_to_file(test_data, "/nonexistent/directory/file.csv")
         
         assert "Failed to export CSV to file" in str(exc_info.value)
@@ -215,13 +215,13 @@ class TestCSVOutputErrorHandling:
         test_data = [{"name": "test", "value": "data"}]
         
         with patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
-            with pytest.raises(ForkliftOutputError):
+            with pytest.raises(ForkscoutOutputError):
                 with create_csv_context(suppress_progress=True) as manager:
                     # Simulate progress messages
                     print("Progress: Starting export...", file=sys.stderr)
                     
                     # Simulate export failure
-                    with patch.object(manager, '_generate_csv_safely', side_effect=ForkliftOutputError("Export failed")):
+                    with patch.object(manager, '_generate_csv_safely', side_effect=ForkscoutOutputError("Export failed")):
                         manager.export_to_stdout(test_data)
         
         # Error should be properly handled
@@ -234,19 +234,19 @@ class TestNetworkErrorHandling:
 
     def test_github_authentication_error_mapping(self):
         """Test mapping of GitHub authentication errors."""
-        from forklift.github.exceptions import GitHubAuthenticationError
+        from forkscout.github.exceptions import GitHubAuthenticationError
         
         github_error = GitHubAuthenticationError("Invalid token", status_code=401)
         
-        # Should be mapped to ForkliftAuthenticationError
-        forklift_error = ForkliftAuthenticationError(f"GitHub authentication failed: {github_error}")
+        # Should be mapped to ForkscoutAuthenticationError
+        forklift_error = ForkscoutAuthenticationError(f"GitHub authentication failed: {github_error}")
         
         assert forklift_error.exit_code == 5
         assert "GitHub authentication failed" in str(forklift_error)
 
     def test_github_rate_limit_error_mapping(self):
         """Test mapping of GitHub rate limit errors."""
-        from forklift.github.exceptions import GitHubRateLimitError
+        from forkscout.github.exceptions import GitHubRateLimitError
         
         github_error = GitHubRateLimitError(
             "Rate limit exceeded",
@@ -256,15 +256,15 @@ class TestNetworkErrorHandling:
             status_code=403
         )
         
-        # Should be mapped to ForkliftNetworkError
-        forklift_error = ForkliftNetworkError(f"GitHub rate limit exceeded: {github_error}")
+        # Should be mapped to ForkscoutNetworkError
+        forklift_error = ForkscoutNetworkError(f"GitHub rate limit exceeded: {github_error}")
         
         assert forklift_error.exit_code == 4
         assert "GitHub rate limit exceeded" in str(forklift_error)
 
     def test_github_timeout_error_mapping(self):
         """Test mapping of GitHub timeout errors."""
-        from forklift.github.exceptions import GitHubTimeoutError
+        from forkscout.github.exceptions import GitHubTimeoutError
         
         github_error = GitHubTimeoutError(
             "Request timeout",
@@ -272,8 +272,8 @@ class TestNetworkErrorHandling:
             timeout_seconds=30.0
         )
         
-        # Should be mapped to ForkliftNetworkError
-        forklift_error = ForkliftNetworkError(f"Network timeout: {github_error}")
+        # Should be mapped to ForkscoutNetworkError
+        forklift_error = ForkscoutNetworkError(f"Network timeout: {github_error}")
         
         assert forklift_error.exit_code == 4
         assert "Network timeout" in str(forklift_error)
@@ -382,8 +382,8 @@ class TestErrorRecoveryScenarios:
         manager._has_output = True
         
         with patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
-            with patch.object(manager, '_generate_csv_safely', side_effect=ForkliftOutputError("Generation failed")):
-                with pytest.raises(ForkliftOutputError):
+            with patch.object(manager, '_generate_csv_safely', side_effect=ForkscoutOutputError("Generation failed")):
+                with pytest.raises(ForkscoutOutputError):
                     manager.export_to_stdout([{"test": "data"}])
         
         # Should log warning about partial output
@@ -392,7 +392,7 @@ class TestErrorRecoveryScenarios:
 
     def test_unicode_error_recovery(self):
         """Test recovery from Unicode errors."""
-        from forklift.exceptions import ErrorHandler
+        from forkscout.exceptions import ErrorHandler
         
         handler = ErrorHandler(debug=False)
         
@@ -403,14 +403,14 @@ class TestErrorRecoveryScenarios:
             cleaned_text = handler.validate_unicode_text(problematic_text, "test context")
             # Should return cleaned text without raising exception
             assert isinstance(cleaned_text, str)
-        except ForkliftUnicodeError:
+        except ForkscoutUnicodeError:
             # If cleaning fails, should raise appropriate error
             pass
 
     def test_network_timeout_recovery(self):
         """Test recovery from network timeout scenarios."""
         # Simulate network timeout scenario
-        error = ForkliftNetworkError("Connection timeout", operation="fetch_repository")
+        error = ForkscoutNetworkError("Connection timeout", operation="fetch_repository")
         
         assert error.exit_code == 4
         assert error.operation == "fetch_repository"
@@ -427,6 +427,6 @@ class TestErrorRecoveryScenarios:
         ]
         
         for error_msg in config_errors:
-            error = ForkliftConfigurationError(error_msg)
+            error = ForkscoutConfigurationError(error_msg)
             assert error.exit_code == 2
             assert error_msg in str(error)

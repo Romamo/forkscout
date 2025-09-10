@@ -8,7 +8,7 @@ import pytest
 
 from src.forklift.models.cache import CacheConfig
 from src.forklift.storage.analysis_cache import AnalysisCacheManager
-from src.forklift.storage.cache import ForkliftCache
+from src.forklift.storage.cache import ForkscoutCache
 from src.forklift.storage.cache_manager import (
     CacheCleanupConfig,
     CacheManager,
@@ -157,7 +157,7 @@ class TestCacheManager:
     async def test_with_existing_cache_instances(self, temp_cache_config):
         """Test using existing cache instances."""
         # Create cache instances
-        cache = ForkliftCache(temp_cache_config)
+        cache = ForkscoutCache(temp_cache_config)
         await cache.initialize()
 
         analysis_cache = AnalysisCacheManager(cache, temp_cache_config)

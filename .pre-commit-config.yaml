@@ -24,18 +24,18 @@ repos:
         entry: uv run pytest tests/integration/test_cache_integration.py tests/contract/test_cache_contracts.py -v
         language: system
         pass_filenames: false
-        files: ^(src/forklift/storage/|src/forklift/display/|src/forklift/models/).*\.py$
+        files: ^(src/forkscout/storage/|src/forkscout/display/|src/forkscout/models/).*\.py$
 
       - id: cache-validation-tests
         name: Cache Validation Tests
         entry: uv run pytest tests/unit/test_cache_validation.py -v
         language: system
         pass_filenames: false
-        files: ^src/forklift/storage/cache_validation\.py$
+        files: ^src/forkscout/storage/cache_validation\.py$
 
       - id: model-serialization-check
         name: Model Serialization Check
         entry: python scripts/check_model_serialization.py
         language: system
         pass_filenames: false
-        files: ^src/forklift/models/.*\.py$
+        files: ^src/forkscout/models/.*\.py$

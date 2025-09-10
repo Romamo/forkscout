@@ -6,9 +6,9 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from forklift.ai.display_formatter import AISummaryDisplayFormatter
-from forklift.models.ai_summary import AISummary
-from forklift.models.github import Commit, User
+from forkscout.ai.display_formatter import AISummaryDisplayFormatter
+from forkscout.models.ai_summary import AISummary
+from forkscout.models.github import Commit, User
 
 
 @pytest.mark.integration
@@ -160,7 +160,7 @@ class TestAISummaryDisplayIntegration:
 
     def test_usage_statistics_integration(self):
         """Test usage statistics display integration."""
-        from forklift.models.ai_summary import AIUsageStats
+        from forkscout.models.ai_summary import AIUsageStats
 
         console = Console(file=StringIO(), width=120)
         formatter = AISummaryDisplayFormatter(console)

@@ -7,14 +7,14 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
-from forklift.config import GitHubConfig
-from forklift.github.client import (
+from forkscout.config import GitHubConfig
+from forkscout.github.client import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubClient,
     GitHubNotFoundError,
 )
-from forklift.github.rate_limiter import CircuitBreaker, RateLimitHandler
+from forkscout.github.rate_limiter import CircuitBreaker, RateLimitHandler
 
 
 @pytest.fixture

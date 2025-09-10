@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from forklift.ai.client import OpenAIClient, OpenAIResponse
-from forklift.ai.error_handler import OpenAIErrorHandler
-from forklift.ai.summary_engine import AICommitSummaryEngine
-from forklift.models.ai_summary import AISummary, AISummaryConfig, AIUsageStats
-from forklift.models.github import Commit, User
+from forkscout.ai.client import OpenAIClient, OpenAIResponse
+from forkscout.ai.error_handler import OpenAIErrorHandler
+from forkscout.ai.summary_engine import AICommitSummaryEngine
+from forkscout.models.ai_summary import AISummary, AISummaryConfig, AIUsageStats
+from forkscout.models.github import Commit, User
 
 
 class TestAICommitSummaryEngine:

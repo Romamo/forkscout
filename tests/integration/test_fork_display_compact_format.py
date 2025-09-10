@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 from rich.console import Console
 from io import StringIO
 
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.models.github import Repository
-from forklift.models.analysis import ForkPreviewItem, ForksPreview
-from forklift.models.fork_qualification import (
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.models.github import Repository
+from forkscout.models.analysis import ForkPreviewItem, ForksPreview
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
     QualifiedForksResult,
@@ -388,7 +388,7 @@ class TestForkDisplayCompactFormat:
         ]
         
         # Mock filters
-        from forklift.models.filters import PromisingForksFilter
+        from forkscout.models.filters import PromisingForksFilter
         filters = PromisingForksFilter()
         
         # Create display service

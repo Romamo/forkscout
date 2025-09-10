@@ -187,7 +187,7 @@ def _clean_commit_message(self, message: str) -> str:
 1. **Command Line Testing**
    ```bash
    # Test with repository known to have long commit messages
-   uv run forklift show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=10
+   uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --ahead-only --show-commits=10
    
    # Verify no truncation occurs
    # Check that full commit messages are visible

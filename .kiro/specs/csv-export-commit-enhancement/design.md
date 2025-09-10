@@ -2,7 +2,7 @@
 
 ## Overview
 
-The CSV export commit enhancement replaces the existing Forklift CSV export functionality to provide better commit data representation. The design transforms the current single-row-per-fork format into a more granular multi-row format where each commit gets its own row, while maintaining complete repository context on every row.
+The CSV export commit enhancement replaces the existing Forkscout CSV export functionality to provide better commit data representation. The design transforms the current single-row-per-fork format into a more granular multi-row format where each commit gets its own row, while maintaining complete repository context on every row.
 
 This enhancement modifies the existing CSV export system by updating the `CSVExporter` class methods to use the new multi-row format as the default and only behavior.
 

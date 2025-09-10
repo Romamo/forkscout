@@ -4,14 +4,14 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from click.testing import CliRunner
 
-from forklift.cli import cli, _handle_cli_error_with_context, _get_validation_error_exit_code
-from forklift.exceptions import (
-    ForkliftValidationError,
-    ForkliftAuthenticationError,
-    ForkliftNetworkError,
+from forkscout.cli import cli, _handle_cli_error_with_context, _get_validation_error_exit_code
+from forkscout.exceptions import (
+    ForkscoutValidationError,
+    ForkscoutAuthenticationError,
+    ForkscoutNetworkError,
     ErrorHandler
 )
-from forklift.models.validation_handler import ValidationSummary
+from forkscout.models.validation_handler import ValidationSummary
 
 
 class TestCLIErrorHandling:
@@ -20,7 +20,7 @@ class TestCLIErrorHandling:
     def test_handle_cli_error_with_context_validation_error(self):
         """Test enhanced validation error handling."""
         error_handler = Mock(spec=ErrorHandler)
-        error = ForkliftValidationError("repository name validation failed")
+        error = ForkscoutValidationError("repository name validation failed")
         
         _handle_cli_error_with_context(
             error_handler, error, "test context", verbose_validation=True
@@ -32,7 +32,7 @@ class TestCLIErrorHandling:
         enhanced_error = call_args[0][0]
         context = call_args[0][1]
         
-        assert isinstance(enhanced_error, ForkliftValidationError)
+        assert isinstance(enhanced_error, ForkscoutValidationError)
         assert "repository name validation failed" in str(enhanced_error)
         assert "unusual characters" in str(enhanced_error)
         assert "Troubleshooting tips" in str(enhanced_error)
@@ -41,7 +41,7 @@ class TestCLIErrorHandling:
     def test_handle_cli_error_with_context_authentication_error(self):
         """Test enhanced authentication error handling."""
         error_handler = Mock(spec=ErrorHandler)
-        error = ForkliftAuthenticationError("token invalid")
+        error = ForkscoutAuthenticationError("token invalid")
         
         _handle_cli_error_with_context(
             error_handler, error, "test context", verbose_validation=False
@@ -52,7 +52,7 @@ class TestCLIErrorHandling:
         call_args = error_handler.handle_error.call_args
         enhanced_error = call_args[0][0]
         
-        assert isinstance(enhanced_error, ForkliftAuthenticationError)
+        assert isinstance(enhanced_error, ForkscoutAuthenticationError)
         assert "token invalid" in str(enhanced_error)
         assert "forklift configure" in str(enhanced_error)
         assert "permissions" in str(enhanced_error)
@@ -60,7 +60,7 @@ class TestCLIErrorHandling:
     def test_handle_cli_error_with_context_network_error(self):
         """Test enhanced network error handling."""
         error_handler = Mock(spec=ErrorHandler)
-        error = ForkliftNetworkError("connection timeout")
+        error = ForkscoutNetworkError("connection timeout")
         
         _handle_cli_error_with_context(
             error_handler, error, "test context", verbose_validation=False
@@ -71,7 +71,7 @@ class TestCLIErrorHandling:
         call_args = error_handler.handle_error.call_args
         enhanced_error = call_args[0][0]
         
-        assert isinstance(enhanced_error, ForkliftNetworkError)
+        assert isinstance(enhanced_error, ForkscoutNetworkError)
         assert "connection timeout" in str(enhanced_error)
         assert "internet connection" in str(enhanced_error)
         assert "temporary issue" in str(enhanced_error)

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import CLIError, cli
+from forkscout.cli import CLIError, cli
 
 
 class TestShowRepoCommand:
@@ -16,7 +16,7 @@ class TestShowRepoCommand:
         self.runner = CliRunner()
 
     def create_mock_config(self):
-        """Create a properly mocked ForkliftConfig for testing."""
+        """Create a properly mocked ForkscoutConfig for testing."""
         mock_config = Mock()
         mock_config.github = Mock()
         mock_config.logging = Mock()
@@ -149,7 +149,7 @@ class TestShowForksCommand:
         self.runner = CliRunner()
 
     def create_mock_config(self):
-        """Create a properly mocked ForkliftConfig for testing."""
+        """Create a properly mocked ForkscoutConfig for testing."""
         mock_config = Mock()
         mock_config.github = Mock()
         mock_config.logging = Mock()
@@ -299,11 +299,11 @@ class TestShowCommandHelpers:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_show_repository_details_success(self, mock_display_service_class, mock_github_client_class):
         """Test _show_repository_details function success."""
-        from forklift.cli import _show_repository_details
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import _show_repository_details
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -329,11 +329,11 @@ class TestShowCommandHelpers:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_show_repository_details_error(self, mock_display_service_class, mock_github_client_class):
         """Test _show_repository_details function with error."""
-        from forklift.cli import CLIError, _show_repository_details
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import CLIError, _show_repository_details
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -355,11 +355,11 @@ class TestShowCommandHelpers:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_show_forks_summary_success(self, mock_display_service_class, mock_github_client_class):
         """Test _show_forks_summary function success."""
-        from forklift.cli import _show_forks_summary
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import _show_forks_summary
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -403,11 +403,11 @@ class TestShowCommandHelpers:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_show_forks_summary_error(self, mock_display_service_class, mock_github_client_class):
         """Test _show_forks_summary function with error."""
-        from forklift.cli import CLIError, _show_forks_summary
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import CLIError, _show_forks_summary
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -423,8 +423,8 @@ class TestShowCommandHelpers:
         mock_display_service_class.return_value = mock_display_service
 
         # Call function and expect error
-        from forklift.exceptions import ForkliftOutputError
-        with pytest.raises(ForkliftOutputError, match="Failed to display forks data"):
+        from forkscout.exceptions import ForkscoutOutputError
+        with pytest.raises(ForkscoutOutputError, match="Failed to display forks data"):
             await _show_forks_summary(config, "owner/repo", max_forks=None, verbose=False)
 
 
@@ -436,7 +436,7 @@ class TestShowPromisingCommand:
         self.runner = CliRunner()
 
     def create_mock_config(self):
-        """Create a properly mocked ForkliftConfig for testing."""
+        """Create a properly mocked ForkscoutConfig for testing."""
         mock_config = Mock()
         mock_config.github = Mock()
         mock_config.logging = Mock()
@@ -541,7 +541,7 @@ class TestShowForkDetailsCommand:
         self.runner = CliRunner()
 
     def create_mock_config(self):
-        """Create a properly mocked ForkliftConfig for testing."""
+        """Create a properly mocked ForkscoutConfig for testing."""
         mock_config = Mock()
         mock_config.github = Mock()
         mock_config.logging = Mock()
@@ -646,11 +646,11 @@ class TestNewCommandHelpers:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_show_promising_forks_success(self, mock_display_service_class, mock_github_client_class):
         """Test _show_promising_forks function success."""
-        from forklift.cli import _show_promising_forks
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import _show_promising_forks
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -682,12 +682,12 @@ class TestNewCommandHelpers:
     @patch("forklift.analysis.interactive_analyzer.InteractiveAnalyzer")
     async def test_show_fork_details_success(self, mock_analyzer_class, mock_github_client_class):
         """Test _show_fork_details function success."""
-        from forklift.cli import _show_fork_details
-        from forklift.config.settings import ForkliftConfig
-        from forklift.models.filters import ForkDetails
+        from forkscout.cli import _show_fork_details
+        from forkscout.config.settings import ForkscoutConfig
+        from forkscout.models.filters import ForkDetails
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -723,7 +723,7 @@ class TestListForksCommand:
         self.runner = CliRunner()
 
     def create_mock_config(self):
-        """Create a properly mocked ForkliftConfig for testing."""
+        """Create a properly mocked ForkscoutConfig for testing."""
         mock_config = Mock()
         mock_config.github = Mock()
         mock_config.logging = Mock()
@@ -853,11 +853,11 @@ class TestListForksCommand:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_list_forks_preview_success(self, mock_display_service_class, mock_github_client_class):
         """Test _list_forks_preview function success."""
-        from forklift.cli import _list_forks_preview
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import _list_forks_preview
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks
@@ -886,11 +886,11 @@ class TestListForksCommand:
     @patch("forklift.cli.RepositoryDisplayService")
     async def test_list_forks_preview_error(self, mock_display_service_class, mock_github_client_class):
         """Test _list_forks_preview function with error."""
-        from forklift.cli import CLIError, _list_forks_preview
-        from forklift.config.settings import ForkliftConfig
+        from forkscout.cli import CLIError, _list_forks_preview
+        from forkscout.config.settings import ForkscoutConfig
 
         # Setup config
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         config.github.token = "test_token"
 
         # Setup mocks

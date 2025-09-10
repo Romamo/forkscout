@@ -3,8 +3,8 @@
 import os
 import pytest
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
 
 
 class TestBehindCommitsRealGitHubData:
@@ -184,8 +184,8 @@ class TestBehindCommitsRealGitHubData:
     @pytest.mark.asyncio
     async def test_display_service_integration(self, github_client):
         """Test integration with display service formatting."""
-        from forklift.display.repository_display_service import RepositoryDisplayService
-        from forklift.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
+        from forkscout.display.repository_display_service import RepositoryDisplayService
+        from forkscout.models.fork_qualification import CollectedForkData, ForkQualificationMetrics
         from datetime import datetime
         
         display_service = RepositoryDisplayService(github_client)

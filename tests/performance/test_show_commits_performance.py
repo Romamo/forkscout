@@ -6,10 +6,10 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
-from forklift.config.settings import ForkliftConfig
-from forklift.models.github import Repository, Commit, User
-from forklift.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics, QualificationStats
-from forklift.display.repository_display_service import RepositoryDisplayService
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.github import Repository, Commit, User
+from forkscout.models.fork_qualification import QualifiedForksResult, CollectedForkData, ForkQualificationMetrics, QualificationStats
+from forkscout.display.repository_display_service import RepositoryDisplayService
 
 
 class TestShowCommitsPerformance:
@@ -36,7 +36,7 @@ class TestShowCommitsPerformance:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github.token = "test_token"
         config.github.rate_limit_delay = 0.1  # Minimal delay for testing
         return config

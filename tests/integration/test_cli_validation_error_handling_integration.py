@@ -4,8 +4,8 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.models.validation_handler import ValidationSummary
+from forkscout.cli import cli
+from forkscout.models.validation_handler import ValidationSummary
 
 
 class TestCLIValidationErrorHandlingIntegration:

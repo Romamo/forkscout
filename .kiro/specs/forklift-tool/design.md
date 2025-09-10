@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Forklift tool is designed as a modular Python 3.12 application using uv for package management. The system follows a pipeline architecture where data flows through distinct stages: discovery, analysis, ranking, reporting, and optional PR creation. The design emphasizes scalability, maintainability, and robust error handling to manage the complexities of GitHub API interactions and large-scale repository analysis.
+The Forkscout tool is designed as a modular Python 3.12 application using uv for package management. The system follows a pipeline architecture where data flows through distinct stages: discovery, analysis, ranking, reporting, and optional PR creation. The design emphasizes scalability, maintainability, and robust error handling to manage the complexities of GitHub API interactions and large-scale repository analysis.
 
 ## Architecture
 
@@ -275,14 +275,14 @@ The caching system is designed around simplicity and effectiveness using Hishel 
 The existing custom cache system (tasks 9.1-9.2) will be completely replaced with Hishel:
 
 **Removed Components:**
-- `CacheManager` class with complex cache warming and cleanup (~200 lines) - `src/forklift/storage/cache_manager.py`
-- `CacheWarmingConfig` and `CacheCleanupConfig` classes (~100 lines) - `src/forklift/storage/cache_manager.py`
-- `AnalysisCacheManager` for application-level caching (~150 lines) - `src/forklift/storage/analysis_cache.py`
-- Custom SQLite cache implementation (~300 lines) - `src/forklift/storage/cache.py`
-- Cache validation utilities (~50 lines) - `src/forklift/storage/cache_validation.py`
-- Cache data models (~50 lines) - `src/forklift/models/cache.py`
+- `CacheManager` class with complex cache warming and cleanup (~200 lines) - `src/forkscout/storage/cache_manager.py`
+- `CacheWarmingConfig` and `CacheCleanupConfig` classes (~100 lines) - `src/forkscout/storage/cache_manager.py`
+- `AnalysisCacheManager` for application-level caching (~150 lines) - `src/forkscout/storage/analysis_cache.py`
+- Custom SQLite cache implementation (~300 lines) - `src/forkscout/storage/cache.py`
+- Cache validation utilities (~50 lines) - `src/forkscout/storage/cache_validation.py`
+- Cache data models (~50 lines) - `src/forkscout/models/cache.py`
 - Complex cache monitoring and metrics collection (~100 lines)
-- Entire `src/forklift/storage/` directory will be removed
+- Entire `src/forkscout/storage/` directory will be removed
 - Cache-related unit tests (~200 lines) - `tests/unit/test_cache*.py`
 - Cache integration tests (~100 lines) - `tests/integration/test_cache_integration.py`
 
@@ -290,7 +290,7 @@ The existing custom cache system (tasks 9.1-9.2) will be completely replaced wit
 
 **Replaced With:**
 - Hishel HTTP client wrapper for automatic caching (~20 lines)
-- Simple cache configuration in `ForkliftConfig` (~10 lines)
+- Simple cache configuration in `ForkscoutConfig` (~10 lines)
 - Automatic cache management with no manual intervention required
 - HTTP-standard compliant caching behavior
 
@@ -376,7 +376,7 @@ graph TD
 
 #### Data Flow
 
-1. User runs `forklift show-commits <fork-url> --detail`
+1. User runs `forkscout show-commits <fork-url> --detail`
 2. System checks if fork qualification data is available
 3. If available, uses created_at >= pushed_at comparison to determine commit status
 4. If fork has no commits ahead, displays clear message and exits gracefully
@@ -1285,7 +1285,7 @@ class DisplayConfig(BaseModel):
     max_table_width: Optional[int] = None
 ```
 
-This design ensures that the forklift tool provides appropriate output for both interactive use and automated environments while maintaining full functionality in all modes.
+This design ensures that the forkscout tool provides appropriate output for both interactive use and automated environments while maintaining full functionality in all modes.
 
 ## Components and Interfaces
 
@@ -1389,7 +1389,7 @@ class CacheConfig:
     def __init__(
         self,
         enabled: bool = True,
-        storage_path: str = ".forklift_cache",
+        storage_path: str = ".forkscout_cache",
         default_ttl_seconds: int = 1800,  # 30 minutes
         max_size_mb: int = 100
     )
@@ -1944,7 +1944,7 @@ class InteractiveConfig:
     show_detailed_results: bool = True
     enable_step_rollback: bool = True
     save_session_state: bool = True
-    session_state_file: str = ".forklift_session.json"
+    session_state_file: str = ".forkscout_session.json"
 
 @dataclass
 class StepResult:
@@ -2091,7 +2091,7 @@ class CacheConfig:
     log_cache_operations: bool = False
 
 @dataclass
-class ForkliftConfig:
+class ForkscoutConfig:
     github_token: str
     openai_api_key: Optional[str] = None
     min_score_threshold: float = 70.0
@@ -2158,7 +2158,7 @@ class OpenAIErrorHandler:
 
 ### Design Overview
 
-The console formatting compatibility system ensures that the Forklift tool provides clean, readable output across all terminal environments, including those that don't support Rich library formatting or markdown-style bold text.
+The console formatting compatibility system ensures that the Forkscout tool provides clean, readable output across all terminal environments, including those that don't support Rich library formatting or markdown-style bold text.
 
 ### Architecture Components
 
@@ -2265,7 +2265,7 @@ class FormattingConfig:
     @classmethod
     def from_env(cls) -> 'FormattingConfig':
         """Create config from environment variables"""
-        force_plain = os.getenv('FORKLIFT_NO_COLOR', '').lower() in ('1', 'true', 'yes')
+        force_plain = os.getenv('FORKSCOUT_NO_COLOR', '').lower() in ('1', 'true', 'yes')
         return cls(
             force_plain_text=force_plain,
             mode=FormattingMode.PLAIN if force_plain else FormattingMode.AUTO
@@ -2534,9 +2534,9 @@ The system will include comprehensive documentation of evaluation criteria to en
 
 ### Package Structure
 ```
-forklift/
+forkscout/
 ├── src/
-│   └── forklift/
+│   └── forkscout/
 │       ├── __init__.py
 │       ├── cli.py
 │       ├── config/
@@ -2560,54 +2560,54 @@ forklift/
 ### CLI Design
 ```bash
 # Step-by-step analysis commands
-forklift show-repo https://github.com/owner/repo
-forklift list-forks https://github.com/owner/repo
-forklift show-forks https://github.com/owner/repo
-forklift show-promising https://github.com/owner/repo --min-stars 5 --min-commits-ahead 10
-forklift show-fork-details https://github.com/fork-owner/repo
-forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch
-forklift show-commits https://github.com/fork-owner/repo --branch main --limit 20
+forkscout show-repo https://github.com/owner/repo
+forkscout list-forks https://github.com/owner/repo
+forkscout show-forks https://github.com/owner/repo
+forkscout show-promising https://github.com/owner/repo --min-stars 5 --min-commits-ahead 10
+forkscout show-fork-details https://github.com/fork-owner/repo
+forkscout analyze-fork https://github.com/fork-owner/repo --branch feature-branch
+forkscout show-commits https://github.com/fork-owner/repo --branch main --limit 20
 
 # Detailed commit analysis with comprehensive information
-forklift show-commits https://github.com/fork-owner/repo --branch main --detail --limit 10
+forkscout show-commits https://github.com/fork-owner/repo --branch main --detail --limit 10
 
 # Comprehensive batch analysis (existing)
-forklift analyze https://github.com/owner/repo
+forkscout analyze https://github.com/owner/repo
 
 # With commit explanations
-forklift analyze https://github.com/owner/repo --explain
+forkscout analyze https://github.com/owner/repo --explain
 
 # Interactive mode with user confirmation stops
-forklift analyze https://github.com/owner/repo --interactive
+forkscout analyze https://github.com/owner/repo --interactive
 
 # Interactive mode with explanations
-forklift analyze https://github.com/owner/repo --interactive --explain
+forkscout analyze https://github.com/owner/repo --interactive --explain
 
 # Disable caching for fresh data
-forklift analyze https://github.com/owner/repo --disable-cache
+forkscout analyze https://github.com/owner/repo --disable-cache
 
 # Disable cache with explanations and interactive mode
-forklift analyze https://github.com/owner/repo --disable-cache --explain --interactive
+forkscout analyze https://github.com/owner/repo --disable-cache --explain --interactive
 
 # Step-by-step commands with explanations
-forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --explain
-forklift show-commits https://github.com/fork-owner/repo --branch main --limit 20 --explain
+forkscout analyze-fork https://github.com/fork-owner/repo --branch feature-branch --explain
+forkscout show-commits https://github.com/fork-owner/repo --branch main --limit 20 --explain
 
 # Step-by-step commands with cache disabled
-forklift show-forks https://github.com/owner/repo --disable-cache
-forklift analyze-fork https://github.com/fork-owner/repo --branch feature-branch --disable-cache
+forkscout show-forks https://github.com/owner/repo --disable-cache
+forkscout analyze-fork https://github.com/fork-owner/repo --branch feature-branch --disable-cache
 
 # Detailed commit view with filters
-forklift show-commits https://github.com/fork-owner/repo --detail --since 2024-01-01 --author username
+forkscout show-commits https://github.com/fork-owner/repo --detail --since 2024-01-01 --author username
 
 # With configuration
-forklift analyze --config config.yaml --output report.md
+forkscout analyze --config config.yaml --output report.md
 
 # Auto-create PRs
-forklift analyze --auto-pr --min-score 80
+forkscout analyze --auto-pr --min-score 80
 
 # Scheduled analysis
-forklift schedule --cron "0 0 * * 0" --config config.yaml
+forkscout schedule --cron "0 0 * * 0" --config config.yaml
 
 ## Show-Forks Detail Mode Design
 
@@ -3000,11 +3000,11 @@ def analyze(repository_url: str, limit: int):
 #### CLI Help Updates
 ```bash
 # Before
-forklift analyze --help
+forkscout analyze --help
   --max-forks INTEGER RANGE  Maximum number of forks to analyze  [1<=x<=1000]
 
 # After
-forklift analyze --help
+forkscout analyze --help
   --limit INTEGER RANGE      Maximum number of forks to analyze  [1<=x<=1000]
 ```
 
@@ -3243,7 +3243,7 @@ class AheadOnlyConfig:
 #### Compatibility with --detail Flag
 ```bash
 # Combines ahead-only filtering with detailed commit counts
-forklift show-forks repo-url --ahead-only --detail
+forkscout show-forks repo-url --ahead-only --detail
 ```
 - Apply ahead-only filtering first
 - Fetch detailed commit counts only for qualifying forks
@@ -3252,7 +3252,7 @@ forklift show-forks repo-url --ahead-only --detail
 #### Compatibility with --show-commits Flag
 ```bash
 # Shows recent commits only for forks with commits ahead
-forklift show-forks repo-url --ahead-only --show-commits 5
+forkscout show-forks repo-url --ahead-only --show-commits 5
 ```
 - Filter to ahead-only forks first
 - Fetch recent commits only for qualifying forks
@@ -3261,7 +3261,7 @@ forklift show-forks repo-url --ahead-only --show-commits 5
 #### Compatibility with --max-forks Flag
 ```bash
 # Limits display after ahead-only filtering is applied
-forklift show-forks repo-url --ahead-only --max-forks 20
+forkscout show-forks repo-url --ahead-only --max-forks 20
 ```
 - Apply ahead-only filtering first
 - Apply max-forks limit to filtered results
@@ -3447,17 +3447,17 @@ def configure_csv_output_mode():
 
 #### Basic CSV Export
 ```bash
-forklift show-forks owner/repo --csv > forks.csv
+forkscout show-forks owner/repo --csv > forks.csv
 ```
 
 #### Detailed CSV with Commits
 ```bash
-forklift show-forks owner/repo --csv --detail --show-commits 5 > detailed_forks.csv
+forkscout show-forks owner/repo --csv --detail --show-commits 5 > detailed_forks.csv
 ```
 
 #### Filtered CSV Export
 ```bash
-forklift show-forks owner/repo --csv --ahead-only --max-forks 50 > active_forks.csv
+forkscout show-forks owner/repo --csv --ahead-only --max-forks 50 > active_forks.csv
 ```
 
 ### CSV Output Format

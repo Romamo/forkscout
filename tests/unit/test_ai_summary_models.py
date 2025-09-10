@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from forklift.models.ai_summary import (
+from forkscout.models.ai_summary import (
     AIError,
     AIErrorType,
     AISummary,

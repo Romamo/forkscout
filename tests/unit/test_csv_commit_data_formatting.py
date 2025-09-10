@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime
 
-from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
+from forkscout.reporting.csv_exporter import CSVExporter, CSVExportConfig
 
 
 class TestCSVCommitDataFormatting:

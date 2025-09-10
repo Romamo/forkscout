@@ -7,10 +7,10 @@ import respx
 import httpx
 from datetime import datetime, timezone
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.models.github import Repository, RecentCommit
-from forklift.models.commit_count_config import CommitCountConfig
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.models.github import Repository, RecentCommit
+from forkscout.models.commit_count_config import CommitCountConfig
 
 
 class TestCommitCountingPerformance:

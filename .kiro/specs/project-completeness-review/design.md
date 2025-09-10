@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the design for a comprehensive project completeness review of the Forklift GitHub repository fork analysis tool. The review will systematically evaluate all aspects of the project including functionality, code quality, testing, documentation, and overall project health to provide actionable recommendations for improvement.
+This document outlines the design for a comprehensive project completeness review of the Forkscout GitHub repository fork analysis tool. The review will systematically evaluate all aspects of the project including functionality, code quality, testing, documentation, and overall project health to provide actionable recommendations for improvement.
 
 ## Architecture
 

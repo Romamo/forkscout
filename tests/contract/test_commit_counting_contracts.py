@@ -5,9 +5,9 @@ import respx
 import httpx
 from datetime import datetime
 
-from forklift.config import GitHubConfig
-from forklift.github.client import GitHubClient
-from forklift.github.exceptions import GitHubAPIError
+from forkscout.config import GitHubConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.exceptions import GitHubAPIError
 
 
 class TestCommitCountingContracts:

@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from click.testing import CliRunner
 
-from forklift.cli import cli
-from forklift.config.settings import ForkliftConfig
-from forklift.models.github import Fork, Repository, User
-from forklift.models.interactive import (
+from forkscout.cli import cli
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.models.github import Fork, Repository, User
+from forkscout.models.interactive import (
     InteractiveAnalysisResult,
     InteractiveConfig,
     StepResult,
@@ -20,7 +20,7 @@ from forklift.models.interactive import (
 @pytest.fixture
 def sample_config():
     """Create a sample configuration for testing."""
-    return ForkliftConfig(
+    return ForkscoutConfig(
         github={"token": "ghp_1234567890abcdef1234567890abcdef12345678"},
         interactive=InteractiveConfig(
             enabled=True,
@@ -279,7 +279,7 @@ class TestInteractiveCLIMode:
     def test_analyze_interactive_no_github_token(self, mock_load_config):
         """Test analyze command with interactive mode when no GitHub token is configured."""
         # Setup config without token
-        config_without_token = ForkliftConfig(
+        config_without_token = ForkscoutConfig(
             github={"token": None},
             interactive=InteractiveConfig(enabled=True)
         )
@@ -294,8 +294,8 @@ class TestInteractiveCLIMode:
         assert "GitHub token not configured" in result.output
 
     def test_interactive_config_integration(self):
-        """Test that InteractiveConfig is properly integrated into ForkliftConfig."""
-        config = ForkliftConfig()
+        """Test that InteractiveConfig is properly integrated into ForkscoutConfig."""
+        config = ForkscoutConfig()
 
         # Verify interactive config is present with defaults
         assert hasattr(config, "interactive")
@@ -305,7 +305,7 @@ class TestInteractiveCLIMode:
         assert config.interactive.default_choice == "continue"
 
     def test_interactive_config_from_dict(self):
-        """Test creating ForkliftConfig with interactive settings from dictionary."""
+        """Test creating ForkscoutConfig with interactive settings from dictionary."""
         config_data = {
             "github": {"token": "ghp_test123456789012345678901234567890"},
             "interactive": {
@@ -318,7 +318,7 @@ class TestInteractiveCLIMode:
             }
         }
 
-        config = ForkliftConfig.from_dict(config_data)
+        config = ForkscoutConfig.from_dict(config_data)
 
         # Verify interactive config was loaded correctly
         assert config.interactive.enabled == True
@@ -330,7 +330,7 @@ class TestInteractiveCLIMode:
 
     def test_interactive_config_to_yaml(self):
         """Test that interactive config is included in YAML output."""
-        config = ForkliftConfig(
+        config = ForkscoutConfig(
             interactive=InteractiveConfig(
                 enabled=True,
                 confirmation_timeout_seconds=45
@@ -350,7 +350,7 @@ class TestInteractiveCLIMode:
             config_file = Path(temp_dir) / "test_config.yaml"
 
             # Create config with interactive settings
-            original_config = ForkliftConfig(
+            original_config = ForkscoutConfig(
                 github={"token": "ghp_test123456789012345678901234567890"},
                 interactive=InteractiveConfig(
                     enabled=True,
@@ -363,7 +363,7 @@ class TestInteractiveCLIMode:
             original_config.save_to_file(config_file)
 
             # Load config
-            loaded_config = ForkliftConfig.from_file(config_file)
+            loaded_config = ForkscoutConfig.from_file(config_file)
 
             # Verify interactive settings were preserved
             assert loaded_config.interactive.enabled == True

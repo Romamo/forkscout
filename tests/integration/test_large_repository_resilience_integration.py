@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
-from forklift.config import ForkliftConfig
-from forklift.github.client import GitHubClient
-from forklift.github.rate_limiter import CircuitBreakerConfig
+from forkscout.config import ForkscoutConfig
+from forkscout.github.client import GitHubClient
+from forkscout.github.rate_limiter import CircuitBreakerConfig
 
 
 class TestResilientClientIntegration:
@@ -14,7 +14,7 @@ class TestResilientClientIntegration:
     @pytest.mark.asyncio
     async def test_create_resilient_client_without_url(self):
         """Test creating resilient client without repository URL."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         
         client = await GitHubClient.create_resilient_client(config.github)
         
@@ -27,7 +27,7 @@ class TestResilientClientIntegration:
     @pytest.mark.asyncio
     async def test_create_resilient_client_with_custom_config(self):
         """Test creating resilient client with custom circuit breaker config."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         custom_config = CircuitBreakerConfig(
             base_failure_threshold=15,
             large_repo_failure_threshold=30
@@ -47,7 +47,7 @@ class TestResilientClientIntegration:
     @patch('forklift.github.rate_limiter.RepositorySizeDetector.detect_repository_size')
     async def test_create_resilient_client_with_size_detection(self, mock_detect_size):
         """Test creating resilient client with repository size detection."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         mock_detect_size.return_value = 2500  # Very large repository
         
         client = await GitHubClient.create_resilient_client(
@@ -66,7 +66,7 @@ class TestResilientClientIntegration:
     @patch('forklift.github.rate_limiter.RepositorySizeDetector.detect_repository_size')
     async def test_create_resilient_client_size_detection_failure(self, mock_detect_size):
         """Test creating resilient client when size detection fails."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         mock_detect_size.side_effect = Exception("Detection failed")
         
         client = await GitHubClient.create_resilient_client(
@@ -87,11 +87,11 @@ class TestCircuitBreakerIntegration:
     @pytest.mark.asyncio
     async def test_circuit_breaker_failure_classification(self):
         """Test that circuit breaker correctly classifies failures in real usage."""
-        from forklift.github.exceptions import GitHubRateLimitError, GitHubNotFoundError
-        from forklift.github.rate_limiter import CircuitBreakerConfig, FailureType
+        from forkscout.github.exceptions import GitHubRateLimitError, GitHubNotFoundError
+        from forkscout.github.rate_limiter import CircuitBreakerConfig, FailureType
         
         config = CircuitBreakerConfig()
-        client_config = ForkliftConfig()
+        client_config = ForkscoutConfig()
         
         client = await GitHubClient.create_resilient_client(
             client_config.github,
@@ -113,10 +113,10 @@ class TestCircuitBreakerIntegration:
     @pytest.mark.asyncio
     async def test_circuit_breaker_weighted_counting_integration(self):
         """Test weighted failure counting in integrated environment."""
-        from forklift.github.rate_limiter import CircuitBreakerConfig, FailureType
+        from forkscout.github.rate_limiter import CircuitBreakerConfig, FailureType
         
         config = CircuitBreakerConfig(base_failure_threshold=3)  # Low threshold for testing
-        client_config = ForkliftConfig()
+        client_config = ForkscoutConfig()
         
         client = await GitHubClient.create_resilient_client(
             client_config.github,
@@ -148,7 +148,7 @@ class TestCLIIntegration:
     def test_cli_resilience_options_available(self):
         """Test that resilience CLI options are available."""
         from click.testing import CliRunner
-        from forklift.cli import cli
+        from forkscout.cli import cli
         
         runner = CliRunner()
         result = runner.invoke(cli, ['show-forks', '--help'])
@@ -162,7 +162,7 @@ class TestCLIIntegration:
     def test_cli_resilience_options_validation(self):
         """Test that CLI resilience options validate correctly."""
         from click.testing import CliRunner
-        from forklift.cli import cli
+        from forkscout.cli import cli
         
         runner = CliRunner()
         
@@ -190,12 +190,12 @@ class TestEndToEndResilience:
     @patch('forklift.github.client.GitHubClient.get_repository')
     async def test_resilient_client_handles_repository_detection_gracefully(self, mock_get_repo):
         """Test that resilient client handles repository detection failures gracefully."""
-        from forklift.github.exceptions import GitHubAuthenticationError
+        from forkscout.github.exceptions import GitHubAuthenticationError
         
         # Mock repository detection failure
         mock_get_repo.side_effect = GitHubAuthenticationError("Auth failed")
         
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         
         # Should not raise exception, should fall back to default config
         client = await GitHubClient.create_resilient_client(
@@ -212,7 +212,7 @@ class TestEndToEndResilience:
     @pytest.mark.asyncio
     async def test_circuit_breaker_maintains_backward_compatibility(self):
         """Test that enhanced circuit breaker maintains backward compatibility."""
-        config = ForkliftConfig()
+        config = ForkscoutConfig()
         
         # Create client using old-style constructor (should still work)
         client = GitHubClient(config.github)

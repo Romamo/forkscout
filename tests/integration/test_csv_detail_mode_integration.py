@@ -7,11 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from forklift.cli import _export_forks_csv
-from forklift.config.settings import ForkliftConfig
-from forklift.display.repository_display_service import RepositoryDisplayService
-from forklift.github.client import GitHubClient
-from forklift.models.fork_qualification import (
+from forkscout.cli import _export_forks_csv
+from forkscout.config.settings import ForkscoutConfig
+from forkscout.display.repository_display_service import RepositoryDisplayService
+from forkscout.github.client import GitHubClient
+from forkscout.models.fork_qualification import (
     CollectedForkData,
     ForkQualificationMetrics,
 )
@@ -29,7 +29,7 @@ class TestCSVDetailModeIntegration:
     @pytest.fixture
     def mock_config(self):
         """Create a mock configuration."""
-        config = MagicMock(spec=ForkliftConfig)
+        config = MagicMock(spec=ForkscoutConfig)
         config.github = MagicMock()
         config.github.token = "test_token"
         return config

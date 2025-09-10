@@ -9,10 +9,10 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from forklift.models.github import Repository
-from forklift.models.analysis import Feature, ForkAnalysis
-from forklift.models.fork_qualification import ForkQualificationMetrics, QualifiedForksResult, QualificationStats, CollectedForkData
-from forklift.storage.cache_validation import validate_before_cache, CacheValidationError
+from forkscout.models.github import Repository
+from forkscout.models.analysis import Feature, ForkAnalysis
+from forkscout.models.fork_qualification import ForkQualificationMetrics, QualifiedForksResult, QualificationStats, CollectedForkData
+from forkscout.storage.cache_validation import validate_before_cache, CacheValidationError
 
 
 def test_repository_serialization():

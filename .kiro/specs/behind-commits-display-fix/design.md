@@ -2,13 +2,13 @@
 
 ## Overview
 
-This design addresses the missing behind commits display functionality in forklift. The root cause is that while the system correctly extracts the `ahead_by` field from GitHub's compare API, it completely ignores the `behind_by` field. The solution involves updating the data models, GitHub client, and display logic to capture, store, and display behind commit counts alongside ahead commit counts.
+This design addresses the missing behind commits display functionality in forkscout. The root cause is that while the system correctly extracts the `ahead_by` field from GitHub's compare API, it completely ignores the `behind_by` field. The solution involves updating the data models, GitHub client, and display logic to capture, store, and display behind commit counts alongside ahead commit counts.
 
 ## Architecture
 
 ### Current State Analysis
 
-The current implementation in `src/forklift/github/client.py` correctly extracts `ahead_by` but ignores `behind_by`:
+The current implementation in `src/forkscout/github/client.py` correctly extracts `ahead_by` but ignores `behind_by`:
 
 ```python
 # Current implementation (incomplete)

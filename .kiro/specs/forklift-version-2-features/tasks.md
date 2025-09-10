@@ -1,4 +1,4 @@
-# Forklift Version 2.0 Features Implementation Plan
+# Forkscout Version 2.0 Features Implementation Plan
 
 ## Phase 1: Comprehensive Report Generation System
 

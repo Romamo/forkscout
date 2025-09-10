@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design outlines the strategic approach for preparing the Forklift project for the Code with Kiro Hackathon submission. Based on the functionality assessment showing the project is 75% complete with strong core capabilities, the design focuses on polishing existing features, creating compelling demonstration materials, and showcasing sophisticated Kiro usage while moving advanced features to Version 2.0 to ensure a production-ready Version 1.0 submission.
+This design outlines the strategic approach for preparing the Forkscout project for the Code with Kiro Hackathon submission. Based on the functionality assessment showing the project is 75% complete with strong core capabilities, the design focuses on polishing existing features, creating compelling demonstration materials, and showcasing sophisticated Kiro usage while moving advanced features to Version 2.0 to ensure a production-ready Version 1.0 submission.
 
 ## Version Strategy
 
@@ -442,4 +442,4 @@ class NewFeatureIntegrationTests:
    - Spec-driven development effectiveness
    - AI-human collaboration success metrics
 
-This design provides a comprehensive framework for completing the Forklift project and preparing it for a successful hackathon submission that showcases both the tool's capabilities and the sophisticated use of Kiro's development features.
+This design provides a comprehensive framework for completing the Forkscout project and preparing it for a successful hackathon submission that showcases both the tool's capabilities and the sophisticated use of Kiro's development features.

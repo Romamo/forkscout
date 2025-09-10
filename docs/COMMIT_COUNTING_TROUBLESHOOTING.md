@@ -1,10 +1,10 @@
 # Commit Counting Troubleshooting Guide
 
-This guide helps you diagnose and resolve issues related to commit counting in Forklift, particularly when using the `--detail` flag with `show-forks` command.
+This guide helps you diagnose and resolve issues related to commit counting in Forkscout, particularly when using the `--detail` flag with `show-forks` command.
 
 ## Overview
 
-Forklift uses GitHub's compare API to determine how many commits each fork is ahead of the upstream repository. The system has been enhanced to provide accurate commit counts instead of the previous bug where all forks showed "+1" commits.
+Forkscout uses GitHub's compare API to determine how many commits each fork is ahead of the upstream repository. The system has been enhanced to provide accurate commit counts instead of the previous bug where all forks showed "+1" commits.
 
 ## Common Issues and Solutions
 
@@ -21,7 +21,7 @@ Behind commits are only displayed when using the `--detail` flag, which fetches 
 **Solution:**
 Always use the `--detail` flag to see both ahead and behind commits:
 ```bash
-forklift show-forks owner/repo --detail
+forkscout show-forks owner/repo --detail
 ```
 
 **Expected Output:**
@@ -41,12 +41,12 @@ forklift show-forks owner/repo --detail
 This was a bug in versions prior to the commit counting fix where the system used `count=1` parameter and counted the length of the returned commits array instead of using the `ahead_by` field.
 
 **Solution:**
-Update to the latest version of Forklift. The fix uses GitHub's `ahead_by` field from the compare API response for accurate counting.
+Update to the latest version of Forkscout. The fix uses GitHub's `ahead_by` field from the compare API response for accurate counting.
 
 **Verification:**
 ```bash
 # Test with a known repository that has forks with multiple commits
-forklift show-forks sanila2007/youtube-bot-telegram --detail --ahead-only
+forkscout show-forks sanila2007/youtube-bot-telegram --detail --ahead-only
 ```
 
 ### Issue: Commit Counts Show "100+" Instead of Exact Numbers
@@ -63,18 +63,18 @@ The default `--max-commits-count` limit is set to 100 for performance reasons.
 
 1. **Increase the limit for more accuracy:**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 500
+forkscout show-forks owner/repo --detail --max-commits-count 500
 ```
 
 2. **Use unlimited counting (slower but most accurate):**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 0
+forkscout show-forks owner/repo --detail --max-commits-count 0
 ```
 
 3. **Balance accuracy vs performance:**
 ```bash
 # Good for most cases - counts up to 200 commits
-forklift show-forks owner/repo --detail --max-commits-count 200
+forkscout show-forks owner/repo --detail --max-commits-count 200
 ```
 
 ### Issue: Slow Performance When Counting Commits
@@ -89,25 +89,25 @@ forklift show-forks owner/repo --detail --max-commits-count 200
 1. **High commit count limit:**
 ```bash
 # Problem: Unlimited counting on repository with many active forks
-forklift show-forks owner/repo --detail --max-commits-count 0
+forkscout show-forks owner/repo --detail --max-commits-count 0
 
 # Solution: Use reasonable limits
-forklift show-forks owner/repo --detail --max-commits-count 100
+forkscout show-forks owner/repo --detail --max-commits-count 100
 ```
 
 2. **Too many forks being processed:**
 ```bash
 # Problem: Processing hundreds of forks
-forklift show-forks popular/repo --detail
+forkscout show-forks popular/repo --detail
 
 # Solution: Limit the number of forks
-forklift show-forks popular/repo --detail --max-forks 50
+forkscout show-forks popular/repo --detail --max-forks 50
 ```
 
 3. **Network or API issues:**
 ```bash
 # Add verbose output to diagnose
-forklift show-forks owner/repo --detail --verbose
+forkscout show-forks owner/repo --detail --verbose
 ```
 
 ### Issue: "Unknown" Commit Counts
@@ -137,7 +137,7 @@ forklift show-forks owner/repo --detail --verbose
    - **Solution:** Retry the command or check network connection
    ```bash
    # Test with verbose output
-   forklift show-forks owner/repo --detail --verbose
+   forkscout show-forks owner/repo --detail --verbose
    ```
 
 4. **Divergent git histories:**
@@ -164,7 +164,7 @@ forklift show-forks owner/repo --detail --verbose
    - **Solution:** Clear cache or disable caching
    ```bash
    # Disable cache for fresh data
-   forklift show-forks owner/repo --detail --disable-cache
+   forkscout show-forks owner/repo --detail --disable-cache
    ```
 
 3. **API consistency issues:**
@@ -183,21 +183,21 @@ forklift show-forks owner/repo --detail --verbose
 1. **Verify option syntax:**
 ```bash
 # Correct syntax
-forklift show-forks owner/repo --detail --max-commits-count 200
+forkscout show-forks owner/repo --detail --max-commits-count 200
 
 # Incorrect syntax (missing equals sign is OK)
-forklift show-forks owner/repo --detail --max-commits-count=200
+forkscout show-forks owner/repo --detail --max-commits-count=200
 ```
 
 2. **Check for conflicting options:**
 ```bash
 # Some options may override others
-forklift show-forks owner/repo --detail --csv --max-commits-count 200
+forkscout show-forks owner/repo --detail --csv --max-commits-count 200
 ```
 
 3. **Use verbose output to verify configuration:**
 ```bash
-forklift show-forks owner/repo --detail --verbose --max-commits-count 200
+forkscout show-forks owner/repo --detail --verbose --max-commits-count 200
 ```
 
 ## Performance Optimization
@@ -206,25 +206,25 @@ forklift show-forks owner/repo --detail --verbose --max-commits-count 200
 
 **Small repositories (< 50 forks):**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 0
+forkscout show-forks owner/repo --detail --max-commits-count 0
 # Use unlimited counting for complete accuracy
 ```
 
 **Medium repositories (50-200 forks):**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 200
+forkscout show-forks owner/repo --detail --max-commits-count 200
 # Balance accuracy with reasonable performance
 ```
 
 **Large repositories (200+ forks):**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 100 --max-forks 100
+forkscout show-forks owner/repo --detail --max-commits-count 100 --max-forks 100
 # Limit both commit counting and fork processing
 ```
 
 **Very large repositories (500+ forks):**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 50 --max-forks 50 --ahead-only
+forkscout show-forks owner/repo --detail --max-commits-count 50 --max-forks 50 --ahead-only
 # Focus on most relevant forks only
 ```
 
@@ -239,13 +239,13 @@ curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/rate_limit
 **Reduce API calls:**
 ```bash
 # Use ahead-only to skip forks with no commits
-forklift show-forks owner/repo --detail --ahead-only
+forkscout show-forks owner/repo --detail --ahead-only
 
 # Limit fork processing
-forklift show-forks owner/repo --detail --max-forks 25
+forkscout show-forks owner/repo --detail --max-forks 25
 
 # Use lower commit count limits
-forklift show-forks owner/repo --detail --max-commits-count 50
+forkscout show-forks owner/repo --detail --max-commits-count 50
 ```
 
 ## Configuration Best Practices
@@ -262,7 +262,7 @@ echo "GITHUB_TOKEN=your_token_here" >> .env
 ```
 
 2. **Default Configuration:**
-Create `forklift.yaml` with sensible defaults:
+Create `forkscout.yaml` with sensible defaults:
 ```yaml
 github:
   token: ${GITHUB_TOKEN}
@@ -278,24 +278,24 @@ commit_count:
 
 1. **Start with basic analysis:**
 ```bash
-forklift show-forks owner/repo
+forkscout show-forks owner/repo
 ```
 
 2. **Add detail when needed:**
 ```bash
-forklift show-forks owner/repo --detail
+forkscout show-forks owner/repo --detail
 ```
 
 3. **Optimize for your use case:**
 ```bash
 # For accuracy
-forklift show-forks owner/repo --detail --max-commits-count 0
+forkscout show-forks owner/repo --detail --max-commits-count 0
 
 # For speed
-forklift show-forks owner/repo --detail --max-commits-count 50 --max-forks 25
+forkscout show-forks owner/repo --detail --max-commits-count 50 --max-forks 25
 
 # For active forks only
-forklift show-forks owner/repo --detail --ahead-only
+forkscout show-forks owner/repo --detail --ahead-only
 ```
 
 ## Debugging Steps
@@ -304,7 +304,7 @@ forklift show-forks owner/repo --detail --ahead-only
 
 ```bash
 # Test with a simple repository
-forklift show-forks octocat/Hello-World --detail --verbose
+forkscout show-forks octocat/Hello-World --detail --verbose
 ```
 
 ### Step 2: Check Configuration
@@ -313,28 +313,28 @@ forklift show-forks octocat/Hello-World --detail --verbose
 # Verify GitHub token is working
 curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
 
-# Check Forklift configuration
-forklift configure --show
+# Check Forkscout configuration
+forkscout configure --show
 ```
 
 ### Step 3: Test with Known Repository
 
 ```bash
 # Use the repository mentioned in the original bug report
-forklift show-forks sanila2007/youtube-bot-telegram --detail --ahead-only --verbose
+forkscout show-forks sanila2007/youtube-bot-telegram --detail --ahead-only --verbose
 ```
 
 ### Step 4: Isolate the Issue
 
 ```bash
 # Test without detail flag
-forklift show-forks owner/repo
+forkscout show-forks owner/repo
 
 # Test with minimal options
-forklift show-forks owner/repo --detail --max-forks 5
+forkscout show-forks owner/repo --detail --max-forks 5
 
 # Test with unlimited counting
-forklift show-forks owner/repo --detail --max-commits-count 0 --max-forks 5
+forkscout show-forks owner/repo --detail --max-commits-count 0 --max-forks 5
 ```
 
 ### Step 5: Collect Diagnostic Information
@@ -343,20 +343,20 @@ When reporting issues, include:
 
 1. **Command used:**
 ```bash
-forklift show-forks owner/repo --detail --max-commits-count 200 --verbose
+forkscout show-forks owner/repo --detail --max-commits-count 200 --verbose
 ```
 
 2. **Environment information:**
 ```bash
 python --version
-pip show forklift
+pip show forkscout
 echo $GITHUB_TOKEN | cut -c1-10  # First 10 characters only
 ```
 
 3. **Error output:**
 ```bash
 # Capture full output
-forklift show-forks owner/repo --detail --verbose > output.log 2>&1
+forkscout show-forks owner/repo --detail --verbose > output.log 2>&1
 ```
 
 4. **Expected vs actual behavior:**
@@ -387,10 +387,10 @@ export GITHUB_TOKEN=your_token_here
 **Solutions:**
 ```bash
 # Reduce commit count limit
-forklift show-forks owner/repo --detail --max-commits-count 50
+forkscout show-forks owner/repo --detail --max-commits-count 50
 
 # Reduce number of forks processed
-forklift show-forks owner/repo --detail --max-forks 25
+forkscout show-forks owner/repo --detail --max-forks 25
 ```
 
 ### "Invalid commit count configuration"
@@ -413,7 +413,7 @@ forklift show-forks owner/repo --detail --max-forks 25
 
 Include the following information:
 
-1. **Forklift version:** `pip show forklift`
+1. **Forkscout version:** `pip show forkscout`
 2. **Python version:** `python --version`
 3. **Operating system:** `uname -a` (Linux/Mac) or system info (Windows)
 4. **Command used:** Full command with all options
@@ -451,7 +451,7 @@ analysis:
 
 Test with custom config:
 ```bash
-forklift show-forks owner/repo --detail --config test-config.yaml
+forkscout show-forks owner/repo --detail --config test-config.yaml
 ```
 
 ### API Response Analysis
@@ -464,7 +464,7 @@ curl -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/owner/repo/compare/main...fork_owner:main"
 ```
 
-Look for the `ahead_by` field in the response, which should match Forklift's output.
+Look for the `ahead_by` field in the response, which should match Forkscout's output.
 
 ### Performance Profiling
 
@@ -472,10 +472,10 @@ For performance issues:
 
 ```bash
 # Time the command
-time forklift show-forks owner/repo --detail --max-commits-count 100
+time forkscout show-forks owner/repo --detail --max-commits-count 100
 
 # Monitor API calls with verbose output
-forklift show-forks owner/repo --detail --verbose 2>&1 | grep -i "api\|request\|rate"
+forkscout show-forks owner/repo --detail --verbose 2>&1 | grep -i "api\|request\|rate"
 ```
 
 This troubleshooting guide should help you resolve most commit counting issues. If you continue to experience problems after following these steps, please report the issue with the diagnostic information requested above.

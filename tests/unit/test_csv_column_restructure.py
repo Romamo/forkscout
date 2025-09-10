@@ -3,8 +3,8 @@ import pytest
 from unittest.mock import Mock
 from datetime import datetime
 
-from forklift.models.analysis import ForkPreviewItem, ForksPreview
-from forklift.reporting.csv_exporter import CSVExporter, CSVExportConfig
+from forkscout.models.analysis import ForkPreviewItem, ForksPreview
+from forkscout.reporting.csv_exporter import CSVExporter, CSVExportConfig
 
 
 class TestCSVColumnRestructure:
