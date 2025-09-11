@@ -4141,9 +4141,9 @@ def _display_commits_table(
 
     for commit in commits:
         # Truncate long commit messages
-        message = commit.message.split("\n")[0]  # First line only
-        if len(message) > 60:
-            message = message[:57] + "..."
+        message = commit.message # .split("\n")[0]  # First line only
+        # if len(message) > 60:
+        #     message = message[:57] + "..."
 
         # Format changes
         if commit.total_changes > 0:

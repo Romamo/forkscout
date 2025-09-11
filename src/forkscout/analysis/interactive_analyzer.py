@@ -686,9 +686,9 @@ class InteractiveAnalyzer:
 
         for commit in commits:
             # Truncate long commit messages
-            message = commit.message.split("\n")[0]  # First line only
-            if len(message) > 50:
-                message = message[:47] + "..."
+            message = commit.message# .split("\n")[0]  # First line only
+            # if len(message) > 50:
+            #     message = message[:47] + "..."
 
             table.add_row(
                 commit.sha[:7],

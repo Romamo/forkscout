@@ -2803,7 +2803,7 @@ class RepositoryDisplayService:
         table_title = self._build_table_title(sorted_forks, table_context, show_commits)
         fork_table = Table(
             title=table_title,
-            expand=False       # Don't expand to full console width
+            expand=True       # Don't expand to full console width
         )
 
         # 4. Add standard columns with unified widths
