@@ -224,4 +224,4 @@ This comprehensive checklist ensures all aspects of the demo video creation, pro
 - Distribution strategy optimized for impact
 - Emergency procedures and backup plans ready
 
-This checklist ensures a professional, compelling demo video that effectively showcases both Forklift's capabilities and the sophisticated Kiro development process, maximizing impact with hackathon judges and the broader developer community.
+This checklist ensures a professional, compelling demo video that effectively showcases both Forkscout's capabilities and the sophisticated Kiro development process, maximizing impact with hackathon judges and the broader developer community.

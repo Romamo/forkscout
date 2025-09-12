@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides comprehensive instructions for recording and editing the Forklift hackathon demo video, ensuring professional quality and effective demonstration of both the tool and Kiro development process.
+This guide provides comprehensive instructions for recording and editing the Forkscout hackathon demo video, ensuring professional quality and effective demonstration of both the tool and Kiro development process.
 
 ---
 
@@ -44,8 +44,8 @@ export LINES=30
 export GITHUB_TOKEN=your_github_token_here
 
 # Optional for consistent output
-export FORKLIFT_CONFIG_PATH=demo/vscode-demo-config.yaml
-export FORKLIFT_CACHE_DIR=demo/cache
+export FORKSCOUT_CONFIG_PATH=demo/vscode-demo-config.yaml
+export FORKSCOUT_CACHE_DIR=demo/cache
 ```
 
 ---
@@ -286,12 +286,12 @@ demo/
 │   ├── segment2_kiro_showcase.mov
 │   └── audio_narration.wav
 ├── project_files/
-│   ├── forklift_demo.fcpx
+│   ├── forkscout_demo.fcpx
 │   └── assets/
 ├── exports/
-│   ├── forklift_demo_final.mp4
-│   ├── forklift_demo_720p.mp4
-│   └── forklift_demo_preview.mp4
+│   ├── forkscout_demo_final.mp4
+│   ├── forkscout_demo_720p.mp4
+│   └── forkscout_demo_preview.mp4
 └── assets/
     ├── thumbnails/
     └── overlays/
@@ -385,4 +385,4 @@ demo/
 - [ ] Video is publicly accessible to judges
 - [ ] Backup copies available if needed
 
-This comprehensive production guide ensures a professional, compelling demo video that effectively showcases both Forklift's capabilities and the sophisticated use of Kiro in its development.
+This comprehensive production guide ensures a professional, compelling demo video that effectively showcases both Forkscout's capabilities and the sophisticated use of Kiro in its development.

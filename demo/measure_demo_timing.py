@@ -2,7 +2,7 @@
 """
 Demo Repository Timing Measurement Script
 
-This script measures the execution time of Forklift commands on various repositories
+This script measures the execution time of Forkscout commands on various repositories
 to ensure they complete within acceptable timeframes for video recording.
 """
 
@@ -31,7 +31,7 @@ class DemoTimingMeasurer:
         self.results: List[TimingResult] = []
         
     def measure_command(self, command: str, timeout_seconds: int = 60) -> TimingResult:
-        """Measure execution time of a forklift command."""
+        """Measure execution time of a forkscout command."""
         print(f"⏱️  Measuring: {command}")
         
         start_time = time.time()
@@ -111,9 +111,9 @@ class DemoTimingMeasurer:
         
         # Commands to test for each repository
         commands_template = [
-            "uv run forklift show-repo {repo}",
-            "uv run forklift show-forks {repo} --max-forks 8",
-            "uv run forklift analyze {repo} --max-forks 10 --explain",
+            "uv run forkscout show-repo {repo}",
+            "uv run forkscout show-forks {repo} --max-forks 8",
+            "uv run forkscout analyze {repo} --max-forks 10 --explain",
         ]
         
         results_by_repo = {}
@@ -298,24 +298,24 @@ class DemoTimingMeasurer:
 
 def main():
     """Main execution function."""
-    print("🚀 Forklift Demo Repository Timing Measurement")
+    print("🚀 Forkscout Demo Repository Timing Measurement")
     print("=" * 60)
-    print("This script will test the execution time of Forklift commands")
+    print("This script will test the execution time of Forkscout commands")
     print("on various repositories to optimize demo performance.")
     print()
     
-    # Check if forklift is available
+    # Check if forkscout is available
     try:
-        result = subprocess.run(["uv", "run", "forklift", "--version"], 
+        result = subprocess.run(["uv", "run", "forkscout", "--version"], 
                               capture_output=True, text=True, timeout=10)
         if result.returncode != 0:
-            print("❌ Error: Forklift not available or not working")
-            print("Please ensure you can run: uv run forklift --version")
+            print("❌ Error: Forkscout not available or not working")
+            print("Please ensure you can run: uv run forkscout --version")
             sys.exit(1)
         else:
-            print(f"✅ Forklift available: {result.stdout.strip()}")
+            print(f"✅ Forkscout available: {result.stdout.strip()}")
     except Exception as e:
-        print(f"❌ Error checking Forklift availability: {e}")
+        print(f"❌ Error checking Forkscout availability: {e}")
         sys.exit(1)
     
     # Create measurer and run tests

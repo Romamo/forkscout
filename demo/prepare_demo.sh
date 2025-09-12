@@ -1,11 +1,39 @@
 #!/bin/bash
 
-# Demo Preparation Script for Forklift Hackathon Video
+# Demo Preparation Script for Forkscout Hackathon Video
 # This script sets up the environment and validates demo scenarios
+
+echo "uv run forkscout analyze https://github.com/maliayas/github-network-ninja --explain"
+uv run forkscout analyze https://github.com/maliayas/github-network-ninja --explain
+read -s
+
+echo "uv run forkscout show-forks https://github.com/NoMore201/googleplay-api --detail | more"
+uv run forkscout show-forks https://github.com/NoMore201/googleplay-api --detail | more
+read -s
+
+echo
+
+echo "uv run forkscout show-repo https://github.com/aarigs/pandas-ta"
+uv run forkscout show-repo https://github.com/aarigs/pandas-ta
+read -s
+
+echo
+
+# uv run forkscout show-forks https://github.com/aarigs/pandas-ta --detail --ahead-only > demo/outputs/aarigs_pandas-ta_forks.txt
+echo "uv run forkscout show-forks https://github.com/aarigs/pandas-ta --detail --ahead-only | more"
+less demo/outputs/aarigs_pandas-ta_forks.txt
+
+echo
+
+# uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --show-commits=2 > demo/outputs/sanila2007_youtube-bot-telegram_commits.txt
+echo "uv run forkscout show-forks https://github.com/sanila2007/youtube-bot-telegram --detail --show-commits=2"
+less demo/outputs/sanila2007_youtube-bot-telegram_commits.txt
+
+exit
 
 set -e
 
-echo "🎬 Preparing Forklift Demo Environment..."
+echo "🎬 Preparing Forkscout Demo Environment..."
 
 # Check prerequisites
 echo "📋 Checking prerequisites..."
@@ -23,9 +51,9 @@ if [ -z "$GITHUB_TOKEN" ]; then
     exit 1
 fi
 
-# Check if forklift is installed
-if ! uv run forklift --help &> /dev/null; then
-    echo "❌ Forklift is not properly installed."
+# Check if forkscout is installed
+if ! uv run forkscout --help &> /dev/null; then
+    echo "❌ Forkscout is not properly installed."
     echo "Please run: uv sync && uv pip install -e ."
     exit 1
 fi
@@ -59,58 +87,15 @@ if [ "$RATE_LIMIT" -lt 500 ]; then
     echo "⚠️  Warning: Low rate limit remaining ($RATE_LIMIT). Consider waiting or using a different token."
 fi
 
-# Validate demo repositories
-echo "🔍 Validating demo repositories..."
-
-# Test VSCode repository access
-echo "  Testing microsoft/vscode..."
-if ! uv run forklift show-repo https://github.com/microsoft/vscode --config demo/vscode-demo-config.yaml > demo/outputs/vscode-test.txt 2>&1; then
-    echo "❌ VSCode repository test failed. Check demo/outputs/vscode-test.txt for details."
-    exit 1
-fi
-
-# Test FastAPI repository access (backup)
-echo "  Testing tiangolo/fastapi..."
-if ! uv run forklift show-repo https://github.com/tiangolo/fastapi --config demo/fastapi-demo-config.yaml > demo/outputs/fastapi-test.txt 2>&1; then
-    echo "❌ FastAPI repository test failed. Check demo/outputs/fastapi-test.txt for details."
-    exit 1
-fi
-
-echo "✅ Repository validation passed"
-
-# Pre-warm cache for smooth demo execution
-echo "🔥 Pre-warming cache for demo repositories..."
-
-echo "  Pre-warming VSCode data..."
-uv run forklift show-forks https://github.com/microsoft/vscode --max-forks 5 --config demo/vscode-demo-config.yaml > demo/outputs/vscode-forks-cache.txt 2>&1
-
-echo "  Pre-warming FastAPI data..."
-uv run forklift show-forks https://github.com/tiangolo/fastapi --max-forks 5 --config demo/fastapi-demo-config.yaml > demo/outputs/fastapi-forks-cache.txt 2>&1
-
-echo "✅ Cache pre-warming completed"
-
-# Generate sample outputs for reference
-echo "📄 Generating sample outputs for reference..."
-
-# VSCode sample analysis
-echo "  Generating VSCode sample analysis..."
-uv run forklift show-forks https://github.com/microsoft/vscode --detail --max-forks 10 --config demo/vscode-demo-config.yaml > demo/outputs/vscode-sample-analysis.txt 2>&1
-
-# FastAPI sample analysis
-echo "  Generating FastAPI sample analysis..."
-uv run forklift show-forks https://github.com/tiangolo/fastapi --detail --max-forks 8 --config demo/fastapi-demo-config.yaml > demo/outputs/fastapi-sample-analysis.txt 2>&1
-
-echo "✅ Sample outputs generated"
-
 # Validate demo commands
 echo "🧪 Validating demo commands..."
 
 # Test all demo commands with short timeouts
 DEMO_COMMANDS=(
-    "forklift show-repo https://github.com/microsoft/vscode --config demo/vscode-demo-config.yaml"
-    "forklift show-forks https://github.com/microsoft/vscode --detail --max-forks 5 --config demo/vscode-demo-config.yaml"
-    "forklift show-repo https://github.com/tiangolo/fastapi --config demo/fastapi-demo-config.yaml"
-    "forklift show-forks https://github.com/tiangolo/fastapi --ahead-only --max-forks 5 --config demo/fastapi-demo-config.yaml"
+    "forkscout show-repo https://github.com/microsoft/vscode --config demo/vscode-demo-config.yaml"
+    "forkscout show-forks https://github.com/microsoft/vscode --detail --max-forks 5 --config demo/vscode-demo-config.yaml"
+    "forkscout show-repo https://github.com/tiangolo/fastapi --config demo/fastapi-demo-config.yaml"
+    "forkscout show-forks https://github.com/tiangolo/fastapi --ahead-only --max-forks 5 --config demo/fastapi-demo-config.yaml"
 )
 
 for i, cmd in "${!DEMO_COMMANDS[@]}"; do

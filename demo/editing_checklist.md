@@ -1,7 +1,7 @@
 # Video Editing Checklist
 
 ## Overview
-This checklist ensures professional post-production quality for the Forklift hackathon demo video, covering all aspects from initial editing through final export.
+This checklist ensures professional post-production quality for the Forkscout hackathon demo video, covering all aspects from initial editing through final export.
 
 ---
 
@@ -322,4 +322,4 @@ Level: 4.0
 - [ ] Prepare shorter/longer versions if needed
 - [ ] Keep contact info for technical support
 
-This comprehensive editing checklist ensures a professional, polished final video that effectively demonstrates both Forklift's capabilities and the sophisticated Kiro development process.
+This comprehensive editing checklist ensures a professional, polished final video that effectively demonstrates both Forkscout's capabilities and the sophisticated Kiro development process.

@@ -103,7 +103,7 @@ class SimpleTableFormatter:
             Formatted table as string
         """
         headers = ["SHA", "Category", "Impact", "Value", "Description", "GitHub"]
-        column_widths = [8, 12, 8, 8, 50, 10]
+        column_widths = [8, 20, 12, 20, 50, 10]
 
         return self.format_table(
             headers=headers,

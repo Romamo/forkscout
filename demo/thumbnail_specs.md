@@ -11,7 +11,7 @@
 ### Layout Structure
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  [FORKLIFT Logo/Icon]     "FORKLIFT"                   │
+│  [FORKSCOUT Logo/Icon]     "FORKSCOUT"                   │
 │                          (Large, Bold)                  │
 │                                                         │
 │  [Terminal/GitHub UI]    "AI-Powered Fork Analysis"    │
@@ -44,20 +44,20 @@
 ## Content Variations
 
 ### Option 1: Terminal Focus
-- Large terminal window showing Forklift output
-- "FORKLIFT" text overlay
+- Large terminal window showing Forkscout output
+- "FORKSCOUT" text overlay
 - "AI Fork Analysis" subtitle
 - Clean, technical appearance
 
 ### Option 2: Split Screen
 - Left: GitHub repository with many forks
-- Right: Forklift analysis results
+- Right: Forkscout analysis results
 - "Before/After" concept
 - Problem/solution visual
 
 ### Option 3: Dashboard Style
 - Multiple small screenshots showing different features
-- Central "FORKLIFT" branding
+- Central "FORKSCOUT" branding
 - "Complete Fork Analysis Solution"
 - Professional, comprehensive look
 
@@ -80,6 +80,6 @@
 - **AI**: Midjourney, DALL-E with specific prompts
 
 ## File Naming
-- `forklift_thumbnail_v1.jpg`
-- `forklift_thumbnail_final.jpg`
+- `forkscout_thumbnail_v1.jpg`
+- `forkscout_thumbnail_final.jpg`
 - Include version numbers for iterations

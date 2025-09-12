@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test timing for originally specified repositories from Forklift specs.
+Test timing for originally specified repositories from Forkscout specs.
 """
 
 import subprocess
@@ -19,7 +19,7 @@ def test_repo_timing(repo_url: str, repo_name: str) -> dict:
     start_time = time.time()
     try:
         result = subprocess.run(
-            ["uv", "run", "forklift", "show-repo", repo_url],
+            ["uv", "run", "forkscout", "show-repo", repo_url],
             capture_output=True,
             text=True,
             timeout=30
@@ -54,7 +54,7 @@ def test_repo_timing(repo_url: str, repo_name: str) -> dict:
         start_time = time.time()
         try:
             result = subprocess.run(
-                ["uv", "run", "forklift", "show-forks", repo_url, "--max-forks", "5"],
+                ["uv", "run", "forkscout", "show-forks", repo_url, "--max-forks", "5"],
                 capture_output=True,
                 text=True,
                 timeout=45
@@ -84,7 +84,7 @@ def main():
     """Test the originally specified repositories."""
     print("🚀 Testing Originally Specified Repositories")
     print("=" * 60)
-    print("These repositories were mentioned in the original Forklift specs")
+    print("These repositories were mentioned in the original Forkscout specs")
     print()
     
     # Originally specified repositories
@@ -172,7 +172,7 @@ def main():
         print(f"   ⚠️  No repositories completed fast enough for smooth demo")
         print(f"   Consider using pre-cached results or smaller repositories")
     
-    print(f"\n💡 These are the repositories originally specified in Forklift specs")
+    print(f"\n💡 These are the repositories originally specified in Forkscout specs")
     print(f"   Using them shows consistency with the original project vision")
 
 if __name__ == "__main__":

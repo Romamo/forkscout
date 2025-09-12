@@ -157,9 +157,9 @@ class ExplanationFormatter:
 
         # Add columns
         table.add_column("SHA", style="cyan", width=8, no_wrap=True)
-        table.add_column("Category", width=12, no_wrap=True)
-        table.add_column("Impact", width=8, no_wrap=True)
-        table.add_column("Value", width=8, no_wrap=True)
+        table.add_column("Category", width=20, no_wrap=True)
+        table.add_column("Impact", width=12, no_wrap=True)
+        table.add_column("Value", width=12, no_wrap=True)
         table.add_column("Description", style="white", no_wrap=True, overflow="fold")
         table.add_column("GitHub", width=10, no_wrap=True)
 

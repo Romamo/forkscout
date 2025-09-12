@@ -1,7 +1,7 @@
 # Video Upload and Optimization Guide
 
 ## Overview
-This guide provides comprehensive instructions for uploading and optimizing the Forklift demo video for maximum impact with hackathon judges, including platform selection, metadata optimization, and distribution strategy.
+This guide provides comprehensive instructions for uploading and optimizing the Forkscout demo video for maximum impact with hackathon judges, including platform selection, metadata optimization, and distribution strategy.
 
 ---
 
@@ -30,17 +30,17 @@ This guide provides comprehensive instructions for uploading and optimizing the 
 ### Video Metadata
 
 #### Title Options (Choose Best)
-1. **"Forklift: AI-Powered GitHub Fork Analysis Tool - Built with Kiro"**
-2. **"From Idea to Production: Building Forklift with Kiro's Spec-Driven Development"**
-3. **"Forklift Demo: Discover Valuable Features Across GitHub Forks Using AI"**
+1. **"Forkscout: AI-Powered GitHub Fork Analysis Tool - Built with Kiro"**
+2. **"From Idea to Production: Building Forkscout with Kiro's Spec-Driven Development"**
+3. **"Forkscout Demo: Discover Valuable Features Across GitHub Forks Using AI"**
 
 **Recommended:** Option 1 - Clear, searchable, includes key terms
 
 #### Description Template
 ```
-🚀 Forklift: AI-Powered GitHub Fork Analysis Tool
+🚀 Forkscout: AI-Powered GitHub Fork Analysis Tool
 
-Discover valuable features, bug fixes, and improvements hidden across all forks of your GitHub repository. Forklift automatically analyzes thousands of forks, categorizes commits with AI, and ranks features by their potential value to your main repository.
+Discover valuable features, bug fixes, and improvements hidden across all forks of your GitHub repository. Forkscout automatically analyzes thousands of forks, categorizes commits with AI, and ranks features by their potential value to your main repository.
 
 🎯 Key Features:
 • Automatic fork discovery and analysis
@@ -57,9 +57,9 @@ This project demonstrates sophisticated AI-assisted development using Kiro's adv
 • Iterative refinement through multiple spec versions
 • 18 steering files providing continuous guidance
 
-📦 Try Forklift:
-• PyPI: pip install forklift-github
-• GitHub: https://github.com/Romamo/forklift
+📦 Try Forkscout:
+• PyPI: pip install forkscout
+• GitHub: https://github.com/Romamo/forkscout
 • Documentation: Full setup and usage guide in README
 
 🏆 Code with Kiro Hackathon 2024 Submission
@@ -71,12 +71,12 @@ Category: Productivity & Workflow Tools
 
 Timestamps:
 0:00 - Problem Introduction
-0:20 - Forklift Solution Demo
+0:20 - Forkscout Solution Demo
 0:50 - Live Tool Demonstration
 1:40 - Kiro Development Showcase
 2:40 - Results and Impact
 
-Built by the Forklift Team for the Code with Kiro Hackathon 2024
+Built by the Forkscout Team for the Code with Kiro Hackathon 2024
 ```
 
 #### Tags (Maximum 500 characters)
@@ -100,7 +100,7 @@ GitHub, fork analysis, AI, developer tools, open source, repository management, 
 #### Thumbnail Elements
 ```
 Background: Dark gradient or terminal screenshot
-Main Text: "FORKLIFT" (large, bold)
+Main Text: "FORKSCOUT" (large, bold)
 Subtitle: "AI-Powered Fork Analysis"
 Visual: Terminal window or GitHub interface
 Badge: "Built with Kiro" or "Hackathon 2024"
@@ -137,7 +137,7 @@ Colors: Professional blue/green tech theme
 ### Vimeo-Specific Settings
 
 #### Title and Description
-- **Title**: "Forklift: AI-Powered GitHub Fork Analysis - Code with Kiro Hackathon 2024"
+- **Title**: "Forkscout: AI-Powered GitHub Fork Analysis - Code with Kiro Hackathon 2024"
 - **Description**: Shorter, more focused version of YouTube description
 - **Tags**: Same as YouTube but formatted for Vimeo
 - **Category**: Tech/Software
@@ -371,7 +371,7 @@ Colors: Professional blue/green tech theme
 ### Long-term Impact
 - [ ] Contributes to hackathon success
 - [ ] Drives traffic to project resources
-- [ ] Generates interest in Forklift tool
+- [ ] Generates interest in Forkscout tool
 - [ ] Showcases team capabilities effectively
 - [ ] Provides lasting promotional material
 
@@ -402,4 +402,4 @@ Colors: Professional blue/green tech theme
 - [ ] Issue response plan ready
 - [ ] Success metrics defined and tracked
 
-This comprehensive upload guide ensures maximum visibility and impact for the Forklift demo video, effectively showcasing both the tool's capabilities and the sophisticated Kiro development process to hackathon judges.
+This comprehensive upload guide ensures maximum visibility and impact for the Forkscout demo video, effectively showcasing both the tool's capabilities and the sophisticated Kiro development process to hackathon judges.

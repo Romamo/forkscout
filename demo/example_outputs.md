@@ -67,7 +67,7 @@ Total commits ahead: 707 | Average stars: 11,089
 
 ## Commit Analysis with AI Explanations
 
-**Command:** `uv run forklift show-commits https://github.com/elliotberry/github-network-ninja --explain --max-commits 5`
+**Command:** `uv run forkscout show-commits https://github.com/elliotberry/github-network-ninja --explain --max-commits 5`
 
 **Expected Output:**
 ```
@@ -268,13 +268,13 @@ This analysis identified **23 high-value features** across 15 active forks of mi
 
 ## Analysis Methodology
 
-This report was generated using Forklift's AI-powered analysis system, which:
+This report was generated using Forkscout's AI-powered analysis system, which:
 - Automatically categorizes commits by type and impact
 - Assesses value for the main repository using multiple criteria
 - Ranks features by community engagement and code quality
 - Provides actionable integration recommendations
 
-For questions about this analysis, contact the Forklift team or review individual fork repositories for detailed implementation information.
+For questions about this analysis, contact the Forkscout team or review individual fork repositories for detailed implementation information.
 ```
 
 ---
@@ -310,4 +310,4 @@ For questions about this analysis, contact the Forklift team or review individua
 - **Use consistent terminal colors** for professional appearance
 - **Ensure text is readable** at 1080p recording resolution
 
-This reference ensures consistent, professional demo execution that effectively showcases Forklift's capabilities within the allocated time segments.
+This reference ensures consistent, professional demo execution that effectively showcases Forkscout's capabilities within the allocated time segments.

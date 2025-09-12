@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Basic functionality test for Forklift demo environment.
+Basic functionality test for Forkscout demo environment.
 This script tests the core commands that will be used in the demo video.
 """
 
@@ -25,17 +25,17 @@ def run_command(cmd, timeout=30):
         return False, "", f"Command timed out after {timeout} seconds"
 
 def test_basic_commands():
-    """Test basic Forklift commands for demo readiness."""
+    """Test basic Forkscout commands for demo readiness."""
     
-    print("🎬 Testing Forklift Demo Environment")
+    print("🎬 Testing Forkscout Demo Environment")
     print("=" * 50)
     
-    # Test 1: Check if forklift is available
-    success, stdout, stderr = run_command("uv run forklift --version")
+    # Test 1: Check if forkscout is available
+    success, stdout, stderr = run_command("uv run forkscout --version")
     if not success:
-        print("❌ Forklift is not available")
+        print("❌ Forkscout is not available")
         return False
-    print("✅ Forklift is available")
+    print("✅ Forkscout is available")
     
     # Test 2: Check GitHub token
     if not os.getenv('GITHUB_TOKEN'):
@@ -46,7 +46,7 @@ def test_basic_commands():
     # Test 3: Test simple repository info (small repo)
     print("\n📋 Testing repository info command...")
     success, stdout, stderr = run_command(
-        "uv run forklift show-repo https://github.com/octocat/Hello-World", 
+        "uv run forkscout show-repo https://github.com/octocat/Hello-World", 
         timeout=15
     )
     if success and "Hello-World" in stdout:
@@ -58,7 +58,7 @@ def test_basic_commands():
     # Test 4: Test fork listing with very small limit
     print("\n🍴 Testing fork listing command...")
     success, stdout, stderr = run_command(
-        "uv run forklift list-forks https://github.com/octocat/Hello-World", 
+        "uv run forkscout list-forks https://github.com/octocat/Hello-World", 
         timeout=20
     )
     if success:
@@ -69,7 +69,7 @@ def test_basic_commands():
     
     print("\n🎉 Basic functionality test completed successfully!")
     print("\n📝 Demo Environment Status:")
-    print("✅ Forklift CLI is working")
+    print("✅ Forkscout CLI is working")
     print("✅ GitHub API access is functional") 
     print("✅ Basic commands execute without errors")
     print("✅ Ready for demo recording")

@@ -1,8 +1,8 @@
-# Demo Scenarios for Forklift Video
+# Demo Scenarios for Forkscout Video
 
 ## Overview
 
-This document outlines the specific demo scenarios, configurations, and repository selections for the Forklift hackathon demo video. Each scenario is optimized for smooth presentation and compelling demonstration of the tool's capabilities.
+This document outlines the specific demo scenarios, configurations, and repository selections for the Forkscout hackathon demo video. Each scenario is optimized for smooth presentation and compelling demonstration of the tool's capabilities.
 
 ---
 
@@ -11,10 +11,10 @@ This document outlines the specific demo scenarios, configurations, and reposito
 ### Repository Selection
 **Repository:** `https://github.com/maliayas/github-network-ninja`
 **Why this repository:**
-- **Originally Specified**: Mentioned in the original Forklift spec for testing
+- **Originally Specified**: Mentioned in the original Forkscout spec for testing
 - **Ultra-Fast Performance**: Only 2.99s total demo time (measured)
 - **Small Scale**: 3 forks, perfect for smooth video recording
-- **Proven Reliability**: Used during Forklift development and testing
+- **Proven Reliability**: Used during Forkscout development and testing
 - **Guaranteed Success**: No risk of timeouts or failures during recording
 
 ### Demo Configuration
@@ -90,7 +90,7 @@ Top Active Forks of pallets/click:
 
 #### 3. Commit Analysis with AI Explanations (25 seconds)
 ```bash
-uv run forklift show-commits https://github.com/elliotberry/github-network-ninja --explain --max-commits 5
+uv run forkscout show-commits https://github.com/elliotberry/github-network-ninja --explain --max-commits 5
 ```
 
 **Expected Output:**
@@ -183,7 +183,7 @@ uv run forkscout show-forks https://github.com/psf/requests --ahead-only --max-f
 
 #### 3. Detailed Commit Explanation
 ```bash
-uv run forklift show-commits https://github.com/example-user/requests-enhanced --explain
+uv run forkscout show-commits https://github.com/example-user/requests-enhanced --explain
 ```
 
 ---
@@ -388,4 +388,4 @@ Commits Analysis for coder/code-server:
 - [ ] Timing aligns with narration script
 - [ ] Smooth transitions between different commands
 
-This comprehensive demo scenario preparation ensures a professional, compelling demonstration that showcases both Forklift's capabilities and the sophisticated development process enabled by Kiro.
+This comprehensive demo scenario preparation ensures a professional, compelling demonstration that showcases both Forkscout's capabilities and the sophisticated development process enabled by Kiro.

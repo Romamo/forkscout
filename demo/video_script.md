@@ -1,4 +1,4 @@
-# Forklift Demo Video Script
+# Forkscout Demo Video Script
 ## "From Idea to Production: Building with Kiro"
 
 **Duration:** 3 minutes (180 seconds)
@@ -17,23 +17,23 @@
 
 **[Screen: Terminal showing `uv run forkscout analyze` command starting]**
 
-**Narrator:** "Meet Forklift - an AI-powered tool that automatically discovers and ranks valuable features across all forks of your repository."
+**Narrator:** "Meet Forkscout - an AI-powered tool that automatically discovers and ranks valuable features across all forks of your repository."
 
 ---
 
 ### Problem → Solution (0:20 - 0:50) - 30 seconds
 
-**[Screen: Split view - messy fork landscape vs clean Forklift analysis]**
+**[Screen: Split view - messy fork landscape vs clean Forkscout analysis]**
 
 **Narrator:** "The problem is real. Even small repositories can have dozens of forks with valuable improvements, but there's no efficient way to discover them."
 
-**[Screen: Forklift command running]**
+**[Screen: Forkscout command running]**
 
 ```bash
 uv run forkscout analyze https://github.com/maliayas/github-network-ninja --explain
 ```
 
-**Narrator:** "Forklift solves this by automatically scanning all forks, analyzing commits with AI, and ranking features by their potential value to the main repository."
+**Narrator:** "Forkscout solves this by automatically scanning all forks, analyzing commits with AI, and ranking features by their potential value to the main repository."
 
 **[Screen: Results showing categorized commits with explanations]**
 
@@ -45,7 +45,7 @@ uv run forkscout analyze https://github.com/maliayas/github-network-ninja --expl
 
 **[Screen: Terminal showing step-by-step analysis]**
 
-**Narrator:** "Let's see Forklift in action. We'll analyze a real repository with multiple forks."
+**Narrator:** "Let's see Forkscout in action. We'll analyze a real repository with multiple forks."
 
 **[Screen: Command execution]**
 
@@ -55,7 +55,7 @@ uv run forkscout show-repo https://github.com/maliayas/github-network-ninja
 
 **[Screen: Repository overview with statistics]**
 
-**Narrator:** "First, we get an overview - a small but active repository with meaningful forks that demonstrate Forklift's analysis capabilities."
+**Narrator:** "First, we get an overview - a small but active repository with meaningful forks that demonstrate Forkscout's analysis capabilities."
 
 **[Screen: Fork discovery]**
 
@@ -70,12 +70,12 @@ uv run forkscout show-forks https://github.com/maliayas/github-network-ninja --d
 **[Screen: Commit analysis with AI explanations]**
 
 ```bash
-uv run forklift show-commits https://github.com/elliotberry/github-network-ninja --explain
+uv run forkscout show-commits https://github.com/elliotberry/github-network-ninja --explain
 ```
 
 **[Screen: Detailed commit explanations with categories and impact assessment]**
 
-**Narrator:** "For each interesting fork, Forklift analyzes individual commits. AI categorizes them - features, bug fixes, performance improvements - and assesses their value for the main repository."
+**Narrator:** "For each interesting fork, Forkscout analyzes individual commits. AI categorizes them - features, bug fixes, performance improvements - and assesses their value for the main repository."
 
 **[Screen: Generated report]**
 
@@ -129,11 +129,11 @@ uv run forkscout analyze https://github.com/maliayas/github-network-ninja --outp
 
 **[Screen: GitHub repository and PyPI package]**
 
-**Narrator:** "Forklift is available on PyPI for easy installation, with complete source code and documentation. This demonstrates how Kiro enables building sophisticated, production-ready applications through systematic AI-assisted development."
+**Narrator:** "Forkscout is available on PyPI for easy installation, with complete source code and documentation. This demonstrates how Kiro enables building sophisticated, production-ready applications through systematic AI-assisted development."
 
 **[Screen: Call to action with repository URL]**
 
-**Narrator:** "Try Forklift on your own repositories - start with smaller ones like Click or Requests for faster results, then scale up to larger projects."
+**Narrator:** "Try Forkscout on your own repositories - start with smaller ones like Click or Requests for faster results, then scale up to larger projects."
 
 ---
 
@@ -178,15 +178,15 @@ uv run forkscout analyze https://github.com/maliayas/github-network-ninja --outp
 
 ### Primary Demo Repository: `maliayas/github-network-ninja`
 **Why this repository:**
-- **Originally Specified**: This repository was mentioned in the original Forklift spec for testing
+- **Originally Specified**: This repository was mentioned in the original Forkscout spec for testing
 - **Ultra-Fast**: Only 2.99s total demo time (measured)
 - **Small Scale**: 3 forks, perfect for smooth video recording
-- **Proven Performance**: Used during Forklift development
+- **Proven Performance**: Used during Forkscout development
 - **Reliable**: Guaranteed to work without timeouts
 
 ### Backup Repository: `xgboosted/pandas-ta-classic`
 **Why this repository:**
-- **Originally Specified**: Mentioned in the original Forklift spec
+- **Originally Specified**: Mentioned in the original Forkscout spec
 - **Very Fast**: Only 3.38s total demo time (measured)
 - **Good Scale**: 19 forks, shows meaningful fork analysis
 - **Real Value**: Demonstrates actual community contributions

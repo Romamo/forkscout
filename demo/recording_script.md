@@ -1,7 +1,7 @@
 # Recording Script with Timing Cues
 
 ## Overview
-This script provides precise timing, narration, and action cues for recording the Forklift demo video. Each segment includes exact timing, screen actions, and narration text.
+This script provides precise timing, narration, and action cues for recording the Forkscout demo video. Each segment includes exact timing, screen actions, and narration text.
 
 **Total Duration:** 180 seconds (3 minutes)
 
@@ -16,7 +16,7 @@ This script provides precise timing, narration, and action cues for recording th
 - **0:15-0:20**: Show command ready to execute, pause for narration
 
 ### Narration (20 seconds)
-> "Imagine you maintain a popular open source project with hundreds of forks. Hidden in those forks are valuable features, bug fixes, and improvements that could benefit everyone. But manually reviewing hundreds of repositories? That's impossible. Meet Forklift - an AI-powered tool that automatically discovers and ranks valuable features across all forks of your repository."
+> "Imagine you maintain a popular open source project with hundreds of forks. Hidden in those forks are valuable features, bug fixes, and improvements that could benefit everyone. But manually reviewing hundreds of repositories? That's impossible. Meet Forkscout - an AI-powered tool that automatically discovers and ranks valuable features across all forks of your repository."
 
 ### Technical Notes
 - **Font Size**: 14pt for clear readability
@@ -35,7 +35,7 @@ This script provides precise timing, narration, and action cues for recording th
 - **0:40-0:50**: Display initial results with categorized commits
 
 ### Narration (30 seconds)
-> "The problem is real. Popular repositories like FastAPI have over 3,000 forks. Each fork might contain valuable improvements, but there's no efficient way to discover them. Forklift solves this by automatically scanning all forks, analyzing commits with AI, and ranking features by their potential value to the main repository. In seconds, you see exactly what each fork contributes - new features, bug fixes, performance improvements - all ranked and explained."
+> "The problem is real. Popular repositories like FastAPI have over 3,000 forks. Each fork might contain valuable improvements, but there's no efficient way to discover them. Forkscout solves this by automatically scanning all forks, analyzing commits with AI, and ranking features by their potential value to the main repository. In seconds, you see exactly what each fork contributes - new features, bug fixes, performance improvements - all ranked and explained."
 
 ### Technical Notes
 - **Command**: Pre-tested and cached for smooth execution
@@ -54,7 +54,7 @@ This script provides precise timing, narration, and action cues for recording th
 - **0:55-1:05**: Display repository statistics and metrics
 
 #### Narration (15 seconds)
-> "Let's see Forklift in action. We'll analyze a real repository with multiple forks. First, we get an overview - 19,000 forks, but Forklift intelligently filters to focus on active ones with new commits."
+> "Let's see Forkscout in action. We'll analyze a real repository with multiple forks. First, we get an overview - 19,000 forks, but Forkscout intelligently filters to focus on active ones with new commits."
 
 ### 3.2 Fork Discovery (1:05 - 1:25)
 
@@ -69,12 +69,12 @@ This script provides precise timing, narration, and action cues for recording th
 ### 3.3 Commit Analysis (1:25 - 1:40)
 
 #### Screen Actions
-- **1:25-1:28**: Type: `uv run forklift show-commits https://github.com/coder/code-server --explain`
+- **1:25-1:28**: Type: `uv run forkscout show-commits https://github.com/coder/code-server --explain`
 - **1:28-1:32**: Execute command
 - **1:32-1:40**: Show detailed commit explanations with AI categorization
 
 #### Narration (15 seconds)
-> "For each interesting fork, Forklift analyzes individual commits. AI categorizes them - features, bug fixes, performance improvements - and assesses their value for the main repository."
+> "For each interesting fork, Forkscout analyzes individual commits. AI categorizes them - features, bug fixes, performance improvements - and assesses their value for the main repository."
 
 ---
 
@@ -135,7 +135,7 @@ This script provides precise timing, narration, and action cues for recording th
 - **2:55-3:00**: End with repository URL and fade out
 
 ### Narration (20 seconds)
-> "The results speak for themselves: 16 specifications, 150+ tasks completed, comprehensive test coverage, and a production-ready tool that solves a real problem for open source maintainers. Forklift is available on PyPI for easy installation, with complete source code and documentation. This demonstrates how Kiro enables building sophisticated, production-ready applications through systematic AI-assisted development. Try Forklift on your own repositories, and see how Kiro can transform your development process."
+> "The results speak for themselves: 16 specifications, 150+ tasks completed, comprehensive test coverage, and a production-ready tool that solves a real problem for open source maintainers. Forkscout is available on PyPI for easy installation, with complete source code and documentation. This demonstrates how Kiro enables building sophisticated, production-ready applications through systematic AI-assisted development. Try Forkscout on your own repositories, and see how Kiro can transform your development process."
 
 ---
 
@@ -187,7 +187,7 @@ uv run forkscout show-repo https://github.com/maliayas/github-network-ninja
 uv run forkscout show-forks https://github.com/maliayas/github-network-ninja --detail --max-forks 5
 
 # 3. Commit analysis
-uv run forklift show-commits https://github.com/elliotberry/github-network-ninja --explain --max-commits 3
+uv run forkscout show-commits https://github.com/elliotberry/github-network-ninja --explain --max-commits 3
 
 # 4. Full analysis (if time permits)
 uv run forkscout analyze https://github.com/maliayas/github-network-ninja --output demo-report.md --max-forks 5

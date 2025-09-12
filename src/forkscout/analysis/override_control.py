@@ -20,7 +20,7 @@ class OverrideConfig:
         force: bool = False,
         interactive_confirmations: bool = True,
         confirmation_timeout: int = 30,
-        default_choice_on_timeout: bool = False,
+        default_choice_on_timeout: bool = True,
     ):
         """Initialize override configuration.
         

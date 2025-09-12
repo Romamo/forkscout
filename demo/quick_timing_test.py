@@ -65,14 +65,14 @@ def main():
         
         # Test 1: Repository overview (should be very fast)
         duration, success, lines = measure_command(
-            f"uv run forklift show-repo {repo_url}"
+            f"uv run forkscout show-repo {repo_url}"
         )
         repo_results.append(("show-repo", duration, success))
         
         if success and duration < 5:  # Only continue if first command is fast
             # Test 2: Fork discovery (limited to 5 forks for speed)
             duration, success, lines = measure_command(
-                f"uv run forklift show-forks {repo_url} --max-forks 5"
+                f"uv run forkscout show-forks {repo_url} --max-forks 5"
             )
             repo_results.append(("show-forks", duration, success))
         else:
