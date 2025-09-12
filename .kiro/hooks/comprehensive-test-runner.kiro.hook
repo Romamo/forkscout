@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Comprehensive Test Runner",
+  "description": "Runs comprehensive test suite including unit, integration, and contract tests based on changes",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "src/**/*.py",
+      "tests/**/*.py",
+      "pyproject.toml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Code changes detected. Run the comprehensive test suite including unit tests, integration tests, and contract tests. Use `uv run pytest` to execute all tests except billable ones. If any tests fail, analyze the failures and suggest fixes. Also run code quality checks with `uv run ruff check src/ tests/` and `uv run mypy src/` to ensure code quality standards are maintained."
+  }
+}
